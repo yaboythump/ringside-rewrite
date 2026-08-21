@@ -100,8 +100,10 @@ timeline becomes fictional. Then book a coherent multi-event arc with escalating
 payoffs, one major reversal, and lasting consequences. Never fabricate a direct quote or
 imitate a real person's voice. Summarize imagined promos instead of writing quotations.
 Keep every image prompt 16:9, self-contained, and styled as a premium illustrated
-sports-documentary frame rather than a deceptive photograph. Explicitly require no text,
-no official logos, and no watermark.
+sports-documentary frame rather than a deceptive photograph. Image prompts must use
+fictional/composite wrestlers, silhouettes, props, arenas, crowds, contracts, belts, and
+lighting. Never ask for a real wrestler, public figure, celebrity, promoter, commentator,
+recognizable likeness, official logo, trademark, costume, tattoo, typography, or watermark.
 """.strip()
     client = _openai_client()
     response = client.responses.parse(
@@ -124,26 +126,85 @@ def _image_result_bytes(result) -> bytes:
     return base64.b64decode(result.data[0].b64_json)
 
 
+def _safe_wrestling_visual(shot: Shot) -> str:
+    text = f"{shot.scene_title} {shot.location} {shot.music_mood}".casefold()
+    if any(word in text for word in ("contract", "signing", "desk", "office")):
+        return (
+            "a contract signing table in a dramatic wrestling arena, championship belt "
+            "props, microphone stands with blank plates, tense crowd silhouettes"
+        )
+    if any(word in text for word in ("backstage", "hallway", "locker", "monitor")):
+        return (
+            "a smoky backstage corridor with production cases, blank monitors, ring ropes "
+            "visible in the distance, tense fictional performers shown only as silhouettes"
+        )
+    if any(word in text for word in ("entrance", "ramp", "stage", "pyro")):
+        return (
+            "a dramatic entrance ramp with red and gold arena lights, fog, sparks, and "
+            "fictional masked performers seen from behind"
+        )
+    if any(word in text for word in ("press", "media", "conference", "announcement")):
+        return (
+            "a sports press conference setup with blank backdrop panels, microphones, "
+            "camera flashes, and unidentified fictional wrestling executives in silhouette"
+        )
+    if any(word in text for word in ("title", "championship", "belt", "main event")):
+        return (
+            "a championship belt on a pedestal inside a packed fictional wrestling arena, "
+            "red ropes, spotlights, smoke, and cheering crowd silhouettes"
+        )
+    return (
+        "a packed fictional wrestling arena with an empty ring under cinematic spotlights, "
+        "red ropes, smoke, dramatic shadows, and documentary-style tension"
+    )
+
+
+def _image_prompt_for_shot(shot: Shot, *, fallback: bool = False) -> str:
+    if fallback:
+        visual = (
+            "an empty fictional wrestling ring under red and gold spotlights, smoke, "
+            "crowd silhouettes, blank entrance screens, no people in the foreground"
+        )
+    else:
+        visual = _safe_wrestling_visual(shot)
+    return (
+        "Create one 16:9 premium illustrated sports-documentary frame for an unofficial "
+        "fictional professional-wrestling alternate-history episode.\n\n"
+        f"Scene visual setup: {visual}.\n\n"
+        "Use only invented fictional wrestlers, anonymous silhouettes, props, arenas, "
+        "crowds, belts, contracts, lights, and atmosphere. Do not depict, name, imitate, "
+        "or resemble any real person, public figure, celebrity, real wrestler, promoter, "
+        "commentator, or athlete. Do not include official promotion names, logos, "
+        "trademarks, team marks, costume replicas, tattoos, captions, typography, borders, "
+        "or watermarks. The image must look like stylized editorial illustration, not real "
+        "footage or a photo."
+    )
+
+
 def generate_shot_image(settings: Settings, shot: Shot, destination: Path) -> None:
     if not settings.openai_api_key_present:
         raise RuntimeError("OPENAI_API_KEY is required to generate images.")
     destination.parent.mkdir(parents=True, exist_ok=True)
     client = _openai_client()
-    prompt = (
-        f"{shot.image_prompt.strip()}\n\n"
-        "Output intent: one clearly stylized 16:9 editorial sports-history illustration "
-        "for an unofficial fantasy-booking documentary. Public performers may be "
-        "recognizable, but the image must look illustrated rather than like real footage. "
-        "Do not render captions, typography, official promotion logos, trademarks, "
-        "borders, or watermarks."
-    )
-    result = client.images.generate(
-        model=settings.image_model,
-        prompt=prompt,
-        size=settings.channel.get("production", {}).get("image_size", "1536x1024"),
-        quality=settings.channel.get("production", {}).get("image_quality", "medium"),
-        output_format="png",
-    )
+    image_options = {
+        "model": settings.image_model,
+        "size": settings.channel.get("production", {}).get("image_size", "1536x1024"),
+        "quality": settings.channel.get("production", {}).get("image_quality", "medium"),
+        "output_format": "png",
+    }
+    try:
+        result = client.images.generate(
+            prompt=_image_prompt_for_shot(shot),
+            **image_options,
+        )
+    except Exception as exc:
+        message = str(exc).casefold()
+        if "moderation" not in message and "safety" not in message:
+            raise
+        result = client.images.generate(
+            prompt=_image_prompt_for_shot(shot, fallback=True),
+            **image_options,
+        )
     destination.write_bytes(_image_result_bytes(result))
 
 
