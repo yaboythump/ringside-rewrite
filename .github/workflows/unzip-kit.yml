@@ -20,9 +20,7 @@ jobs:
           import zipfile
 
           root = Path.cwd()
-          zips = list(root.glob("Ringside-Rewrite-iPhone-Cloud-Kit-v1.0.zip"))
-          if not zips:
-              zips = list(root.glob("*.zip"))
+          zips = list(root.glob("*.zip"))
           if not zips:
               raise SystemExit("No zip file found in repo root.")
 
@@ -39,12 +37,15 @@ jobs:
               raise SystemExit("Could not find ringside-rewrite folder inside zip.")
 
           for item in source.iterdir():
+              if item.name == ".github":
+                  continue
               target = root / item.name
               if item.is_dir():
                   shutil.copytree(item, target, dirs_exist_ok=True)
               else:
                   shutil.copy2(item, target)
 
+          zips[0].unlink()
           shutil.rmtree(extract_dir)
           PY
 
