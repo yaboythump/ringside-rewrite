@@ -1,0 +1,65 @@
+[channel]
+name = "RINGSIDE REWRITE"
+handle_hint = "@RingsideRewrite"
+tagline = "Wrestling History. Booked Differently."
+category_id = "24"
+default_language = "en"
+timezone = "America/New_York"
+synthetic_media = true
+made_for_kids = false
+
+[format]
+niche = "cinematic what-if fantasy booking built from documented professional-wrestling history"
+long_form_target_minutes = 9
+shorts_per_episode = 3
+content_rating = "TV-14 sports-entertainment tone without graphic gore"
+voice_style = "confident Black male sports-documentary narrator; conversational, dramatic, and controlled; never imitate a real wrestler, commentator, or announcer"
+
+[brand]
+palette = ["#050505", "#18191C", "#D5A83E", "#D8DADD", "#9D111B"]
+avatar = "assets/ringside-rewrite-avatar-youtube.png"
+banner = "assets/ringside-rewrite-banner-youtube.png"
+brand_reference = "assets/ringside-rewrite-logo-master.png"
+pilot_thumbnail = "assets/pilot-thumbnail-youtube.png"
+
+[production]
+mode = "pilot"
+min_shots = 24
+max_shots = 32
+image_size = "1536x1024"
+image_quality = "medium"
+video_width = 1920
+video_height = 1080
+fps = 30
+caption_style = "bottom_center"
+music_volume = 0.08
+
+[quality]
+min_words = 1050
+max_words = 1700
+max_recent_similarity = 0.48
+max_repeated_opening_words = 8
+min_distinct_locations = 4
+minimum_source_notes = 2
+subject_cooldown_episodes = 3
+require_ai_disclosure = true
+require_original_story = true
+require_hypothetical_booking = true
+require_factual_baseline = true
+forbid_real_person_impersonation = true
+
+[approval]
+required = true
+marker_filename = ".approved"
+private_until_approved = true
+
+[schedule]
+long_form_days = ["tue", "thu", "sat"]
+long_form_time = "12:00"
+shorts_offset_days = [1, 2, 3]
+
+[youtube]
+default_privacy = "private"
+description_footer = "RINGSIDE REWRITE is an unofficial fan-made fantasy-booking channel. The documented starting point is separated from the fictional rewrite. Visuals and narration include AI-generated elements. This channel is not affiliated with WWE, AEW, TNA, NJPW, or any wrestling promotion."
+tags = ["wrestling what if", "fantasy booking", "wrestling history", "pro wrestling", "Ringside Rewrite", "alternate wrestling history"]
+

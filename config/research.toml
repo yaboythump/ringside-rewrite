@@ -1,0 +1,17 @@
+[research]
+web_search_enabled = true
+external_web_access = true
+minimum_sources = 2
+prefer_primary_sources = true
+source_priority = [
+  "official promotion sites and corporate releases",
+  "performer interviews and autobiographical material",
+  "established wrestling journalism",
+]
+rules = [
+  "Verify the real-world cutoff before writing the hypothetical timeline.",
+  "Never present fantasy-booked events, dialogue, injuries, contracts, or motives as fact.",
+  "Do not invent direct quotations from a real person.",
+  "Use at least two working source URLs for the factual baseline.",
+  "Treat rumors as rumors and omit unsupported allegations.",
+]

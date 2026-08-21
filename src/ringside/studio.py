@@ -1,0 +1,192 @@
+from __future__ import annotations
+
+import base64
+import json
+import random
+from pathlib import Path
+
+from .config import Settings
+from .models import EpisodePlan, Shot
+
+
+def _openai_client():
+    try:
+        from openai import OpenAI
+    except ImportError as exc:
+        raise RuntimeError("Install the project dependencies with: pip install -e .") from exc
+    return OpenAI()
+
+
+def _research_brief(settings: Settings) -> str:
+    return json.dumps(settings.research, indent=2)
+
+
+def research_episode(settings: Settings, premise: str) -> str:
+    """Build a sourced factual cutoff before any fantasy booking is written."""
+    if not settings.openai_api_key_present:
+        raise RuntimeError("OPENAI_API_KEY is required to research an episode.")
+    research = settings.research.get("research", {})
+    if not research.get("web_search_enabled", True):
+        raise RuntimeError("Web research is required for real-person fantasy booking.")
+    client = _openai_client()
+    response = client.responses.create(
+        model=settings.text_model,
+        reasoning={"effort": "medium"},
+        tools=[
+            {
+                "type": "web_search",
+                "external_web_access": bool(
+                    research.get("external_web_access", True)
+                ),
+            }
+        ],
+        tool_choice="required",
+        input=(
+            "Research the documented professional-wrestling history needed for this "
+            f"fantasy-booking premise: {premise}\n\n"
+            "Return a compact fact brief with: (1) the exact real-world cutoff, "
+            "(2) four to eight verified facts, (3) at least two working source URLs, "
+            "and (4) any uncertainty that the writer must avoid presenting as fact. "
+            "Prefer official promotion/corporate sources and direct interviews. Do not "
+            "invent quotations, contract details, private motives, injuries, or rumors. "
+            "Clearly label everything after the cutoff as hypothetical."
+        ),
+    )
+    brief = response.output_text.strip()
+    if not brief:
+        raise RuntimeError("Web research returned an empty factual brief.")
+    return brief
+
+
+def generate_episode_plan(
+    settings: Settings,
+    theme: str | None = None,
+    recent_plans: list[EpisodePlan] | None = None,
+) -> EpisodePlan:
+    if not settings.openai_api_key_present:
+        raise RuntimeError("OPENAI_API_KEY is required to generate a new episode.")
+    system_prompt = (settings.root / "prompts" / "episode_system.md").read_text(
+        encoding="utf-8"
+    )
+    selected_theme = theme or random.choice(
+        (settings.root / "prompts" / "idea_seeds.txt").read_text(encoding="utf-8").splitlines()
+    ).strip()
+    prior = recent_plans or []
+    research_brief = research_episode(settings, selected_theme)
+    recent_summary = [
+        {
+            "title": item.episode_title,
+            "subjects": item.primary_subjects,
+            "theme": item.theme,
+        }
+        for item in prior[-12:]
+    ]
+    user_prompt = f"""
+Create the next RINGSIDE REWRITE episode.
+
+What-if premise: {selected_theme}
+
+Documented research brief:
+{research_brief}
+
+Recent episodes and subjects to avoid repeating:
+{json.dumps(recent_summary, indent=2)}
+
+Research and sourcing rules:
+{_research_brief(settings)}
+
+Begin with a short documented setup and audibly announce the exact moment where the
+timeline becomes fictional. Then book a coherent multi-event arc with escalating stakes,
+payoffs, one major reversal, and lasting consequences. Never fabricate a direct quote or
+imitate a real person's voice. Summarize imagined promos instead of writing quotations.
+Keep every image prompt 16:9, self-contained, and styled as a premium illustrated
+sports-documentary frame rather than a deceptive photograph. Explicitly require no text,
+no official logos, and no watermark.
+""".strip()
+    client = _openai_client()
+    response = client.responses.parse(
+        model=settings.text_model,
+        reasoning={"effort": "high"},
+        input=[
+            {"role": "developer", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        text_format=EpisodePlan,
+    )
+    if response.output_parsed is None:
+        raise RuntimeError("The model did not return a valid episode plan.")
+    return response.output_parsed
+
+
+def _image_result_bytes(result) -> bytes:
+    if not result.data or not result.data[0].b64_json:
+        raise RuntimeError("The image API returned no image bytes.")
+    return base64.b64decode(result.data[0].b64_json)
+
+
+def generate_shot_image(settings: Settings, shot: Shot, destination: Path) -> None:
+    if not settings.openai_api_key_present:
+        raise RuntimeError("OPENAI_API_KEY is required to generate images.")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    client = _openai_client()
+    prompt = (
+        f"{shot.image_prompt.strip()}\n\n"
+        "Output intent: one clearly stylized 16:9 editorial sports-history illustration "
+        "for an unofficial fantasy-booking documentary. Public performers may be "
+        "recognizable, but the image must look illustrated rather than like real footage. "
+        "Do not render captions, typography, official promotion logos, trademarks, "
+        "borders, or watermarks."
+    )
+    result = client.images.generate(
+        model=settings.image_model,
+        prompt=prompt,
+        size=settings.channel.get("production", {}).get("image_size", "1536x1024"),
+        quality=settings.channel.get("production", {}).get("image_quality", "medium"),
+        output_format="png",
+    )
+    destination.write_bytes(_image_result_bytes(result))
+
+
+def generate_shot_audio(settings: Settings, shot: Shot, destination: Path) -> None:
+    if not settings.openai_api_key_present:
+        raise RuntimeError("OPENAI_API_KEY is required to generate narration.")
+    text = shot.spoken_text
+    if not text:
+        raise RuntimeError(f"Shot {shot.id} has no spoken text.")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    client = _openai_client()
+    voice_style = settings.channel.get("format", {}).get("voice_style", "grounded and tense")
+    instructions = (
+        f"Narrate an unofficial fantasy-booking sports documentary. {voice_style}. "
+        "Use natural pauses, confident pacing, and controlled excitement. Do not imitate "
+        "any real wrestler, promoter, commentator, or public figure. Do not sound like an "
+        "advertisement or a parody."
+    )
+    with client.audio.speech.with_streaming_response.create(
+        model=settings.tts_model,
+        voice=settings.tts_voice,
+        input=text,
+        instructions=instructions,
+        response_format="wav",
+    ) as response:
+        response.stream_to_file(destination)
+
+
+def generate_episode_assets(
+    settings: Settings,
+    plan: EpisodePlan,
+    episode_dir: Path,
+    images: bool = True,
+    audio: bool = True,
+) -> None:
+    image_dir = episode_dir / "images"
+    audio_dir = episode_dir / "audio"
+    for shot in plan.shots:
+        image_path = image_dir / f"shot-{shot.id:03d}.png"
+        audio_path = audio_dir / f"shot-{shot.id:03d}.wav"
+        if images and not image_path.exists():
+            print(f"[image {shot.id:03d}/{len(plan.shots):03d}] {shot.scene_title}")
+            generate_shot_image(settings, shot, image_path)
+        if audio and not audio_path.exists():
+            print(f"[voice {shot.id:03d}/{len(plan.shots):03d}] {shot.scene_title}")
+            generate_shot_audio(settings, shot, audio_path)

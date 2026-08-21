@@ -1,0 +1,489 @@
+{
+  "slug": "sting-leads-the-invasion",
+  "episode_title": "What If Sting Led the WCW Invasion?",
+  "series": "RINGSIDE REWRITE",
+  "logline": "A sourced fantasy-booking rewrite where Sting enters WWE in 2001, rejects a cheap invasion angle, and turns WCW's last night into a year-long war for wrestling's future.",
+  "theme": "What if Sting led the WCW Invasion instead of waiting until 2014 to debut in WWE?",
+  "primary_subjects": [
+    "Sting",
+    "WCW Invasion",
+    "Vince McMahon",
+    "Booker T",
+    "The Rock",
+    "Steve Austin"
+  ],
+  "historical_cutoff": "The rewrite begins after the final episode of WCW Monday Nitro on March 26, 2001, once WCW has aired its last broadcast under Turner ownership.",
+  "factual_baseline": [
+    "WWE announced the acquisition of WCW from Turner Broadcasting on March 23, 2001.",
+    "WCW's final Monday Nitro aired on March 26, 2001, ending with Sting versus Ric Flair as the farewell match.",
+    "WWE's actual Invasion story became a WCW/ECW Alliance angle and concluded at Survivor Series 2001.",
+    "Sting did not make his WWE debut until Survivor Series 2014."
+  ],
+  "source_notes": [
+    {
+      "claim": "WWE publicly announced it had acquired WCW from Turner Broadcasting on March 23, 2001.",
+      "source_title": "WWE Corporate: World Wrestling Federation Entertainment, Inc. Acquires WCW From Turner Broadcasting",
+      "source_url": "https://corporate.wwe.com/about/news/2001/03-23-2001"
+    },
+    {
+      "claim": "WWE's retrospective on the Invasion frames the 2001 story as a WCW/ECW Alliance war.",
+      "source_title": "WWE: Remembering the WCW/ECW Invasion",
+      "source_url": "https://www.wwe.com/classics/wcw-ecw-invasion"
+    },
+    {
+      "claim": "WWE's own archive notes Sting shocked Triple H with his WWE debut at Survivor Series 2014.",
+      "source_title": "WWE Video: Sting shocks Triple H with WWE debut",
+      "source_url": "https://www.wwe.com/videos/sting-shocks-triple-h-with-wwe-debut-survivor-series-2014"
+    },
+    {
+      "claim": "WWE's WCW archive discusses Booker T and the final Nitro era around WCW's closing night.",
+      "source_title": "WWE Classics: Booker T recalls final Nitro",
+      "source_url": "https://www.wwe.com/classics/wcw/booker-t-recalls-final-nitro"
+    },
+    {
+      "claim": "WWE's era archive places the end of the Invasion at Survivor Series 2001.",
+      "source_title": "WWE Classics: Era of Unification",
+      "source_url": "https://www.wwe.com/classics/era-of-unification"
+    }
+  ],
+  "hypothetical_booking": true,
+  "original_fiction": true,
+  "contains_synthetic_media": true,
+  "title_options": [
+    "What If Sting Led the WCW Invasion?",
+    "Sting Saves WCW: The Invasion Rewrite",
+    "The WCW Invasion WWE Never Booked",
+    "What If Sting Debuted in WWE in 2001?"
+  ],
+  "thumbnail_text": "STING TAKES OVER",
+  "description": "What if Sting entered WWE in 2001 and became the face of a serious WCW invasion? This unofficial fantasy-booking episode starts with documented wrestling history, then clearly crosses into a hypothetical timeline where WCW fights for its own future instead of becoming a punchline.",
+  "tags": [
+    "wrestling what if",
+    "fantasy booking",
+    "Sting",
+    "WCW",
+    "WWE Invasion",
+    "Booker T",
+    "The Rock",
+    "Stone Cold Steve Austin",
+    "Ringside Rewrite",
+    "wrestling documentary"
+  ],
+  "hashtags": [
+    "#WrestlingWhatIf",
+    "#FantasyBooking",
+    "#Sting",
+    "#WCW",
+    "#RingsideRewrite"
+  ],
+  "viewer_question": "Would Sting winning the Invasion have made WCW feel alive again, or should WWE have still won the war?",
+  "thumbnail_source": "assets/pilot-thumbnail-youtube.png",
+  "shots": [
+    {
+      "id": 1,
+      "scene_title": "The Last Nitro",
+      "location": "Panama City arena bowl",
+      "time_of_day": "night",
+      "narration": "March 26, 2001. The final Nitro is not just the end of a television show. It is the funeral for a company that once had WWE gasping for air. Sting beats Ric Flair, the lights fall colder, and every WCW fan feels the same question pressing through the silence: what happens to the icon now?",
+      "dialogue": [],
+      "image_prompt": "Cinematic illustrated sports documentary frame of a packed wrestling arena after the final bell, a dark-haired face-painted wrestler inspired by Sting standing in a black trench coat under cold white spotlights, emotional crowd silhouettes, no text, no official logos, no watermark",
+      "motion": "slow_push_in",
+      "sfx": [
+        "distant crowd fade",
+        "arena lights hum"
+      ],
+      "music_mood": "somber historic tension",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 2,
+      "scene_title": "The Deal Is Real",
+      "location": "WWE corporate hallway",
+      "time_of_day": "morning",
+      "narration": "Here is the documented starting point. WWE announced the WCW acquisition on March 23, 2001. The real Invasion later became a WCW and ECW Alliance story, and Sting's actual WWE debut waited until 2014. Ringside Rewrite starts after that final Nitro bell. From this moment forward, the timeline becomes fictional.",
+      "dialogue": [],
+      "image_prompt": "Premium illustrated hallway outside a wrestling corporate office, legal folders on a glass table, gold light cutting across black marble, anonymous executives in suits seen only as silhouettes, no text, no official logos, no watermark",
+      "motion": "pan_right",
+      "sfx": [
+        "paper folder slide",
+        "camera shutter"
+      ],
+      "music_mood": "documentary suspense",
+      "duration_hint_seconds": 15
+    },
+    {
+      "id": 3,
+      "scene_title": "Sting Refuses the Costume",
+      "location": "empty locker room",
+      "time_of_day": "late night",
+      "narration": "In this rewrite, WWE calls Sting immediately. The offer is simple: come in as the trophy, stand beside the new owner, and let WCW be treated like conquered property. Sting signs only one kind of deal. He will appear, but he will not play surrender. If WCW is dead, he wants the body seen.",
+      "dialogue": [],
+      "image_prompt": "Stylized empty wrestling locker room with a black baseball bat leaning against a bench, white face paint tray, black trench coat hanging on a hook, dramatic overhead light and deep shadows, no text, no official logos, no watermark",
+      "motion": "slow_pull_out",
+      "sfx": [
+        "locker door creak"
+      ],
+      "music_mood": "controlled defiance",
+      "duration_hint_seconds": 17
+    },
+    {
+      "id": 4,
+      "scene_title": "The Resistance Forms",
+      "location": "abandoned Atlanta studio",
+      "time_of_day": "night",
+      "narration": "The first mistake WWE makes is assuming WCW only needs bodies. Sting sees it differently. Booker T brings the championship credibility. Diamond Dallas Page brings the mainstream spark. Arn Anderson becomes the warning system. They are not calling themselves an Alliance. They are the WCW Resistance, and they are fighting for memory.",
+      "dialogue": [],
+      "image_prompt": "Illustrated abandoned television studio in Atlanta with dusty ring lights, a face-painted trench-coat leader, a champion with short locks, a veteran in a leather jacket, and a calculating coach figure around a production table, no text, no official logos, no watermark",
+      "motion": "handheld_drift",
+      "sfx": [
+        "fluorescent buzz",
+        "old tape machine click"
+      ],
+      "music_mood": "underground uprising",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 5,
+      "scene_title": "McMahon Buys the Name",
+      "location": "sold-out WWE ring",
+      "time_of_day": "prime time",
+      "narration": "Vince McMahon can buy the letters, the tape library, and the contracts that are available. But this rewrite makes him learn the hard part on television: he cannot buy what fans felt on Monday nights. He opens Raw expecting humiliation, and the screen behind him cuts to black and white.",
+      "dialogue": [],
+      "image_prompt": "Cinematic illustrated wrestling ring with a powerful older promoter silhouette in a suit looking toward a giant black-and-white screen glow, tense crowd, red and gold arena haze, no text, no official logos, no watermark",
+      "motion": "slow_push_in",
+      "sfx": [
+        "screen static hit",
+        "crowd gasp"
+      ],
+      "music_mood": "menacing reveal",
+      "duration_hint_seconds": 15
+    },
+    {
+      "id": 6,
+      "scene_title": "No Cheap Sneak Attack",
+      "location": "Raw entrance stage",
+      "time_of_day": "night",
+      "narration": "The Resistance does not run in dressed like invaders from a discount war movie. Sting walks slowly, alone, while the others appear in the crowd and production booth. The visual says everything: WCW is not invading WWE's ring. WCW is taking back the audience that used to switch channels at nine o'clock.",
+      "dialogue": [],
+      "image_prompt": "Premium illustrated arena entrance ramp with a face-painted vigilante wrestler walking through smoke, allies revealed in the crowd balconies and production booth, dramatic gold rim light, no text, no official logos, no watermark",
+      "motion": "pan_left",
+      "sfx": [
+        "bass drop",
+        "crowd swell"
+      ],
+      "music_mood": "iconic arrival",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 7,
+      "scene_title": "The First Target",
+      "location": "backstage production truck",
+      "time_of_day": "night",
+      "narration": "Their first attack is not on a champion. It is on the machine. They interrupt highlight packages, replace triumphal recaps with WCW history, and force the broadcast to acknowledge names WWE would rather control. Nobody is injured. Nothing is cartoonish. The threat is psychological: every week, the past gets a live microphone.",
+      "dialogue": [],
+      "image_prompt": "Illustrated television production truck with monitors showing abstract wrestling silhouettes and static, technicians startled, black gloves adjusting a video switcher, cinematic blue shadows, no text, no official logos, no watermark",
+      "motion": "locked",
+      "sfx": [
+        "switcher clicks",
+        "static pulse"
+      ],
+      "music_mood": "technical sabotage tension",
+      "duration_hint_seconds": 17
+    },
+    {
+      "id": 8,
+      "scene_title": "Booker Gets the Spotlight",
+      "location": "pay-per-view ring",
+      "time_of_day": "night",
+      "narration": "Booker T is protected from night one. Instead of being introduced as a punchline, he beats an established WWE upper-card star clean in the middle and leaves with two belts raised high. Sting does not overshadow him. Sting points at Booker like the future of WCW is standing there in boots.",
+      "dialogue": [],
+      "image_prompt": "Cinematic illustrated wrestling ring with an athletic champion inspired by Booker T raising two generic gold belts while a face-painted leader points toward him from the apron, crowd exploding, no text, no official logos, no watermark",
+      "motion": "slow_push_in",
+      "sfx": [
+        "bell ring",
+        "crowd roar"
+      ],
+      "music_mood": "victory surge",
+      "duration_hint_seconds": 15
+    },
+    {
+      "id": 9,
+      "scene_title": "ECW Refuses to Be Backup",
+      "location": "gritty side entrance",
+      "time_of_day": "night",
+      "narration": "Then the second correction hits. ECW does not become WCW's backup army. Paul Heyman frames them as the third fire in the building: too broke to be corporate, too violent to be polished, and too proud to kneel under Sting. Now the summer has three sides, and every tag match can collapse without feeling random.",
+      "dialogue": [],
+      "image_prompt": "Gritty illustrated arena side entrance with extreme wrestling figures in street clothes emerging through red haze, metal barricades, concrete floor, gritty documentary lighting, no text, no official logos, no watermark",
+      "motion": "handheld_drift",
+      "sfx": [
+        "metal gate slam",
+        "crowd chant rumble"
+      ],
+      "music_mood": "chaotic rebellion",
+      "duration_hint_seconds": 17
+    },
+    {
+      "id": 10,
+      "scene_title": "Undertaker Draws the Line",
+      "location": "dark arena aisle",
+      "time_of_day": "night",
+      "narration": "The first dream faceoff comes at King of the Ring. Undertaker rides into the aisle as WWE's locker-room gatekeeper. Sting appears on the balcony, not to fight yet, but to make the audience understand the collision is coming. The segment ends without contact, which makes it bigger. Some matches are money because you wait.",
+      "dialogue": [],
+      "image_prompt": "Moody illustrated arena aisle with a tall biker-like dark veteran near the ring and a face-painted black-coated icon standing high on a balcony, blue smoke and white spotlights, no text, no official logos, no watermark",
+      "motion": "slow_pull_out",
+      "sfx": [
+        "motorcycle rumble",
+        "spotlight snap"
+      ],
+      "music_mood": "mythic standoff",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 11,
+      "scene_title": "Austin Chooses Chaos",
+      "location": "parking lot brawl zone",
+      "time_of_day": "night",
+      "narration": "Steve Austin is not turned because the plot needs a twist. He chooses chaos because WCW threatens his throne, WWE wants his loyalty, and he hates being owned by either side. Austin starts stunning everyone, and suddenly the champion is not a heel turn. He is the fuse that makes the whole war unpredictable.",
+      "dialogue": [],
+      "image_prompt": "Stylized parking lot outside an arena with a bald antihero wrestler in a black vest standing between scattered rivals, broken folding chairs, police lights reflected in wet pavement, no text, no official logos, no watermark",
+      "motion": "pan_right",
+      "sfx": [
+        "glass smash sting",
+        "distant siren"
+      ],
+      "music_mood": "volatile antihero energy",
+      "duration_hint_seconds": 17
+    },
+    {
+      "id": 12,
+      "scene_title": "SummerSlam Does Not End It",
+      "location": "Summer arena main event",
+      "time_of_day": "night",
+      "narration": "At SummerSlam, Sting captains WCW against The Rock's WWE squad. It is not a clean finish because August is too early for the final answer. ECW storms the ring, Austin wipes out both captains, and the pay-per-view closes with all three flags down. The audience gets heat, but it also gets structure.",
+      "dialogue": [],
+      "image_prompt": "Illustrated wrestling main event chaos with a face-painted captain, a charismatic movie-star champion, and an extreme faction colliding around a generic ring, flags knocked over without logos, no text, no official logos, no watermark",
+      "motion": "handheld_drift",
+      "sfx": [
+        "bell chaos",
+        "crowd outrage"
+      ],
+      "music_mood": "main event confusion",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 13,
+      "scene_title": "The Stipulation",
+      "location": "contract signing stage",
+      "time_of_day": "night",
+      "narration": "The fall needs stakes bigger than bragging rights. The Survivor Series contract says if WWE wins, the WCW name dies on television. If WCW wins, WWE must give them one weekly hour, one championship lineage, and control of their own roster. For the first time, the invasion is not about who owns WCW. It is about whether WCW can still exist.",
+      "dialogue": [],
+      "image_prompt": "Cinematic illustrated contract signing table inside a wrestling ring, two rival captains facing each other under gold spotlights, paperwork and microphones with no branding, crowd in deep shadow, no text, no official logos, no watermark",
+      "motion": "slow_push_in",
+      "sfx": [
+        "pen click",
+        "crowd hush"
+      ],
+      "music_mood": "high stakes legal drama",
+      "duration_hint_seconds": 18
+    },
+    {
+      "id": 14,
+      "scene_title": "The Locker Room Votes",
+      "location": "WWE locker-room corridor",
+      "time_of_day": "afternoon",
+      "narration": "This version lets wrestlers choose sides on character, not paperwork. Chris Jericho hates WCW management but hates being told his history does not matter. Kurt Angle stays loyal to WWE because he sees WCW as disorder. Kane and Undertaker become the wall. The roster map turns into a weekly chessboard.",
+      "dialogue": [],
+      "image_prompt": "Illustrated backstage corridor with different wrestler silhouettes standing near colored locker-room doors, a strategic wall board with blank cards and no readable writing, warm arena light, no text, no official logos, no watermark",
+      "motion": "pan_left",
+      "sfx": [
+        "locker room murmurs",
+        "boots on concrete"
+      ],
+      "music_mood": "strategic tension",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 15,
+      "scene_title": "Sting Versus Austin",
+      "location": "Madison Square Garden style arena",
+      "time_of_day": "night",
+      "narration": "The go-home Raw finally gives us Sting and Austin one-on-one, but not as a title match. It is a test of mythologies: the silent franchise of WCW against the loudest rebel WWE ever produced. Austin controls the fight until Sting survives the storm, and that survival tells fans the WCW side is not decorative.",
+      "dialogue": [],
+      "image_prompt": "Premium illustrated wrestling ring in a classic city arena, face-painted trench-coat wrestler and bald black-vest antihero circling under bright white spotlights, intense crowd blur, no text, no official logos, no watermark",
+      "motion": "slow_push_in",
+      "sfx": [
+        "mat thud",
+        "crowd rhythm clap"
+      ],
+      "music_mood": "dream match pressure",
+      "duration_hint_seconds": 17
+    },
+    {
+      "id": 16,
+      "scene_title": "Survivor Series Opens Like War",
+      "location": "Survivor Series arena",
+      "time_of_day": "night",
+      "narration": "Survivor Series opens with separate entrances, not one blended Alliance. WWE enters with production power. ECW enters through the crowd. WCW enters last in black, silver, and cold light. Sting does not smile. Booker carries the gold. DDP taps his wrist like time is running out. This is the first moment the crowd believes WCW might win.",
+      "dialogue": [],
+      "image_prompt": "Epic illustrated pay-per-view arena with three factions entering from different directions, black silver and crimson lighting, generic championship belt glints, massive crowd atmosphere, no text, no official logos, no watermark",
+      "motion": "slow_pull_out",
+      "sfx": [
+        "pyro boom",
+        "triple crowd chants"
+      ],
+      "music_mood": "war ceremony",
+      "duration_hint_seconds": 18
+    },
+    {
+      "id": 17,
+      "scene_title": "Booker Falls With Honor",
+      "location": "main event ring",
+      "time_of_day": "night",
+      "narration": "Booker T eliminates a major WWE star before he falls, and that matters. The story protects him by making the loss expensive. WWE has to spend Undertaker and Angle's damage to remove him. When Booker leaves, he is not diminished. He is the reason Sting still has a battlefield instead of a mercy killing.",
+      "dialogue": [],
+      "image_prompt": "Illustrated wrestling ring after a hard elimination, exhausted champion inspired by Booker T being helped up while rival giants recover in opposite corners, dramatic sweat and spotlight atmosphere, no text, no official logos, no watermark",
+      "motion": "handheld_drift",
+      "sfx": [
+        "crowd applause swell",
+        "bell ring"
+      ],
+      "music_mood": "heroic sacrifice",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 18,
+      "scene_title": "The Rock Carries WWE",
+      "location": "ring center",
+      "time_of_day": "night",
+      "narration": "The Rock becomes WWE's final heartbeat. In the actual world, Survivor Series 2001 ended the Alliance. In this rewrite, the final stretch is cleaner: Rock for WWE, Sting for WCW, Austin eliminated by his own chaos, ECW burned out by its own violence. The war narrows until it feels like a movie poster.",
+      "dialogue": [],
+      "image_prompt": "Cinematic illustrated final two standoff in a wrestling ring, charismatic champion in black trunks facing a face-painted black-coated icon, exhausted bodies at ringside, golden haze, no text, no official logos, no watermark",
+      "motion": "slow_push_in",
+      "sfx": [
+        "crowd heartbeat stomp",
+        "camera flash pops"
+      ],
+      "music_mood": "final duel build",
+      "duration_hint_seconds": 17
+    },
+    {
+      "id": 19,
+      "scene_title": "Sting Wins the Hour",
+      "location": "Survivor Series ring",
+      "time_of_day": "night",
+      "narration": "Sting wins, but not by humiliating WWE. He wins by surviving Rock's comeback, countering at the last second, and standing up before the referee's hand hits three. The finish tells the audience WWE is still powerful and WCW is still breathing. That balance is the whole rewrite. WCW wins the right to exist.",
+      "dialogue": [],
+      "image_prompt": "Illustrated climactic wrestling pinfall aftermath with a face-painted icon kneeling under spotlights while a charismatic rival lies exhausted but respected nearby, crowd stunned, no text, no official logos, no watermark",
+      "motion": "slow_pull_out",
+      "sfx": [
+        "three count slap",
+        "crowd eruption"
+      ],
+      "music_mood": "historic victory",
+      "duration_hint_seconds": 17
+    },
+    {
+      "id": 20,
+      "scene_title": "One Hour of Thunder",
+      "location": "new weekly studio set",
+      "time_of_day": "evening",
+      "narration": "The prize becomes a one-hour weekly WCW show under the WWE umbrella, booked like a dangerous territory instead of a defeated brand. Sting is the conscience. Booker is the champion. Cruiserweights open the pace. Veterans protect the tone. WWE now owns WCW, but on screen it has to compete with what it bought.",
+      "dialogue": [],
+      "image_prompt": "Stylized compact wrestling television set with black and silver lights, cruiserweight silhouettes flying in the ring, veteran figures watching from the ramp, premium sports documentary look, no text, no official logos, no watermark",
+      "motion": "pan_right",
+      "sfx": [
+        "broadcast countdown",
+        "ring ropes snap"
+      ],
+      "music_mood": "reborn brand momentum",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 21,
+      "scene_title": "The NWO Lands Differently",
+      "location": "arena loading dock",
+      "time_of_day": "night",
+      "narration": "Now the nWo arrival has a sharper target. They are not here to poison WWE first. They come to reclaim WCW from Sting's conscience and Booker's work ethic. Hogan, Hall, and Nash become the ghosts of WCW's bad habits, trying to drag the new hour back into ego, shortcuts, and collapse.",
+      "dialogue": [],
+      "image_prompt": "Dark illustrated arena loading dock with three legendary outlaw silhouettes stepping from a black limousine toward a black-and-silver wrestling banner with no readable text and no text anywhere else, rain reflections, no official logos, no watermark",
+      "motion": "handheld_drift",
+      "sfx": [
+        "limo door slam",
+        "rain hiss"
+      ],
+      "music_mood": "old poison returns",
+      "duration_hint_seconds": 17
+    },
+    {
+      "id": 22,
+      "scene_title": "WrestleMania Becomes Icon Versus Icon",
+      "location": "WrestleMania stadium",
+      "time_of_day": "night",
+      "narration": "WrestleMania X8 still gets its icon energy, but the headline changes. Rock versus Sting becomes a clean brand-defining match, not a rescue mission. Rock wins because WWE needs the closing image, and Sting can lose without WCW dying. The handshake is not scripted like friendship. It is booked like recognition.",
+      "dialogue": [],
+      "image_prompt": "Grand illustrated stadium wrestling match under massive lights, charismatic champion and face-painted icon reaching toward a tense respectful post-match handshake, fireworks glow without logos, no text, no official logos, no watermark",
+      "motion": "slow_push_in",
+      "sfx": [
+        "stadium roar",
+        "firework echo"
+      ],
+      "music_mood": "epic resolution",
+      "duration_hint_seconds": 18
+    },
+    {
+      "id": 23,
+      "scene_title": "The Brand Split Has Teeth",
+      "location": "draft war room",
+      "time_of_day": "morning",
+      "narration": "By 2002, the brand split no longer feels like paperwork. It feels like the peace treaty after a war. Raw and SmackDown can still exist, but WCW talent carries protected identity into the draft. Rey Mysterio's arrival has a lane. Goldberg's eventual debut has a kingdom to challenge. The past becomes infrastructure.",
+      "dialogue": [],
+      "image_prompt": "Illustrated sports draft war room with blank roster cards, two competing television monitors, generic championship belts on a table, executives as silhouettes, no text, no official logos, no watermark",
+      "motion": "locked",
+      "sfx": [
+        "marker squeak",
+        "phone vibration"
+      ],
+      "music_mood": "strategic aftermath",
+      "duration_hint_seconds": 16
+    },
+    {
+      "id": 24,
+      "scene_title": "The Rewrite Verdict",
+      "location": "empty arena after midnight",
+      "time_of_day": "after midnight",
+      "narration": "So would this have saved WCW forever? Probably not. But it would have given fans a real final chapter, made Sting's WWE arrival thirteen years earlier, and turned the Invasion from a victory lap into a collision of identities. That is the Ringside Rewrite: wrestling history, booked differently. Your call, booker: did WCW deserve to win?",
+      "dialogue": [],
+      "image_prompt": "Cinematic illustrated empty wrestling arena after midnight with one spotlight on a black baseball bat and silver face paint beside the ring steps, reflective floor, emotional final-frame atmosphere, no text, no official logos, no watermark",
+      "motion": "slow_pull_out",
+      "sfx": [
+        "arena reverb tail",
+        "distant chair fold"
+      ],
+      "music_mood": "reflective closing",
+      "duration_hint_seconds": 18
+    }
+  ],
+  "shorts": [
+    {
+      "title": "Sting Should Have Led WCW",
+      "hook": "The Invasion changes completely if Sting arrives in 2001.",
+      "start_shot": 1,
+      "end_shot": 6,
+      "caption": "What if Sting walked into WWE in 2001 and refused to let WCW become a joke? Full rewrite on Ringside Rewrite. #Shorts #WrestlingWhatIf #Sting"
+    },
+    {
+      "title": "The Invasion Needed Stakes",
+      "hook": "The fix is simple: WCW fights for its own weekly hour.",
+      "start_shot": 13,
+      "end_shot": 19,
+      "caption": "The WCW Invasion should have had one huge stipulation: win and the brand survives. Full fantasy booking on Ringside Rewrite. #Shorts #FantasyBooking #WCW"
+    },
+    {
+      "title": "WCW Actually Wins?",
+      "hook": "A WCW win does not have to bury WWE if the finish protects both sides.",
+      "start_shot": 18,
+      "end_shot": 24,
+      "caption": "In this rewrite, Sting wins the war but The Rock still gets WrestleMania. That balance saves the angle. #Shorts #RingsideRewrite #WWE"
+    }
+  ]
+}

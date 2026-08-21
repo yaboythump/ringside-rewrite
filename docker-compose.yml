@@ -1,0 +1,12 @@
+services:
+  ringside:
+    build: .
+    env_file: .env
+    volumes:
+      - ./config:/app/config:ro
+      - ./content:/app/content:ro
+      - ./assets:/app/assets:ro
+      - ./secrets:/app/secrets
+      - ./output:/app/output
+    restart: unless-stopped
+
