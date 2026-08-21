@@ -1,58 +1,99 @@
-name: Unzip Ringside Rewrite Kit
+name: RINGSIDE REWRITE free credential preflight
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  unzip:
+  verify-credentials:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
-      - name: Unzip kit into repo root
+      - name: Verify OpenAI and YouTube credentials
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET_VALUE: ${{ secrets.YOUTUBE_CLIENT_SECRET_VALUE }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        shell: bash
         run: |
           python3 - <<'PY'
-          from pathlib import Path
-          import shutil
-          import zipfile
+          import json
+          import os
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
 
-          root = Path.cwd()
-          zips = list(root.glob("*.zip"))
-          if not zips:
-              raise SystemExit("No zip file found in repo root.")
+          def fail(msg):
+              print("FAIL:", msg)
+              raise SystemExit(1)
 
-          extract_dir = root / "_kit_extract"
-          if extract_dir.exists():
-              shutil.rmtree(extract_dir)
-          extract_dir.mkdir()
+          def request_json(req, label):
+              try:
+                  with urlopen(req, timeout=30) as r:
+                      body = r.read().decode("utf-8")
+                      return json.loads(body) if body else {}
+              except HTTPError as exc:
+                  detail = exc.read().decode("utf-8", errors="replace")[:800]
+                  fail(f"{label} returned HTTP {exc.code}: {detail}")
+              except (URLError, TimeoutError) as exc:
+                  fail(f"{label} failed: {exc}")
 
-          with zipfile.ZipFile(zips[0]) as archive:
-              archive.extractall(extract_dir)
+          for key in [
+              "OPENAI_API_KEY",
+              "YOUTUBE_CLIENT_ID",
+              "YOUTUBE_CLIENT_SECRET_VALUE",
+              "YOUTUBE_REFRESH_TOKEN",
+          ]:
+              if not os.getenv(key, "").strip():
+                  fail(f"Missing secret: {key}")
 
-          source = extract_dir / "ringside-rewrite"
-          if not source.exists():
-              raise SystemExit("Could not find ringside-rewrite folder inside zip.")
+          print("PASS: Required secrets exist.")
 
-          for item in source.iterdir():
-              if item.name == ".github":
-                  continue
-              target = root / item.name
-              if item.is_dir():
-                  shutil.copytree(item, target, dirs_exist_ok=True)
-              else:
-                  shutil.copy2(item, target)
+          openai_req = Request(
+              "https://api.openai.com/v1/models",
+              headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
+          )
+          request_json(openai_req, "OpenAI authentication")
+          print("PASS: OpenAI key works.")
 
-          zips[0].unlink()
-          shutil.rmtree(extract_dir)
+          token_data = urlencode({
+              "client_id": os.environ["YOUTUBE_CLIENT_ID"],
+              "client_secret": os.environ["YOUTUBE_CLIENT_SECRET_VALUE"],
+              "refresh_token": os.environ["YOUTUBE_REFRESH_TOKEN"],
+              "grant_type": "refresh_token",
+          }).encode("utf-8")
+
+          token_req = Request(
+              "https://oauth2.googleapis.com/token",
+              data=token_data,
+              headers={"Content-Type": "application/x-www-form-urlencoded"},
+              method="POST",
+          )
+          token = request_json(token_req, "Google token refresh")
+          access_token = token.get("access_token")
+          if not access_token:
+              fail("Google did not return an access token.")
+
+          print("PASS: Google refresh token works.")
+
+          yt_req = Request(
+              "https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true",
+              headers={"Authorization": f"Bearer {access_token}"},
+          )
+          yt = request_json(yt_req, "YouTube channel lookup")
+          channels = yt.get("items", [])
+
+          if not channels:
+              fail("No YouTube channel found for this Google account.")
+
+          print("CONNECTED CHANNELS:")
+          for ch in channels:
+              print(f"- {ch['snippet']['title']} ({ch['id']})")
+
+          print("READY: Credential preflight passed.")
           PY
-
-      - name: Commit unzipped files
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add .
-          git commit -m "Unzip Ringside Rewrite kit" || echo "Nothing to commit"
-          git push
