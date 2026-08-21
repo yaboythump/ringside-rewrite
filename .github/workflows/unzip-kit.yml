@@ -1,0 +1,57 @@
+name: Unzip Ringside Rewrite Kit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip kit into repo root
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import zipfile
+
+          root = Path.cwd()
+          zips = list(root.glob("Ringside-Rewrite-iPhone-Cloud-Kit-v1.0.zip"))
+          if not zips:
+              zips = list(root.glob("*.zip"))
+          if not zips:
+              raise SystemExit("No zip file found in repo root.")
+
+          extract_dir = root / "_kit_extract"
+          if extract_dir.exists():
+              shutil.rmtree(extract_dir)
+          extract_dir.mkdir()
+
+          with zipfile.ZipFile(zips[0]) as archive:
+              archive.extractall(extract_dir)
+
+          source = extract_dir / "ringside-rewrite"
+          if not source.exists():
+              raise SystemExit("Could not find ringside-rewrite folder inside zip.")
+
+          for item in source.iterdir():
+              target = root / item.name
+              if item.is_dir():
+                  shutil.copytree(item, target, dirs_exist_ok=True)
+              else:
+                  shutil.copy2(item, target)
+
+          shutil.rmtree(extract_dir)
+          PY
+
+      - name: Commit unzipped files
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Unzip Ringside Rewrite kit" || echo "Nothing to commit"
+          git push
