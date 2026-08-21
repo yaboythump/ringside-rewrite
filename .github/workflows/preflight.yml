@@ -1,0 +1,83 @@
+name: RINGSIDE REWRITE free credential preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-credentials:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify OpenAI and YouTube credentials
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET_VALUE: ${{ secrets.YOUTUBE_CLIENT_SECRET_VALUE }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          def fail(msg):
+              print("FAIL:", msg)
+              raise SystemExit(1)
+
+          for key in ["OPENAI_API_KEY","YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET_VALUE","YOUTUBE_REFRESH_TOKEN"]:
+              if not os.getenv(key, "").strip():
+                  fail(f"Missing secret: {key}")
+
+          print("PASS: Required secrets exist.")
+
+          req = Request(
+              "https://api.openai.com/v1/models",
+              headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"}
+          )
+          with urlopen(req, timeout=30) as r:
+              r.read()
+          print("PASS: OpenAI key works.")
+
+          data = urlencode({
+              "client_id": os.environ["YOUTUBE_CLIENT_ID"],
+              "client_secret": os.environ["YOUTUBE_CLIENT_SECRET_VALUE"],
+              "refresh_token": os.environ["YOUTUBE_REFRESH_TOKEN"],
+              "grant_type": "refresh_token",
+          }).encode()
+
+          req = Request(
+              "https://oauth2.googleapis.com/token",
+              data=data,
+              headers={"Content-Type": "application/x-www-form-urlencoded"},
+              method="POST",
+          )
+          with urlopen(req, timeout=30) as r:
+              token = json.loads(r.read().decode())
+
+          access_token = token.get("access_token")
+          if not access_token:
+              fail("Google did not return an access token.")
+
+          print("PASS: Google refresh token works.")
+
+          req = Request(
+              "https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true",
+              headers={"Authorization": f"Bearer {access_token}"}
+          )
+          with urlopen(req, timeout=30) as r:
+              channels = json.loads(r.read().decode()).get("items", [])
+
+          if not channels:
+              fail("No YouTube channel found.")
+
+          for ch in channels:
+              print("CONNECTED:", ch["snippet"]["title"], ch["id"])
+
+          print("READY: Credential preflight passed.")
+          PY
