@@ -4,6 +4,7 @@ import base64
 import json
 import random
 import re
+import time
 from pathlib import Path
 
 from .config import Settings
@@ -18,6 +19,42 @@ def _openai_client():
     return OpenAI()
 
 
+def _is_retryable_openai_error(exc: Exception) -> bool:
+    message = str(exc).casefold()
+    retry_words = (
+        "connection",
+        "timeout",
+        "temporarily",
+        "server error",
+        "service unavailable",
+        "rate limit",
+        "502",
+        "503",
+        "504",
+    )
+    return any(word in message for word in retry_words)
+
+
+def _openai_retry(label: str, call, attempts: int = 4):
+    last_exc: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return call()
+        except Exception as exc:
+            last_exc = exc
+            if attempt == attempts or not _is_retryable_openai_error(exc):
+                raise
+            wait_seconds = min(60, 8 * attempt)
+            print(
+                f"[retry {attempt}/{attempts}] {label} hit a temporary OpenAI connection issue; "
+                f"waiting {wait_seconds}s before trying again."
+            )
+            time.sleep(wait_seconds)
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError(f"{label} failed without returning a result.")
+
+
 def _research_brief(settings: Settings) -> str:
     return json.dumps(settings.research, indent=2)
 
@@ -30,27 +67,30 @@ def research_episode(settings: Settings, premise: str) -> str:
     if not research.get("web_search_enabled", True):
         raise RuntimeError("Web research is required for real-person fantasy booking.")
     client = _openai_client()
-    response = client.responses.create(
-        model=settings.text_model,
-        reasoning={"effort": "medium"},
-        tools=[
-            {
-                "type": "web_search",
-                "external_web_access": bool(
-                    research.get("external_web_access", True)
-                ),
-            }
-        ],
-        tool_choice="required",
-        input=(
-            "Research the documented professional-wrestling history needed for this "
-            f"fantasy-booking premise: {premise}\n\n"
-            "Return a compact fact brief with: (1) the exact real-world cutoff, "
-            "(2) four to eight verified facts, (3) at least two working source URLs, "
-            "and (4) any uncertainty that the writer must avoid presenting as fact. "
-            "Prefer official promotion/corporate sources and direct interviews. Do not "
-            "invent quotations, contract details, private motives, injuries, or rumors. "
-            "Clearly label everything after the cutoff as hypothetical."
+    response = _openai_retry(
+        "episode research",
+        lambda: client.responses.create(
+            model=settings.text_model,
+            reasoning={"effort": "medium"},
+            tools=[
+                {
+                    "type": "web_search",
+                    "external_web_access": bool(
+                        research.get("external_web_access", True)
+                    ),
+                }
+            ],
+            tool_choice="required",
+            input=(
+                "Research the documented professional-wrestling history needed for this "
+                f"fantasy-booking premise: {premise}\n\n"
+                "Return a compact fact brief with: (1) the exact real-world cutoff, "
+                "(2) four to eight verified facts, (3) at least two working source URLs, "
+                "and (4) any uncertainty that the writer must avoid presenting as fact. "
+                "Prefer official promotion/corporate sources and direct interviews. Do not "
+                "invent quotations, contract details, private motives, injuries, or rumors. "
+                "Clearly label everything after the cutoff as hypothetical."
+            ),
         ),
     )
     brief = response.output_text.strip()
@@ -113,14 +153,17 @@ must clearly feature fictional women wrestlers and must not turn them into men o
 luchadors.
 """.strip()
     client = _openai_client()
-    response = client.responses.parse(
-        model=settings.text_model,
-        reasoning={"effort": "high"},
-        input=[
-            {"role": "developer", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        text_format=EpisodePlan,
+    response = _openai_retry(
+        "episode plan",
+        lambda: client.responses.parse(
+            model=settings.text_model,
+            reasoning={"effort": "high"},
+            input=[
+                {"role": "developer", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            text_format=EpisodePlan,
+        ),
     )
     if response.output_parsed is None:
         raise RuntimeError("The model did not return a valid episode plan.")
@@ -330,12 +373,15 @@ def _empty_ring_fallback_prompt(shot: Shot, subjects: list[str]) -> str:
 
 
 def _generate_image(client, settings: Settings, prompt: str):
-    return client.images.generate(
-        model=settings.image_model,
-        prompt=prompt,
-        size=settings.channel.get("production", {}).get("image_size", "1536x1024"),
-        quality=settings.channel.get("production", {}).get("image_quality", "medium"),
-        output_format="png",
+    return _openai_retry(
+        "image generation",
+        lambda: client.images.generate(
+            model=settings.image_model,
+            prompt=prompt,
+            size=settings.channel.get("production", {}).get("image_size", "1536x1024"),
+            quality=settings.channel.get("production", {}).get("image_quality", "medium"),
+            output_format="png",
+        ),
     )
 
 
@@ -396,14 +442,20 @@ def generate_shot_audio(settings: Settings, shot: Shot, destination: Path) -> No
         "any real wrestler, promoter, commentator, or public figure. Do not sound like an "
         "advertisement or a parody."
     )
-    with client.audio.speech.with_streaming_response.create(
-        model=settings.tts_model,
-        voice=settings.tts_voice,
-        input=text,
-        instructions=instructions,
-        response_format="wav",
-    ) as response:
-        response.stream_to_file(destination)
+    def _create_audio():
+        if destination.exists():
+            destination.unlink()
+        with client.audio.speech.with_streaming_response.create(
+            model=settings.tts_model,
+            voice=settings.tts_voice,
+            input=text,
+            instructions=instructions,
+            response_format="wav",
+        ) as response:
+            response.stream_to_file(destination)
+        return destination
+
+    _openai_retry("narration audio", _create_audio)
 
 
 def generate_episode_assets(
