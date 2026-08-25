@@ -12,7 +12,8 @@ on:
           - pilot
           - new_episode
   schedule:
-    - cron: "0 17 * * 2,4,6"
+    # Tuesday and Saturday at 12:00 PM EST.
+    - cron: "0 17 * * 2,6"
 
 concurrency:
   group: ringside-rewrite-production
@@ -41,6 +42,7 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET_VALUE: ${{ secrets.YOUTUBE_CLIENT_SECRET_VALUE }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_EXPECTED_CHANNEL_ID: ${{ vars.YOUTUBE_EXPECTED_CHANNEL_ID }}
           RINGSIDE_AUTO_PUBLISH: ${{ vars.RINGSIDE_AUTO_PUBLISH || 'false' }}
         shell: bash
         run: |
@@ -52,12 +54,18 @@ jobs:
             python scripts/run_scheduled.py
           fi
 
-      - name: Keep run manifest
+      - name: Keep finished episodes and Shorts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ringside-rewrite-run
+          retention-days: 14
           path: |
+            output/**/final.mp4
+            output/**/shorts/*.mp4
+            output/**/thumbnail.png
+            output/**/captions.srt
+            output/**/episode.json
             output/**/manifest.json
             output/**/quality-*.json
             output/**/youtube-upload.json
