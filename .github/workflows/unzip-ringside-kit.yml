@@ -1,0 +1,69 @@
+name: Unzip Ringside Rewrite Kit
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_name:
+        description: "ZIP file uploaded to the repo root"
+        required: true
+        default: "Ringside-Rewrite-Lean-Premium-Upgrade-v2.zip"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unzip-ringside-rewrite-kit
+  cancel-in-progress: true
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Unzip kit
+        shell: bash
+        run: |
+          ZIP_NAME="${{ inputs.zip_name }}"
+
+          if [ ! -f "$ZIP_NAME" ]; then
+            echo "Could not find $ZIP_NAME in the repo root."
+            ls -la
+            exit 1
+          fi
+
+          rm -rf unzipped-kit
+          mkdir unzipped-kit
+          unzip -o "$ZIP_NAME" -d unzipped-kit
+
+          SOURCE="unzipped-kit"
+          if [ -d "unzipped-kit/Ringside-Rewrite-Lean-Premium-Upgrade-v2" ]; then
+            SOURCE="unzipped-kit/Ringside-Rewrite-Lean-Premium-Upgrade-v2"
+          fi
+
+          for path in config prompts scripts src UPGRADE_INSTRUCTIONS.md workflow-update; do
+            if [ -e "$SOURCE/$path" ]; then
+              cp -R "$SOURCE/$path" .
+            fi
+          done
+
+          rm -rf unzipped-kit
+
+      - name: Commit unzipped files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add config prompts scripts src UPGRADE_INSTRUCTIONS.md workflow-update || true
+          git add -u
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Apply Ringside Rewrite lean premium upgrade"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
