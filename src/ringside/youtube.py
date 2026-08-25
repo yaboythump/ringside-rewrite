@@ -63,6 +63,22 @@ def youtube_service(settings: Settings, interactive: bool = False):
     service = build("youtube", "v3", credentials=credentials, cache_discovery=False)
     response = service.channels().list(part="id,snippet", mine=True).execute()
     items = response.get("items", [])
+    # Channel display names can be temporarily locked or reformatted by YouTube.
+    # When the immutable channel ID is configured, use it as the authority and do
+    # not reject valid credentials merely because the display title differs.
+    if settings.youtube_expected_channel_id:
+        actual_ids = {item.get("id", "") for item in items}
+        if settings.youtube_expected_channel_id not in actual_ids:
+            actual = ", ".join(
+                f"{item.get('snippet', {}).get('title', 'unknown')} ({item.get('id', 'unknown')})"
+                for item in items
+            ) or "no channel"
+            raise RuntimeError(
+                "YouTube authorization points to the wrong channel ID. "
+                f"Expected '{settings.youtube_expected_channel_id}'; authorized: {actual}."
+            )
+        return service
+
     expected_title = settings.channel.get("channel", {}).get(
         "name", "RINGSIDE REWRITE"
     )
@@ -81,13 +97,6 @@ def youtube_service(settings: Settings, interactive: bool = False):
             "YouTube authorization points to the wrong channel. "
             f"Expected title '{expected_title}'; authorized: {actual}."
         )
-    if settings.youtube_expected_channel_id:
-        actual_ids = {item.get("id", "") for item in title_matches}
-        if settings.youtube_expected_channel_id not in actual_ids:
-            raise RuntimeError(
-                "YouTube channel title matched, but its ID did not match "
-                "YOUTUBE_EXPECTED_CHANNEL_ID."
-            )
     return service
 
 
