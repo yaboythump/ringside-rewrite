@@ -1,5 +1,5 @@
 [channel]
-name = "Ring Side Rewrite"
+name = "RINGSIDE REWRITE"
 handle_hint = "@RingsideRewrite"
 tagline = "Wrestling History. Booked Differently."
 category_id = "24"
@@ -10,7 +10,7 @@ made_for_kids = false
 
 [format]
 niche = "cinematic what-if fantasy booking built from documented professional-wrestling history"
-long_form_target_minutes = 9
+long_form_target_minutes = 7
 shorts_per_episode = 3
 content_rating = "TV-14 sports-entertainment tone without graphic gore"
 voice_style = "confident Black male sports-documentary narrator; conversational, dramatic, and controlled; never imitate a real wrestler, commentator, or announcer"
@@ -24,8 +24,13 @@ pilot_thumbnail = "assets/pilot-thumbnail-youtube.png"
 
 [production]
 mode = "pilot"
-min_shots = 24
-max_shots = 32
+min_shots = 14
+max_shots = 16
+legacy_episode_slugs = ["sting-leads-the-invasion"]
+legacy_min_shots = 24
+legacy_max_shots = 32
+legacy_min_words = 1050
+legacy_max_words = 1700
 image_size = "1536x1024"
 image_quality = "medium"
 video_width = 1920
@@ -35,8 +40,8 @@ caption_style = "bottom_center"
 music_volume = 0.08
 
 [quality]
-min_words = 1050
-max_words = 1700
+min_words = 800
+max_words = 1100
 max_recent_similarity = 0.48
 max_repeated_opening_words = 8
 min_distinct_locations = 4
@@ -54,7 +59,7 @@ marker_filename = ".approved"
 private_until_approved = true
 
 [schedule]
-long_form_days = ["tue", "thu", "sat"]
+long_form_days = ["tue", "sat"]
 long_form_time = "12:00"
 shorts_offset_days = [1, 2, 3]
 
@@ -62,4 +67,3 @@ shorts_offset_days = [1, 2, 3]
 default_privacy = "private"
 description_footer = "RINGSIDE REWRITE is an unofficial fan-made fantasy-booking channel. The documented starting point is separated from the fictional rewrite. Visuals and narration include AI-generated elements. This channel is not affiliated with WWE, AEW, TNA, NJPW, or any wrestling promotion."
 tags = ["wrestling what if", "fantasy booking", "wrestling history", "pro wrestling", "Ringside Rewrite", "alternate wrestling history"]
-

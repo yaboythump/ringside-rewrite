@@ -1,0 +1,69 @@
+name: RINGSIDE REWRITE scheduled production
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "What should this manual run produce?"
+        required: true
+        default: "pilot"
+        type: choice
+        options:
+          - pilot
+          - new_episode
+  schedule:
+    # Tuesday and Saturday at 12:00 PM EST (17:00 UTC).
+    # During daylight time this runs at 1:00 PM Eastern unless changed to 16:00 UTC.
+    - cron: "0 17 * * 2,6"
+
+concurrency:
+  group: ringside-rewrite-production
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - run: pip install -e .
+      - name: Produce and upload to Ringside Rewrite
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET_VALUE: ${{ secrets.YOUTUBE_CLIENT_SECRET_VALUE }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_EXPECTED_CHANNEL_ID: ${{ vars.YOUTUBE_EXPECTED_CHANNEL_ID }}
+          RINGSIDE_AUTO_PUBLISH: ${{ vars.RINGSIDE_AUTO_PUBLISH || 'false' }}
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.mode }}" == "pilot" ]]; then
+            ringside dry-run --episode content/pilot/episode.json
+            ringside produce --episode content/pilot/episode.json
+            ringside publish --episode-dir output/sting-leads-the-invasion --privacy private
+          else
+            python scripts/run_scheduled.py
+          fi
+      - name: Keep finished episodes and Shorts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ringside-rewrite-run
+          retention-days: 14
+          path: |
+            output/**/final.mp4
+            output/**/shorts/*.mp4
+            output/**/thumbnail.png
+            output/**/captions.srt
+            output/**/episode.json
+            output/**/manifest.json
+            output/**/quality-*.json
+            output/**/youtube-upload.json
+          if-no-files-found: warn

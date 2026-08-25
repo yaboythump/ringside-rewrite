@@ -60,6 +60,13 @@ def evaluate_episode(
     max_similarity = float(quality.get("max_recent_similarity", 0.52))
     minimum_sources = int(quality.get("minimum_source_notes", 2))
     subject_cooldown = int(quality.get("subject_cooldown_episodes", 3))
+    required_shorts = int(channel_config.get("format", {}).get("shorts_per_episode", 3))
+    legacy_slugs = set(production.get("legacy_episode_slugs", []))
+    if plan.slug in legacy_slugs:
+        minimum_words = int(production.get("legacy_min_words", minimum_words))
+        maximum_words = int(production.get("legacy_max_words", maximum_words))
+        minimum_shots = int(production.get("legacy_min_shots", minimum_shots))
+        maximum_shots = int(production.get("legacy_max_shots", maximum_shots))
 
     word_count = plan.spoken_word_count
     shot_count = len(plan.shots)
@@ -82,6 +89,10 @@ def evaluate_episode(
         report.errors.append(f"Only {shot_count} shots; minimum is {minimum_shots}.")
     if shot_count > maximum_shots:
         report.errors.append(f"{shot_count} shots exceeds the cost cap of {maximum_shots}.")
+    if len(plan.shorts) != required_shorts:
+        report.errors.append(
+            f"Episode must contain exactly {required_shorts} Shorts; found {len(plan.shorts)}."
+        )
     if distinct_locations < minimum_locations:
         report.errors.append(
             f"Only {distinct_locations} distinct locations; minimum is {minimum_locations}."

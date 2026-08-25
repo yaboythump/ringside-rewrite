@@ -157,7 +157,7 @@ luchadors.
         "episode plan",
         lambda: client.responses.parse(
             model=settings.text_model,
-            reasoning={"effort": "high"},
+            reasoning={"effort": "medium"},
             input=[
                 {"role": "developer", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -221,7 +221,7 @@ _BRAND_REPLACEMENTS = {
 
 _COMMON_PUBLIC_FIGURES = (
     "Sasha Banks",
-    "Mercedes MonÃ©",
+    "Mercedes Moné",
     "Mercedes Mone",
     "Bayley",
     "Charlotte Flair",
@@ -256,7 +256,22 @@ def _subject_replacement(subject: str, surrounding_text: str) -> str:
         return "a fictional female wrestling star"
     if any(hint in lower for hint in _EXECUTIVE_HINTS):
         return "a fictional wrestling executive"
-    return "a fictional wrestling star"
+    return "a fictional male wrestling star"
+
+
+def _identity_for_subject(
+    subject: str,
+    surrounding_text: str,
+    visual_identities: dict[str, str] | None = None,
+) -> str:
+    identities = visual_identities or {}
+    for name, identity in identities.items():
+        if name.casefold() == subject.casefold() and identity.strip():
+            return (
+                "a fictionalized premium editorial wrestling character with these locked "
+                f"visual traits: {identity.strip()}"
+            )
+    return _subject_replacement(subject, surrounding_text)
 
 
 def _presentation_hint(shot: Shot, subjects: list[str]) -> str:
@@ -272,13 +287,17 @@ def _presentation_hint(shot: Shot, subjects: list[str]) -> str:
     )
 
 
-def _hard_sanitize_public_references(text: str, subjects: list[str]) -> str:
+def _hard_sanitize_public_references(
+    text: str,
+    subjects: list[str],
+    visual_identities: dict[str, str] | None = None,
+) -> str:
     cleaned = text
     for subject in sorted({item.strip() for item in subjects if item.strip()}, key=len, reverse=True):
         if len(subject) >= 3:
             cleaned = re.sub(
                 re.escape(subject),
-                _subject_replacement(subject, text),
+                _identity_for_subject(subject, text, visual_identities),
                 cleaned,
                 flags=re.IGNORECASE,
             )
@@ -294,8 +313,15 @@ def _hard_sanitize_public_references(text: str, subjects: list[str]) -> str:
     return cleaned
 
 
-def _safe_wrestling_visual(shot: Shot) -> str:
+def _safe_wrestling_visual(shot: Shot, subjects: list[str]) -> str:
     text = f"{shot.scene_title} {shot.location} {shot.music_mood}".casefold()
+    subject_text = f"{shot.scene_title} {shot.image_prompt} {' '.join(subjects)}".casefold()
+    women_only = any(hint in subject_text for hint in _FEMALE_HINTS)
+    performers = (
+        "fictional women wrestlers with athletic builds and unmasked faces"
+        if women_only
+        else "fictional male wrestlers with athletic builds and unmasked faces"
+    )
     if any(word in text for word in ("contract", "signing", "desk", "office")):
         return (
             "a contract signing table in a dramatic wrestling arena, championship belt "
@@ -304,12 +330,12 @@ def _safe_wrestling_visual(shot: Shot) -> str:
     if any(word in text for word in ("backstage", "hallway", "locker", "monitor")):
         return (
             "a smoky backstage corridor with production cases, blank monitors, ring ropes "
-            "visible in the distance, tense fictional performers shown only as silhouettes"
+            f"visible in the distance, tense {performers} shown only as silhouettes"
         )
     if any(word in text for word in ("entrance", "ramp", "stage", "pyro")):
         return (
             "a dramatic entrance ramp with red and gold arena lights, fog, sparks, and "
-            "fictional masked performers seen from behind"
+            f"{performers} seen from behind"
         )
     if any(word in text for word in ("press", "media", "conference", "announcement")):
         return (
@@ -327,14 +353,24 @@ def _safe_wrestling_visual(shot: Shot) -> str:
     )
 
 
-def _fallback_image_prompt_for_shot(shot: Shot, subjects: list[str]) -> str:
+def _fallback_image_prompt_for_shot(
+    shot: Shot,
+    subjects: list[str],
+    visual_identities: dict[str, str] | None = None,
+) -> str:
     presentation = _presentation_hint(shot, subjects)
-    visual = _safe_wrestling_visual(shot)
+    visual = _safe_wrestling_visual(shot, subjects)
+    identity_lock = "; ".join(
+        identity.strip()
+        for identity in (visual_identities or {}).values()
+        if identity.strip()
+    )
     return (
         "Create one 16:9 premium illustrated sports-documentary frame for an unofficial "
         "fictional professional-wrestling alternate-history episode.\n\n"
         f"Scene visual setup: {visual}.\n\n"
-        f"{presentation} Use anonymous silhouettes, fictional faces, props, arenas, "
+        f"Mandatory character identity lock: {identity_lock or 'match the documented gender, build, hair, skin tone, and era in the scene'}. "
+        f"{presentation} Use fictionalized editorial faces, props, arenas, "
         "crowds, belts, contracts, lights, and atmosphere. Do not depict, name, imitate, "
         "or resemble any real person, public figure, celebrity, real wrestler, promoter, "
         "commentator, or athlete. Do not include official promotion names, logos, "
@@ -344,9 +380,20 @@ def _fallback_image_prompt_for_shot(shot: Shot, subjects: list[str]) -> str:
     )
 
 
-def _old_style_image_prompt_for_shot(shot: Shot, subjects: list[str]) -> str:
-    cleaned = _hard_sanitize_public_references(shot.image_prompt.strip(), subjects)
+def _old_style_image_prompt_for_shot(
+    shot: Shot,
+    subjects: list[str],
+    visual_identities: dict[str, str] | None = None,
+) -> str:
+    cleaned = _hard_sanitize_public_references(
+        shot.image_prompt.strip(), subjects, visual_identities
+    )
     presentation = _presentation_hint(shot, subjects)
+    identity_lock = "; ".join(
+        f"{name}: {identity.strip()}"
+        for name, identity in (visual_identities or {}).items()
+        if identity.strip()
+    )
     return (
         f"{cleaned}\n\n"
         "Output intent: one clearly stylized 16:9 premium illustrated sports-history "
@@ -354,6 +401,7 @@ def _old_style_image_prompt_for_shot(shot: Shot, subjects: list[str]) -> str:
         "cinematic, high-detail look as the pilot episode: dramatic arena lighting, "
         "smoke, crowd energy, premium wrestling-poster composition, realistic props, "
         "and emotional documentary tension. "
+        f"Mandatory character identity lock: {identity_lock or 'preserve the subject gender, build, skin tone, hair, and era-specific silhouette stated above'}. "
         f"{presentation} Use fictional/composite performers only. Do not depict, name, "
         "imitate, or resemble any real person, public figure, celebrity, real wrestler, "
         "promoter, commentator, or athlete. Do not include official promotion names, "
@@ -395,6 +443,7 @@ def generate_shot_image(
     shot: Shot,
     destination: Path,
     subjects: list[str] | None = None,
+    visual_identities: dict[str, str] | None = None,
 ) -> None:
     if not settings.openai_api_key_present:
         raise RuntimeError("OPENAI_API_KEY is required to generate images.")
@@ -405,7 +454,7 @@ def generate_shot_image(
         result = _generate_image(
             client,
             settings,
-            _old_style_image_prompt_for_shot(shot, subjects),
+            _old_style_image_prompt_for_shot(shot, subjects, visual_identities),
         )
     except Exception as exc:
         if not _is_safety_block(exc):
@@ -414,7 +463,7 @@ def generate_shot_image(
             result = _generate_image(
                 client,
                 settings,
-                _fallback_image_prompt_for_shot(shot, subjects),
+                _fallback_image_prompt_for_shot(shot, subjects, visual_identities),
             )
         except Exception as fallback_exc:
             if not _is_safety_block(fallback_exc):
@@ -472,7 +521,13 @@ def generate_episode_assets(
         audio_path = audio_dir / f"shot-{shot.id:03d}.wav"
         if images and not image_path.exists():
             print(f"[image {shot.id:03d}/{len(plan.shots):03d}] {shot.scene_title}")
-            generate_shot_image(settings, shot, image_path, plan.primary_subjects)
+            generate_shot_image(
+                settings,
+                shot,
+                image_path,
+                plan.primary_subjects,
+                plan.visual_identities,
+            )
         if audio and not audio_path.exists():
             print(f"[voice {shot.id:03d}/{len(plan.shots):03d}] {shot.scene_title}")
             generate_shot_audio(settings, shot, audio_path)

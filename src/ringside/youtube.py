@@ -213,6 +213,81 @@ def _future_iso(base: str | None, days: int) -> str | None:
     )
 
 
+def _short_title(plan: EpisodePlan, cut) -> str:
+    """Keep every Short visibly tied to its parent episode within YouTube's limit."""
+    parent = plan.episode_title.strip()
+    hook = cut.title.strip()
+    if hook.casefold().startswith(parent.casefold()):
+        title = f"{hook} #Shorts"
+    else:
+        title = f"{parent} — {hook} #Shorts"
+    if len(title) <= 100:
+        return title
+    suffix = " #Shorts"
+    separator = " — "
+    available = 100 - len(parent) - len(separator) - len(suffix)
+    if available >= 12:
+        return f"{parent}{separator}{hook[:available].rstrip()}{suffix}"
+    available_parent = max(20, 100 - len(separator) - len(hook) - len(suffix))
+    return f"{parent[:available_parent].rstrip()}{separator}{hook}{suffix}"[:100]
+
+
+def _fit_youtube_tags(values: list[str], limit: int = 500) -> list[str]:
+    output: list[str] = []
+    seen: set[str] = set()
+    used = 0
+    for value in values:
+        tag = " ".join(value.strip().split()).strip("#, ")
+        key = tag.casefold()
+        if not tag or key in seen:
+            continue
+        added = len(tag) + (1 if output else 0)
+        if used + added > limit:
+            continue
+        output.append(tag)
+        seen.add(key)
+        used += added
+    return output
+
+
+def _short_tags(settings: Settings, plan: EpisodePlan, cut) -> list[str]:
+    configured = list(settings.channel.get("youtube", {}).get("tags", []))
+    discovery = [
+        plan.episode_title,
+        cut.title,
+        *plan.primary_subjects,
+        *plan.tags,
+        *configured,
+        "Ringside Rewrite",
+        "wrestling shorts",
+        "pro wrestling shorts",
+        "fantasy booking shorts",
+        "wrestling what if",
+        "alternate wrestling history",
+        "wrestling storyline",
+        "wrestling documentary",
+        "Shorts",
+    ]
+    return _fit_youtube_tags(discovery)
+
+
+def _short_description(plan: EpisodePlan, cut, long_id: str) -> str:
+    hashtags = list(
+        dict.fromkeys(
+            [*plan.hashtags, "#WrestlingShorts", "#FantasyBooking", "#Shorts"]
+        )
+    )[:5]
+    return "\n\n".join(
+        [
+            cut.caption.strip(),
+            f'From the Ringside Rewrite episode: "{plan.episode_title}."',
+            f"Watch the full episode: https://youtu.be/{long_id}",
+            plan.viewer_question.strip(),
+            " ".join(hashtags),
+        ]
+    )[:5000]
+
+
 def upload_episode(
     settings: Settings,
     plan: EpisodePlan,
@@ -274,9 +349,9 @@ def upload_episode(
                 service,
                 settings,
                 short_path,
-                f"{cut.title} #Shorts",
-                f"{cut.caption}\n\n{_description(settings, plan)}",
-                list(dict.fromkeys(tags + ["Shorts"])),
+                _short_title(plan, cut),
+                _short_description(plan, cut, long_id),
+                _short_tags(settings, plan, cut),
                 privacy,
                 short_publish_at,
             )

@@ -70,6 +70,7 @@ class EpisodePlan(BaseModel):
     logline: str = Field(min_length=20, max_length=400)
     theme: str = Field(min_length=3, max_length=160)
     primary_subjects: list[str] = Field(min_length=1, max_length=6)
+    visual_identities: dict[str, str] = Field(default_factory=dict)
     historical_cutoff: str = Field(min_length=4, max_length=160)
     factual_baseline: list[str] = Field(min_length=3, max_length=10)
     source_notes: list[SourceNote] = Field(min_length=2, max_length=10)
