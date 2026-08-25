@@ -345,9 +345,15 @@ def render_shorts(
         end = by_id[cut.end_shot].end
         duration = min(end - start, 59.0)
         destination = shorts_dir / f"short-{index:02d}.mp4"
-        crop_filter = (
-            "scale=1920:1080:force_original_aspect_ratio=increase,"
-            "crop=608:1080:(in_w-608)/2:0,scale=1080:1920"
+        # Keep the complete 16:9 composition visible in a 9:16 Short.  A
+        # blurred full-height copy fills the vertical canvas while the sharp
+        # source is fitted to width and lifted above YouTube's lower UI.
+        vertical_filter = (
+            "[0:v]split=2[background][foreground];"
+            "[background]scale=1080:1920:force_original_aspect_ratio=increase,"
+            "crop=1080:1920,gblur=sigma=32,eq=brightness=-0.12[bg];"
+            "[foreground]scale=1080:1920:force_original_aspect_ratio=decrease[fg];"
+            "[bg][fg]overlay=(W-w)/2:(H-h)/2-140,format=yuv420p[video]"
         )
         _run(
             [
@@ -359,8 +365,12 @@ def render_shorts(
                 str(final_video),
                 "-t",
                 f"{duration:.3f}",
-                "-vf",
-                crop_filter,
+                "-filter_complex",
+                vertical_filter,
+                "-map",
+                "[video]",
+                "-map",
+                "0:a?",
                 "-c:v",
                 "libx264",
                 "-crf",
@@ -370,4 +380,3 @@ def render_shorts(
                 str(destination),
             ]
         )
-
