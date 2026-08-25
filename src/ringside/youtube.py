@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -178,6 +179,7 @@ def _upload_video(
     publish_at: str | None,
 ) -> str:
     try:
+        from googleapiclient.errors import HttpError
         from googleapiclient.http import MediaFileUpload
     except ImportError as exc:
         raise RuntimeError("Google API client dependencies are missing.") from exc
@@ -189,11 +191,12 @@ def _upload_video(
     }
     if publish_at:
         status["publishAt"] = publish_at
+    safe_tags = _fit_youtube_tags(tags)
     body = {
         "snippet": {
             "title": title[:100],
             "description": description[:5000],
-            "tags": tags,
+            "tags": safe_tags,
             "categoryId": settings.channel.get("channel", {}).get("category_id", "24"),
             "defaultLanguage": settings.channel.get("channel", {}).get(
                 "default_language", "en"
@@ -201,14 +204,29 @@ def _upload_video(
         },
         "status": status,
     }
-    media = MediaFileUpload(str(file_path), chunksize=8 * 1024 * 1024, resumable=True)
-    request = service.videos().insert(
-        part="snippet,status",
-        body=body,
-        media_body=media,
-        notifySubscribers=False,
-    )
-    return _resumable_upload(request)
+    def request_for(payload: dict):
+        media = MediaFileUpload(
+            str(file_path), chunksize=8 * 1024 * 1024, resumable=True
+        )
+        return service.videos().insert(
+            part="snippet,status",
+            body=payload,
+            media_body=media,
+            notifySubscribers=False,
+        )
+
+    try:
+        return _resumable_upload(request_for(body))
+    except HttpError as exc:
+        content = str(getattr(exc, "content", b""))
+        if exc.resp.status != 400 or "invalidTags" not in content:
+            raise
+        # Tags are optional. If YouTube rejects a keyword despite sanitizing,
+        # retry the same finished video once without tags instead of losing the
+        # entire production run.
+        print("YouTube rejected the generated tags; retrying upload without tags.")
+        body["snippet"]["tags"] = []
+        return _resumable_upload(request_for(body))
 
 
 def _future_iso(base: str | None, days: int) -> str | None:
@@ -241,16 +259,19 @@ def _short_title(plan: EpisodePlan, cut) -> str:
     return f"{parent[:available_parent].rstrip()}{separator}{hook}{suffix}"[:100]
 
 
-def _fit_youtube_tags(values: list[str], limit: int = 500) -> list[str]:
+def _fit_youtube_tags(values: list[str], limit: int = 450) -> list[str]:
     output: list[str] = []
     seen: set[str] = set()
     used = 0
     for value in values:
-        tag = " ".join(value.strip().split()).strip("#, ")
+        tag = re.sub(r"[<>\x00-\x1f]", "", str(value))
+        tag = " ".join(tag.strip().split()).strip("#, \"")
         key = tag.casefold()
         if not tag or key in seen:
             continue
-        added = len(tag) + (1 if output else 0)
+        # YouTube counts commas between tags and also counts an implied pair of
+        # quotation marks around every tag containing a space.
+        added = len(tag) + (2 if " " in tag else 0) + (1 if output else 0)
         if used + added > limit:
             continue
         output.append(tag)
