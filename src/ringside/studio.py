@@ -526,7 +526,7 @@ def generate_episode_assets(
                 shot,
                 image_path,
                 plan.primary_subjects,
-                plan.visual_identities,
+                plan.visual_identity_map,
             )
         if audio and not audio_path.exists():
             print(f"[voice {shot.id:03d}/{len(plan.shots):03d}] {shot.scene_title}")
