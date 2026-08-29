@@ -1,0 +1,84 @@
+name: Retry latest completed Ringside Rewrite upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      privacy:
+        description: "Upload visibility"
+        required: true
+        default: "private"
+        type: choice
+        options:
+          - private
+          - unlisted
+
+concurrency:
+  group: ringside-rewrite-retry-upload
+  cancel-in-progress: false
+
+jobs:
+  retry-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Download newest saved Ringside Rewrite production
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          artifact_url="$(
+            curl -fsSL \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            | jq -r '[.artifacts[] | select(.name == "ringside-rewrite-run" and .expired == false)][0].archive_download_url'
+          )"
+          test -n "$artifact_url"
+          test "$artifact_url" != "null"
+          curl -fsSL -L \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$artifact_url" -o ringside-rewrite-run.zip
+          mkdir -p output
+          unzip -q ringside-rewrite-run.zip -d output
+
+      - run: pip install -e .
+
+      - name: Verify and correctly frame saved Shorts
+        shell: bash
+        run: |
+          episode_dir="$(find output -type f -name final.mp4 -printf '%h\n' | head -n 1)"
+          test -n "$episode_dir"
+          test -f "$episode_dir/episode.json"
+          test -f "$episode_dir/captions.srt"
+          python scripts/rebuild_saved_shorts.py --episode-dir "$episode_dir"
+
+      - name: Upload saved episode and three Shorts
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET_VALUE: ${{ secrets.YOUTUBE_CLIENT_SECRET_VALUE }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_EXPECTED_CHANNEL_ID: ${{ vars.YOUTUBE_EXPECTED_CHANNEL_ID || 'UC8OX1Ym_Qnt-ekFgvsjB7cA' }}
+          RINGSIDE_AUTO_PUBLISH: "false"
+        shell: bash
+        run: |
+          episode_dir="$(find output -type f -name final.mp4 -printf '%h\n' | head -n 1)"
+          ringside publish --episode-dir "$episode_dir" --privacy "${{ inputs.privacy }}"
+
+      - name: Keep upload receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ringside-rewrite-retry-receipt
+          path: output/**/youtube-upload.json
+          if-no-files-found: warn
