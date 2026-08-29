@@ -108,7 +108,7 @@ class EpisodePlan(BaseModel):
                 seen.add(tag.casefold())
         return output
 
-    @field_validator("primary_subjects", "factual_baseline", "hashtags")
+    @field_validator("primary_subjects", "factual_baseline")
     @classmethod
     def unique_string_lists(cls, values: list[str]) -> list[str]:
         clean = [value.strip() for value in values if value.strip()]
@@ -120,10 +120,27 @@ class EpisodePlan(BaseModel):
     @classmethod
     def normalize_hashtags(cls, values: list[str]) -> list[str]:
         normalized: list[str] = []
+        seen: set[str] = set()
         for value in values:
             compact = "".join(value.strip().split())
-            normalized.append(compact if compact.startswith("#") else f"#{compact}")
-        return normalized
+            if not compact:
+                continue
+            hashtag = compact if compact.startswith("#") else f"#{compact}"
+            key = hashtag.casefold()
+            if key not in seen:
+                normalized.append(hashtag)
+                seen.add(key)
+
+        # Structured generation occasionally repeats a hashtag. Keep planning
+        # resilient by de-duplicating and adding safe channel defaults instead
+        # of rejecting the entire episode before production starts.
+        for fallback in ("#RingsideRewrite", "#FantasyBooking", "#Wrestling"):
+            if len(normalized) >= 3:
+                break
+            if fallback.casefold() not in seen:
+                normalized.append(fallback)
+                seen.add(fallback.casefold())
+        return normalized[:5]
 
     @model_validator(mode="after")
     def shot_ids_and_short_ranges(self) -> "EpisodePlan":
