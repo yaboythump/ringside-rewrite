@@ -31,6 +31,9 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Install video tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Download newest saved Ringside Rewrite production
         env:
           GH_TOKEN: ${{ github.token }}
