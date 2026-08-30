@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import base64
 import json
-import random
 import re
 import time
 from pathlib import Path
 
 from .config import Settings
 from .models import EpisodePlan, Shot
+from .topic_selector import select_episode_topic
 
 
 def _openai_client():
@@ -109,10 +109,16 @@ def generate_episode_plan(
     system_prompt = (settings.root / "prompts" / "episode_system.md").read_text(
         encoding="utf-8"
     )
-    selected_theme = theme or random.choice(
-        (settings.root / "prompts" / "idea_seeds.txt").read_text(encoding="utf-8").splitlines()
-    ).strip()
     prior = recent_plans or []
+    if theme:
+        selected_theme = theme.strip()
+    else:
+        topic_choice = select_episode_topic(settings, recent_plans=prior)
+        selected_theme = topic_choice.premise
+        print(
+            "Selected analytics-driven topic: "
+            f"{selected_theme} ({topic_choice.reason})"
+        )
     research_brief = research_episode(settings, selected_theme)
     recent_summary = [
         {
