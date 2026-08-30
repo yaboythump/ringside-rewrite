@@ -110,6 +110,10 @@ def generate_episode_plan(
         encoding="utf-8"
     )
     prior = recent_plans or []
+    quality = settings.channel.get("quality", {})
+    minimum_words = int(quality.get("min_words", 800))
+    maximum_words = int(quality.get("max_words", 1100))
+    target_words = max(minimum_words + 75, maximum_words - 75)
     if theme:
         selected_theme = theme.strip()
     else:
@@ -138,6 +142,11 @@ Documented research brief:
 
 Recent episodes and subjects to avoid repeating:
 {json.dumps(recent_summary, indent=2)}
+
+Mandatory narration length:
+The combined spoken narration across every shot MUST be {minimum_words}-{maximum_words}
+words. Aim for approximately {target_words} words. Count only spoken narration. Do not
+exceed {maximum_words} words.
 
 Research and sourcing rules:
 {_research_brief(settings)}
@@ -171,9 +180,48 @@ luchadors.
             text_format=EpisodePlan,
         ),
     )
-    if response.output_parsed is None:
+    plan = response.output_parsed
+    if plan is None:
         raise RuntimeError("The model did not return a valid episode plan.")
-    return response.output_parsed
+    if minimum_words <= plan.spoken_word_count <= maximum_words:
+        return plan
+
+    original_count = plan.spoken_word_count
+    print(
+        f"Episode plan has {original_count} spoken words; repairing it to "
+        f"{minimum_words}-{maximum_words} before production."
+    )
+    repair_prompt = f"""
+Revise the supplied EpisodePlan so its combined spoken narration is between
+{minimum_words} and {maximum_words} words, aiming for {target_words}. The current plan has
+{original_count} words. Preserve its premise, documented facts, sources, shot count,
+image prompts, metadata, three Shorts, reversal, payoff, and aftermath. Tighten or expand
+only narration as needed. Return the complete corrected EpisodePlan.
+
+EpisodePlan to repair:
+{plan.model_dump_json(indent=2)}
+""".strip()
+    repaired_response = _openai_retry(
+        "episode length repair",
+        lambda: client.responses.parse(
+            model=settings.text_model,
+            reasoning={"effort": "low"},
+            input=[
+                {"role": "developer", "content": system_prompt},
+                {"role": "user", "content": repair_prompt},
+            ],
+            text_format=EpisodePlan,
+        ),
+    )
+    repaired = repaired_response.output_parsed
+    if repaired is None:
+        raise RuntimeError("The model did not return a repaired episode plan.")
+    if not minimum_words <= repaired.spoken_word_count <= maximum_words:
+        raise RuntimeError(
+            "Episode length repair stayed outside the safe range: "
+            f"{repaired.spoken_word_count} words; required {minimum_words}-{maximum_words}."
+        )
+    return repaired
 
 
 def _image_result_bytes(result) -> bytes:

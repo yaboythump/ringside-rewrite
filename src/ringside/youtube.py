@@ -401,22 +401,43 @@ def analytics_snapshot(settings: Settings, max_results: int = 20) -> dict[str, A
     if not items:
         raise RuntimeError("Authorized account has no YouTube channel.")
     uploads_playlist = items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
-    playlist = (
-        service.playlistItems()
-        .list(part="contentDetails,snippet", playlistId=uploads_playlist, maxResults=max_results)
-        .execute()
-    )
-    ids = [item["contentDetails"]["videoId"] for item in playlist.get("items", [])]
+    ids: list[str] = []
+    page_token: str | None = None
+    while len(ids) < max_results:
+        page_size = min(50, max_results - len(ids))
+        playlist = (
+            service.playlistItems()
+            .list(
+                part="contentDetails,snippet",
+                playlistId=uploads_playlist,
+                maxResults=page_size,
+                pageToken=page_token,
+            )
+            .execute()
+        )
+        ids.extend(
+            item["contentDetails"]["videoId"]
+            for item in playlist.get("items", [])
+        )
+        page_token = playlist.get("nextPageToken")
+        if not page_token:
+            break
     if not ids:
         return {"videos": []}
-    videos = (
-        service.videos()
-        .list(part="snippet,statistics,status", id=",".join(ids))
-        .execute()
-    )
+    video_items: list[dict[str, Any]] = []
+    for start in range(0, len(ids), 50):
+        videos = (
+            service.videos()
+            .list(
+                part="snippet,statistics,status",
+                id=",".join(ids[start : start + 50]),
+            )
+            .execute()
+        )
+        video_items.extend(videos.get("items", []))
     snapshot = {
         "captured_at": datetime.now(timezone.utc).isoformat(),
-        "videos": videos.get("items", []),
+        "videos": video_items,
     }
     destination = settings.output_dir / "analytics-latest.json"
     destination.parent.mkdir(parents=True, exist_ok=True)

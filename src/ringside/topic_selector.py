@@ -267,7 +267,9 @@ def select_episode_topic(
         try:
             from .youtube import analytics_snapshot
 
-            analytics = analytics_snapshot(settings, max_results=36)
+            # Read enough upload history to make "already used" a channel-wide
+            # rule instead of a short recent-window guess.
+            analytics = analytics_snapshot(settings, max_results=200)
             analytics_source = "youtube_data_api"
         except Exception as exc:  # selector should never kill an episode
             analytics = None
@@ -282,7 +284,7 @@ def select_episode_topic(
 
     report = {
         "captured_at": now.isoformat(),
-        "selector": "analytics_driven_topic_selector_v1",
+        "selector": "analytics_driven_topic_selector_v2",
         "analytics_used": bool(videos),
         "analytics_source": analytics_source,
         "analytics_error": analytics_error,
@@ -547,9 +549,9 @@ def _rank_candidates(
         elif _blocked_by_recent_analytics(candidate, recent_groups):
             eligible = False
             reason_parts.append("blocked by recent YouTube topic cooldown")
-        elif _exactly_used_before(candidate, used_groups):
+        elif _same_story_used_before(candidate, used_groups):
             eligible = False
-            reason_parts.append("blocked as an already-used topic")
+            reason_parts.append("hard blocked as an already-used wrestler/storyline")
 
         analytics_score, analytics_reason = _analytics_score(candidate, videos)
         diversity_score = _diversity_bonus(candidate, used_groups)
@@ -591,15 +593,26 @@ def _blocked_by_recent_analytics(candidate: _Candidate, recent_groups: list[dict
     )
 
 
-def _exactly_used_before(candidate: _Candidate, groups: list[dict[str, Any]]) -> bool:
+def _same_story_used_before(candidate: _Candidate, groups: list[dict[str, Any]]) -> bool:
+    """Block the same episode concept even when YouTube uses a creative title.
+
+    Exact wording is not reliable because upload titles are optimized separately
+    from the seed premise. A repeated primary subject plus a distinctive storyline
+    fingerprint (for example Undertaker + legacy_streak) is a used episode.
+    """
     normalized_premise = _normalize_text(candidate.premise)
     for group in groups:
         normalized_group = _normalize_text(group["text"])
         if normalized_premise and normalized_premise in normalized_group:
             return True
+        subject_overlap = candidate.subject_tokens & group["subject_tokens"]
+        shared_story_tags = candidate.story_tags & group["story_tags"]
+        distinctive_tags = shared_story_tags - {"general_what_if", "major_event"}
+        if subject_overlap and distinctive_tags:
+            return True
         if candidate.core_tokens:
             coverage = len(candidate.core_tokens & group["tokens"]) / len(candidate.core_tokens)
-            if coverage >= 0.78 and candidate.subject_tokens & group["subject_tokens"]:
+            if coverage >= 0.55 and subject_overlap:
                 return True
     return False
 
@@ -705,14 +718,14 @@ def _first_eligible(ranked: list[dict[str, Any]]) -> dict[str, Any]:
     for row in ranked:
         if row["eligible"]:
             return row
-    # If the channel eventually exhausts every seed, still produce an episode.
-    # The report will show every candidate as blocked so the seed file can be expanded.
     if not ranked:
         raise RuntimeError("No topic candidates were available.")
-    fallback = dict(ranked[0])
-    fallback["eligible"] = True
-    fallback["reason"] = f"all candidates were blocked; relaxed cooldown for {fallback['reason']}"
-    return fallback
+    # Never spend production credits on a known repeat. Expanding the seed list is
+    # safer than silently relaxing the duplicate rule.
+    raise RuntimeError(
+        "Every topic seed is blocked by channel history or the recent-subject cooldown. "
+        "Add fresh premises to prompts/idea_seeds.txt before producing another episode."
+    )
 
 
 def _save_report(path: Path, report: dict[str, Any]) -> None:
