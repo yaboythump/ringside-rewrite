@@ -72,8 +72,8 @@ jobs:
       - name: Publish finished videos to Facebook
         env:
           UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
-          UPLOAD_POST_PROFILE: GTA
-          RINGSIDE_FACEBOOK_PAGE_ID: ${{ vars.RINGSIDE_FACEBOOK_PAGE_ID }}
+          UPLOAD_POST_PROFILE: YouTube
+          RINGSIDE_FACEBOOK_PAGE_ID: "363068784190156"
         run: bash scripts/publish_facebook.sh
 
       - name: Keep finished episodes and Shorts
