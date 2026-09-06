@@ -69,6 +69,13 @@ jobs:
             python scripts/run_scheduled.py
           fi
 
+      - name: Publish finished videos to Facebook
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          UPLOAD_POST_PROFILE: GTA
+          RINGSIDE_FACEBOOK_PAGE_ID: ${{ vars.RINGSIDE_FACEBOOK_PAGE_ID }}
+        run: bash scripts/publish_facebook.sh
+
       - name: Keep finished episodes and Shorts
         if: always()
         uses: actions/upload-artifact@v4
