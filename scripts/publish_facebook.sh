@@ -2,14 +2,29 @@
 set -euo pipefail
 
 API_URL="https://api.upload-post.com/api/upload"
+AUTH_URL="https://api.upload-post.com/api/uploadposts/me"
 PROFILE="${UPLOAD_POST_PROFILE:-YouTube}"
 PAGE_ID="${RINGSIDE_FACEBOOK_PAGE_ID:-363068784190156}"
 API_KEY="${UPLOAD_POST_API_KEY:-}"
 
 if [[ -z "$API_KEY" ]]; then
-  echo "Facebook publish skipped: UPLOAD_POST_API_KEY is not configured."
-  exit 0
+  echo "::error::UPLOAD_POST_API_KEY is not configured."
+  exit 1
 fi
+
+if [[ -z "$PAGE_ID" ]]; then
+  echo "::error::RINGSIDE_FACEBOOK_PAGE_ID is not configured."
+  exit 1
+fi
+
+echo "Validating Upload-Post API key before sending video bytes..."
+if ! curl --silent --show-error --fail-with-body \
+  -H "Authorization: Apikey $API_KEY" \
+  "$AUTH_URL" >/dev/null; then
+  echo "::error::UPLOAD_POST_API_KEY is invalid or expired. Replace the GitHub Actions secret before retrying."
+  exit 1
+fi
+echo "Upload-Post API key validated."
 
 mapfile -t finals < <(find output -type f -name final.mp4 | sort)
 if [[ ${#finals[@]} -eq 0 ]]; then
@@ -39,7 +54,7 @@ for final in "${finals[@]}"; do
 
   final_hash="$(sha256sum "$final" | cut -c1-16)"
   echo "Publishing full episode to Facebook: $title"
-  curl --fail-with-body --retry 3 --retry-all-errors \
+  curl --fail-with-body --retry 3 --retry-delay 2 \
     -X POST "$API_URL" \
     -H "Authorization: Apikey $API_KEY" \
     -H "Idempotency-Key: ringside-facebook-${slug}-full-${final_hash}" \
@@ -60,7 +75,7 @@ for final in "${finals[@]}"; do
     short_hash="$(sha256sum "$short" | cut -c1-16)"
 
     upload_args=(
-      --fail-with-body --retry 3 --retry-all-errors
+      --fail-with-body --retry 3 --retry-delay 2
       -X POST "$API_URL"
       -H "Authorization: Apikey $API_KEY"
       -H "Idempotency-Key: ringside-facebook-${slug}-short-${short_num}-${short_hash}"
