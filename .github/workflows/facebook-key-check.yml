@@ -1,0 +1,25 @@
+name: Facebook credential check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate Upload-Post API key
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "$UPLOAD_POST_API_KEY" ]]; then
+            echo "::error::UPLOAD_POST_API_KEY is missing."
+            exit 1
+          fi
+          curl --silent --show-error --fail-with-body \
+            -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+            https://api.upload-post.com/api/uploadposts/me >/dev/null
+          echo "Upload-Post API key is valid."
