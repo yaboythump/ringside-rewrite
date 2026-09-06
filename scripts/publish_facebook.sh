@@ -2,17 +2,12 @@
 set -euo pipefail
 
 API_URL="https://api.upload-post.com/api/upload"
-PROFILE="${UPLOAD_POST_PROFILE:-GTA}"
-PAGE_ID="${RINGSIDE_FACEBOOK_PAGE_ID:-}"
+PROFILE="${UPLOAD_POST_PROFILE:-YouTube}"
+PAGE_ID="${RINGSIDE_FACEBOOK_PAGE_ID:-363068784190156}"
 API_KEY="${UPLOAD_POST_API_KEY:-}"
 
 if [[ -z "$API_KEY" ]]; then
   echo "Facebook publish skipped: UPLOAD_POST_API_KEY is not configured."
-  exit 0
-fi
-
-if [[ -z "$PAGE_ID" ]]; then
-  echo "Facebook publish skipped: RINGSIDE_FACEBOOK_PAGE_ID is not configured."
   exit 0
 fi
 
