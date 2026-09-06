@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from .config import Settings
+from .length_guard import fit_plan_to_max_words
 from .models import EpisodePlan, Shot
 from .topic_selector import select_episode_topic
 
@@ -113,7 +114,9 @@ def generate_episode_plan(
     quality = settings.channel.get("quality", {})
     minimum_words = int(quality.get("min_words", 800))
     maximum_words = int(quality.get("max_words", 1100))
-    target_words = max(minimum_words + 75, maximum_words - 75)
+    # Aim well below the hard cap. The previous 75-word margin was too small and
+    # repeatedly let structured generation overshoot the quality gate.
+    target_words = max(minimum_words + 50, maximum_words - 150)
     if theme:
         selected_theme = theme.strip()
     else:
@@ -198,6 +201,9 @@ Revise the supplied EpisodePlan so its combined spoken narration is between
 image prompts, metadata, three Shorts, reversal, payoff, and aftermath. Tighten or expand
 only narration as needed. Return the complete corrected EpisodePlan.
 
+HARD LENGTH RULE: the returned plan must be at or below {maximum_words} spoken words.
+Prefer concise sentences and remove redundant setup rather than landing near the ceiling.
+
 EpisodePlan to repair:
 {plan.model_dump_json(indent=2)}
 """.strip()
@@ -216,9 +222,58 @@ EpisodePlan to repair:
     repaired = repaired_response.output_parsed
     if repaired is None:
         raise RuntimeError("The model did not return a repaired episode plan.")
+
+    # Permanent fail-safe: if the model still ignores the upper bound, trim the
+    # narration deterministically instead of throwing away the entire production run.
+    if repaired.spoken_word_count > maximum_words:
+        before_guard = repaired.spoken_word_count
+        repaired = fit_plan_to_max_words(repaired, maximum_words)
+        print(
+            "Episode length guard trimmed the repaired plan from "
+            f"{before_guard} to {repaired.spoken_word_count} spoken words."
+        )
+
+    if repaired.spoken_word_count < minimum_words:
+        # Undershoots are uncommon, so spend one additional repair call only when
+        # needed. This keeps normal runs cheap while preventing a short draft from
+        # failing immediately.
+        expand_prompt = f"""
+Expand only the spoken narration in this EpisodePlan to between {minimum_words} and
+{maximum_words} words, aiming for {target_words}. It currently has
+{repaired.spoken_word_count} spoken words. Preserve every factual claim, source, shot,
+image prompt, metadata field, Short range, reversal, payoff, and aftermath. Add concise
+connective narration only; do not add new factual claims or direct dialogue. Return the
+complete EpisodePlan.
+
+EpisodePlan to expand:
+{repaired.model_dump_json(indent=2)}
+""".strip()
+        expanded_response = _openai_retry(
+            "episode length expansion",
+            lambda: client.responses.parse(
+                model=settings.text_model,
+                reasoning={"effort": "low"},
+                input=[
+                    {"role": "developer", "content": system_prompt},
+                    {"role": "user", "content": expand_prompt},
+                ],
+                text_format=EpisodePlan,
+            ),
+        )
+        expanded = expanded_response.output_parsed
+        if expanded is not None:
+            repaired = expanded
+            if repaired.spoken_word_count > maximum_words:
+                before_guard = repaired.spoken_word_count
+                repaired = fit_plan_to_max_words(repaired, maximum_words)
+                print(
+                    "Episode length guard trimmed expanded plan from "
+                    f"{before_guard} to {repaired.spoken_word_count} spoken words."
+                )
+
     if not minimum_words <= repaired.spoken_word_count <= maximum_words:
         raise RuntimeError(
-            "Episode length repair stayed outside the safe range: "
+            "Episode length could not be normalized safely: "
             f"{repaired.spoken_word_count} words; required {minimum_words}-{maximum_words}."
         )
     return repaired
