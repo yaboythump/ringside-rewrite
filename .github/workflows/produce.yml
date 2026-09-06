@@ -11,6 +11,11 @@ on:
         options:
           - pilot
           - new_episode
+          - custom_topic
+      topic:
+        description: "Custom what-if topic (used only when mode is custom_topic)"
+        required: false
+        type: string
   schedule:
     # Tuesday and Saturday at 12:00 PM EST.
     - cron: "0 17 * * 2,6"
@@ -47,12 +52,19 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           YOUTUBE_EXPECTED_CHANNEL_ID: ${{ vars.YOUTUBE_EXPECTED_CHANNEL_ID }}
           RINGSIDE_AUTO_PUBLISH: ${{ vars.RINGSIDE_AUTO_PUBLISH || 'false' }}
+          RINGSIDE_CUSTOM_TOPIC: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'custom_topic' && inputs.topic || '' }}
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.mode }}" == "pilot" ]]; then
             ringside dry-run --episode content/pilot/episode.json
             ringside produce --episode content/pilot/episode.json
             ringside publish --episode-dir output/sting-leads-the-invasion --privacy private
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.mode }}" == "custom_topic" ]]; then
+            if [[ -z "$RINGSIDE_CUSTOM_TOPIC" ]]; then
+              echo "::error::Enter a topic when mode is custom_topic."
+              exit 1
+            fi
+            python scripts/run_scheduled.py
           else
             python scripts/run_scheduled.py
           fi
