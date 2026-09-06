@@ -1,0 +1,48 @@
+name: Backfill Undertaker episode to Facebook
+
+on:
+  push:
+    paths:
+      - ".github/workflows/backfill-facebook-undertaker.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ringside-facebook-backfill-undertaker
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download existing Undertaker episode bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: ringside-rewrite-run
+          path: output
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: yaboythump/ringside-rewrite
+          run-id: 34047907858
+
+      - name: Verify old finished files
+        shell: bash
+        run: |
+          test -f output/undertaker-streak-booked-differently/final.mp4
+          test -f output/undertaker-streak-booked-differently/episode.json
+          test -f output/undertaker-streak-booked-differently/shorts/short-01.mp4
+          test -f output/undertaker-streak-booked-differently/shorts/short-02.mp4
+          test -f output/undertaker-streak-booked-differently/shorts/short-03.mp4
+          echo "Existing Undertaker full episode and 3 Shorts are ready for Facebook backfill."
+
+      - name: Publish old episode and schedule Shorts on Facebook
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          UPLOAD_POST_PROFILE: YouTube
+          RINGSIDE_FACEBOOK_PAGE_ID: "363068784190156"
+        run: bash scripts/publish_facebook.sh
