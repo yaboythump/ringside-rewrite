@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from refill_topic_seeds import refill_topic_seeds
 from ringside.config import load_settings
 from ringside.pipeline import scheduled_run
 
@@ -25,6 +26,7 @@ def scheduled_day_is_enabled(settings) -> bool:
 if __name__ == "__main__":
     settings = load_settings(Path.cwd())
     if scheduled_day_is_enabled(settings):
+        refill_topic_seeds(settings)
         print(scheduled_run(settings))
     else:
         print("Skipped: today is not one of the configured two production days.")
