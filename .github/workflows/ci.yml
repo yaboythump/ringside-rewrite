@@ -20,3 +20,18 @@ jobs:
       - run: pip install -e .
       - run: python -m compileall -q src scripts
       - run: python -m unittest discover -s tests
+
+      - name: Verify Facebook publishing configuration
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "$UPLOAD_POST_API_KEY" ]]; then
+            echo "::error::UPLOAD_POST_API_KEY is missing from GitHub Actions secrets."
+            exit 1
+          fi
+          bash -n scripts/publish_facebook.sh
+          grep -Fq 'PROFILE="${UPLOAD_POST_PROFILE:-YouTube}"' scripts/publish_facebook.sh
+          grep -Fq 'PAGE_ID="${RINGSIDE_FACEBOOK_PAGE_ID:-363068784190156}"' scripts/publish_facebook.sh
+          echo "Facebook automation prerequisites are present."
