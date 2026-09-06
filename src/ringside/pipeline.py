@@ -119,8 +119,9 @@ def publish_episode(
     )
 
 
-def scheduled_run(settings: Settings) -> dict:
-    episode_path = create_episode(settings)
+def scheduled_run(settings: Settings, theme: str | None = None) -> dict:
+    """Produce one episode, optionally using a manually supplied what-if premise."""
+    episode_path = create_episode(settings, theme=theme)
     episode_dir = produce_episode(settings, episode_path)
     if settings.auto_publish:
         publish_time = datetime.now(timezone.utc) + timedelta(hours=2)
