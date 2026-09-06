@@ -23,10 +23,20 @@ def scheduled_day_is_enabled(settings) -> bool:
     return today in enabled
 
 
+def requested_custom_topic() -> str | None:
+    topic = os.getenv("RINGSIDE_CUSTOM_TOPIC", "").strip()
+    return topic or None
+
+
 if __name__ == "__main__":
     settings = load_settings(Path.cwd())
     if scheduled_day_is_enabled(settings):
-        refill_topic_seeds(settings)
-        print(scheduled_run(settings))
+        custom_topic = requested_custom_topic()
+        if custom_topic:
+            print(f"Using manually selected Ringside Rewrite topic: {custom_topic}")
+            print(scheduled_run(settings, theme=custom_topic))
+        else:
+            refill_topic_seeds(settings)
+            print(scheduled_run(settings))
     else:
         print("Skipped: today is not one of the configured two production days.")
