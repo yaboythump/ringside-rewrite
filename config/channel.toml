@@ -41,7 +41,7 @@ music_volume = 0.08
 
 [quality]
 min_words = 800
-max_words = 1100
+max_words = 1200
 max_recent_similarity = 0.48
 max_repeated_opening_words = 8
 min_distinct_locations = 4
