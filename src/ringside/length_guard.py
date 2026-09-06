@@ -11,31 +11,17 @@ def _word_count(text: str) -> int:
     return len(text.split())
 
 
-def _trim_to_word_budget(text: str, budget: int) -> str:
-    """Trim text to a word budget while preferring complete sentences."""
-    text = text.strip()
-    if not text or budget <= 0:
-        return ""
-    if _word_count(text) <= budget:
-        return text
+def _sentences(text: str) -> list[str]:
+    return [part.strip() for part in _SENTENCE_SPLIT_RE.split(text.strip()) if part.strip()]
 
-    sentences = [part.strip() for part in _SENTENCE_SPLIT_RE.split(text) if part.strip()]
-    if len(sentences) > 1:
-        kept: list[str] = []
-        used = 0
-        for sentence in sentences:
-            words = _word_count(sentence)
-            if kept and used + words > budget:
-                break
-            if not kept and words > budget:
-                break
-            kept.append(sentence)
-            used += words
-        if kept:
-            return " ".join(kept).strip()
 
-    words = text.split()
-    clipped = " ".join(words[:budget]).rstrip(" ,;:-")
+def _exact_trim(text: str, words_to_remove: int) -> str:
+    """Remove an exact number of trailing words without leaving broken punctuation."""
+    words = text.strip().split()
+    if words_to_remove <= 0 or not words:
+        return text.strip()
+    keep = max(1, len(words) - words_to_remove)
+    clipped = " ".join(words[:keep]).rstrip(" ,;:-")
     if clipped and clipped[-1] not in ".!?":
         clipped += "."
     return clipped
@@ -48,31 +34,48 @@ def fit_plan_to_max_words(
     headroom_words: int = 35,
     minimum_words_per_shot: int = 24,
 ) -> EpisodePlan:
-    """Deterministically bring an overlong plan below the configured maximum.
+    """Deterministically normalize an overlong plan without aborting production.
 
-    Model-based repair remains the first choice because it preserves prose quality. This
-    guard exists so a harmless overrun can never abort an otherwise valid production run.
-    It trims narration proportionally across shots, preferring sentence boundaries, and
-    leaves a little headroom below the hard quality-gate ceiling.
+    The model still gets the first chance to rewrite naturally. If it ignores the word
+    limit, this guard removes the smallest useful amount of narration needed to get back
+    under the quality ceiling. Complete trailing sentences are removed first; an exact
+    trailing-word trim is used only for the final few words. All non-narration fields,
+    shot order, sources, Shorts, image prompts, and metadata stay untouched.
     """
     if maximum_words <= 0 or plan.spoken_word_count <= maximum_words:
         return plan
 
     fitted = plan.model_copy(deep=True)
     target = max(1, maximum_words - max(0, headroom_words))
-    current = fitted.spoken_word_count
-    scale = min(1.0, target / max(current, 1))
 
-    for shot in fitted.shots:
-        if not shot.narration.strip():
-            continue
-        current_words = _word_count(shot.narration)
-        budget = max(minimum_words_per_shot, int(current_words * scale))
-        shot.narration = _trim_to_word_budget(shot.narration, budget)
+    # Prefer clean sentence removal, but never remove a sentence that would take the
+    # plan below the target if a smaller edit can finish the job instead.
+    while fitted.spoken_word_count > target:
+        excess = fitted.spoken_word_count - target
+        choices: list[tuple[int, int, object]] = []
+        for shot in fitted.shots:
+            parts = _sentences(shot.narration)
+            if len(parts) <= 1:
+                continue
+            final_words = _word_count(parts[-1])
+            remaining_words = _word_count(" ".join(parts[:-1]))
+            if remaining_words < minimum_words_per_shot:
+                continue
+            if final_words <= excess:
+                # Prefer the largest sentence that still fits inside the remaining excess.
+                choices.append((final_words, _word_count(shot.narration), shot))
 
-    # Sentence-aware proportional trimming can still land a little high. Remove one
-    # trailing sentence at a time from the longest narration until the hard cap is met.
-    while fitted.spoken_word_count > maximum_words:
+        if not choices:
+            break
+
+        _, _, shot = max(choices, key=lambda item: (item[0], item[1]))
+        parts = _sentences(shot.narration)
+        shot.narration = " ".join(parts[:-1]).strip()
+
+    # Finish precisely. This avoids the old behavior where trimming every shot to a
+    # proportional sentence budget could remove hundreds more words than necessary.
+    while fitted.spoken_word_count > target:
+        excess = fitted.spoken_word_count - target
         candidates = [
             shot
             for shot in fitted.shots
@@ -81,19 +84,13 @@ def fit_plan_to_max_words(
         if not candidates:
             break
         shot = max(candidates, key=lambda item: _word_count(item.narration))
-        sentences = [
-            part.strip()
-            for part in _SENTENCE_SPLIT_RE.split(shot.narration.strip())
-            if part.strip()
-        ]
-        if len(sentences) > 1:
-            shot.narration = " ".join(sentences[:-1]).strip()
-        else:
-            budget = max(minimum_words_per_shot, _word_count(shot.narration) - 12)
-            shot.narration = _trim_to_word_budget(shot.narration, budget)
+        available = _word_count(shot.narration) - minimum_words_per_shot
+        remove = min(excess, max(1, available))
+        shot.narration = _exact_trim(shot.narration, remove)
 
-    # Last-resort exact cap. This should be rare, but it guarantees this class of
-    # workflow failure cannot recur just because the model ignored the requested length.
+    # Absolute hard-cap guarantee. This branch should be effectively unreachable, but it
+    # makes the production contract explicit: a model overrun cannot cause this failure
+    # mode again.
     if fitted.spoken_word_count > maximum_words:
         for shot in sorted(
             fitted.shots,
@@ -105,6 +102,6 @@ def fit_plan_to_max_words(
             words = _word_count(shot.narration)
             removable = min(words - 1, fitted.spoken_word_count - maximum_words)
             if removable > 0:
-                shot.narration = _trim_to_word_budget(shot.narration, words - removable)
+                shot.narration = _exact_trim(shot.narration, removable)
 
     return fitted
