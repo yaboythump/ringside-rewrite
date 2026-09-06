@@ -28,13 +28,15 @@ class EpisodeLengthGuardTests(unittest.TestCase):
         fitted = fit_plan_to_max_words(overlong, 1200)
 
         self.assertLessEqual(fitted.spoken_word_count, 1200)
-        self.assertGreaterEqual(fitted.spoken_word_count, 800)
+        self.assertGreaterEqual(fitted.spoken_word_count, 1100)
         self.assertEqual(fitted.slug, overlong.slug)
         self.assertEqual(len(fitted.shots), len(overlong.shots))
         self.assertTrue(all(shot.spoken_text.strip() for shot in fitted.shots))
 
     def test_plan_inside_cap_is_unchanged(self) -> None:
-        fitted = fit_plan_to_max_words(self.plan, 1200)
+        # The legacy pilot is intentionally longer than current normal episodes, so use
+        # a ceiling above its real word count to verify the guard is a true no-op.
+        fitted = fit_plan_to_max_words(self.plan, 1400)
         self.assertEqual(fitted.spoken_word_count, self.plan.spoken_word_count)
         self.assertEqual(fitted.model_dump(), self.plan.model_dump())
 
