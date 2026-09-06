@@ -5,6 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Credential-only check. Does not publish media or touch YouTube.
 jobs:
   check:
     runs-on: ubuntu-latest
