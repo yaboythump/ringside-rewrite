@@ -5,7 +5,6 @@ API_URL="https://api.upload-post.com/api/upload"
 PROFILE="${UPLOAD_POST_PROFILE:-GTA}"
 PAGE_ID="${RINGSIDE_FACEBOOK_PAGE_ID:-}"
 API_KEY="${UPLOAD_POST_API_KEY:-}"
-RUN_ID="${GITHUB_RUN_ID:-local}"
 
 if [[ -z "$API_KEY" ]]; then
   echo "Facebook publish skipped: UPLOAD_POST_API_KEY is not configured."
@@ -43,11 +42,12 @@ for final in "${finals[@]}"; do
     facebook_description="${facebook_description}${facebook_description:+$'\n\n'}${hashtags}"
   fi
 
+  final_hash="$(sha256sum "$final" | cut -c1-16)"
   echo "Publishing full episode to Facebook: $title"
   curl --fail-with-body --retry 3 --retry-all-errors \
     -X POST "$API_URL" \
     -H "Authorization: Apikey $API_KEY" \
-    -H "Idempotency-Key: ringside-facebook-${RUN_ID}-${slug}-full" \
+    -H "Idempotency-Key: ringside-facebook-${slug}-full-${final_hash}" \
     -F "user=$PROFILE" \
     -F "platform[]=facebook" \
     -F "facebook_page_id=$PAGE_ID" \
@@ -62,12 +62,13 @@ for final in "${finals[@]}"; do
   for short in "${shorts[@]}"; do
     short_num=$((short_num + 1))
     short_title="$title | Short $short_num"
+    short_hash="$(sha256sum "$short" | cut -c1-16)"
 
     upload_args=(
       --fail-with-body --retry 3 --retry-all-errors
       -X POST "$API_URL"
       -H "Authorization: Apikey $API_KEY"
-      -H "Idempotency-Key: ringside-facebook-${RUN_ID}-${slug}-short-${short_num}"
+      -H "Idempotency-Key: ringside-facebook-${slug}-short-${short_num}-${short_hash}"
       -F "user=$PROFILE"
       -F "platform[]=facebook"
       -F "facebook_page_id=$PAGE_ID"
