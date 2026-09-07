@@ -61,8 +61,14 @@ jobs:
           expected = Image.open('custom.png').convert('RGB')
           names = ['mqdefault', 'hqdefault', 'sddefault', 'maxresdefault']
 
+          def youtube_geometry(source, target_size):
+              contained = ImageOps.contain(source, target_size, method=Image.Resampling.LANCZOS)
+              canvas = Image.new('RGB', target_size, (0, 0, 0))
+              canvas.paste(contained, ((target_size[0] - contained.width) // 2, (target_size[1] - contained.height) // 2))
+              return canvas
+
           def mae(actual, source):
-              normalized = ImageOps.fit(source, actual.size, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+              normalized = youtube_geometry(source, actual.size)
               stat = ImageStat.Stat(ImageChops.difference(actual, normalized))
               return sum(stat.mean) / 3.0
 
