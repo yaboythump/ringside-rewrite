@@ -1,0 +1,56 @@
+name: Johnny Facts custom thumbnail
+
+on:
+  push:
+    paths:
+      - "johnny-thumbnail-job.json"
+      - ".github/workflows/johnny-thumbnail.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: johnny-facts-thumbnail
+  cancel-in-progress: false
+
+jobs:
+  set-thumbnail:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set Johnny Facts YouTube thumbnail
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${UPLOAD_POST_API_KEY:-}" ]]; then
+            echo "::error::UPLOAD_POST_API_KEY secret is missing"
+            exit 1
+          fi
+
+          USER_NAME=$(jq -r '.user' johnny-thumbnail-job.json)
+          VIDEO_ID=$(jq -r '.video_id' johnny-thumbnail-job.json)
+          THUMBNAIL_URL=$(jq -r '.thumbnail_url' johnny-thumbnail-job.json)
+
+          test -n "$USER_NAME"
+          test -n "$VIDEO_ID"
+          test -n "$THUMBNAIL_URL"
+
+          BODY=$(jq -n \
+            --arg user "$USER_NAME" \
+            --arg video_id "$VIDEO_ID" \
+            --arg thumbnail_url "$THUMBNAIL_URL" \
+            '{user:$user, video_id:$video_id, thumbnail_url:$thumbnail_url}')
+
+          RESPONSE=$(curl --fail-with-body -sS \
+            -X POST 'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' \
+            -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+            -H 'Content-Type: application/json' \
+            --data "$BODY")
+
+          echo "$RESPONSE"
+          echo "$RESPONSE" | jq -e '.success == true' >/dev/null
+
+          echo "Johnny Facts thumbnail applied to YouTube video $VIDEO_ID"
