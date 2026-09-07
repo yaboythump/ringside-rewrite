@@ -7,13 +7,18 @@ import time
 import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageStat
+from PIL import Image, ImageChops, ImageOps, ImageStat
 
 
 def mean_abs_error(actual: Image.Image, expected: Image.Image) -> float:
     actual = actual.convert("RGB")
-    expected = expected.convert("RGB").resize(actual.size)
-    stat = ImageStat.Stat(ImageChops.difference(actual, expected))
+    normalized = ImageOps.fit(
+        expected.convert("RGB"),
+        actual.size,
+        method=Image.Resampling.LANCZOS,
+        centering=(0.5, 0.5),
+    )
+    stat = ImageStat.Stat(ImageChops.difference(actual, normalized))
     return sum(stat.mean) / 3.0
 
 
