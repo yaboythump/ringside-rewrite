@@ -3,7 +3,7 @@ set -euo pipefail
 
 API_URL="https://api.upload-post.com/api/upload"
 AUTH_URL="https://api.upload-post.com/api/uploadposts/me"
-PROFILE="${UPLOAD_POST_PROFILE:-YouTube}"
+PROFILE="${UPLOAD_POST_PROFILE:-ClutchReplay}"
 PAGE_ID="${RINGSIDE_FACEBOOK_PAGE_ID:-363068784190156}"
 API_KEY="${UPLOAD_POST_API_KEY:-}"
 
