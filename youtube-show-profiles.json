@@ -4,7 +4,9 @@
     "completion_requires_visible_thumbnail_verification": true,
     "verification_derivatives": ["mqdefault", "hqdefault", "sddefault", "maxresdefault"],
     "shared_job_file": "youtube-thumbnail-job.json",
-    "shared_workflow": ".github/workflows/youtube-thumbnail.yml"
+    "shared_workflow": ".github/workflows/youtube-thumbnail.yml",
+    "default_for_every_current_and_future_youtube_show": true,
+    "rule": "A full YouTube episode is not complete until its custom thumbnail is applied after publish and all visible YouTube thumbnail derivatives match."
   },
   "shows": {
     "Johnny Facts": {
@@ -30,12 +32,17 @@
     "Ringside Rewrite": {
       "upload_post_profile": "ClutchReplay",
       "youtube_handle": "@ringsiderw",
-      "publishing_path": "direct-youtube-api-with-thumbnail-verification"
+      "publishing_path": "direct-youtube-api-with-visible-thumbnail-verification"
     },
     "Hip Hop What If": {
       "upload_post_profile": "HipHopWhatIf",
       "youtube_handle": "@hiphopwhatif1",
-      "publishing_path": "direct-youtube-api-with-thumbnail-verification"
+      "publishing_path": "direct-youtube-thumbnails-set-plus-shared-external-verification"
     }
-  }
+  },
+  "pending_youtube_connection": [
+    "Breaking Cap",
+    "Jay's Story",
+    "Snack Pop Squad"
+  ]
 }
