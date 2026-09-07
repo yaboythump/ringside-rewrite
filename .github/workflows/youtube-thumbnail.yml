@@ -49,22 +49,21 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --quiet pillow
-          VIDEO_ID=$(jq -r '.video_id' youtube-thumbnail-job.json)
           THUMBNAIL_URL=$(jq -r '.thumbnail_url' youtube-thumbnail-job.json)
           curl -L --fail --retry 3 -sS "$THUMBNAIL_URL" -o custom.png
 
           python - <<'PY'
           import io, json, time, urllib.request
-          from PIL import Image, ImageChops, ImageStat
+          from PIL import Image, ImageChops, ImageOps, ImageStat
 
           job = json.load(open('youtube-thumbnail-job.json', encoding='utf-8'))
           vid = job['video_id']
           expected = Image.open('custom.png').convert('RGB')
           names = ['mqdefault', 'hqdefault', 'sddefault', 'maxresdefault']
 
-          def mae(a, b):
-              b = b.resize(a.size)
-              stat = ImageStat.Stat(ImageChops.difference(a, b))
+          def mae(actual, source):
+              normalized = ImageOps.fit(source, actual.size, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+              stat = ImageStat.Stat(ImageChops.difference(actual, normalized))
               return sum(stat.mean) / 3.0
 
           last = {}
