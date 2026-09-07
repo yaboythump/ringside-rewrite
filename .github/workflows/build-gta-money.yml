@@ -1,0 +1,86 @@
+name: Build GTA Money Package
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-gta-money.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Build full episode, five Shorts, and thumbnail
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf gta-money-work gta-money-output
+          mkdir -p gta-money-work gta-money-output
+          cd gta-money-work
+
+          curl -L --fail -A 'Mozilla/5.0' -o i1.jpg 'https://www.rockstargames.com/VI/_next/static/media/Jason_and_Lucia_01.0naeahss9-1x6.jpg?akim=1&imdensity=1&imwidth=3840'
+          curl -L --fail -A 'Mozilla/5.0' -o i2.jpg 'https://www.rockstargames.com/VI/_next/static/media/Lucia_Caminos_07.0.c7un8ro7_p2.jpg?akim=1&imdensity=1&imwidth=3840'
+          curl -L --fail -A 'Mozilla/5.0' -o i3.jpg 'https://www.rockstargames.com/VI/_next/static/media/Vice_City_11.09paum3g942sc.jpg?akim=1&imdensity=1&imwidth=3840'
+          curl -L --fail -A 'Mozilla/5.0' -o i4.jpg 'https://www.rockstargames.com/VI/_next/static/media/Port_Gellhorn_01.0fmisvza-5-cq.jpg?akim=1&imdensity=1&imwidth=3840'
+          curl -L --fail -A 'Mozilla/5.0' -o i5.jpg 'https://www.rockstargames.com/VI/_next/static/media/Jason_and_Lucia_07.1699ivog8~w1n.jpg?akim=1&imdensity=1&imwidth=3840'
+
+          curl -L --fail -o a1.wav 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260907_025100_e5e96c6f-3b69-417a-a36c-4adeaee1cce5.wav'
+          curl -L --fail -o a2.wav 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260907_025059_081a3dc7-8bc9-46a6-ac92-c50091735a68.wav'
+          curl -L --fail -o a3.wav 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260907_025059_62f6bda7-34aa-4b09-a668-cdaa662ca278.wav'
+          curl -L --fail -o a4.wav 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260907_025059_c29bce5c-2662-4c7a-9882-930a9a766b16.wav'
+          curl -L --fail -o a5.wav 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260907_025059_85d1d978-3772-44c9-8e16-4f18d33cda3c.wav'
+
+          make_full_seg() {
+            n="$1"
+            headline="$2"
+            ffmpeg -y -loglevel error -loop 1 -framerate 1 -i "i${n}.jpg" -i "a${n}.wav" \
+              -vf "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,fps=12,drawbox=x=0:y=0:w=1280:h=64:color=black@0.70:t=fill,drawtext=text='THE SIX REPORT':fontcolor=white:fontsize=30:x=28:y=16,drawtext=text='GTA 6 - MONEY':fontcolor=0x00E6FF:fontsize=22:x=1045:y=20,drawbox=x=0:y=620:w=1280:h=100:color=black@0.58:t=fill,drawtext=text='${headline}':fontcolor=white:fontsize=34:x=36:y=650" \
+              -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -crf 27 -pix_fmt yuv420p -c:a aac -b:a 128k -shortest -movflags +faststart "full${n}.mp4"
+          }
+
+          make_full_seg 1 'BUILD BEFORE LAUNCH - FREE PLAYBOOK'
+          make_full_seg 2 'FACELESS CHANNELS - GUIDES - SEARCH'
+          make_full_seg 3 'STREAMING - AFFILIATE - CREATOR SERVICES'
+          make_full_seg 4 'YOUTUBE MONEY - NO GUARANTEES'
+          make_full_seg 5 'BUILD BEFORE THE CROWD ARRIVES'
+
+          printf "file 'full1.mp4'\nfile 'full2.mp4'\nfile 'full3.mp4'\nfile 'full4.mp4'\nfile 'full5.mp4'\n" > full-list.txt
+          ffmpeg -y -loglevel error -f concat -safe 0 -i full-list.txt -c copy -movflags +faststart ../gta-money-output/The_Six_Report_GTA6_Make_Money_Full.mp4
+
+          make_short() {
+            n="$1"
+            audio="$2"
+            start="$3"
+            dur="$4"
+            title="$5"
+            ffmpeg -y -loglevel error -loop 1 -framerate 1 -i "i${n}.jpg" -ss "$start" -t "$dur" -i "$audio" \
+              -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,fps=12,drawbox=x=0:y=0:w=720:h=190:color=black@0.72:t=fill,drawtext=text='THE SIX REPORT':fontcolor=0xFF4D9D:fontsize=28:x=28:y=28,drawtext=text='GTA 6 MONEY':fontcolor=0x00E6FF:fontsize=24:x=28:y=70,drawtext=text='${title}':fontcolor=white:fontsize=31:x=28:y=116,drawbox=x=0:y=1130:w=720:h=95:color=black@0.58:t=fill,drawtext=text='FULL EPISODE ON THE SIX REPORT':fontcolor=white:fontsize=22:x=78:y=1162" \
+              -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -crf 27 -pix_fmt yuv420p -c:a aac -b:a 128k -shortest -movflags +faststart "../gta-money-output/The_Six_Report_GTA6_Money_Short0${n}.mp4"
+          }
+
+          make_short 1 a1.wav 0 58 'DON T BUY THE COURSE'
+          make_short 2 a2.wav 0 58 'THE FACELESS CHANNEL PLAY'
+          make_short 3 a2.wav 31 48 'OWN LAUNCH WEEK SEARCH'
+          make_short 4 a4.wav 0 58 'THE MONETIZATION REALITY'
+          make_short 5 a5.wav 0 58 'BUILD BEFORE THE CROWD'
+
+          ffmpeg -y -loglevel error -i i3.jpg -vf "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,drawbox=x=0:y=0:w=760:h=720:color=black@0.62:t=fill,drawtext=text='THE SIX REPORT':fontcolor=white:fontsize=38:x=36:y=28,drawtext=text='MAKE MONEY':fontcolor=white:fontsize=82:x=42:y=145,drawtext=text='WITH GTA 6?!':fontcolor=0xFF4D9D:fontsize=74:x=42:y=250,drawbox=x=42:y=385:w=655:h=78:color=0xFF4D9D@0.95:t=fill,drawtext=text='NO COURSE REQUIRED':fontcolor=black:fontsize=36:x=78:y=405,drawtext=text='CREATE - BUILD - GROW - PROFIT':fontcolor=0x00E6FF:fontsize=25:x=43:y=535" -frames:v 1 ../gta-money-output/The_Six_Report_GTA6_Money_Thumbnail.jpg
+
+          cd ..
+          ls -lh gta-money-output
+
+      - name: Commit rendered package
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add gta-money-output
+          git commit -m 'Render GTA 6 money episode package'
+          git push
