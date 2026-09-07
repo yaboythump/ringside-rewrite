@@ -1,0 +1,92 @@
+name: YouTube custom thumbnail gate
+
+on:
+  push:
+    paths:
+      - youtube-thumbnail-job.json
+  workflow_dispatch:
+
+concurrency:
+  group: youtube-thumbnail-gate
+  cancel-in-progress: false
+
+jobs:
+  set-and-verify-thumbnail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set custom YouTube thumbnail
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${UPLOAD_POST_API_KEY:-}" || { echo "::error::UPLOAD_POST_API_KEY secret is missing"; exit 1; }
+
+          SHOW=$(jq -r '.show' youtube-thumbnail-job.json)
+          USER_NAME=$(jq -r '.user' youtube-thumbnail-job.json)
+          VIDEO_ID=$(jq -r '.video_id' youtube-thumbnail-job.json)
+          THUMBNAIL_URL=$(jq -r '.thumbnail_url' youtube-thumbnail-job.json)
+          TITLE=$(jq -r '.title' youtube-thumbnail-job.json)
+
+          for value in "$SHOW" "$USER_NAME" "$VIDEO_ID" "$THUMBNAIL_URL"; do
+            test -n "$value" && test "$value" != "null"
+          done
+
+          echo "Applying custom thumbnail: $SHOW | $TITLE | $VIDEO_ID"
+          BODY=$(jq -n --arg user "$USER_NAME" --arg video_id "$VIDEO_ID" --arg thumbnail_url "$THUMBNAIL_URL" '{user:$user, video_id:$video_id, thumbnail_url:$thumbnail_url}')
+          RESPONSE=$(curl --fail-with-body -sS -X POST 'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' -H "Authorization: Apikey $UPLOAD_POST_API_KEY" -H 'Content-Type: application/json' --data "$BODY")
+          echo "$RESPONSE"
+          echo "$RESPONSE" | jq -e '.success == true and .video_id == $vid' --arg vid "$VIDEO_ID" >/dev/null
+
+      - name: Verify visible YouTube thumbnail derivatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pillow
+          VIDEO_ID=$(jq -r '.video_id' youtube-thumbnail-job.json)
+          THUMBNAIL_URL=$(jq -r '.thumbnail_url' youtube-thumbnail-job.json)
+          curl -L --fail --retry 3 -sS "$THUMBNAIL_URL" -o custom.png
+
+          python - <<'PY'
+          import io, json, time, urllib.request
+          from PIL import Image, ImageChops, ImageStat
+
+          job = json.load(open('youtube-thumbnail-job.json', encoding='utf-8'))
+          vid = job['video_id']
+          expected = Image.open('custom.png').convert('RGB')
+          names = ['mqdefault', 'hqdefault', 'sddefault', 'maxresdefault']
+
+          def mae(a, b):
+              b = b.resize(a.size)
+              stat = ImageStat.Stat(ImageChops.difference(a, b))
+              return sum(stat.mean) / 3.0
+
+          last = {}
+          for attempt in range(8):
+              passed = True
+              last = {}
+              for name in names:
+                  url = f'https://i.ytimg.com/vi/{vid}/{name}.jpg?gate={time.time_ns()}'
+                  try:
+                      with urllib.request.urlopen(url, timeout=20) as r:
+                          actual = Image.open(io.BytesIO(r.read())).convert('RGB')
+                      score = mae(actual, expected)
+                      last[name] = round(score, 2)
+                      if score > 20.0:
+                          passed = False
+                  except Exception as exc:
+                      last[name] = str(exc)
+                      passed = False
+              print(f'attempt={attempt+1} thumbnail_mae={last}')
+              if passed:
+                  print(f'THUMBNAIL_GATE_PASS video_id={vid} show={job.get("show")}')
+                  raise SystemExit(0)
+              time.sleep(15)
+          raise SystemExit(f'THUMBNAIL_GATE_FAIL video_id={vid} results={last}')
+          PY
