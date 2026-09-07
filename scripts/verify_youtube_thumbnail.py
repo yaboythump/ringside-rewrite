@@ -10,14 +10,23 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageOps, ImageStat
 
 
+def youtube_geometry(source: Image.Image, target_size: tuple[int, int]) -> Image.Image:
+    contained = ImageOps.contain(
+        source.convert("RGB"),
+        target_size,
+        method=Image.Resampling.LANCZOS,
+    )
+    canvas = Image.new("RGB", target_size, (0, 0, 0))
+    canvas.paste(
+        contained,
+        ((target_size[0] - contained.width) // 2, (target_size[1] - contained.height) // 2),
+    )
+    return canvas
+
+
 def mean_abs_error(actual: Image.Image, expected: Image.Image) -> float:
     actual = actual.convert("RGB")
-    normalized = ImageOps.fit(
-        expected.convert("RGB"),
-        actual.size,
-        method=Image.Resampling.LANCZOS,
-        centering=(0.5, 0.5),
-    )
+    normalized = youtube_geometry(expected, actual.size)
     stat = ImageStat.Stat(ImageChops.difference(actual, normalized))
     return sum(stat.mean) / 3.0
 
