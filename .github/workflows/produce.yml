@@ -39,7 +39,7 @@ jobs:
           cache: pip
 
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
-      - run: pip install -e .
+      - run: pip install -e . pillow
 
       - name: Run production safety tests
         run: python -m unittest discover -s tests
@@ -67,6 +67,22 @@ jobs:
             python scripts/run_scheduled.py
           else
             python scripts/run_scheduled.py
+          fi
+
+      - name: Verify custom YouTube thumbnail is visibly live
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r upload_json; do
+            found=1
+            episode_dir="$(dirname "$upload_json")"
+            echo "Verifying YouTube thumbnail for $episode_dir"
+            python scripts/verify_youtube_thumbnail.py --episode-dir "$episode_dir"
+          done < <(find output -type f -name youtube-upload.json -print)
+          if [[ "$found" -eq 0 ]]; then
+            echo "::error::No youtube-upload.json was produced, so thumbnail verification cannot pass."
+            exit 1
           fi
 
       - name: Publish finished videos to Facebook
