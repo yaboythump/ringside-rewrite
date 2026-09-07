@@ -1,0 +1,48 @@
+name: Backfill WCW Alliance episode to Facebook
+
+on:
+  push:
+    paths:
+      - ".github/workflows/backfill-facebook-wcw-alliance.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ringside-facebook-backfill-wcw-alliance
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download recovered WCW Alliance episode bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: ringside-rewrite-run
+          path: output
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: yaboythump/ringside-rewrite
+          run-id: 34142692377
+
+      - name: Verify recovered finished files
+        shell: bash
+        run: |
+          test -f output/wcw-alliance-wins-survivor-series-2001/final.mp4
+          test -f output/wcw-alliance-wins-survivor-series-2001/episode.json
+          test -f output/wcw-alliance-wins-survivor-series-2001/shorts/short-01.mp4
+          test -f output/wcw-alliance-wins-survivor-series-2001/shorts/short-02.mp4
+          test -f output/wcw-alliance-wins-survivor-series-2001/shorts/short-03.mp4
+          echo "Recovered WCW Alliance full episode and 3 Shorts are ready for Facebook."
+
+      - name: Publish recovered episode and schedule Shorts on Facebook
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          UPLOAD_POST_PROFILE: ClutchReplay
+          RINGSIDE_FACEBOOK_PAGE_ID: "363068784190156"
+        run: bash scripts/publish_facebook.sh
