@@ -9,16 +9,13 @@ VOICES = "marcus/models/voices-v1.0.bin"
 OUT = Path("marcus/output")
 OUT.mkdir(parents=True, exist_ok=True)
 
+# LOCKED SHOW VOICE: Marcus = Kokoro am_fenrir
+# Keep this identity and speed consistent across Whatever Happened To...? episodes.
+VOICE = "am_fenrir"
+SPEED = 0.94
+
 kokoro = Kokoro(MODEL, VOICES)
-
-candidates = [
-    ("Marcus_A_Michael", "am_michael", 0.96),
-    ("Marcus_B_Fenrir", "am_fenrir", 0.94),
-    ("Marcus_C_Puck", "am_puck", 0.97),
-]
-
-for filename, voice, speed in candidates:
-    samples, sample_rate = kokoro.create(TEXT, voice=voice, speed=speed, lang="en-us")
-    path = OUT / f"{filename}.wav"
-    sf.write(path, samples, sample_rate)
-    print(f"Created {path} using {voice} at {speed}x")
+samples, sample_rate = kokoro.create(TEXT, voice=VOICE, speed=SPEED, lang="en-us")
+raw_path = OUT / "Marcus_Fenrir_RAW.wav"
+sf.write(raw_path, samples, sample_rate)
+print(f"Created {raw_path} using locked voice {VOICE} at {SPEED}x")
