@@ -1,4 +1,4 @@
-name: Marcus Zero-Credit Voice Test
+name: Marcus Zero-Credit Voice Engine
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  audition:
+  marcus:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,17 +25,27 @@ jobs:
 
       - name: Download Kokoro model and fixed voice bank
         run: |
-          mkdir -p marcus/models
+          mkdir -p marcus/models marcus/output
           wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx -O marcus/models/kokoro-v1.0.int8.onnx
           wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin -O marcus/models/voices-v1.0.bin
 
-      - name: Generate Marcus auditions
+      - name: Generate locked Marcus Fenrir voice
         run: python marcus/audition.py
 
-      - name: Upload auditions
+      - name: Master Marcus narration
+        run: |
+          ffmpeg -y -i marcus/output/Marcus_Fenrir_RAW.wav \
+            -af "highpass=f=70,bass=g=0.6:f=140,treble=g=-0.4:f=6500,equalizer=f=3000:t=q:w=1.2:g=1.2,acompressor=threshold=-18dB:ratio=2.4:attack=15:release=120:makeup=1.5,loudnorm=I=-16:TP=-1.5:LRA=7,alimiter=limit=0.95" \
+            marcus/output/Marcus_Fenrir_MASTERED.wav
+          ffmpeg -y -i marcus/output/Marcus_Fenrir_MASTERED.wav -codec:a libmp3lame -b:a 192k marcus/output/Marcus_Fenrir_MASTERED.mp3
+
+      - name: Upload Marcus files
         uses: actions/upload-artifact@v4
         with:
-          name: marcus-zero-credit-auditions
-          path: marcus/output/*.wav
+          name: marcus-fenrir-locked
+          path: |
+            marcus/output/Marcus_Fenrir_RAW.wav
+            marcus/output/Marcus_Fenrir_MASTERED.wav
+            marcus/output/Marcus_Fenrir_MASTERED.mp3
           if-no-files-found: error
           retention-days: 7
