@@ -1,0 +1,41 @@
+name: Marcus Zero-Credit Voice Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'marcus/**'
+      - '.github/workflows/marcus-zero-credit.yml'
+  workflow_dispatch:
+
+jobs:
+  audition:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install TTS runtime
+        run: pip install --upgrade kokoro-onnx soundfile
+
+      - name: Download Kokoro model and fixed voice bank
+        run: |
+          mkdir -p marcus/models
+          wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx -O marcus/models/kokoro-v1.0.int8.onnx
+          wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin -O marcus/models/voices-v1.0.bin
+
+      - name: Generate Marcus auditions
+        run: python marcus/audition.py
+
+      - name: Upload auditions
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcus-zero-credit-auditions
+          path: marcus/output/*.wav
+          if-no-files-found: error
+          retention-days: 7
