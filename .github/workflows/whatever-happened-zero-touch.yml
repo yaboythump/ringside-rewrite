@@ -89,7 +89,14 @@ jobs:
           jq -e '.profile == "Whathappen"' "$JOB_FILE" >/dev/null
           jq -e '.full.title and .full.description' "$JOB_FILE" >/dev/null
           test "$(jq '.shorts | length' "$JOB_FILE")" -eq 6 || { echo '::error::Exactly six Shorts are required'; exit 1; }
-          for i in $(seq -w 0 9); do test -s "marcus/chunks/marcus_${i}.wav"; done
+          for i in $(seq 0 9); do
+            printf -v idx '%02d' "$i"
+            test -s "marcus/chunks/marcus_${idx}.wav" || {
+              echo "::error::Missing Marcus chunk marcus_${idx}.wav"
+              find marcus/chunks -maxdepth 2 -type f -print
+              exit 1
+            }
+          done
 
       - name: Build complete flashy episode on runner
         shell: bash
