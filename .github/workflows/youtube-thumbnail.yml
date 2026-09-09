@@ -56,7 +56,11 @@ jobs:
 
           python - <<'PY'
           import io, json, time, urllib.request
-          from PIL import Image, ImageChops, ImageOps, ImageStat
+          from PIL import Image, ImageChops, ImageOps, ImageStat, ImageFile
+
+          # Some hosts/CDNs omit only the JPEG EOI bytes even though the pixels are intact.
+          # Allow Pillow to decode those files so the gate can compare the actual image.
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
 
           job = json.load(open('youtube-thumbnail-job.json', encoding='utf-8'))
           vid = job['video_id']
