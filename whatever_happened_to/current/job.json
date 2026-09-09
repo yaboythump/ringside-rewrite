@@ -1,7 +1,7 @@
 {
   "profile": "Whathappen",
   "slug": "whatever-happened-to-myspace",
-  "trigger_token": "myspace-retry-render-fix-20260909-1918",
+  "trigger_token": "myspace-retry2-20260909-1924",
   "full": {
     "path": "output/full.mp4",
     "thumbnail": "output/thumbnail.jpg",
