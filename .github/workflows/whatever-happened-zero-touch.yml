@@ -15,7 +15,40 @@ permissions:
   contents: write
 
 jobs:
+  marcus:
+    name: Marcus chunk ${{ matrix.chunk }}
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [0,1,2,3,4,5,6,7,8,9]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Marcus runtime
+        run: python -m pip install --quiet kokoro-onnx soundfile numpy
+      - name: Download locked Marcus model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p marcus/models marcus/chunks
+          wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx -O marcus/models/kokoro-v1.0.int8.onnx
+          wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin -O marcus/models/voices-v1.0.bin
+      - name: Render Marcus Fenrir chunk
+        env:
+          CHUNK_INDEX: ${{ matrix.chunk }}
+        run: python marcus/myspace_pilot.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whatever-marcus-${{ matrix.chunk }}
+          path: marcus/chunks/marcus_*.wav
+          retention-days: 2
+
   build-qc-publish:
+    needs: marcus
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -36,28 +69,29 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg jq wget
-          python -m pip install --upgrade pip
-          python -m pip install requests pillow numpy scipy soundfile kokoro-onnx
-          mkdir -p marcus/models "$EPISODE_ROOT/output"
-          if [ ! -s marcus/models/kokoro-v1.0.int8.onnx ]; then
-            wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx -O marcus/models/kokoro-v1.0.int8.onnx
-          fi
-          if [ ! -s marcus/models/voices-v1.0.bin ]; then
-            wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin -O marcus/models/voices-v1.0.bin
-          fi
+          sudo apt-get install -y -qq ffmpeg jq fonts-dejavu-core
+          python -m pip install --quiet requests pillow numpy soundfile
+          mkdir -p marcus/chunks "$EPISODE_ROOT/output"
+
+      - name: Download all parallel Marcus chunks
+        uses: actions/download-artifact@v4
+        with:
+          pattern: whatever-marcus-*
+          path: marcus/chunks
+          merge-multiple: true
 
       - name: Enforce Thump-touches-nothing bundle
         shell: bash
         run: |
           set -euo pipefail
           test -s "$JOB_FILE" || { echo '::error::Missing current/job.json'; exit 1; }
-          test -s "$EPISODE_ROOT/build.py" || { echo '::error::Missing current/build.py. Final rendering must happen on GitHub, never only inside ChatGPT.'; exit 1; }
+          test -s "$EPISODE_ROOT/build.py" || { echo '::error::Missing current/build.py'; exit 1; }
           jq -e '.profile == "Whathappen"' "$JOB_FILE" >/dev/null
           jq -e '.full.title and .full.description' "$JOB_FILE" >/dev/null
           test "$(jq '.shorts | length' "$JOB_FILE")" -eq 6 || { echo '::error::Exactly six Shorts are required'; exit 1; }
+          for i in $(seq -w 0 9); do test -s "marcus/chunks/marcus_${i}.wav"; done
 
-      - name: Build complete episode on runner
+      - name: Build complete flashy episode on runner
         shell: bash
         run: |
           set -euo pipefail
@@ -70,62 +104,44 @@ jobs:
           python - <<'PY'
           import json, subprocess
           from pathlib import Path
-
-          job_path = Path('whatever_happened_to/current/job.json')
-          job = json.loads(job_path.read_text(encoding='utf-8'))
-          root = job_path.parent
-
-          def probe(rel, *, short=False):
-              p = root / rel
-              if not p.exists() or p.stat().st_size < 1024:
-                  raise SystemExit(f'Missing/invalid media: {p}')
-              result = subprocess.run([
-                  'ffprobe','-v','error','-show_entries','format=duration','-of','default=nw=1:nk=1',str(p)
-              ], check=True, capture_output=True, text=True)
-              duration = float(result.stdout.strip())
-              if short:
-                  if not (3.0 <= duration <= 60.5):
-                      raise SystemExit(f'Short duration out of range: {p} = {duration:.2f}s')
-              elif duration < 240:
-                  raise SystemExit(f'Full episode too short for locked format: {p} = {duration:.2f}s')
-              subprocess.run(['ffmpeg','-v','error','-i',str(p),'-f','null','-'], check=True)
-              print(f'QC PASS {p}: {duration:.2f}s')
-
-          full = job['full']
-          probe(full.get('path','output/full.mp4'), short=False)
-          thumb = root / full.get('thumbnail','output/thumbnail.jpg')
-          if not thumb.exists() or thumb.stat().st_size < 1024:
-              raise SystemExit(f'Missing/invalid thumbnail: {thumb}')
-
-          shorts = job['shorts']
-          if len(shorts) != 6:
-              raise SystemExit('Exactly 6 Shorts required')
-          for i, s in enumerate(shorts, start=1):
-              probe(s.get('path',f'output/short_{i:02d}.mp4'), short=True)
+          job_path=Path('whatever_happened_to/current/job.json')
+          job=json.loads(job_path.read_text(encoding='utf-8')); root=job_path.parent
+          def probe(rel, short=False):
+              p=root/rel
+              if not p.exists() or p.stat().st_size<1024: raise SystemExit(f'Missing/invalid media: {p}')
+              r=subprocess.run(['ffprobe','-v','error','-show_entries','format=duration','-of','default=nw=1:nk=1',str(p)],check=True,capture_output=True,text=True)
+              d=float(r.stdout.strip())
+              if short and not (8.0<=d<=60.5): raise SystemExit(f'Short duration invalid: {p} {d:.2f}s')
+              if not short and d<360: raise SystemExit(f'Full episode too short: {p} {d:.2f}s')
+              subprocess.run(['ffmpeg','-v','error','-i',str(p),'-f','null','-'],check=True)
+              print(f'QC PASS {p}: {d:.2f}s')
+          probe(job['full'].get('path','output/full.mp4'))
+          thumb=root/job['full'].get('thumbnail','output/thumbnail.jpg')
+          if not thumb.exists() or thumb.stat().st_size<5000: raise SystemExit('Thumbnail missing/too small')
+          if len(job['shorts'])!=6: raise SystemExit('Exactly six Shorts required')
+          for i,s in enumerate(job['shorts'],1): probe(s.get('path',f'output/short_{i:02d}.mp4'),True)
           PY
 
-      - name: Publish thumbnail asset for shared gate
-        id: thumb_asset
+      - name: Publish episode assets to repo for zero-touch fallback and audit
+        id: assets
         shell: bash
         run: |
           set -euo pipefail
           SLUG=$(jq -r '.slug' "$JOB_FILE")
-          THUMB_REL=$(jq -r '.full.thumbnail // "output/thumbnail.jpg"' "$JOB_FILE")
-          THUMB_PATH="$EPISODE_ROOT/$THUMB_REL"
-          EXT="${THUMB_PATH##*.}"
-          mkdir -p assets/whatever-happened-to
-          DEST="assets/whatever-happened-to/${SLUG}-thumbnail.${EXT}"
-          cp "$THUMB_PATH" "$DEST"
+          DEST="published-assets/whatever-happened-to/$SLUG"
+          mkdir -p "$DEST"
+          cp "$EPISODE_ROOT/output/full.mp4" "$DEST/full.mp4"
+          cp "$EPISODE_ROOT/output/thumbnail.jpg" "$DEST/thumbnail.jpg"
+          cp "$EPISODE_ROOT/output/short_"*.mp4 "$DEST/"
           git config user.name 'CTNETWORK Automation'
           git config user.email 'actions@users.noreply.github.com'
           git add "$DEST"
           if ! git diff --cached --quiet; then
-            git commit -m "Add Whatever Happened To thumbnail: $SLUG"
+            git commit -m "Publish Whatever Happened To assets: $SLUG"
+            git pull --rebase origin main
             git push origin HEAD:main
           fi
-          RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/${DEST}"
-          echo "raw_url=$RAW_URL" >> "$GITHUB_OUTPUT"
-          echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+          echo "raw_base=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/${DEST}" >> "$GITHUB_OUTPUT"
 
       - name: Publish full episode and six Shorts without manual staging
         env:
@@ -136,29 +152,24 @@ jobs:
           test -n "${UPLOAD_POST_API_KEY:-}" || { echo '::error::UPLOAD_POST_API_KEY secret missing'; exit 1; }
           python whatever_happened_to/zero_touch_publish.py "$JOB_FILE"
 
-      - name: Apply shared YouTube thumbnail patch
+      - name: Apply custom YouTube thumbnail patch
         env:
           UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
-          THUMBNAIL_URL: ${{ steps.thumb_asset.outputs.raw_url }}
+          RAW_BASE: ${{ steps.assets.outputs.raw_base }}
         shell: bash
         run: |
           set -euo pipefail
           RECEIPT="$EPISODE_ROOT/output/publish-receipt.json"
-          MODE=$(jq -r '.full.mode' "$RECEIPT")
-          test "$MODE" = 'published' || { echo '::error::Full episode must publish immediately so thumbnail can be verified in the same run'; exit 1; }
+          test "$(jq -r '.full.mode' "$RECEIPT")" = published
           VIDEO_ID=$(jq -r '.full.video_id' "$RECEIPT")
-          test -n "$VIDEO_ID" && test "$VIDEO_ID" != 'null'
-          BODY=$(jq -n --arg user 'Whathappen' --arg video_id "$VIDEO_ID" --arg thumbnail_url "$THUMBNAIL_URL" '{user:$user, video_id:$video_id, thumbnail_url:$thumbnail_url}')
-          HTTP_CODE=$(curl -sS -o thumbnail-response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' \
-            -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
-            -H 'Content-Type: application/json' \
-            --data "$BODY")
-          cat thumbnail-response.json
-          echo
+          test -n "$VIDEO_ID" && test "$VIDEO_ID" != null
+          BODY=$(jq -n --arg user Whathappen --arg video_id "$VIDEO_ID" --arg thumbnail_url "$RAW_BASE/thumbnail.jpg" '{user:$user,video_id:$video_id,thumbnail_url:$thumbnail_url}')
+          HTTP_CODE=$(curl -sS -o thumbnail-response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' -H "Authorization: Apikey $UPLOAD_POST_API_KEY" -H 'Content-Type: application/json' --data "$BODY")
+          cat thumbnail-response.json; echo
           test "$HTTP_CODE" -ge 200 && test "$HTTP_CODE" -lt 300
           jq -e '.success == true and .video_id == $vid' --arg vid "$VIDEO_ID" thumbnail-response.json >/dev/null
 
-      - name: Verify visible thumbnail on every YouTube derivative
+      - name: Verify visible thumbnail derivatives
         shell: bash
         run: |
           set -euo pipefail
@@ -166,16 +177,12 @@ jobs:
           import json
           from pathlib import Path
           from scripts.verify_youtube_thumbnail import verify
-
-          root = Path('whatever_happened_to/current')
-          job = json.loads((root / 'job.json').read_text(encoding='utf-8'))
-          receipt = json.loads((root / 'output/publish-receipt.json').read_text(encoding='utf-8'))
-          video_id = receipt['full']['video_id']
-          thumbnail = root / job['full'].get('thumbnail','output/thumbnail.jpg')
-          verify(video_id, thumbnail, attempts=10, delay=15)
+          root=Path('whatever_happened_to/current')
+          receipt=json.loads((root/'output/publish-receipt.json').read_text())
+          verify(receipt['full']['video_id'], root/'output/thumbnail.jpg', attempts=10, delay=15)
           PY
 
-      - name: Save zero-touch production receipt
+      - name: Save zero-touch receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
