@@ -1,0 +1,56 @@
+name: The Six Report GTA Zero-Credit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gta/**'
+      - '.github/workflows/gta-zero-credit.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install zero-credit audio/video runtime
+        run: |
+          pip install --upgrade kokoro-onnx soundfile
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+
+      - name: Download Kokoro model and fixed voice bank
+        run: |
+          mkdir -p gta/models gta/output
+          wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx -O gta/models/kokoro-v1.0.int8.onnx
+          wget -q https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin -O gta/models/voices-v1.0.bin
+
+      - name: Build episode with locked Simone voice
+        run: python gta/build_zero_credit.py
+
+      - name: Validate full episode and Shorts
+        run: |
+          set -euo pipefail
+          for f in gta/output/*.mp4; do
+            ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$f"
+            ffmpeg -v error -i "$f" -f null -
+          done
+
+      - name: Upload GTA zero-credit package
+        uses: actions/upload-artifact@v4
+        with:
+          name: the-six-report-gta-zero-credit
+          path: |
+            gta/output/*.mp4
+            gta/output/*.jpg
+            gta/output/manifest.json
+          if-no-files-found: error
+          retention-days: 7
