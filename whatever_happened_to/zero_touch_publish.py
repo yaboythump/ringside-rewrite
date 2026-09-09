@@ -224,12 +224,19 @@ def main() -> None:
             description = str(short.get("description") or "").strip()
             if not title or not description:
                 raise RuntimeError(f"Short {index} title/description missing")
+            scheduled_date = short.get("scheduled_date")
+            publish_now = short.get("publish_now") is True
+            if not scheduled_date and not publish_now:
+                raise RuntimeError(
+                    f"Short {index} has no scheduled_date and publish_now is not true. "
+                    "Refusing to silently dump all six Shorts at once."
+                )
             receipt = upload_one(
                 short_path,
                 title=title,
                 description=description,
                 thumbnail_path=None,
-                scheduled_date=short.get("scheduled_date"),
+                scheduled_date=scheduled_date,
                 idempotency_key=f"whatever-happened-{slug}-short-{index:02d}",
             )
             receipts["shorts"].append(receipt)
