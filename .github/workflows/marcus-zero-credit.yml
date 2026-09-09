@@ -20,8 +20,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install TTS runtime
-        run: pip install --upgrade kokoro-onnx soundfile
+      - name: Install audio runtime
+        run: |
+          pip install --upgrade kokoro-onnx soundfile
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
 
       - name: Download Kokoro model and fixed voice bank
         run: |
