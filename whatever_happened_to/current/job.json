@@ -1,7 +1,7 @@
 {
   "profile": "Whathappen",
   "slug": "whatever-happened-to-myspace",
-  "trigger_token": "myspace-retry2-20260909-1924",
+  "trigger_token": "myspace-retry3-20260909-2110",
   "full": {
     "path": "output/full.mp4",
     "thumbnail": "output/thumbnail.jpg",
@@ -9,11 +9,41 @@
     "description": "MySpace was once the center of online culture — custom profiles, Top 8 drama, profile songs, Tom, MySpace Music, and millions of people logging in every day. Then Facebook took over, the site lost momentum, and a company bought for about $580 million was sold years later for roughly $35 million.\n\nMarcus breaks down how MySpace rose, why it mattered, what really went wrong, and the legacy it left behind.\n\n#MySpace #InternetHistory #2000sNostalgia #TechHistory #WhateverHappenedTo"
   },
   "shorts": [
-    {"path":"output/short_01.mp4","title":"The Top 8 Was Social Media Warfare | Whatever Happened To MySpace? #Shorts","description":"Before algorithms quietly ranked everybody, MySpace made it public. Your Top 8 could start real drama. From Whatever Happened To MySpace?\n\n#MySpace #Top8 #2000sNostalgia #InternetHistory #Shorts","scheduled_date":"2026-09-09T21:30:00Z"},
-    {"path":"output/short_02.mp4","title":"Why Everybody Was Friends With Tom | Whatever Happened To MySpace? #Shorts","description":"Millions of MySpace users started with the same first friend: Tom Anderson. That one default connection made him one of the most recognizable faces of the early social web.\n\n#MySpaceTom #MySpace #InternetHistory #2000s #Shorts","scheduled_date":"2026-09-09T23:00:00Z"},
-    {"path":"output/short_03.mp4","title":"MySpace Changed Music Before Streaming Took Over | #Shorts","description":"MySpace let artists build audiences, share songs and reach fans directly before modern streaming and creator platforms took over. From Whatever Happened To MySpace?\n\n#MySpaceMusic #MusicHistory #InternetHistory #2000sNostalgia #Shorts","scheduled_date":"2026-09-10T00:30:00Z"},
-    {"path":"output/short_04.mp4","title":"News Corp Paid $580 Million for MySpace | #Shorts","description":"In 2005, News Corp agreed to buy Intermix Media, MySpace's parent company, for about $580 million. Soon after, the deal looked like a bargain.\n\n#MySpace #TechHistory #NewsCorp #InternetHistory #Shorts","scheduled_date":"2026-09-10T14:00:00Z"},
-    {"path":"output/short_05.mp4","title":"How Facebook Took MySpace's Crown | Whatever Happened To MySpace? #Shorts","description":"MySpace was a destination. Facebook became a habit. The difference helped change social media forever.\n\n#MySpace #Facebook #SocialMediaHistory #TechHistory #Shorts","scheduled_date":"2026-09-10T17:00:00Z"},
-    {"path":"output/short_06.mp4","title":"How $580 Million Became $35 Million | MySpace #Shorts","description":"News Corp bought Intermix for about $580 million in 2005. Six years later, MySpace was sold for roughly $35 million. That's one of the wildest falls in internet history.\n\n#MySpace #InternetHistory #TechHistory #BusinessHistory #Shorts","scheduled_date":"2026-09-10T20:00:00Z"}
+    {
+      "path": "output/short_01.mp4",
+      "title": "The Top 8 Was Social Media Warfare | Whatever Happened To MySpace? #Shorts",
+      "description": "Before algorithms quietly ranked everybody, MySpace made it public. Your Top 8 could start real drama. From Whatever Happened To MySpace?\n\n#MySpace #Top8 #2000sNostalgia #InternetHistory #Shorts",
+      "scheduled_date": "2026-09-10T14:00:00Z"
+    },
+    {
+      "path": "output/short_02.mp4",
+      "title": "Why Everybody Was Friends With Tom | Whatever Happened To MySpace? #Shorts",
+      "description": "Millions of MySpace users started with the same first friend: Tom Anderson. That one default connection made him one of the most recognizable faces of the early social web.\n\n#MySpaceTom #MySpace #InternetHistory #2000s #Shorts",
+      "scheduled_date": "2026-09-10T17:00:00Z"
+    },
+    {
+      "path": "output/short_03.mp4",
+      "title": "MySpace Changed Music Before Streaming Took Over | #Shorts",
+      "description": "MySpace let artists build audiences, share songs and reach fans directly before modern streaming and creator platforms took over. From Whatever Happened To MySpace?\n\n#MySpaceMusic #MusicHistory #InternetHistory #2000sNostalgia #Shorts",
+      "scheduled_date": "2026-09-10T20:00:00Z"
+    },
+    {
+      "path": "output/short_04.mp4",
+      "title": "News Corp Paid $580 Million for MySpace | #Shorts",
+      "description": "In 2005, News Corp agreed to buy Intermix Media, MySpace's parent company, for about $580 million. Soon after, the deal looked like a bargain.\n\n#MySpace #TechHistory #NewsCorp #InternetHistory #Shorts",
+      "scheduled_date": "2026-09-11T14:00:00Z"
+    },
+    {
+      "path": "output/short_05.mp4",
+      "title": "How Facebook Took MySpace's Crown | Whatever Happened To MySpace? #Shorts",
+      "description": "MySpace was a destination. Facebook became a habit. The difference helped change social media forever.\n\n#MySpace #Facebook #SocialMediaHistory #TechHistory #Shorts",
+      "scheduled_date": "2026-09-11T17:00:00Z"
+    },
+    {
+      "path": "output/short_06.mp4",
+      "title": "How $580 Million Became $35 Million | MySpace #Shorts",
+      "description": "News Corp bought Intermix for about $580 million in 2005. Six years later, MySpace was sold for roughly $35 million. That's one of the wildest falls in internet history.\n\n#MySpace #InternetHistory #TechHistory #BusinessHistory #Shorts",
+      "scheduled_date": "2026-09-11T20:00:00Z"
+    }
   ]
 }
