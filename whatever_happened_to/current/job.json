@@ -1,6 +1,7 @@
 {
   "profile": "Whathappen",
   "slug": "whatever-happened-to-myspace",
+  "trigger_token": "myspace-live-now-20260909-1516",
   "full": {
     "path": "output/full.mp4",
     "thumbnail": "output/thumbnail.jpg",
@@ -12,19 +13,19 @@
       "path": "output/short_01.mp4",
       "title": "The Top 8 Was Social Media Warfare | Whatever Happened To MySpace? #Shorts",
       "description": "Before algorithms quietly ranked everybody, MySpace made it public. Your Top 8 could start real drama. From Whatever Happened To MySpace?\n\n#MySpace #Top8 #2000sNostalgia #InternetHistory #Shorts",
-      "scheduled_date": "2026-09-09T20:00:00Z"
+      "scheduled_date": "2026-09-09T21:30:00Z"
     },
     {
       "path": "output/short_02.mp4",
       "title": "Why Everybody Was Friends With Tom | Whatever Happened To MySpace? #Shorts",
       "description": "Millions of MySpace users started with the same first friend: Tom Anderson. That one default connection made him one of the most recognizable faces of the early social web.\n\n#MySpaceTom #MySpace #InternetHistory #2000s #Shorts",
-      "scheduled_date": "2026-09-09T22:00:00Z"
+      "scheduled_date": "2026-09-09T23:00:00Z"
     },
     {
       "path": "output/short_03.mp4",
       "title": "MySpace Changed Music Before Streaming Took Over | #Shorts",
       "description": "MySpace let artists build audiences, share songs and reach fans directly before modern streaming and creator platforms took over. From Whatever Happened To MySpace?\n\n#MySpaceMusic #MusicHistory #InternetHistory #2000sNostalgia #Shorts",
-      "scheduled_date": "2026-09-10T00:00:00Z"
+      "scheduled_date": "2026-09-10T00:30:00Z"
     },
     {
       "path": "output/short_04.mp4",
