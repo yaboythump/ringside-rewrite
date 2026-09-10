@@ -1,0 +1,33 @@
+name: Case Against cleanup bad uploads
+
+on:
+  push:
+    paths:
+      - the_case_against/cleanup-trigger.txt
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Remove defective Case Against uploads
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${UPLOAD_POST_API_KEY:-}" || { echo "::error::UPLOAD_POST_API_KEY missing"; exit 1; }
+          ids=(g87-41wyTo8 sQpgsaK5ntc 4INDbRvazDM p5yWa4QA3HE 4zZEyarCFZs Cpy48piNVOA CGkQLCHp7p0)
+          for id in "${ids[@]}"; do
+            echo "Removing $id"
+            body=$(jq -n --arg platform youtube --arg user Case --arg post_id "$id" '{platform:$platform,user:$user,post_id:$post_id}')
+            code=$(curl -sS -o response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/posts/unpublish' \
+              -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+              -H 'Content-Type: application/json' \
+              --data "$body")
+            cat response.json; echo
+            test "$code" -ge 200 && test "$code" -lt 300 || { echo "::error::Delete HTTP $code for $id"; exit 1; }
+            jq -e '.success == true' response.json >/dev/null || { echo "::error::Delete rejected for $id"; exit 1; }
+          done
+          echo 'CASE_CLEANUP_PASS'
