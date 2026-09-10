@@ -4,10 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'hiphop_whatif/eazy_rebuild/job.json'
-      - 'hiphop_whatif/eazy_rebuild/build_v4.py'
+      - 'hiphop_whatif/eazy_rebuild/**'
       - '.github/workflows/eazy-cinematic-rebuild.yml'
   workflow_dispatch:
+
+concurrency:
+  group: eazy-cinematic-rebuild
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -30,24 +33,17 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
           python -m pip install --quiet requests pillow numpy
+      - name: Regression tests
+        run: |
+          python hiphop_whatif/eazy_rebuild/test_qc.py
+          python hiphop_whatif/eazy_rebuild/test_publish.py
       - name: Build full-screen cinematic episode
-        run: python hiphop_whatif/eazy_rebuild/build_v4.py
+        run: python hiphop_whatif/eazy_rebuild/build_v6.py
       - name: Hard QC
         shell: bash
         run: |
           set -euo pipefail
-          BASE=hiphop_whatif/eazy_rebuild/output
-          test -s "$BASE/full.mp4" && test -s "$BASE/thumbnail.jpg" && test -s "$BASE/internal_preview.jpg"
-          ffmpeg -v error -i "$BASE/full.mp4" -f null -
-          ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$BASE/full.mp4" | grep -qx '1920,1080'
-          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$BASE/full.mp4" | grep -q .
-          dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$BASE/full.mp4")
-          awk -v d="$dur" 'BEGIN { exit !(d > 240) }'
-          for i in 01 02 03 04 05; do
-            S="$BASE/short_${i}.mp4"; test -s "$S"; ffmpeg -v error -i "$S" -f null -
-            ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$S" | grep -qx '1080,1920'
-          done
-          echo 'EAZY_CINEMATIC_QC_PASS'
+          python hiphop_whatif/eazy_rebuild/qc.py
       - name: Publish internal visual preview to repo for inspection
         shell: bash
         run: |
@@ -59,17 +55,21 @@ jobs:
           git config user.name 'CTNETWORK Automation'
           git config user.email 'actions@users.noreply.github.com'
           git add "$DEST"
-          git commit -m 'Add Eazy-E cinematic rebuild preview'
-          git pull --rebase origin main
-          git push origin HEAD:main
+          if ! git diff --cached --quiet; then
+            git commit -m 'Add verified Eazy-E cinematic rebuild preview'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
       - name: Save complete package artifact
         uses: actions/upload-artifact@v4
         with:
           name: eazy-e-cinematic-rebuild-package
-          retention-days: 2
+          retention-days: 14
           path: |
             hiphop_whatif/eazy_rebuild/output/full.mp4
             hiphop_whatif/eazy_rebuild/output/short_*.mp4
             hiphop_whatif/eazy_rebuild/output/thumbnail.jpg
             hiphop_whatif/eazy_rebuild/output/internal_preview.jpg
+            hiphop_whatif/eazy_rebuild/output/qc-report.json
+            hiphop_whatif/eazy_rebuild/output/visual-credits.md
           if-no-files-found: error

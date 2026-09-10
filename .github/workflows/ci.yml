@@ -32,7 +32,7 @@ jobs:
             exit 1
           fi
           bash -n scripts/publish_facebook.sh
-          grep -Fq 'PROFILE="${UPLOAD_POST_PROFILE:-YouTube}"' scripts/publish_facebook.sh
+          grep -Fq 'PROFILE="${UPLOAD_POST_PROFILE:-ClutchReplay}"' scripts/publish_facebook.sh
           grep -Fq 'PAGE_ID="${RINGSIDE_FACEBOOK_PAGE_ID:-363068784190156}"' scripts/publish_facebook.sh
           if ! curl --silent --show-error --fail-with-body \
             -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \

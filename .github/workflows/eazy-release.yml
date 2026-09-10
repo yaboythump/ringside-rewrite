@@ -1,0 +1,56 @@
+name: Eazy-E verified release
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful v6 rebuild run ID containing the approved package
+        required: true
+        type: string
+      release_at:
+        description: Full release ISO-8601 timestamp with timezone, at least two hours ahead
+        required: true
+        type: string
+      approved:
+        description: Full episode listened to, visuals and source rights approved for release
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: eazy-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: inputs.approved
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install requests pillow
+      - uses: actions/download-artifact@v4
+        with:
+          name: eazy-e-cinematic-rebuild-package
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+          path: hiphop_whatif/eazy_rebuild/output
+      - name: Validate and release full plus five hourly Shorts
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          RELEASE_AT: ${{ inputs.release_at }}
+        run: python hiphop_whatif/eazy_rebuild/publish.py --execute --release-at "$RELEASE_AT"
+      - name: Preserve partial or complete receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eazy-release-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: hiphop_whatif/eazy_rebuild/output/publish-receipt.json
+          retention-days: 30
+          if-no-files-found: warn
