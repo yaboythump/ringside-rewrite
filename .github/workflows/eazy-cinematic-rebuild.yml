@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'hiphop_whatif/eazy_rebuild/job.json'
-      - 'hiphop_whatif/eazy_rebuild/build.py'
+      - 'hiphop_whatif/eazy_rebuild/build_v2.py'
       - '.github/workflows/eazy-cinematic-rebuild.yml'
   workflow_dispatch:
 
@@ -34,7 +34,7 @@ jobs:
           python -m pip install --quiet requests pillow numpy
 
       - name: Build full-screen cinematic episode
-        run: python hiphop_whatif/eazy_rebuild/build.py
+        run: python hiphop_whatif/eazy_rebuild/build_v2.py
 
       - name: Hard QC
         shell: bash
