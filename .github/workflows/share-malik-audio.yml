@@ -1,0 +1,20 @@
+name: Share Malik audio
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'the_case_against/share-audio-trigger.txt'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package Malik audio
+        uses: actions/upload-artifact@v4
+        with:
+          name: malik-narrator-audio
+          path: published-assets/the-case-against/narrator-audition/malik_am_onyx_mastered.mp3
+          if-no-files-found: error
