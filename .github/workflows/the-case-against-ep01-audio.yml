@@ -29,13 +29,31 @@ jobs:
         run: |
           curl -L --fail --retry 3 -o kokoro-v1.0.int8.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx
           curl -L --fail --retry 3 -o voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin
+      - name: Pronunciation guard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('the_case_against/ep01_narration.py')
+          s = p.read_text()
+          replacements = {
+              'résumés': 'career records',
+              'résumé': 'career record',
+              'resumes': 'career records',
+              'resume': 'career record',
+          }
+          for old, new in replacements.items():
+              s = s.replace(old, new)
+          p.write_text(s)
+          assert 'résumé' not in s and 'résumés' not in s
+          print('Pronunciation guard passed: ambiguous resume wording removed.')
+          PY
       - name: Generate Malik narration
         run: python the_case_against/ep01_narration.py
       - name: Master narration
         run: |
           IN='the_case_against/output/ep01/malik_ep01_raw.wav'
           OUT='the_case_against/output/ep01/malik_ep01_mastered.mp3'
-          ffmpeg -y -i "$IN" -af "highpass=f=70,equalizer=f=3200:t=q:w=1:g=2,acompressor=threshold=-18dB:ratio=2.5:attack=12:release=120,loudnorm=I=-16:TP=-1.5:LRA=8,alimiter=limit=0.94" -b:a 192k "$OUT"
+          ffmpeg -y -i "$IN" -af "highpass=f=70,equalizer=f=3200:t=q:w=1:g=2.5,acompressor=threshold=-20dB:ratio=3:attack=8:release=110,loudnorm=I=-14:TP=-1.0:LRA=7,alimiter=limit=0.95" -ac 2 -ar 48000 -b:a 224k "$OUT"
           ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$OUT"
       - name: Upload narration artifact
         uses: actions/upload-artifact@v4
