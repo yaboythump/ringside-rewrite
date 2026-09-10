@@ -6,6 +6,7 @@ on:
     paths:
       - 'the_case_against/narrator-audition-trigger.txt'
       - 'the_case_against/narrator_sample.py'
+      - '.github/workflows/the-case-against-narrator.yml'
   workflow_dispatch:
 
 permissions:
@@ -27,8 +28,8 @@ jobs:
           sudo apt-get install -y ffmpeg
       - name: Download Kokoro model
         run: |
-          curl -L --fail --retry 3 -o kokoro-v1.0.int8.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/kokoro-v1.0.int8.onnx
-          curl -L --fail --retry 3 -o voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/voices-v1.0.bin
+          curl -L --fail --retry 3 -o kokoro-v1.0.int8.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx
+          curl -L --fail --retry 3 -o voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin
       - name: Generate Malik audition
         run: python the_case_against/narrator_sample.py
       - name: Master audition
