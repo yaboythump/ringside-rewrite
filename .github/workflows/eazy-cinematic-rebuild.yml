@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'hiphop_whatif/eazy_rebuild/job.json'
-      - 'hiphop_whatif/eazy_rebuild/build_v2.py'
+      - 'hiphop_whatif/eazy_rebuild/build_v3.py'
       - '.github/workflows/eazy-cinematic-rebuild.yml'
   workflow_dispatch:
 
@@ -20,11 +20,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
       - name: Install runtime
         shell: bash
         run: |
@@ -32,31 +30,24 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
           python -m pip install --quiet requests pillow numpy
-
       - name: Build full-screen cinematic episode
-        run: python hiphop_whatif/eazy_rebuild/build_v2.py
-
+        run: python hiphop_whatif/eazy_rebuild/build_v3.py
       - name: Hard QC
         shell: bash
         run: |
           set -euo pipefail
           BASE=hiphop_whatif/eazy_rebuild/output
-          test -s "$BASE/full.mp4"
-          test -s "$BASE/thumbnail.jpg"
-          test -s "$BASE/internal_preview.jpg"
+          test -s "$BASE/full.mp4" && test -s "$BASE/thumbnail.jpg" && test -s "$BASE/internal_preview.jpg"
           ffmpeg -v error -i "$BASE/full.mp4" -f null -
           ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$BASE/full.mp4" | grep -qx '1920,1080'
           ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$BASE/full.mp4" | grep -q .
           dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$BASE/full.mp4")
           awk -v d="$dur" 'BEGIN { exit !(d > 240) }'
           for i in 01 02 03 04 05; do
-            S="$BASE/short_${i}.mp4"
-            test -s "$S"
-            ffmpeg -v error -i "$S" -f null -
+            S="$BASE/short_${i}.mp4"; test -s "$S"; ffmpeg -v error -i "$S" -f null -
             ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$S" | grep -qx '1080,1920'
           done
           echo 'EAZY_CINEMATIC_QC_PASS'
-
       - name: Publish internal visual preview to repo for inspection
         shell: bash
         run: |
@@ -71,7 +62,6 @@ jobs:
           git commit -m 'Add Eazy-E cinematic rebuild preview'
           git pull --rebase origin main
           git push origin HEAD:main
-
       - name: Save complete package artifact
         uses: actions/upload-artifact@v4
         with:
