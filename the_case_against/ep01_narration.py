@@ -83,7 +83,7 @@ And this is where the case gets uncomfortable.
 
 The argument against LeBron is strongest when it focuses on the 2011 Finals, the difference between four championships in ten Finals and Jordan's six in six, and the question of whether longevity should outweigh peak dominance.
 
-But the argument starts falling apart when it pretends LeBron's longevity is just stat padding, or that changing teams means his titles do not count, or that reaching ten Finals somehow hurts his résumé.
+But the argument starts falling apart when it pretends LeBron's longevity is just stat padding, or that changing teams means his titles do not count, or that reaching ten Finals should somehow count against him.
 
 It does not.
 
