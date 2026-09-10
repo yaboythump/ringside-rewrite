@@ -1,0 +1,37 @@
+name: Cleanup bad Eazy-E build
+
+on:
+  push:
+    paths:
+      - hiphop_what_if/cleanup-eazy-trigger.txt
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Remove bad Eazy-E public uploads
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${UPLOAD_POST_API_KEY:-}" || { echo "::error::UPLOAD_POST_API_KEY missing"; exit 1; }
+
+          delete_post () {
+            platform="$1"
+            post_id="$2"
+            body=$(jq -n --arg platform "$platform" --arg user HipHopWhatIf --arg post_id "$post_id" '{platform:$platform,user:$user,post_id:$post_id}')
+            code=$(curl -sS -o response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/posts/unpublish' \
+              -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+              -H 'Content-Type: application/json' \
+              --data "$body")
+            cat response.json; echo
+            test "$code" -ge 200 && test "$code" -lt 300 || { echo "::error::Delete HTTP $code for $platform $post_id"; exit 1; }
+            jq -e '.success == true' response.json >/dev/null || { echo "::error::Delete rejected for $platform $post_id"; exit 1; }
+          }
+
+          delete_post youtube FgXBwGWJ1dM
+          delete_post facebook 1305726102625399_122110042341443908
+          echo 'EAZY_E_PUBLIC_CLEANUP_PASS'
