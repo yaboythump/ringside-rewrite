@@ -13,9 +13,11 @@ VOICES = ROOT / "voices-v1.0.bin"
 VOICE = "am_onyx"
 SPEED = 0.93
 
+# Use accented noun spelling so Kokoro reads 'résumé' as the career-history noun,
+# not the verb 'resumes' meaning continues.
 TEXT = (
-    "LeBron James has one of the greatest resumes basketball has ever seen. "
-    "But greatest resume and greatest player are not automatically the same thing. "
+    "LeBron James has one of the greatest résumés basketball has ever seen. "
+    "But greatest résumé and greatest player are not automatically the same thing. "
     "Tonight, we put the GOAT case on trial. Finals record. Team construction. Peak versus longevity. "
     "No hate. No fan fiction. Just the strongest case the other side can make. "
     "Case made. You decide."
