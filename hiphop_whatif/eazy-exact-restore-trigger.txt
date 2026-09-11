@@ -1,3 +1,4 @@
 Restore exact approved Eazy-E master from artifact 10154481875.
 Triggered: 2026-09-11 America/New_York
 Expected fingerprint: 117614760 bytes, 347.3s, 1920x1080, 30fps.
+Attempt: 2 minimal validated workflow
