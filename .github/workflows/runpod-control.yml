@@ -1,0 +1,111 @@
+name: RunPod LTX Control
+
+on:
+  push:
+    paths:
+      - 'runpod-command.json'
+      - '.github/workflows/runpod-control.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      RUNPOD_POD_ID: ${{ secrets.RUNPOD_POD_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve action and pod
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTION=$(jq -r '.action // "status"' runpod-command.json | tr '[:upper:]' '[:lower:]')
+          if [[ "$ACTION" != "status" && "$ACTION" != "start" && "$ACTION" != "stop" ]]; then
+            echo "Unsupported action: $ACTION"
+            exit 1
+          fi
+          if [[ -z "${RUNPOD_API_KEY:-}" ]]; then
+            echo "RUNPOD_API_KEY secret is missing"
+            exit 2
+          fi
+
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+
+          POD_ID="${RUNPOD_POD_ID:-}"
+          if [[ -z "$POD_ID" ]]; then
+            POD_ID=$(printf '%s' "$PODS" | jq -r '
+              [ .[] | select(
+                  ((.name // "") | ascii_downcase | contains("ltx")) or
+                  ((.gpu.displayName // "") | ascii_downcase | contains("5090"))
+                ) ]
+              | if length > 0 then .[0].id
+                elif ($ARGS.named.count | tonumber) == 1 then $ARGS.named.only
+                else "" end
+            ' --arg count "$(printf '%s' "$PODS" | jq 'length')" --arg only "$(printf '%s' "$PODS" | jq -r 'if length == 1 then .[0].id else "" end')")
+          fi
+
+          if [[ -z "$POD_ID" || "$POD_ID" == "null" ]]; then
+            echo "Could not uniquely resolve the LTX/RTX 5090 pod. Available pods:"
+            printf '%s' "$PODS" | jq '[.[] | {id,name,desiredStatus,gpu:.gpu.displayName}]'
+            exit 3
+          fi
+
+          POD=$(printf '%s' "$PODS" | jq -c --arg id "$POD_ID" '.[] | select(.id == $id)')
+          if [[ -z "$POD" ]]; then
+            echo "Configured RUNPOD_POD_ID was not found: $POD_ID"
+            exit 4
+          fi
+
+          NAME=$(printf '%s' "$POD" | jq -r '.name // "unnamed"')
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          GPU=$(printf '%s' "$POD" | jq -r '.gpu.displayName // "unknown"')
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "gpu=$GPU" >> "$GITHUB_OUTPUT"
+          {
+            echo "## RunPod LTX control"
+            echo "- Pod: $NAME ($POD_ID)"
+            echo "- GPU: $GPU"
+            echo "- Current status: $STATUS"
+            echo "- Requested action: $ACTION"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start pod
+        if: steps.resolve.outputs.action == 'start'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST \
+            "https://rest.runpod.io/v1/pods/${{ steps.resolve.outputs.pod_id }}/start" \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/tmp/runpod-response.json
+          cat /tmp/runpod-response.json || true
+
+      - name: Stop pod
+        if: steps.resolve.outputs.action == 'stop'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST \
+            "https://rest.runpod.io/v1/pods/${{ steps.resolve.outputs.pod_id }}/stop" \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/tmp/runpod-response.json
+          cat /tmp/runpod-response.json || true
+
+      - name: Verify final status
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 2
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${{ steps.resolve.outputs.pod_id }}" \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          echo "$POD" | jq '{id,name,desiredStatus,gpu:.gpu.displayName,costPerHr,adjustedCostPerHr}'
+          FINAL=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+          echo "- Final status: $FINAL" >> "$GITHUB_STEP_SUMMARY"
