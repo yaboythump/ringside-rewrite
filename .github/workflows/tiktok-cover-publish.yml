@@ -1,0 +1,160 @@
+name: TikTok Cover Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Upload-Post profile
+        required: true
+        default: CTN
+        type: string
+      caption:
+        description: TikTok caption (extra hashtags are automatically removed)
+        required: true
+        type: string
+      video_path:
+        description: Local repo video path (use this OR video_url)
+        required: false
+        type: string
+      video_url:
+        description: Public/signed HTTPS video URL (use this OR video_path)
+        required: false
+        type: string
+      cover_path:
+        description: Local JPG/JPEG/PNG/WEBP cover path
+        required: false
+        type: string
+      cover_url:
+        description: Public HTTPS custom cover URL
+        required: false
+        type: string
+      cover_timestamp_ms:
+        description: Fallback cover frame timestamp in milliseconds
+        required: true
+        default: '1000'
+        type: string
+      privacy:
+        description: TikTok privacy level
+        required: true
+        default: PUBLIC_TO_EVERYONE
+        type: string
+      scheduled_date:
+        description: Optional ISO-8601 scheduled publish time
+        required: false
+        type: string
+
+  workflow_call:
+    inputs:
+      profile:
+        required: false
+        default: CTN
+        type: string
+      caption:
+        required: true
+        type: string
+      video_path:
+        required: false
+        type: string
+      video_url:
+        required: false
+        type: string
+      cover_path:
+        required: false
+        type: string
+      cover_url:
+        required: false
+        type: string
+      cover_timestamp_ms:
+        required: false
+        default: '1000'
+        type: string
+      privacy:
+        required: false
+        default: PUBLIC_TO_EVERYONE
+        type: string
+      scheduled_date:
+        required: false
+        type: string
+    secrets:
+      UPLOAD_POST_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+      UPLOAD_POST_PROFILE: ${{ inputs.profile }}
+      CAPTION: ${{ inputs.caption }}
+      VIDEO_PATH: ${{ inputs.video_path }}
+      VIDEO_URL: ${{ inputs.video_url }}
+      COVER_PATH: ${{ inputs.cover_path }}
+      COVER_URL: ${{ inputs.cover_url }}
+      COVER_TIMESTAMP_MS: ${{ inputs.cover_timestamp_ms }}
+      PRIVACY: ${{ inputs.privacy }}
+      SCHEDULED_DATE: ${{ inputs.scheduled_date }}
+      TIKTOK_MAX_HASHTAGS: '5'
+      TIKTOK_DEFAULT_COVER_TIMESTAMP_MS: '1000'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install publisher
+        run: python -m pip install -e .
+
+      - name: Validate TikTok inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${VIDEO_PATH}" && -z "${VIDEO_URL}" ]]; then
+            echo "Provide video_path or video_url."
+            exit 1
+          fi
+          if [[ -n "${VIDEO_PATH}" && -n "${VIDEO_URL}" ]]; then
+            echo "Provide only one of video_path or video_url."
+            exit 1
+          fi
+          if [[ -n "${COVER_PATH}" && -n "${COVER_URL}" ]]; then
+            echo "Provide only one of cover_path or cover_url."
+            exit 1
+          fi
+
+      - name: Publish TikTok with cover
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          args=(
+            --profile "${UPLOAD_POST_PROFILE:-CTN}"
+            --caption "${CAPTION}"
+            --cover-timestamp-ms "${COVER_TIMESTAMP_MS:-1000}"
+            --privacy "${PRIVACY:-PUBLIC_TO_EVERYONE}"
+          )
+
+          if [[ -n "${VIDEO_PATH}" ]]; then
+            args+=(--video "${VIDEO_PATH}")
+          else
+            args+=(--video-url "${VIDEO_URL}")
+          fi
+
+          if [[ -n "${COVER_PATH}" ]]; then
+            args+=(--cover "${COVER_PATH}")
+          elif [[ -n "${COVER_URL}" ]]; then
+            args+=(--cover-url "${COVER_URL}")
+          fi
+
+          if [[ -n "${SCHEDULED_DATE}" ]]; then
+            args+=(--scheduled-date "${SCHEDULED_DATE}")
+          fi
+
+          python scripts/publish_tiktok.py "${args[@]}"
