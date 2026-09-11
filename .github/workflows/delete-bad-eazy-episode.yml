@@ -8,50 +8,54 @@ on:
       - '.github/workflows/delete-bad-eazy-episode.yml'
       - 'hiphop_whatif/eazy-delete-trigger.txt'
 
+concurrency:
+  group: delete-bad-eazy-episode
+  cancel-in-progress: false
+
 jobs:
   delete-bad-uploads:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Delete bad YouTube uploads
+      - name: Unpublish bad full episodes through Upload-Post
         env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json, os, urllib.parse, urllib.request
+          test -n "${UPLOAD_POST_API_KEY:-}" || { echo "::error::UPLOAD_POST_API_KEY secret is missing"; exit 1; }
 
-          cid=os.environ['YOUTUBE_CLIENT_ID']; csec=os.environ['YOUTUBE_CLIENT_SECRET']; rt=os.environ['YOUTUBE_REFRESH_TOKEN']
-          data=urllib.parse.urlencode({'client_id':cid,'client_secret':csec,'refresh_token':rt,'grant_type':'refresh_token'}).encode()
-          req=urllib.request.Request('https://oauth2.googleapis.com/token',data=data,headers={'Content-Type':'application/x-www-form-urlencoded'})
-          with urllib.request.urlopen(req) as r: token=json.load(r)['access_token']
-          for vid in ['FgXBwGWJ1dM','v8B_-AdJasw']:
-              req=urllib.request.Request(f'https://www.googleapis.com/youtube/v3/videos?id={vid}',method='DELETE',headers={'Authorization':f'Bearer {token}'})
-              try:
-                  with urllib.request.urlopen(req) as r: print('deleted youtube',vid,r.status)
-              except urllib.error.HTTPError as e:
-                  if e.code==404: print('already absent youtube',vid)
-                  else: raise
-          PY
+          unpublish () {
+            local platform="$1"
+            local post_id="$2"
+            local body code
+            body=$(jq -n --arg platform "$platform" --arg user "HipHopWhatIf" --arg post_id "$post_id" '{platform:$platform,user:$user,post_id:$post_id}')
+            code=$(curl -sS -o response.json -w '%{http_code}' \
+              -X POST 'https://api.upload-post.com/api/uploadposts/posts/unpublish' \
+              -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+              -H 'Content-Type: application/json' \
+              --data "$body")
+            echo "$platform $post_id HTTP $code"
+            cat response.json || true
+            echo
 
-      - name: Delete bad Facebook uploads
-        env:
-          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import os, urllib.parse, urllib.request, urllib.error
-          tok=os.environ['FACEBOOK_PAGE_ACCESS_TOKEN']
-          for vid in ['1451015490283579','2241318056648038']:
-              url=f'https://graph.facebook.com/v24.0/{vid}?'+urllib.parse.urlencode({'access_token':tok})
-              req=urllib.request.Request(url,method='DELETE')
-              try:
-                  with urllib.request.urlopen(req) as r: print('deleted facebook',vid,r.read().decode())
-              except urllib.error.HTTPError as e:
-                  body=e.read().decode()
-                  if e.code in (400,404) and ('Unsupported get request' in body or 'does not exist' in body): print('already absent facebook',vid)
-                  else: raise RuntimeError(f'Facebook delete failed {vid}: {e.code} {body}')
-          PY
+            if [ "$code" = "404" ]; then
+              echo "Already absent: $platform $post_id"
+              return 0
+            fi
+
+            test "$code" -ge 200 && test "$code" -lt 300 || {
+              echo "::error::Unpublish failed for $platform $post_id (HTTP $code)"
+              exit 1
+            }
+            jq -e '.success == true' response.json >/dev/null || {
+              echo "::error::Upload-Post did not confirm deletion for $platform $post_id"
+              exit 1
+            }
+            echo "Unpublished: $platform $post_id"
+          }
+
+          unpublish youtube FgXBwGWJ1dM
+          unpublish youtube v8B_-AdJasw
+          unpublish facebook 1451015490283579
+          unpublish facebook 2241318056648038
