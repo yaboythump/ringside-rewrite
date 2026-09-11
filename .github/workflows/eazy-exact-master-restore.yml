@@ -45,14 +45,14 @@ jobs:
           set -euo pipefail
           test "$(stat -c%s /tmp/eazy/full.mp4)" = "117614760"
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate -of csv=p=0 /tmp/eazy/full.mp4)" = "1920,1080,30/1"
-          DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/eazy/full.mp4)
           python - <<'PY'
-          import os
-          d=float(os.environ.get('DUR','0'))
+          import subprocess
+          d=float(subprocess.check_output([
+              'ffprobe','-v','error','-show_entries','format=duration',
+              '-of','default=nw=1:nk=1','/tmp/eazy/full.mp4'
+          ], text=True).strip())
           assert abs(d-347.3) < 0.05, d
           PY
-        env:
-          DUR: ${{ env.DUR }}
 
       - name: Restore YouTube and Facebook from exact bytes
         env:
