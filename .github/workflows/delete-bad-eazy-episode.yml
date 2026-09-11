@@ -28,7 +28,7 @@ jobs:
           unpublish () {
             local platform="$1"
             local post_id="$2"
-            local body code
+            local body code error_text
             body=$(jq -n --arg platform "$platform" --arg user "HipHopWhatIf" --arg post_id "$post_id" '{platform:$platform,user:$user,post_id:$post_id}')
             code=$(curl -sS -o response.json -w '%{http_code}' \
               -X POST 'https://api.upload-post.com/api/uploadposts/posts/unpublish' \
@@ -39,8 +39,9 @@ jobs:
             cat response.json || true
             echo
 
-            if [ "$code" = "404" ]; then
-              echo "Already absent: $platform $post_id"
+            error_text=$(jq -r '.error // ""' response.json 2>/dev/null || true)
+            if [ "$code" = "404" ] || { [ "$code" = "400" ] && { [[ "$error_text" == *"does not exist"* ]] || [[ "$error_text" == *"cannot be found"* ]] || [[ "$error_text" == *"Unsupported delete request"* ]]; }; }; then
+              echo "Already absent/unavailable on platform: $platform $post_id"
               return 0
             fi
 
