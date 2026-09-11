@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - hiphop_whatif/eazy-exact-restore-trigger.txt
-
-concurrency:
-  group: hiphop-what-if-eazy-exact-restore
-  cancel-in-progress: false
+      - 'hiphop_whatif/eazy-exact-restore-trigger.txt'
 
 permissions:
   contents: read
   actions: read
+
+concurrency:
+  group: hiphop-what-if-eazy-exact-restore
+  cancel-in-progress: false
 
 jobs:
   restore:
@@ -21,148 +21,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install runtime
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install restore runtime
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg unzip
+          sudo apt-get install -y -qq ffmpeg
           python -m pip install --quiet requests
 
-      - name: Download the exact approved recovery artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/eazy
-          gh api \
-            -H 'Accept: application/vnd.github+json' \
-            /repos/${GITHUB_REPOSITORY}/actions/artifacts/10154481875/zip > /tmp/eazy.zip
-          unzip -q /tmp/eazy.zip -d /tmp/eazy
-          test -s /tmp/eazy/full.mp4
-          test -s /tmp/eazy/thumbnail.jpg
+      - name: Recover exact approved artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hiphop-what-if-eazy-recovery
+          path: /tmp/eazy
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 34482046413
 
-      - name: Verify exact master fingerprint
-        run: |
-          set -euo pipefail
-          test "$(stat -c%s /tmp/eazy/full.mp4)" = "117614760"
-          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate -of csv=p=0 /tmp/eazy/full.mp4)" = "1920,1080,30/1"
-          python - <<'PY'
-          import subprocess
-          d=float(subprocess.check_output([
-              'ffprobe','-v','error','-show_entries','format=duration',
-              '-of','default=nw=1:nk=1','/tmp/eazy/full.mp4'
-          ], text=True).strip())
-          assert abs(d-347.3) < 0.05, d
-          PY
-
-      - name: Restore YouTube and Facebook from exact bytes
+      - name: Restore exact master to YouTube and Facebook
         env:
           UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
-        run: |
-          cat > /tmp/restore.py <<'PY'
-          import json, os, re, time
-          from pathlib import Path
-          import requests
+        run: python scripts/restore_eazy_exact.py
 
-          API='https://api.upload-post.com/api'
-          KEY=os.environ['UPLOAD_POST_API_KEY'].strip()
-          HEAD={'Authorization':f'Apikey {KEY}'}
-          VIDEO=Path('/tmp/eazy/full.mp4')
-          THUMB=Path('/tmp/eazy/thumbnail.jpg')
-          USER='HipHopWhatIf'
-          FB_PAGE='1305726102625399'
-          TITLE='What If Eazy-E Never Died? | Hip Hop What If'
-          DESC="""What if Eazy-E survived 1995 and got the chance to shape the next era of West Coast hip hop? Hip Hop What If follows the documented timeline through Eazy-E's final months, then branches into a fictional alternate future involving Ruthless Records, Bone Thugs-N-Harmony, a possible N.W.A reunion, and a very different West Coast power map.
-
-The real-history setup is documented: Eazy-E founded Ruthless Records and helped form N.W.A.; Bone Thugs-N-Harmony had become a major Ruthless success; and in February 1995 the Los Angeles Times reported that long-rumored N.W.A reunion talks were stepping up after Eazy parted ways with Jerry Heller, with a reunion album being discussed for 1996. Eazy-E died March 26, 1995 from complications of AIDS. Everything after that historical cutoff in this episode is hypothetical alternate-history commentary.
-
-Sources: Los Angeles Times, Feb. 26, 1995 and Mar. 27, 1995.
-
-#EazyE #NWA #HipHopHistory #WestCoastHipHop #HipHopWhatIf #RuthlessRecords #RapHistory"""
-
-          def post(platform, idem):
-              data=[('user',USER),('platform[]',platform),('title',TITLE),('description',DESC),('async_upload','true')]
-              if platform=='youtube':
-                  data += [('privacyStatus','public'),('selfDeclaredMadeForKids','false')]
-              else:
-                  data += [('facebook_page_id',FB_PAGE),('facebook_media_type','VIDEO')]
-              headers={**HEAD,'Idempotency-Key':idem}
-              with VIDEO.open('rb') as v:
-                  files={'video':(VIDEO.name,v,'video/mp4')}
-                  if platform=='youtube':
-                      t=THUMB.open('rb')
-                      files['thumbnail']=(THUMB.name,t,'image/jpeg')
-                  else:
-                      t=None
-                  try:
-                      r=requests.post(API+'/upload',headers=headers,data=data,files=files,timeout=900)
-                  finally:
-                      if t: t.close()
-              try: payload=r.json()
-              except Exception: payload={'raw':r.text}
-              if r.status_code >= 400 or payload.get('success') is False:
-                  raise RuntimeError(f'{platform} upload rejected {r.status_code}: {payload}')
-              return payload
-
-          def poll(request_id, platform, timeout=1800):
-              end=time.time()+timeout
-              last={}
-              while time.time()<end:
-                  r=requests.get(API+'/uploadposts/status',headers=HEAD,params={'request_id':request_id},timeout=60)
-                  r.raise_for_status(); last=r.json()
-                  results=last.get('results',{})
-                  if isinstance(results,list):
-                      x=next((a for a in results if a.get('platform')==platform),{})
-                  elif isinstance(results,dict):
-                      x=results.get(platform,{})
-                  else: x={}
-                  status=str(x.get('status') or last.get('status') or '').lower()
-                  if x.get('success') is True or status in {'completed','success','done'}:
-                      return last,x
-                  if x.get('skipped') or status in {'failed','error','skipped'}:
-                      raise RuntimeError(f'{platform} failed: {last}')
-                  time.sleep(10)
-              raise TimeoutError(f'{platform} timed out: {last}')
-
-          def vid(x):
-              for k in ('video_id','post_id','publish_id','id'):
-                  if isinstance(x.get(k),str) and x[k]: return x[k]
-              u=x.get('url') or x.get('post_url') or ''
-              m=re.search(r'(?:v=|youtu\.be/|shorts/)([A-Za-z0-9_-]{11})',u)
-              return m.group(1) if m else None
-
-          receipts={}
-          for platform, idem in [('youtube','hhwi-eazy-exact-restore-20260911-youtube-v1'),('facebook','hhwi-eazy-exact-restore-20260911-facebook-v1')]:
-              accepted=post(platform, idem)
-              rid=accepted.get('request_id')
-              if not rid: raise RuntimeError(f'{platform}: missing request_id: {accepted}')
-              final,item=poll(rid,platform)
-              receipts[platform]={'accepted':accepted,'final':final,'item':item}
-              if platform=='youtube':
-                  video_id=vid(item)
-                  if not video_id: raise RuntimeError(f'YouTube video id unresolved: {item}')
-                  with THUMB.open('rb') as image:
-                      tr=requests.post(API+'/uploadposts/youtube/thumbnail',headers=HEAD,
-                          data={'user':USER,'video_id':video_id},
-                          files={'thumbnail':(THUMB.name,image,'image/jpeg')},timeout=180)
-                  try: tp=tr.json()
-                  except Exception: tp={'raw':tr.text}
-                  if tr.status_code >= 400 or tp.get('success') is False:
-                      raise RuntimeError(f'Thumbnail patch failed {tr.status_code}: {tp}')
-                  receipts['thumbnail']=tp
-                  receipts['youtube_video_id']=video_id
-                  receipts['youtube_url']=item.get('url') or item.get('post_url') or f'https://www.youtube.com/watch?v={video_id}'
-          Path('/tmp/eazy/restore-receipt-20260911.json').write_text(json.dumps(receipts,indent=2),encoding='utf-8')
-          print(json.dumps({'RESTORE_COMPLETE': True,'youtube_video_id':receipts.get('youtube_video_id'),'youtube_url':receipts.get('youtube_url'),'facebook':receipts['facebook']['item']},indent=2))
-          PY
-          python /tmp/restore.py | tee /tmp/eazy/restore.log
-
-      - name: Save restore receipts
+      - name: Save restore receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eazy-e-exact-restore-receipt
           retention-days: 14
-          path: |
-            /tmp/eazy/restore.log
-            /tmp/eazy/restore-receipt-20260911.json
+          path: /tmp/eazy/restore-receipt-20260911.json
           if-no-files-found: warn
