@@ -1,3 +1,4 @@
 Restore the six corrected The Case Against LeBron episode 1 Shorts.
 Triggered: 2026-09-11 America/New_York
 Source master: https://youtu.be/42ALSvtFJG8
+Attempt: 2 diagnostics enabled
