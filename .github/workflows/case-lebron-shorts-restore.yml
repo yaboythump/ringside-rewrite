@@ -30,14 +30,19 @@ jobs:
       - name: Rebuild and schedule six corrected LeBron Shorts
         env:
           UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
-        run: python the_case_against/restore_lebron_shorts.py
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p the_case_against/lebron_restore_work
+          python the_case_against/restore_lebron_shorts.py 2>&1 | tee the_case_against/lebron_restore_work/restore.log
 
-      - name: Keep restore receipt and rendered Shorts
+      - name: Keep restore receipt, diagnostics, and rendered Shorts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: case-lebron-ep01-restored-shorts
           path: |
+            the_case_against/lebron_restore_work/restore.log
             the_case_against/lebron_restore_work/restore-receipt.json
             the_case_against/lebron_restore_work/shorts/*.mp4
           if-no-files-found: warn
