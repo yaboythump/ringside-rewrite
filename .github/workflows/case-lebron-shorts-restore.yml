@@ -1,0 +1,44 @@
+name: Restore Case Against LeBron Shorts
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - the_case_against/lebron-shorts-restore-trigger.txt
+
+concurrency:
+  group: case-lebron-shorts-restore
+  cancel-in-progress: false
+
+jobs:
+  restore-six-shorts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install media tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install --upgrade pip
+          python -m pip install requests yt-dlp
+
+      - name: Rebuild and schedule six corrected LeBron Shorts
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        run: python the_case_against/restore_lebron_shorts.py
+
+      - name: Keep restore receipt and rendered Shorts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: case-lebron-ep01-restored-shorts
+          path: |
+            the_case_against/lebron_restore_work/restore-receipt.json
+            the_case_against/lebron_restore_work/shorts/*.mp4
+          if-no-files-found: warn
+          retention-days: 14
