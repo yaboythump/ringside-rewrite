@@ -1,0 +1,253 @@
+name: HHWI Memphis Bleek Final Assembly
+
+on:
+  push:
+    paths:
+      - 'ltx-jobs/hhwi-memphis-bleek-final.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load production config
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=$(jq -r '.visual_run_id' ltx-jobs/hhwi-memphis-bleek-final.json)
+          echo "VISUAL_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Download LTX visual package
+        uses: actions/download-artifact@v4
+        with:
+          name: hhwi-memphis-bleek-full-episode-visuals
+          path: assets/visuals
+          repository: yaboythump/ringside-rewrite
+          run-id: ${{ env.VISUAL_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install edit dependencies and download Talia masters
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          python3 -m pip install --quiet pillow numpy
+          mkdir -p assets/audio assets/archive work/segments work/cards final
+          jq -r '.sections[] | "\(.index)\t\(.url)"' ltx-jobs/hhwi-memphis-bleek-narration.json | while IFS=$'\t' read -r IDX URL; do
+            printf -v PAD '%02d' "$IDX"
+            curl -L --fail --retry 4 --retry-delay 2 "$URL" -o "assets/audio/talia_${PAD}.wav"
+          done
+          # Editorial archival references; failure is non-fatal because the motion cards cover the lane.
+          curl -L --fail --retry 3 'https://www.revolt.tv/article/media_1abe7bc62353755d61098fa557c68aec2c6c6cafe.jpg?format=jpg&optimize=medium&width=750' -o assets/archive/bleek_jay_1998.jpg || true
+          curl -L --fail --retry 3 'https://www.revolt.tv/article/media_1f4064453a32376454094b53c0e6352208a6b9f6e.jpg?format=jpg&optimize=medium&width=750' -o assets/archive/bleek_modern.jpg || true
+          curl -L --fail --retry 3 'https://www.revolt.tv/article/2023-09-26/327705/media_1ad04b7b8598ee0190402c188f9b566b5591e5989.jpeg?format=pjpg&optimize=medium%2F&width=1200' -o assets/archive/roc_stage.jpg || true
+
+      - name: Build Talia master and original music bed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import wave, numpy as np, math
+          # Short original hip-hop documentary bed: kick/snare/hats/bass, deliberately low-density under VO.
+          sr=44100
+          dur=360.0
+          n=int(sr*dur)
+          audio=np.zeros(n,dtype=np.float32)
+          bpm=84.0; beat=60.0/bpm
+          def add_env(start, length, freq, amp, noise=False):
+              i0=int(start*sr); L=min(int(length*sr), n-i0)
+              if L<=0:return
+              t=np.arange(L)/sr
+              env=np.exp(-t/max(length/5,0.01))
+              if noise:
+                  sig=np.random.default_rng(int(start*1000)%100000).standard_normal(L).astype(np.float32)
+              else:
+                  sig=np.sin(2*np.pi*freq*t).astype(np.float32)
+              audio[i0:i0+L]+=amp*env*sig
+          beats=int(dur/beat)+1
+          for b in range(beats):
+              t=b*beat
+              bar=b%4
+              if bar in (0,2): add_env(t,0.22,58,0.30)
+              if bar in (1,3): add_env(t,0.14,180,0.15,noise=True)
+              add_env(t,0.045,4200,0.035,noise=True)
+              add_env(t+beat/2,0.035,5200,0.025,noise=True)
+          roots=[73.42,73.42,65.41,55.00]
+          for bar_start in np.arange(0,dur,beat*4):
+              root=roots[int(bar_start/(beat*4))%len(roots)]
+              i0=int(bar_start*sr); L=min(int(beat*3.5*sr), n-i0)
+              if L>0:
+                  t=np.arange(L)/sr
+                  env=np.minimum(t/0.08,1.0)*np.exp(-t/3.2)
+                  audio[i0:i0+L]+=0.055*env*np.sin(2*np.pi*root*t)
+          # Signature red-fracture hit around the alternate-timeline branch.
+          for hit in (112.5,113.0):
+              i0=int(hit*sr); L=min(int(0.5*sr),n-i0); t=np.arange(L)/sr
+              if L>0:
+                  rng=np.random.default_rng(77+int(hit*10)); noise=rng.standard_normal(L)
+                  audio[i0:i0+L]+=0.12*np.exp(-t*9)*noise
+          peak=max(float(np.max(np.abs(audio))),1e-6); audio=np.clip(audio/(peak*1.6),-1,1)
+          pcm=(audio*32767).astype(np.int16)
+          with wave.open('work/music_bed.wav','wb') as w:
+              w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes(pcm.tobytes())
+          PY
+          : > work/narration_concat.txt
+          for F in assets/audio/talia_*.wav; do
+            echo "file '$PWD/$F'" >> work/narration_concat.txt
+            # natural separation, not dead air long enough to feel broken
+            ffmpeg -y -loglevel error -f lavfi -i anullsrc=r=24000:cl=mono -t 0.6 "work/silence.wav"
+            echo "file '$PWD/work/silence.wav'" >> work/narration_concat.txt
+          done
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/narration_concat.txt -c:a pcm_s16le work/talia_master.wav
+          ffmpeg -y -loglevel error -i work/talia_master.wav -stream_loop -1 -i work/music_bed.wav \
+            -filter_complex "[0:a]loudnorm=I=-16:TP=-1.5:LRA=10[n];[1:a]volume=0.105[m];[n][m]amix=inputs=2:duration=first:dropout_transition=2[a]" \
+            -map "[a]" -c:a aac -b:a 192k work/final_audio.m4a
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 work/final_audio.m4a > work/audio_duration.txt
+
+      - name: Create premium HHWI editorial motion cards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont, ImageFilter
+          from pathlib import Path
+          W,H=1280,720
+          Path('work/cards').mkdir(parents=True,exist_ok=True)
+          font_b='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+          font_r='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+          cards=[
+            ('THE CONNECTION','MARCY • BROOKLYN • MID-1990s','gold'),
+            ('1996','“COMING OF AGE”\nREASONABLE DOUBT','white'),
+            ('MORE THAN A FEATURE','MENTORSHIP • ACCESS • PROTECTION','gold'),
+            ('THE REAL TIMELINE','BLEEK ENTERS THE ROC-A-FELLA MACHINE','white'),
+            ('1999','COMING OF AGE\nBILLBOARD 200: No. 7','gold'),
+            ('THE LAUNCHPAD','DISTRIBUTION • PRODUCERS • TOURING • VISIBILITY','white'),
+            ('BRANCH POINT','THE CONNECTION NEVER HAPPENS','red'),
+            ('NO INTRODUCTION','NO CO-SIGN • NO ROC RUNWAY','red'),
+            ('PATH ONE','HE STILL GETS DISCOVERED — JUST LATER','gold'),
+            ('PATH TWO','A RESPECTED BROOKLYN NAME — NOT A NATIONAL ONE','white'),
+            ('PATH THREE','THE STREETS KEEP MORE OF HIS ATTENTION','red'),
+            ('THE RIPPLE EFFECT','ROC-A-FELLA LOSES ONE OF ITS EARLIEST FAMILIAR FACES','gold'),
+            ('MARCy LOYALTY','THE BIG-BROTHER / PROTÉGÉ DYNAMIC DISAPPEARS','white'),
+            ('YEARS LATER','BLEEK STILL BECAME A CONNECTOR INSIDE HIP-HOP','gold'),
+            ('THE VERDICT','TALENT SURVIVES — THE PLATFORM CHANGES EVERYTHING','gold'),
+            ('ONE CONNECTION','CHANGED THE ROAD','red'),
+            ('WHAT IF?','DOES BLEEK STILL REACH THE NATIONAL STAGE?','white'),
+            ('HIP HOP WHAT IFS','DIFFERENT PATHS. SAME CULTURE. BIGGER QUESTIONS.','gold')
+          ]
+          colors={'gold':(214,170,74),'red':(164,28,38),'white':(238,238,236)}
+          for i,(head,sub,tone) in enumerate(cards):
+              im=Image.new('RGB',(W,H),(13,13,15)); d=ImageDraw.Draw(im)
+              # layered premium editorial background
+              for y in range(H):
+                  v=int(13+12*y/H); d.line((0,y,W,y),fill=(v,v,v+2))
+              for x in range(-H,W,90): d.line((x,0,x+H,H),fill=(24,24,28),width=2)
+              c=colors[tone]
+              d.rectangle((72,76,88,H-76),fill=c)
+              d.rectangle((106,92,W-76,98),fill=(70,70,74))
+              d.text((112,122),'HIP HOP WHAT IFS',font=ImageFont.truetype(font_b,28),fill=(210,210,206))
+              # fit headline
+              size=82
+              while size>44:
+                  f=ImageFont.truetype(font_b,size)
+                  box=d.multiline_textbbox((0,0),head,font=f,spacing=6)
+                  if box[2]-box[0] < W-220: break
+                  size-=3
+              d.multiline_text((112,228),head,font=f,fill=c,spacing=6)
+              fs=38
+              sf=ImageFont.truetype(font_b,fs)
+              while d.multiline_textbbox((0,0),sub,font=sf,spacing=10)[2] > W-230 and fs>25:
+                  fs-=2; sf=ImageFont.truetype(font_b,fs)
+              d.multiline_text((114,420),sub,font=sf,fill=(232,232,229),spacing=10)
+              d.text((113,626),'REAL TIMELINE = WHITE   •   FRACTURE = RED   •   ALTERNATE TIMELINE = GOLD',font=ImageFont.truetype(font_r,18),fill=(125,125,128))
+              # subtle fracture motif
+              if tone=='red':
+                  pts=[(760,86),(727,190),(790,276),(746,365),(814,470),(775,630)]
+                  d.line(pts,fill=(190,34,45),width=5)
+                  d.line([(p[0]+8,p[1]) for p in pts],fill=(72,18,23),width=2)
+              im.save(f'work/cards/card_{i:02d}.png')
+          PY
+
+      - name: Build six timed visual chapters
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work/clipwork work/cardwork work/archivework work/chapters
+          # Hero shots become 7.76-second forward/reverse motion blocks. This doubles usable movement without freezing.
+          for F in assets/visuals/mp4/*.mp4; do
+            B=$(basename "$F" .mp4)
+            ffmpeg -y -loglevel error -i "$F" -filter_complex "[0:v]split[a][b];[b]reverse[br];[a][br]concat=n=2:v=1:a=0,setsar=1,noise=alls=3:allf=t+u[v]" -map "[v]" -r 25 -c:v libx264 -crf 18 -pix_fmt yuv420p "work/clipwork/${B}_boom.mp4"
+          done
+          # Motion cards: slow push plus grain so editorial sections stay alive.
+          for P in work/cards/*.png; do
+            B=$(basename "$P" .png)
+            ffmpeg -y -loglevel error -loop 1 -i "$P" -t 12 -vf "zoompan=z='min(zoom+0.00045,1.055)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1280x720:fps=25,noise=alls=2:allf=t+u" -an -c:v libx264 -crf 18 -pix_fmt yuv420p "work/cardwork/${B}.mp4"
+          done
+          # Archival stills: Ken Burns treatment, never a dead still.
+          if [[ -s assets/archive/bleek_jay_1998.jpg ]]; then
+            ffmpeg -y -loglevel error -loop 1 -i assets/archive/bleek_jay_1998.jpg -t 14 -vf "scale=1500:-2,crop=1280:720,zoompan=z='min(zoom+0.00055,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1280x720:fps=25,noise=alls=2:allf=t+u" -an -c:v libx264 -crf 18 -pix_fmt yuv420p work/archivework/archive_1998.mp4
+          fi
+          if [[ -s assets/archive/bleek_modern.jpg ]]; then
+            ffmpeg -y -loglevel error -loop 1 -i assets/archive/bleek_modern.jpg -t 12 -vf "scale=1500:-2,crop=1280:720,zoompan=z='min(zoom+0.00045,1.065)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1280x720:fps=25,noise=alls=2:allf=t+u" -an -c:v libx264 -crf 18 -pix_fmt yuv420p work/archivework/archive_modern.mp4
+          fi
+          if [[ -s assets/archive/roc_stage.jpg ]]; then
+            ffmpeg -y -loglevel error -loop 1 -i assets/archive/roc_stage.jpg -t 12 -vf "scale=1500:-2,crop=1280:720,zoompan=z='min(zoom+0.0005,1.07)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1280x720:fps=25,noise=alls=2:allf=t+u" -an -c:v libx264 -crf 18 -pix_fmt yuv420p work/archivework/archive_stage.mp4
+          fi
+
+          # Resolve clip names in sorted shot order.
+          mapfile -t C < <(find work/clipwork -name '*.mp4' | sort)
+          A98='work/archivework/archive_1998.mp4'; AM='work/archivework/archive_modern.mp4'; AS='work/archivework/archive_stage.mp4'
+          [[ -s "$A98" ]] || A98="work/cardwork/card_02.mp4"
+          [[ -s "$AM" ]] || AM="work/cardwork/card_14.mp4"
+          [[ -s "$AS" ]] || AS="work/cardwork/card_11.mp4"
+
+          make_chapter() {
+            local NUM="$1" DUR="$2"; shift 2
+            local LIST="work/chapter_${NUM}.txt"; : > "$LIST"
+            for F in "$@"; do echo "file '$PWD/$F'" >> "$LIST"; done
+            ffmpeg -y -loglevel error -f concat -safe 0 -i "$LIST" -t "$DUR" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p "work/chapters/ch_${NUM}.mp4"
+          }
+
+          make_chapter 0 56.68 "${C[0]}" work/cardwork/card_00.mp4 "$A98" "${C[1]}" work/cardwork/card_01.mp4 "${C[2]}"
+          make_chapter 1 55.88 "${C[3]}" work/cardwork/card_03.mp4 "$AS" "${C[4]}" work/cardwork/card_04.mp4 work/cardwork/card_05.mp4
+          make_chapter 2 50.00 "${C[5]}" work/cardwork/card_06.mp4 work/cardwork/card_07.mp4 "${C[7]}" "${C[8]}" work/cardwork/card_16.mp4
+          make_chapter 3 58.80 "${C[6]}" work/cardwork/card_08.mp4 "${C[7]}" work/cardwork/card_09.mp4 "${C[8]}" work/cardwork/card_10.mp4
+          make_chapter 4 59.60 "${C[3]}" work/cardwork/card_11.mp4 "${C[4]}" work/cardwork/card_12.mp4 "$AM" work/cardwork/card_13.mp4 "${C[8]}"
+          make_chapter 5 69.10 "${C[9]}" work/cardwork/card_14.mp4 "${C[0]}" work/cardwork/card_15.mp4 "$A98" "${C[9]}" work/cardwork/card_16.mp4 work/cardwork/card_17.mp4
+
+          : > work/chapter_list.txt
+          for F in work/chapters/ch_*.mp4; do echo "file '$PWD/$F'" >> work/chapter_list.txt; done
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/chapter_list.txt -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p work/video_master.mp4
+
+      - name: Final mix, grade, QC, and export
+        shell: bash
+        run: |
+          set -euo pipefail
+          DUR=$(cat work/audio_duration.txt)
+          ffmpeg -y -loglevel error -i work/video_master.mp4 -i work/final_audio.m4a -t "$DUR" \
+            -map 0:v:0 -map 1:a:0 -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -r 25 \
+            -c:a aac -b:a 192k -movflags +faststart final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ.mp4
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height,r_frame_rate -of json final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ.mp4 | tee final/qc_ffprobe.json
+          # First, branch-point, alternate-timeline and end frames for human QC.
+          ffmpeg -y -loglevel error -ss 8 -i final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ.mp4 -frames:v 1 final/qc_open.png
+          ffmpeg -y -loglevel error -ss 115 -i final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ.mp4 -frames:v 1 final/qc_branch.png
+          ffmpeg -y -loglevel error -ss 190 -i final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ.mp4 -frames:v 1 final/qc_alt.png
+          ffmpeg -y -loglevel error -sseof -5 -i final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ.mp4 -frames:v 1 final/qc_end.png
+
+      - name: Upload finished episode
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhwi-memphis-bleek-finished-episode
+          path: final/
+          if-no-files-found: error
+          retention-days: 14
