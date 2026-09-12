@@ -1,6 +1,6 @@
 {
-  "action": "start",
+  "action": "stop",
   "target": "ltx",
-  "pod_id": "5ziiyypuiq8pwq",
-  "request_id": "chat-cycle-start-2026-09-12-0601"
+  "pod_id": "w5sin5d1mz24km",
+  "request_id": "chat-stop-obsolete-comfy-2026-09-12-1050"
 }
