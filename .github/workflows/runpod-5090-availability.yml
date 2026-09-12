@@ -1,0 +1,26 @@
+name: RunPod RTX 5090 Availability
+
+on:
+  push:
+    paths:
+      - '.github/workflows/runpod-5090-availability.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Check RTX 5090 stock
+        shell: bash
+        run: |
+          set -euo pipefail
+          QUERY='query { gpuTypes(input: { id: "NVIDIA GeForce RTX 5090" }) { id displayName memoryInGb secureCloud communityCloud lowestPrice(input: { gpuCount: 1, secureCloud: true }) { stockStatus uninterruptablePrice availableGpuCounts } } }'
+          jq -nc --arg q "$QUERY" '{query:$q}' >/tmp/q.json
+          curl -fsS -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" \
+            -H 'content-type: application/json' --data @/tmp/q.json \
+            | jq '{errors,data}'
