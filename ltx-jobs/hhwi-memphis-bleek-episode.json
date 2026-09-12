@@ -1,72 +1,122 @@
 {
   "episode": "What If Memphis Bleek Never Met Jay-Z?",
-  "width": 768,
-  "height": 448,
-  "frames": 97,
+  "show_name": "HIP HOP WHAT IF",
+  "width": 832,
+  "height": 480,
+  "frames": 121,
   "fps": 25,
   "steps": 30,
   "cfg": 3,
-  "negative_prompt": "static image, frozen frame, no movement, slideshow, cartoon, anime, glossy fantasy, neon overload, plastic skin, warped anatomy, distorted face, duplicate people, extra limbs, surreal morphing, low-detail background, fake-looking motion, oversaturated colors, cheesy sci-fi effects, cluttered text, watermark, logo, low-resolution artifacts, bad perspective, smeared details, rubbery body movement, floating camera",
+  "visual_language": "full-screen cinematic late-1990s Brooklyn hip-hop documentary; 35mm/50mm lens language; shallow depth; practical sodium/tungsten lighting; black-charcoal factual timeline, deep red at branch point, warm restrained gold after divergence; no title-card look; no slideshow look; no loop or reverse motion",
+  "negative_prompt": "static image, frozen frame, no movement, slideshow, title card, infographic, presentation slide, boxed layout, cartoon, anime, glossy fantasy, neon overload, plastic skin, warped anatomy, distorted face, duplicate people, extra limbs, surreal morphing, low-detail background, fake-looking motion, oversaturated colors, cheesy sci-fi effects, cluttered text, watermark, logo, low-resolution artifacts, bad perspective, smeared details, rubbery body movement, floating camera, boomerang motion, reverse motion",
   "shots": [
     {
       "id": "01",
-      "output_prefix": "HHWI_MB_EP01_SHOT01_BROOKLYN_OPEN",
-      "seed": 54112001,
-      "prompt": "Late-1990s Brooklyn at dusk, premium cinematic hip-hop documentary realism, brownstones and project towers in layered depth, a city bus and one sedan visibly moving through frame, pedestrians crossing the sidewalk, coats and loose clothing moving naturally, steam drifting from a street vent. CAMERA MOTION IS ESSENTIAL: a strong visible forward dolly down the block with foreground railings and parked cars sliding past camera to create obvious parallax, steady 35mm documentary lens, grounded physical motion, sodium-vapor streetlights, charcoal shadows, restrained amber highlights, subtle red undertone, realistic film grain. The shot must visibly move from the first frame to the last; do not hold a static composition."
+      "output_prefix": "HHWI_MB_CIN01_BROOKLYN_AERIAL",
+      "seed": 77112001,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Late-1990s Brooklyn at blue-hour dusk, Brooklyn Bridge and dense city blocks beyond, warm sodium streetlights beginning to glow, subtle haze, authentic period traffic. CAMERA: a clearly visible slow aerial-style push toward Brooklyn with strong foreground-to-background parallax, 35mm documentary lens feel, gentle stabilized drift, not a still image. Cars move below, river reflections move, atmospheric haze shifts. Premium gritty hip-hop documentary, high contrast charcoal blacks, restrained amber highlights, real film grain, no text, no graphics."
     },
     {
       "id": "02",
-      "output_prefix": "HHWI_MB_EP01_SHOT02_YOUNG_RAPPER_WALK",
-      "seed": 54112002,
-      "prompt": "A young Black male rapper inspired by late-1990s Brooklyn street energy walks with purpose through a Marcy-style housing courtyard, era-appropriate oversized jacket and jeans, focused expression, friends and residents moving naturally behind him. CAMERA MOTION IS ESSENTIAL: full-body side-tracking shot moving alongside him at walking speed, foreground fence posts passing close to lens for strong parallax, visible footfalls, jacket fabric bouncing with each step, background pedestrians walking in the opposite direction, a bicycle crossing behind him. Premium gritty hip-hop documentary look, realistic anatomy, charcoal and amber palette, cinematic shallow depth, no static pose."
+      "output_prefix": "HHWI_MB_CIN02_BLEEK_PATH",
+      "seed": 77112002,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. A young Black male rapper in late-1990s Brooklyn, slim build, dark knit beanie, oversized black jacket and loose jeans, serious focused expression, walks through a Marcy-style housing courtyard. CAMERA: handheld 50mm side-tracking shot moving beside him, shallow depth of field, foreground fence posts sliding past lens, friends and residents crossing behind him, jacket fabric and footsteps visibly moving. Gritty premium hip-hop documentary realism, practical amber light, charcoal shadows, subtle film grain, no text, no graphic layout."
     },
     {
       "id": "03",
-      "output_prefix": "HHWI_MB_EP01_SHOT03_BASEMENT_CYPHER",
-      "seed": 54112003,
-      "prompt": "Late-1990s Brooklyn basement rap cypher, young Black rappers crowded around a wired microphone and small speakers, one teenage rapper actively delivering bars with expressive hand gestures while two friends react and nod to the beat, cassette deck lights blinking, smoke and dust moving in the air. CAMERA MOTION IS ESSENTIAL: handheld documentary camera pushes from behind one shoulder into the circle, then drifts laterally around the performer, people shifting weight and moving naturally, clear depth changes and parallax. Warm tungsten practical lights, gritty film texture, authentic cramped basement, premium documentary realism, energetic but controlled."
+      "output_prefix": "HHWI_MB_CIN03_JAY_PATH",
+      "seed": 77112003,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. A second ambitious young Black man in late-1990s Brooklyn, late twenties, close-cropped hair, dark leather jacket, understated chain, moves with purpose past brownstones and parked sedans while two associates walk a few steps behind. CAMERA: slow forward dolly and slight handheld drift, 35mm lens, people and cars crossing different depth planes for strong parallax. Premium street-documentary realism, cool charcoal palette with restrained gold practical light, no direct celebrity likeness, no text, no cards."
     },
     {
       "id": "04",
-      "output_prefix": "HHWI_MB_EP01_SHOT04_STUDIO_ACCESS",
-      "seed": 54112004,
-      "prompt": "1990s New York recording studio inspired by classic Roc-era sessions, large analog mixing console, reel and rack gear, young rapper standing beside an older mentor figure while an engineer moves faders and another person walks behind the console. CAMERA MOTION IS ESSENTIAL: visible slow dolly from the back of the room toward the mixing desk, passing a foreground microphone stand and chair to create strong parallax, hands actively moving on controls, people turning and gesturing, practical red and amber studio lights, premium hip-hop documentary realism, no celebrity likeness required, no static tableau."
+      "output_prefix": "HHWI_MB_CIN04_SUBWAY_APPROACH",
+      "seed": 77112004,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Late-1990s Brooklyn subway platform, the beanie-wearing young rapper approaches from one direction while the older ambitious man approaches from the opposite end, commuters flowing between them. CAMERA: lateral tracking move parallel to the platform with shallow depth, fluorescent practical light, foreground commuters briefly occlude lens, jackets and newspaper pages move naturally. Tense premium hip-hop documentary realism, deep charcoal with tiny restrained red practical accents, no text."
     },
     {
       "id": "05",
-      "output_prefix": "HHWI_MB_EP01_SHOT05_RISE_CITY",
-      "seed": 54112005,
-      "prompt": "Late-1990s Manhattan and Brooklyn music-industry montage feeling in one continuous street shot: record-store windows, taxis moving through intersection, pedestrians carrying shopping bags, posters and newspaper boxes, a young rapper exits a black sedan and walks toward a building entrance. CAMERA MOTION IS ESSENTIAL: camera tracks backward in front of him as he approaches, then subtly pans as a taxi crosses foreground, visible body movement, coat movement, traffic and pedestrians all active. Premium editorial hip-hop documentary look, realistic city motion, muted charcoal with gold highlights, confident upward-mobility energy."
+      "output_prefix": "HHWI_MB_CIN05_NEAR_MEETING",
+      "seed": 77112005,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. On a crowded late-1990s Brooklyn subway platform, the same two men pass within a few feet of each other without connecting. CAMERA: controlled slow-motion-style pan between them as they cross, 50mm lens, shallow depth, station lights blooming softly, moving commuters streaking gently behind them, one man almost glances back while the other keeps walking. Emotional near-miss, realistic physical motion, premium cinematic hip-hop documentary, no text, no split-screen graphics."
     },
     {
       "id": "06",
-      "output_prefix": "HHWI_MB_EP01_SHOT06_BRANCH_POINT",
-      "seed": 54112006,
-      "prompt": "Late-1990s Brooklyn subway platform, two young Black men representing separate future paths approach the same section of platform from opposite directions but never connect. CAMERA MOTION IS ESSENTIAL: camera tracks parallel to one subject while commuters move between them, a subway train visibly rushes into frame creating strong motion blur and wind, jackets and newspaper pages react to the train, one subject turns away and walks toward the stairs as the other continues down the platform. Tense cinematic documentary realism, deep charcoal shadows with restrained red practical lights, fate-changing near-meeting energy, absolutely not static."
+      "output_prefix": "HHWI_MB_CIN06_THE_MOMENT",
+      "seed": 77112006,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Tight over-the-shoulder subway moment immediately after two future paths nearly crossed: the young rapper in beanie in foreground turns his head slightly, the other man recedes into a moving crowd. CAMERA: slow push-in toward the foreground subject while the background drifts away, 50mm shallow focus, fluorescent lights and moving commuters create real depth. Tense restrained realism, black-and-charcoal factual timeline look, subtle red practical light in background, no text."
     },
     {
       "id": "07",
-      "output_prefix": "HHWI_MB_EP01_SHOT07_LOCAL_PATH",
-      "seed": 54112007,
-      "prompt": "Alternate timeline Brooklyn neighborhood performance, a talented young rapper performs outside a corner store for a small local crowd instead of a major stage, friends react, heads nod, hands move, cars pass on the street, people enter and exit the store. CAMERA MOTION IS ESSENTIAL: energetic handheld tracking move circles halfway around the performer while keeping him centered, foreground people briefly cross lens for layered parallax, visible gestures and body movement, realistic street energy, gritty premium documentary style, cooler charcoal palette with small amber highlights."
+      "output_prefix": "HHWI_MB_CIN07_TRAIN_SEPARATES",
+      "seed": 77112007,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. A subway train violently enters the late-1990s Brooklyn platform and physically separates the two paths, wind pushing jackets and loose papers as one man heads toward the stairs and the other disappears behind the moving train. CAMERA: fast but controlled lateral tracking, strong train motion blur, clear human movement, dramatic practical red signal light reflected on metal. Premium gritty documentary realism, fate-changing tension, no sci-fi crack effect inside the generation, no text."
     },
     {
       "id": "08",
-      "output_prefix": "HHWI_MB_EP01_SHOT08_CROSSROADS_DARK",
-      "seed": 54112008,
-      "prompt": "Nighttime Brooklyn crossroads in an alternate timeline, the young rapper walks alone past chain-link fencing and project buildings while traffic moves behind him, wind moves his jacket and loose paper along the sidewalk, headlights sweep across the frame. CAMERA MOTION IS ESSENTIAL: camera begins ahead of him and dollies backward as he walks toward lens, then drifts sideways so a foreground fence slides across frame with obvious parallax, natural stride and head movement, moody red accent lights, grounded cinematic hip-hop documentary realism, emotionally tense but believable."
+      "output_prefix": "HHWI_MB_CIN08_GOLD_EXIT",
+      "seed": 77112008,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. ALTERNATE TIMELINE begins. The same young rapper exits a Brooklyn subway station alone into early-morning city light, warm muted gold replacing the colder factual palette while the world remains realistic. CAMERA: low 35mm dolly backward as he walks up the steps toward lens, pedestrians pass across foreground, traffic moves behind, visible breath and coat motion. Premium cinematic hip-hop documentary, restrained gold/amber signature, grounded not fantasy, no text."
     },
     {
       "id": "09",
-      "output_prefix": "HHWI_MB_EP01_SHOT09_EMPTY_MACHINE",
-      "seed": 54112009,
-      "prompt": "Symbolic late-1990s music-label office and studio hallway showing an opportunity that never arrived: empty chair beside a desk, unsigned demo cassette and papers, people walking past the glass hallway outside, phone receiver swinging slightly after being set down, city lights moving beyond windows. CAMERA MOTION IS ESSENTIAL: slow but clearly visible lateral dolly across foreground desk objects so they pass close to lens with strong parallax, background staff walking and doors opening, premium documentary realism, charcoal and white factual palette with a restrained red accent, no static still-life."
+      "output_prefix": "HHWI_MB_CIN09_BASEMENT_CYPHER",
+      "seed": 77112009,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Alternate late-1990s Brooklyn basement rap cypher, the same young rapper performs into a wired microphone while friends form a tight circle, cassette deck and small speakers nearby, smoke and dust visible in warm tungsten light. CAMERA: handheld push from behind one shoulder into the circle, then slight arc around the performer, natural gestures, head nods, body movement and shifting feet. Gritty premium music-documentary realism, shallow depth, no text."
     },
     {
       "id": "10",
-      "output_prefix": "HHWI_MB_EP01_SHOT10_GOLD_ENDING",
-      "seed": 54112010,
-      "prompt": "Alternate-history Brooklyn at sunrise, same young rapper walks away from camera down a long city block as residents begin their morning, a bus rolls past, pigeons lift from the sidewalk, steam drifts across the street, warm gold sunlight catches building edges while charcoal shadows remain. CAMERA MOTION IS ESSENTIAL: strong cinematic crane-and-pullback movement rising and retreating as the subject continues walking forward, clear foreground-background parallax, moving traffic and pedestrians, jacket and environment motion, premium hopeful but bittersweet hip-hop documentary ending, gold alternate-timeline signature without fantasy styling."
+      "output_prefix": "HHWI_MB_CIN10_MIXTAPE_HANDOFF",
+      "seed": 77112010,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Brooklyn sidewalk outside a corner store in the late 1990s, young rapper personally hands dubbed cassette tapes to people passing by, friends tape small flyers to a wall, traffic and pedestrians continue around them. CAMERA: 35mm handheld tracking move weaving through foreground pedestrians toward the rapper, natural arm and hand movement, cassettes changing hands, city activity everywhere. Premium gritty hip-hop documentary, warm practical lights, no text overlays."
+    },
+    {
+      "id": "11",
+      "output_prefix": "HHWI_MB_CIN11_SMALL_STAGE",
+      "seed": 77112011,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Alternate timeline, a small smoky Brooklyn club in the late 1990s, the same rapper performs on a cramped low stage for a modest local crowd, hands rise, people react, an old camcorder operator moves near stage edge. CAMERA: low-angle push toward performer then slight handheld sway with crowd movement, real stage haze and tungsten practicals, cinematic shallow focus. Emotional sense of talent without a major platform, premium documentary realism, no text."
+    },
+    {
+      "id": "12",
+      "output_prefix": "HHWI_MB_CIN12_RECORD_STORE",
+      "seed": 77112012,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Late-1990s independent Brooklyn record store, the young rapper walks past rows of vinyl and cassette racks while a clerk listens to a demo behind the counter and customers browse. CAMERA: lateral dolly through foreground record bins with strong parallax, rack edges crossing close to lens, people turning pages and moving naturally, warm dusty shafts of light. Premium cinematic hip-hop documentary, restrained gold alternate-timeline tone, no text."
+    },
+    {
+      "id": "13",
+      "output_prefix": "HHWI_MB_CIN13_MISSED_STUDIO",
+      "seed": 77112013,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Symbolic opportunity that never arrives: high-end late-1990s New York recording studio hallway seen through glass, engineers and artists move in the room beyond while an empty visitor chair and untouched demo cassette remain in foreground. CAMERA: slow lateral 50mm dolly across the cassette, chair and glass reflections, background staff walking and doors opening, strong depth and parallax. Charcoal factual-world look with one restrained red practical light, premium realism, no text."
+    },
+    {
+      "id": "14",
+      "output_prefix": "HHWI_MB_CIN14_LATE_NIGHT_WRITING",
+      "seed": 77112014,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Alternate timeline late-night apartment in Brooklyn, same young rapper sits at a small kitchen table writing rhymes in a notebook beside a cheap cassette recorder, city light flickers through blinds, friend crosses the background room. CAMERA: slow 50mm push from doorway toward the table, notebook pages move under his hand, tape reels turn, smoke drifts, realistic domestic environment. Moody intimate premium hip-hop documentary, warm gold practical light against deep charcoal, no readable lyrics, no text overlay."
+    },
+    {
+      "id": "15",
+      "output_prefix": "HHWI_MB_CIN15_DARK_CROSSROADS",
+      "seed": 77112015,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Nighttime Brooklyn crossroads, the young rapper walks alone along chain-link fencing and project buildings while headlights sweep behind him and loose newspaper pages move in wind. CAMERA: begins ahead and dollies backward as he approaches, then drifts sideways so fence posts slide through foreground for strong parallax, natural stride and head movement. Deep charcoal palette with restrained dark red accents, grounded cinematic tension, no fantasy, no text."
+    },
+    {
+      "id": "16",
+      "output_prefix": "HHWI_MB_CIN16_MACHINE_MOVES_ON",
+      "seed": 77112016,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Late-1990s Manhattan music-business energy moves forward without the young rapper: black sedan pulls up outside a recording building, a successful rap crew and staff enter through glass doors, camera flashes pop in the distance, pedestrians move through foreground. CAMERA: slow 35mm push across the street with a passing taxi creating foreground wipe and parallax. Premium factual hip-hop documentary realism, cool charcoal and white with restrained gold light, no logos, no text."
+    },
+    {
+      "id": "17",
+      "output_prefix": "HHWI_MB_CIN17_LOCAL_LEGACY",
+      "seed": 77112017,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Years later in a hypothetical alternate timeline, an older version of the same Brooklyn rapper stands outside a neighborhood studio talking with two younger artists, passing knowledge forward even without superstar fame. CAMERA: gentle 50mm circular handheld move around the small group, pedestrians and cars moving behind, natural gestures and smiles, late-afternoon warm light. Mature grounded hip-hop documentary realism, subtle gold palette, no text."
+    },
+    {
+      "id": "18",
+      "output_prefix": "HHWI_MB_CIN18_GOLD_ENDING",
+      "seed": 77112018,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Alternate-history Brooklyn at sunrise, same rapper walks away down a long city block as the neighborhood wakes up, bus rolls through frame, pigeons lift from sidewalk, steam drifts across street, building edges catch muted gold sunlight while charcoal shadows remain. CAMERA: cinematic crane-and-pullback rising and retreating as he continues forward, obvious parallax and real environmental motion. Hopeful but bittersweet premium hip-hop documentary ending, restrained gold signature, no title card, no text."
     }
   ]
 }
