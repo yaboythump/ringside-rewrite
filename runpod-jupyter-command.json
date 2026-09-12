@@ -1,6 +1,6 @@
 {
-  "action": "inspect",
+  "action": "setup",
   "target": "ltx",
   "pod_id": "5ziiyypuiq8pwq",
-  "request_id": "hhwi-ltx-inspect-2026-09-12"
+  "request_id": "hhwi-ltx-setup-2026-09-12-01"
 }
