@@ -43,17 +43,19 @@ jobs:
             POD_ID=$(printf '%s' "$PODS" | jq -r '
               [ .[] | select(
                   ((.name // "") | ascii_downcase | contains("ltx")) or
+                  ((.imageName // "") | ascii_downcase | contains("comfy")) or
+                  ((.volumeMountPath // "") | ascii_downcase | contains("workspace")) or
                   ((.gpu.displayName // "") | ascii_downcase | contains("5090"))
                 ) ]
-              | if length > 0 then .[0].id
+              | if length == 1 then .[0].id
                 elif ($ARGS.named.count | tonumber) == 1 then $ARGS.named.only
                 else "" end
             ' --arg count "$(printf '%s' "$PODS" | jq 'length')" --arg only "$(printf '%s' "$PODS" | jq -r 'if length == 1 then .[0].id else "" end')")
           fi
 
           if [[ -z "$POD_ID" || "$POD_ID" == "null" ]]; then
-            echo "Could not uniquely resolve the LTX/RTX 5090 pod. Available pods:"
-            printf '%s' "$PODS" | jq '[.[] | {id,name,desiredStatus,gpu:.gpu.displayName}]'
+            echo "Could not uniquely resolve the LTX pod. Candidate metadata:"
+            printf '%s' "$PODS" | jq '[.[] | {id,name,desiredStatus,imageName,templateId,volumeMountPath,volumeInGb,containerDiskInGb,ports,lastStartedAt,costPerHr,adjustedCostPerHr}]'
             exit 3
           fi
 
