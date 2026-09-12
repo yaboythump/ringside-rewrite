@@ -1,0 +1,47 @@
+name: CTNETWORK automatic thumbnail backfill
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-thumbnail-backfill.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ctnetwork-thumbnail-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install audit stack
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-dejavu-core >/dev/null
+          python -m pip install --quiet pillow requests
+
+      - name: Audit, backfill, attach and verify CTNETWORK thumbnails
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: python scripts/backfill_ctnetwork_thumbnails.py
+
+      - name: Keep thumbnail audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-thumbnail-backfill-report
+          path: thumbnail-backfill-report/
+          if-no-files-found: warn
