@@ -27,20 +27,16 @@ jobs:
           JOB='ltx-jobs/hhwi-memphis-bleek-episode.json'
           mkdir -p rendered/raw rendered/meta
           POD_ID=''
-
           cleanup() {
             if [[ -n "${POD_ID:-}" ]]; then
               echo "Stopping temporary cinematic pod: $POD_ID"
-              curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" \
-                -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq . || true
+              curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq . || true
             fi
           }
           trap cleanup EXIT
 
           curl -sSL https://cli.runpod.net | sudo bash
           export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
-          runpodctl version
-
           mkdir -p "$HOME/.ssh"
           ssh-keygen -q -t ed25519 -f "$HOME/.ssh/hhwi_ephemeral" -N ''
           PUBKEY=$(cat "$HOME/.ssh/hhwi_ephemeral.pub")
@@ -48,10 +44,8 @@ jobs:
 
           runpodctl template search comfyui > /tmp/templates.json
           TPL_ID=$(jq -r '.. | objects | select(((.name? // "") | test("ComfyUI.*CUDA 13";"i"))) | .id // empty' /tmp/templates.json | head -n1)
-          [[ -n "$TPL_ID" ]] || { echo 'No CUDA 13 ComfyUI template found'; exit 2; }
+          [[ -n "$TPL_ID" ]] || exit 2
 
-          TERMINATE_AT=$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)
-          echo "Renting Blackwell cinematic pod with template $TPL_ID"
           runpodctl pod create \
             --name hhwi-memphis-bleek-cinematic \
             --template-id "$TPL_ID" \
@@ -59,10 +53,7 @@ jobs:
             --container-disk-in-gb 160 \
             --ports "8188/http,8080/http,8888/http,22/tcp" \
             --env "$ENV_JSON" \
-            --wait \
-            --wait-timeout 8m \
-            --terminate-after "$TERMINATE_AT" \
-            > /tmp/pod.json
+            --wait --wait-timeout 8m > /tmp/pod.json
           cat /tmp/pod.json | jq .
           POD_ID=$(jq -r '.id // empty' /tmp/pod.json)
           [[ -n "$POD_ID" ]] || exit 3
@@ -70,33 +61,26 @@ jobs:
           echo "$POD_ID" > rendered/meta/pod_id.txt
 
           runpodctl ssh info "$POD_ID" > /tmp/ssh.json
-          cat /tmp/ssh.json | jq .
           IP=$(jq -r '.ip // empty' /tmp/ssh.json)
           PORT=$(jq -r '.port // empty' /tmp/ssh.json)
-          [[ -n "$IP" && -n "$PORT" ]] || { echo 'No SSH endpoint'; exit 4; }
-
+          [[ -n "$IP" && -n "$PORT" ]] || exit 4
           SSH=(ssh -i "$HOME/.ssh/hhwi_ephemeral" -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 root@"$IP")
           "${SSH[@]}" 'echo SSH_READY && nvidia-smi --query-gpu=name,memory.total --format=csv,noheader'
 
-          echo 'Installing LTX + T5 directly into ComfyUI model folders...'
           "${SSH[@]}" 'bash -se' <<'REMOTE'
           set -euo pipefail
           COMFY=''
           for D in /workspace/ComfyUI /ComfyUI /opt/ComfyUI /root/ComfyUI; do
             if [[ -d "$D/models" ]]; then COMFY="$D"; break; fi
           done
-          if [[ -z "$COMFY" ]]; then
-            COMFY=$(find /workspace /opt /root -maxdepth 4 -type d -name ComfyUI 2>/dev/null | head -n1 || true)
-          fi
+          if [[ -z "$COMFY" ]]; then COMFY=$(find /workspace /opt /root -maxdepth 4 -type d -name ComfyUI 2>/dev/null | head -n1 || true); fi
           [[ -n "$COMFY" && -d "$COMFY/models" ]] || { echo 'Could not locate ComfyUI root'; exit 31; }
           echo "COMFY_ROOT=$COMFY"
           mkdir -p "$COMFY/models/checkpoints/LTXV" "$COMFY/models/text_encoders/t5"
           CKPT="$COMFY/models/checkpoints/LTXV/ltx-video-2b-v0.9.5.safetensors"
           T5="$COMFY/models/text_encoders/t5/t5xxl_fp8_e4m3fn_scaled.safetensors"
-          curl -L --fail --retry 10 --retry-delay 5 --retry-all-errors --continue-at - \
-            -o "$CKPT" 'https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors'
-          curl -L --fail --retry 10 --retry-delay 5 --retry-all-errors --continue-at - \
-            -o "$T5" 'https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors'
+          curl -L --fail --retry 10 --retry-delay 5 --retry-all-errors --continue-at - -o "$CKPT" 'https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors'
+          curl -L --fail --retry 10 --retry-delay 5 --retry-all-errors --continue-at - -o "$T5" 'https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors'
           test $(stat -c%s "$CKPT") -gt 1000000000
           test $(stat -c%s "$T5") -gt 1000000000
           ls -lh "$CKPT" "$T5"
@@ -111,12 +95,10 @@ jobs:
               HAS_T5=$(jq -r '[.CLIPLoader.input.required.clip_name[0][] | select(test("t5xxl_fp8_e4m3fn_scaled"))] | length' /tmp/object.json 2>/dev/null || echo 0)
               echo "loader_poll=$N ltx=$HAS_CKPT t5=$HAS_T5"
               if [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]]; then READY=1; break; fi
-            else
-              echo "loader_poll=$N http=$CODE"
             fi
             sleep 3
           done
-          [[ "$READY" == "1" ]] || { echo 'Models downloaded but not visible to ComfyUI'; exit 5; }
+          [[ "$READY" == "1" ]] || exit 5
           cp /tmp/object.json rendered/meta/object_info.json
 
           NEGATIVE=$(jq -r '.negative_prompt' "$JOB")
@@ -127,7 +109,6 @@ jobs:
           STEPS=$(jq -r '.steps' "$JOB")
           CFG=$(jq -r '.cfg' "$JOB")
           COUNT=$(jq '.shots | length' "$JOB")
-          echo "Rendering $COUNT cinematic shots at ${WIDTH}x${HEIGHT}, ${FRAMES} frames"
 
           for IDX in $(seq 0 $((COUNT-1))); do
             ID=$(jq -r ".shots[$IDX].id" "$JOB")
@@ -135,7 +116,6 @@ jobs:
             PREFIX=$(jq -r ".shots[$IDX].output_prefix" "$JOB")
             SEED=$(jq -r ".shots[$IDX].seed" "$JOB")
             echo "=== Rendering cinematic shot $ID / $PREFIX ==="
-
             jq -n --arg prompt "$PROMPT" --arg negative "$NEGATIVE" --arg prefix "$PREFIX" \
               --argjson seed "$SEED" --argjson width "$WIDTH" --argjson height "$HEIGHT" \
               --argjson frames "$FRAMES" --argjson fps "$FPS" --argjson steps "$STEPS" --argjson cfg "$CFG" \
@@ -152,11 +132,9 @@ jobs:
                 "10":{"class_type":"VAEDecode","inputs":{"samples":["9",0],"vae":["1",2]}},
                 "11":{"class_type":"SaveAnimatedWEBP","inputs":{"images":["10",0],"filename_prefix":$prefix,"fps":$fps,"lossless":false,"quality":90,"method":"default"}}
               }}' > /tmp/request.json
-
             curl -fsS -X POST "$BASE/prompt" -H 'Content-Type: application/json' --data-binary @/tmp/request.json >/tmp/submit.json
             PROMPT_ID=$(jq -r '.prompt_id // empty' /tmp/submit.json)
-            [[ -n "$PROMPT_ID" ]] || { cat /tmp/submit.json; exit 20; }
-
+            [[ -n "$PROMPT_ID" ]] || exit 20
             RENDERED=0
             for N in $(seq 1 180); do
               curl -sS --max-time 30 "$BASE/history/$PROMPT_ID" >/tmp/history.json || true
@@ -168,14 +146,12 @@ jobs:
               sleep 5
             done
             [[ "$RENDERED" == "1" ]] || exit 22
-
             FILE=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].filename // empty' /tmp/history.json)
             SUB=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].subfolder // ""' /tmp/history.json)
             TYPE=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].type // "output"' /tmp/history.json)
             [[ -n "$FILE" ]] || exit 23
             curl -fsS -G "$BASE/view" --data-urlencode "filename=$FILE" --data-urlencode "subfolder=$SUB" --data-urlencode "type=$TYPE" -o "rendered/raw/${PREFIX}.webp"
             cp /tmp/history.json "rendered/meta/${PREFIX}_history.json"
-            echo "$PROMPT_ID" > "rendered/meta/${PREFIX}_prompt_id.txt"
           done
 
       - name: Convert every LTX WebP to MP4 and measure motion
@@ -191,26 +167,19 @@ jobs:
           from PIL import Image, ImageSequence
           from pathlib import Path
           import numpy as np, json, subprocess
-          raw = Path('rendered/raw'); out = Path('rendered/mp4'); qc = Path('rendered/qc')
-          summaries=[]
+          raw=Path('rendered/raw'); out=Path('rendered/mp4'); qc=Path('rendered/qc'); summaries=[]
           for src in sorted(raw.glob('*.webp')):
-              frames=[]; arrs=[]
-              im=Image.open(src)
+              frames=[]; arrs=[]; im=Image.open(src)
               for frame in ImageSequence.Iterator(im):
-                  rgb=frame.convert('RGB')
-                  frames.append(rgb.copy())
-                  arrs.append(np.asarray(rgb.resize((192,112))).astype(np.float32))
+                  rgb=frame.convert('RGB'); frames.append(rgb.copy()); arrs.append(np.asarray(rgb.resize((192,112))).astype(np.float32))
               if len(frames)<2: raise RuntimeError(f'{src} not animated')
               tmp=qc/(src.stem+'_frames'); tmp.mkdir(exist_ok=True)
               for i,f in enumerate(frames): f.save(tmp/f'frame_{i:04d}.png')
               diffs=[float(np.mean(np.abs(arrs[i]-arrs[i-1]))) for i in range(1,len(arrs))]
               summaries.append({'shot':src.stem,'frames':len(frames),'mean_abs_frame_change':float(np.mean(diffs)),'max_abs_frame_change':max(diffs)})
               subprocess.run(['ffmpeg','-y','-loglevel','error','-framerate','25','-i',str(tmp/'frame_%04d.png'),'-vf','crop=iw:trunc(iw*9/16/2)*2:0:(ih-oh)/2,scale=1280:720:flags=lanczos','-an','-c:v','libx264','-preset','medium','-crf','18','-pix_fmt','yuv420p','-movflags','+faststart',str(out/(src.stem+'.mp4'))],check=True)
-              frames[0].save(qc/(src.stem+'_first.png'))
-              frames[len(frames)//2].save(qc/(src.stem+'_middle.png'))
-              frames[-1].save(qc/(src.stem+'_last.png'))
-          Path('rendered/qc/motion_metrics.json').write_text(json.dumps(summaries,indent=2))
-          print(json.dumps(summaries,indent=2))
+              frames[0].save(qc/(src.stem+'_first.png')); frames[len(frames)//2].save(qc/(src.stem+'_middle.png')); frames[-1].save(qc/(src.stem+'_last.png'))
+          Path('rendered/qc/motion_metrics.json').write_text(json.dumps(summaries,indent=2)); print(json.dumps(summaries,indent=2))
           PY
 
       - name: Upload full cinematic shot package
