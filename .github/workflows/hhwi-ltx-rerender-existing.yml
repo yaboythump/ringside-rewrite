@@ -1,0 +1,168 @@
+name: HHWI LTX Rerender Existing
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hhwi-ltx-rerender-existing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: k4nsy149tyh5gq
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rerender exact Shot 1 and download raw WebP
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOB='ltx-jobs/hhwi-one-shot.json'
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
+          mkdir -p rendered
+          cleanup() {
+            echo "Stopping render pod: $POD_ID"
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" \
+              -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq . || true
+          }
+          trap cleanup EXIT
+
+          READY=0
+          for N in $(seq 1 60); do
+            CODE=$(curl -sS -o /tmp/stats -w '%{http_code}' --max-time 15 "$BASE/system_stats" || true)
+            echo "ready_poll=$N http=$CODE"
+            if [[ "$CODE" == "200" ]]; then READY=1; break; fi
+            sleep 3
+          done
+          [[ "$READY" == "1" ]] || exit 2
+
+          curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
+          HAS_CKPT=$(jq -r '[.CheckpointLoaderSimple.input.required.ckpt_name[0][] | select(test("ltx-video-2b-v0.9.5"))] | length' /tmp/object.json)
+          HAS_T5=$(jq -r '[.CLIPLoader.input.required.clip_name[0][] | select(test("t5xxl_fp8_e4m3fn_scaled"))] | length' /tmp/object.json)
+          echo "checkpoint=$HAS_CKPT t5=$HAS_T5"
+          [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]] || exit 3
+
+          PROMPT=$(jq -r '.prompt' "$JOB")
+          NEGATIVE=$(jq -r '.negative_prompt' "$JOB")
+          PREFIX=$(jq -r '.output_prefix' "$JOB")
+          SEED=$(jq -r '.seed' "$JOB")
+          WIDTH=$(jq -r '.width' "$JOB")
+          HEIGHT=$(jq -r '.height' "$JOB")
+          FRAMES=$(jq -r '.frames' "$JOB")
+          FPS=$(jq -r '.fps' "$JOB")
+          STEPS=$(jq -r '.steps' "$JOB")
+          CFG=$(jq -r '.cfg' "$JOB")
+
+          jq -n \
+            --arg prompt "$PROMPT" --arg negative "$NEGATIVE" --arg prefix "$PREFIX" \
+            --argjson seed "$SEED" --argjson width "$WIDTH" --argjson height "$HEIGHT" \
+            --argjson frames "$FRAMES" --argjson fps "$FPS" --argjson steps "$STEPS" --argjson cfg "$CFG" \
+            '{prompt:{
+              "1":{"class_type":"CheckpointLoaderSimple","inputs":{"ckpt_name":"LTXV/ltx-video-2b-v0.9.5.safetensors"}},
+              "2":{"class_type":"CLIPLoader","inputs":{"clip_name":"t5/t5xxl_fp8_e4m3fn_scaled.safetensors","type":"ltxv"}},
+              "3":{"class_type":"CLIPTextEncode","inputs":{"text":$prompt,"clip":["2",0]}},
+              "4":{"class_type":"CLIPTextEncode","inputs":{"text":$negative,"clip":["2",0]}},
+              "5":{"class_type":"LTXVConditioning","inputs":{"positive":["3",0],"negative":["4",0],"frame_rate":$fps}},
+              "6":{"class_type":"EmptyLTXVLatentVideo","inputs":{"width":$width,"height":$height,"length":$frames,"batch_size":1}},
+              "7":{"class_type":"LTXVScheduler","inputs":{"steps":$steps,"max_shift":2.05,"base_shift":0.95,"stretch":true,"terminal":0.1,"latent":["6",0]}},
+              "8":{"class_type":"KSamplerSelect","inputs":{"sampler_name":"euler"}},
+              "9":{"class_type":"SamplerCustom","inputs":{"model":["1",0],"add_noise":true,"noise_seed":$seed,"cfg":$cfg,"positive":["5",0],"negative":["5",1],"sampler":["8",0],"sigmas":["7",0],"latent_image":["6",0]}},
+              "10":{"class_type":"VAEDecode","inputs":{"samples":["9",0],"vae":["1",2]}},
+              "11":{"class_type":"SaveAnimatedWEBP","inputs":{"images":["10",0],"filename_prefix":$prefix,"fps":$fps,"lossless":false,"quality":90,"method":"default"}}
+            }}' >/tmp/request.json
+
+          curl -fsS -X POST "$BASE/prompt" -H 'Content-Type: application/json' --data-binary @/tmp/request.json >/tmp/submit.json
+          cat /tmp/submit.json | jq .
+          PROMPT_ID=$(jq -r '.prompt_id // empty' /tmp/submit.json)
+          [[ -n "$PROMPT_ID" ]] || exit 4
+
+          DONE=0
+          for N in $(seq 1 60); do
+            curl -sS --max-time 30 "$BASE/history/$PROMPT_ID" >/tmp/history.json || true
+            STATUS=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.status_str // empty' /tmp/history.json 2>/dev/null || true)
+            COMPLETE=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.completed // false' /tmp/history.json 2>/dev/null || true)
+            echo "render_poll=$N status=${STATUS:-pending} completed=$COMPLETE"
+            [[ "$STATUS" == "error" ]] && { cat /tmp/history.json | jq .; exit 5; }
+            if [[ "$COMPLETE" == "true" ]]; then DONE=1; break; fi
+            sleep 5
+          done
+          [[ "$DONE" == "1" ]] || exit 6
+
+          FILE=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].filename // empty' /tmp/history.json)
+          SUB=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].subfolder // ""' /tmp/history.json)
+          TYPE=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].type // "output"' /tmp/history.json)
+          [[ -n "$FILE" ]] || exit 7
+          curl -fsS -G "$BASE/view" \
+            --data-urlencode "filename=$FILE" --data-urlencode "subfolder=$SUB" --data-urlencode "type=$TYPE" \
+            -o rendered/source.webp
+          cp /tmp/history.json rendered/history.json
+          echo "$PROMPT_ID" > rendered/prompt_id.txt
+          file rendered/source.webp
+          ls -lh rendered/source.webp
+
+      - name: Preserve raw LTX render
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hhwi-shot01-raw-ltx
+          path: |
+            rendered/source.webp
+            rendered/history.json
+            rendered/prompt_id.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Extract WebP frames safely and encode MP4
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pillow
+          mkdir -p rendered/frames
+          python3 - <<'PY'
+          from PIL import Image, ImageSequence
+          from pathlib import Path
+          im = Image.open('rendered/source.webp')
+          count = 0
+          durations=[]
+          for i, frame in enumerate(ImageSequence.Iterator(im)):
+              frame.convert('RGB').save(f'rendered/frames/frame_{i:04d}.png')
+              durations.append(frame.info.get('duration', im.info.get('duration', 40)))
+              count += 1
+          if count < 2:
+              raise RuntimeError(f'Expected animated WebP; extracted {count} frame(s)')
+          Path('rendered/frame_count.txt').write_text(str(count))
+          Path('rendered/frame_durations_ms.txt').write_text('\n'.join(map(str,durations)))
+          print('frames=', count, 'size=', im.size, 'durations=', durations[:8])
+          PY
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          PREFIX=$(jq -r '.output_prefix' ltx-jobs/hhwi-one-shot.json)
+          FPS=$(jq -r '.fps' ltx-jobs/hhwi-one-shot.json)
+          ffmpeg -y -framerate "$FPS" -i rendered/frames/frame_%04d.png \
+            -vf "crop=iw:trunc(iw*9/16/2)*2:0:(ih-oh)/2,scale=1280:720:flags=lanczos" \
+            -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+            "rendered/${PREFIX}.mp4"
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
+            -of json "rendered/${PREFIX}.mp4" | tee rendered/ffprobe.json
+          cp rendered/frames/frame_0000.png "rendered/${PREFIX}_first_frame.png"
+
+      - name: Upload finished Shot 1
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hhwi-memphis-bleek-shot01-final
+          path: |
+            rendered/HHWI_MB_TEST01_SHOT01.mp4
+            rendered/HHWI_MB_TEST01_SHOT01_first_frame.png
+            rendered/ffprobe.json
+            rendered/frame_count.txt
+            rendered/frame_durations_ms.txt
+          if-no-files-found: warn
+          retention-days: 7
