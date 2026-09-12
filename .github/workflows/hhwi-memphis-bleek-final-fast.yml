@@ -1,0 +1,156 @@
+name: HHWI Memphis Bleek Fast Cinematic Final
+
+on:
+  push:
+    paths:
+      - 'ltx-jobs/hhwi-memphis-bleek-final-fast.json'
+      - '.github/workflows/hhwi-memphis-bleek-final-fast.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load run ids
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG='ltx-jobs/hhwi-memphis-bleek-final-fast.json'
+          echo "VISUAL_RUN_ID=$(jq -r '.visual_run_id' "$CFG")" >> "$GITHUB_ENV"
+          echo "REPLACEMENT_RUN_ID=$(jq -r '.replacement_run_id' "$CFG")" >> "$GITHUB_ENV"
+
+      - name: Download approved cinematics
+        uses: actions/download-artifact@v4
+        with:
+          name: hhwi-memphis-bleek-full-episode-visuals
+          path: assets/visuals
+          repository: yaboythump/ringside-rewrite
+          run-id: ${{ env.VISUAL_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download replacement cinematics
+        uses: actions/download-artifact@v4
+        with:
+          name: hhwi-memphis-bleek-targeted-rerenders
+          path: assets/replacements
+          repository: yaboythump/ringside-rewrite
+          run-id: ${{ env.REPLACEMENT_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          python3 -m pip install --quiet pillow numpy
+          mkdir -p assets/audio assets/archive work/slow work/archive work/sections work/graphics final
+          cp assets/replacements/mp4/HHWI_MB_CIN01_BROOKLYN_AERIAL_R2.mp4 assets/visuals/mp4/HHWI_MB_CIN01_BROOKLYN_AERIAL.mp4
+          cp assets/replacements/mp4/HHWI_MB_CIN09_BASEMENT_CYPHER_R2.mp4 assets/visuals/mp4/HHWI_MB_CIN09_BASEMENT_CYPHER.mp4
+          cp assets/replacements/mp4/HHWI_MB_CIN13_MISSED_STUDIO_R2.mp4 assets/visuals/mp4/HHWI_MB_CIN13_MISSED_STUDIO.mp4
+          test $(find assets/visuals/mp4 -name 'HHWI_MB_CIN*.mp4' | wc -l) -ge 18
+          CFG='ltx-jobs/hhwi-memphis-bleek-corrected.json'
+          jq -r '.narration[] | "\(.index)\t\(.url)"' "$CFG" | while IFS=$'\t' read -r IDX URL; do
+            printf -v PAD '%02d' "$IDX"; curl -L --fail --retry 5 "$URL" -o "assets/audio/talia_${PAD}.wav"
+          done
+          curl -L --fail --retry 5 "$(jq -r '.archive_sources.memphis_bleek_1998' "$CFG")" -o assets/archive/bleek.jpg
+          curl -L --fail --retry 5 "$(jq -r '.archive_sources.jay_z_2000' "$CFG")" -o assets/archive/jay.jpg
+          curl -L --fail --retry 5 "$(jq -r '.archive_sources.marcy_houses' "$CFG")" -o assets/archive/marcy.jpg
+          curl -L --fail --retry 5 "$(jq -r '.archive_sources.brooklyn_bridge_2000' "$CFG")" -o assets/archive/bridge.jpg
+
+      - name: Build HHWI graphics and Talia mix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from PIL import Image,ImageDraw,ImageFont
+          from pathlib import Path
+          import wave,numpy as np
+          Path('work/graphics').mkdir(exist_ok=True)
+          W,H=1280,720; fb='/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf'; fr='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+          white=(244,244,244,255); gold=(212,175,55,255); red=(155,25,34,235)
+          bug=Image.new('RGBA',(400,115),(0,0,0,0)); d=ImageDraw.Draw(bug); d.rounded_rectangle((0,0,400,115),12,fill=(0,0,0,132)); d.text((22,14),'HIP HOP',font=ImageFont.truetype(fb,33),fill=white); d.text((22,50),'WHAT IF',font=ImageFont.truetype(fb,38),fill=gold); d.line((22,101,215,94),fill=red,width=7); bug.save('work/graphics/bug.png')
+          def sec(txt,tone,name):
+              im=Image.new('RGBA',(W,H),(0,0,0,0)); q=ImageDraw.Draw(im); c={'white':white,'gold':gold,'red':red}[tone]; q.rounded_rectangle((55,550,730,675),15,fill=(0,0,0,168)); q.rectangle((55,550,68,675),fill=c); q.text((92,575),txt,font=ImageFont.truetype(fb,47),fill=c); im.save('work/graphics/'+name)
+          sec('COLD OPEN','gold','s1.png'); sec('REAL TIMELINE','white','s2.png'); sec('BRANCH POINT','red','s3.png'); sec('ALTERNATE TIMELINE','gold','s4.png'); sec('FINAL QUESTION','white','s5.png')
+          title=Image.new('RGBA',(W,H),(0,0,0,0)); q=ImageDraw.Draw(title); q.rounded_rectangle((50,400,1200,650),20,fill=(0,0,0,174)); q.text((88,432),'WHAT IF MEMPHIS BLEEK',font=ImageFont.truetype(fb,68),fill=white); q.text((88,515),'NEVER MET JAY-Z?',font=ImageFont.truetype(fb,74),fill=gold); q.line((90,612,710,595),fill=red,width=11); title.save('work/graphics/title.png')
+          crack=Image.new('RGBA',(W,H),(0,0,0,0)); q=ImageDraw.Draw(crack); pts=[(650,-20),(620,95),(681,172),(638,255),(708,340),(660,435),(728,525),(688,742)]; q.line(pts,fill=red,width=12); crack.save('work/graphics/crack.png')
+          end=Image.new('RGBA',(W,H),(0,0,0,0)); q=ImageDraw.Draw(end); q.rounded_rectangle((165,238,1115,525),28,fill=(0,0,0,178)); q.text((250,278),'HIP HOP',font=ImageFont.truetype(fb,80),fill=white); q.text((250,365),'WHAT IF',font=ImageFont.truetype(fb,88),fill=gold); q.text((252,468),'DIFFERENT PATHS. SAME CULTURE.',font=ImageFont.truetype(fr,28),fill=white); end.save('work/graphics/end.png')
+          sr=44100; dur=270; n=sr*dur; a=np.zeros(n,dtype=np.float32); rng=np.random.default_rng(1978); bpm=82.; beat=60/bpm
+          def hit(t,L,f,A,noise=False):
+              i=int(t*sr); N=min(int(L*sr),n-i)
+              if N<=0:return
+              x=np.arange(N)/sr; env=np.exp(-x/max(L/4,.01)); sig=rng.standard_normal(N) if noise else np.sin(2*np.pi*f*x); a[i:i+N]+=A*env*sig
+          for b in range(int(dur/beat)+1):
+              t=b*beat
+              if b%4 in (0,2): hit(t,.22,54,.24)
+              if b%4 in (1,3): hit(t,.12,175,.095,True)
+              hit(t,.03,5200,.015,True)
+          for t in (102.5,102.8): hit(t,.7,38,.4); hit(t,.5,2400,.09,True)
+          pk=max(float(np.max(np.abs(a))),1e-6); a=np.clip(a/(pk*1.4),-1,1)
+          with wave.open('work/bed.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes((a*32767).astype(np.int16).tobytes())
+          PY
+          : > work/narration.txt
+          for F in assets/audio/talia_*.wav; do echo "file '$PWD/$F'" >> work/narration.txt; done
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/narration.txt -c:a pcm_s16le work/talia.wav
+          ffmpeg -y -loglevel error -i work/talia.wav -stream_loop -1 -i work/bed.wav -filter_complex "[0:a]loudnorm=I=-16:TP=-1.5:LRA=9[n];[1:a]volume=.09[m];[n][m]amix=inputs=2:duration=first[a]" -map '[a]' -c:a aac -b:a 192k work/audio.m4a
+          for I in 01 02 03 04 05; do ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "assets/audio/talia_${I}.wav" > "work/d${I}"; done
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 work/audio.m4a > work/ad
+
+      - name: Fast forward-only cinematic stretch
+        shell: bash
+        run: |
+          set -euo pipefail
+          for F in assets/visuals/mp4/HHWI_MB_CIN*.mp4; do
+            B=$(basename "$F" .mp4)
+            ffmpeg -y -loglevel error -i "$F" -vf "setpts=2.0*PTS,minterpolate=fps=25:mi_mode=blend,eq=contrast=1.035:saturation=.92,vignette=PI/13" -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "work/slow/$B.mp4"
+          done
+          test $(find work/slow -name '*.mp4' | wc -l) -ge 18
+
+      - name: Build archive moves and final five-section cut
+        shell: bash
+        run: |
+          set -euo pipefail
+          move(){ IN="$1"; OUT="$2"; DUR=12.2; D=305; ffmpeg -y -loglevel error -loop 1 -i "$IN" -t "$DUR" -vf "scale=1500:900:force_original_aspect_ratio=increase,crop=1500:900,zoompan=z='min(zoom+0.0008,1.12)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=$D:s=1280x720:fps=25,eq=contrast=1.1:saturation=.58:brightness=-.025,vignette=PI/10" -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "$OUT"; }
+          move assets/archive/marcy.jpg work/archive/marcy1.mp4; move assets/archive/marcy.jpg work/archive/marcy2.mp4; move assets/archive/marcy.jpg work/archive/marcy3.mp4
+          move assets/archive/bleek.jpg work/archive/bleek1.mp4; move assets/archive/bleek.jpg work/archive/bleek2.mp4; move assets/archive/bleek.jpg work/archive/bleek3.mp4
+          move assets/archive/jay.jpg work/archive/jay1.mp4; move assets/archive/bridge.jpg work/archive/bridge1.mp4; move assets/archive/bridge.jpg work/archive/bridge2.mp4
+          C=work/slow
+          raw(){ N="$1"; DUR="$2"; shift 2; L="work/L$N"; : > "$L"; for F in "$@"; do echo "file '$PWD/$F'" >> "$L"; done; ffmpeg -y -loglevel error -f concat -safe 0 -i "$L" -t "$DUR" -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "work/sections/r$N.mp4"; }
+          raw 1 "$(cat work/d01)" "$C/HHWI_MB_CIN01_BROOKLYN_AERIAL.mp4" "$C/HHWI_MB_CIN02_BLEEK_PATH.mp4" "$C/HHWI_MB_CIN03_JAY_PATH.mp4" "$C/HHWI_MB_CIN04_SUBWAY_APPROACH.mp4" work/archive/marcy1.mp4 work/archive/bleek1.mp4
+          raw 2 "$(cat work/d02)" work/archive/bleek2.mp4 work/archive/jay1.mp4 work/archive/marcy2.mp4 work/archive/bridge1.mp4
+          raw 3 "$(cat work/d03)" "$C/HHWI_MB_CIN05_NEAR_MEETING.mp4" "$C/HHWI_MB_CIN06_THE_MOMENT.mp4" "$C/HHWI_MB_CIN07_TRAIN_SEPARATES.mp4" "$C/HHWI_MB_CIN08_GOLD_EXIT.mp4" "$C/HHWI_MB_CIN13_MISSED_STUDIO.mp4" work/archive/bridge2.mp4
+          raw 4 "$(cat work/d04)" "$C/HHWI_MB_CIN09_BASEMENT_CYPHER.mp4" "$C/HHWI_MB_CIN10_MIXTAPE_HANDOFF.mp4" "$C/HHWI_MB_CIN11_SMALL_STAGE.mp4" "$C/HHWI_MB_CIN12_RECORD_STORE.mp4" "$C/HHWI_MB_CIN14_LATE_NIGHT_WRITING.mp4"
+          raw 5 "$(cat work/d05)" "$C/HHWI_MB_CIN15_DARK_CROSSROADS.mp4" "$C/HHWI_MB_CIN16_MACHINE_MOVES_ON.mp4" "$C/HHWI_MB_CIN17_LOCAL_LEGACY.mp4" "$C/HHWI_MB_CIN18_GOLD_ENDING.mp4" work/archive/bleek3.mp4 work/archive/marcy3.mp4
+          ov(){ N="$1"; SEC="$2"; ffmpeg -y -loglevel error -i "work/sections/r$N.mp4" -i work/graphics/bug.png -i "$SEC" -filter_complex "[0:v][1:v]overlay=30:24[v1];[v1][2:v]overlay=0:0:enable='between(t,0,2.7)'[v]" -map '[v]' -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "work/sections/s$N.mp4"; }
+          ffmpeg -y -loglevel error -i work/sections/r1.mp4 -i work/graphics/bug.png -i work/graphics/s1.png -i work/graphics/title.png -filter_complex "[0:v][1:v]overlay=30:24[v1];[v1][2:v]overlay=0:0:enable='between(t,0,2.7)'[v2];[v2][3:v]overlay=0:0:enable='between(t,1.1,6)'[v]" -map '[v]' -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/s1.mp4
+          ov 2 work/graphics/s2.png
+          ffmpeg -y -loglevel error -i work/sections/r3.mp4 -i work/graphics/bug.png -i work/graphics/s3.png -i work/graphics/crack.png -filter_complex "[0:v][1:v]overlay=30:24[v1];[v1][2:v]overlay=0:0:enable='between(t,0,2.7)'[v2];[v2][3:v]overlay=0:0:enable='between(t,.2,1.6)'[v]" -map '[v]' -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/s3.mp4
+          ov 4 work/graphics/s4.png
+          ffmpeg -y -loglevel error -i work/sections/r5.mp4 -i work/graphics/bug.png -i work/graphics/s5.png -i work/graphics/end.png -filter_complex "[0:v][1:v]overlay=30:24[v1];[v1][2:v]overlay=0:0:enable='between(t,0,2.7)'[v2];[v2][3:v]overlay=0:0:enable='gte(t,53)'[v]" -map '[v]' -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/s5.mp4
+          : > work/all.txt; for N in 1 2 3 4 5; do echo "file '$PWD/work/sections/s$N.mp4'" >> work/all.txt; done
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/all.txt -c copy work/video.mp4
+
+      - name: Export and QC 1080p master
+        shell: bash
+        run: |
+          set -euo pipefail
+          DUR=$(cat work/ad)
+          ffmpeg -y -loglevel error -i work/video.mp4 -i work/audio.m4a -t "$DUR" -map 0:v -map 1:a -vf "scale=1920:1080:flags=lanczos" -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -r 25 -c:a aac -b:a 192k -movflags +faststart final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ_CINEMATIC.mp4
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height,r_frame_rate -of json final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ_CINEMATIC.mp4 | tee final/qc_ffprobe.json
+          for S in '4 open' '70 real' '104 branch' '175 alt' '255 end'; do set -- $S; ffmpeg -y -loglevel error -ss "$1" -i final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ_CINEMATIC.mp4 -frames:v 1 "final/qc_$2.png"; done
+
+      - name: Upload cinematic master
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhwi-memphis-bleek-cinematic-final-fast
+          path: final/
+          if-no-files-found: error
+          retention-days: 14
