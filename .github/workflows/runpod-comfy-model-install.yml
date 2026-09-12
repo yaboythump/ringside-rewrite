@@ -14,34 +14,87 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Start queued LTX model installs and verify completion
+      - name: Queue LTX and T5 on current ComfyUI and verify completion
         shell: bash
         run: |
           set -euo pipefail
-          POD_ID='w5sin5d1mz24km'
-          BASE="https://${POD_ID}-3000.proxy.runpod.net"
+          POD_ID='k7j666wk9rzw9e'
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
+          ORIGIN="$BASE"
 
+          curl -fsS --max-time 30 "$BASE/system_stats" | jq '{version:.system.comfyui_version,device:.devices[0].name}'
           echo 'manager_status_before:'
-          curl -fsS --max-time 20 "$BASE/manager/queue/status" | jq .
+          curl -sS --max-time 20 "$BASE/manager/queue/status" | jq . || true
 
-          echo 'start_queue_legacy_get:'
-          CODE=$(curl -sS -o /tmp/start.out -w '%{http_code}' --max-time 30 "$BASE/manager/queue/start" || true)
-          echo "http=$CODE"
-          cat /tmp/start.out || true
-          echo
+          cat >/tmp/ltx.json <<'JSON'
+          {
+            "name":"LTX-Video 2B v0.9.5 Checkpoint",
+            "type":"checkpoint",
+            "base":"LTX-Video",
+            "save_path":"checkpoints/LTXV",
+            "url":"https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors",
+            "filename":"ltx-video-2b-v0.9.5.safetensors",
+            "ui_id":"hhwi-ltx-2b-095"
+          }
+          JSON
+
+          cat >/tmp/t5.json <<'JSON'
+          {
+            "name":"comfyanonymous/flux_text_encoders - t5xxl (fp8_e4m3fn_scaled)",
+            "type":"clip",
+            "base":"t5",
+            "save_path":"text_encoders/t5",
+            "url":"https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors",
+            "filename":"t5xxl_fp8_e4m3fn_scaled.safetensors",
+            "ui_id":"hhwi-t5-fp8-scaled"
+          }
+          JSON
+
+          for F in ltx t5; do
+            echo "queue_${F}:"
+            CODE=$(curl -sS -o "/tmp/${F}.out" -w '%{http_code}' --max-time 30 \
+              -X POST "$BASE/manager/queue/install_model" \
+              -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
+              --data @"/tmp/${F}.json" || true)
+            echo "http=$CODE body=$(cat /tmp/${F}.out 2>/dev/null || true)"
+            [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 2
+          done
+
+          echo 'start_queue:'
+          CODE=$(curl -sS -o /tmp/start.out -w '%{http_code}' --max-time 30 \
+            -X POST "$BASE/manager/queue/start" \
+            -H 'Content-Type: application/json' -H "Origin: $ORIGIN" --data '{}' || true)
+          echo "post_http=$CODE body=$(cat /tmp/start.out 2>/dev/null || true)"
+          if [[ "$CODE" != "200" && "$CODE" != "201" ]]; then
+            CODE=$(curl -sS -o /tmp/start2.out -w '%{http_code}' --max-time 30 \
+              "$BASE/manager/queue/start" -H "Origin: $ORIGIN" || true)
+            echo "get_http=$CODE body=$(cat /tmp/start2.out 2>/dev/null || true)"
+          fi
           [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 3
 
-          for N in $(seq 1 60); do
-            STATUS=$(curl -fsS --max-time 20 "$BASE/manager/queue/status")
-            echo "poll=$N $(echo "$STATUS" | jq -c .)"
-            TOTAL=$(echo "$STATUS" | jq -r '.total_count // 0')
-            DONE=$(echo "$STATUS" | jq -r '.done_count // 0')
-            PROCESSING=$(echo "$STATUS" | jq -r '.is_processing // false')
-            if [[ "$TOTAL" -gt 0 && "$DONE" -ge "$TOTAL" && "$PROCESSING" == "false" ]]; then
-              echo 'MODEL_QUEUE_COMPLETE'
-              exit 0
+          COMPLETE=0
+          for N in $(seq 1 100); do
+            STATUS=$(curl -sS --max-time 20 "$BASE/manager/queue/status" || true)
+            echo "poll=$N $(echo "$STATUS" | jq -c . 2>/dev/null || echo "$STATUS")"
+            TOTAL=$(echo "$STATUS" | jq -r '.total_count // 0' 2>/dev/null || echo 0)
+            DONE=$(echo "$STATUS" | jq -r '.done_count // 0' 2>/dev/null || echo 0)
+            PROCESSING=$(echo "$STATUS" | jq -r '.is_processing // false' 2>/dev/null || echo false)
+            if [[ "$TOTAL" -ge 2 && "$DONE" -ge "$TOTAL" && "$PROCESSING" == "false" ]]; then
+              COMPLETE=1
+              break
             fi
-            sleep 15
+            sleep 10
           done
-          echo 'Timed out waiting for model queue completion'
-          exit 4
+          [[ "$COMPLETE" == "1" ]] || { echo 'Timed out waiting for model queue'; exit 4; }
+
+          echo 'verify_loaders:'
+          curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
+          jq '{
+            checkpoint: (.CheckpointLoaderSimple.input.required.ckpt_name[0] | map(select(test("ltx-video-2b-v0.9.5")))),
+            clip: (.CLIPLoader.input.required.clip_name[0] | map(select(test("t5xxl_fp8_e4m3fn_scaled")))),
+            ltx_nodes: ([keys[] | select(test("LTX";"i"))] | sort)
+          }' /tmp/object.json
+          HAS_CKPT=$(jq -r '[.CheckpointLoaderSimple.input.required.ckpt_name[0][] | select(test("ltx-video-2b-v0.9.5"))] | length' /tmp/object.json)
+          HAS_T5=$(jq -r '[.CLIPLoader.input.required.clip_name[0][] | select(test("t5xxl_fp8_e4m3fn_scaled"))] | length' /tmp/object.json)
+          [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]] || exit 5
+          echo 'LTX_MODELS_READY'
