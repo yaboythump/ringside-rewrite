@@ -1,0 +1,56 @@
+name: CTNETWORK thumbnail backfill parallel lanes
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-thumbnail-backfill-parallel.yml'
+  workflow_dispatch:
+
+jobs:
+  backfill-profile:
+    strategy:
+      fail-fast: false
+      matrix:
+        profile:
+          - Tcwt
+          - GTA
+          - Breakingconversations
+          - Ringsiderewrite
+          - Whathappen
+          - Case
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install audit stack
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-dejavu-core >/dev/null
+          python -m pip install --quiet pillow requests
+
+      - name: Audit, attach and verify one channel
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          ONLY_PROFILE: ${{ matrix.profile }}
+        shell: bash
+        run: |
+          cd scripts
+          python backfill_thumbnail_profile.py
+
+      - name: Keep per-channel report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: thumbnail-backfill-${{ matrix.profile }}
+          path: scripts/thumbnail-backfill-report/
+          if-no-files-found: warn
