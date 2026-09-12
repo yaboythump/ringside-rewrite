@@ -1,0 +1,35 @@
+name: RunPod HHWI Full Episode Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/runpod-hhwi-full-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Probe active full episode pod without modifying it
+        shell: bash
+        run: |
+          set -euo pipefail
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD_ID=$(printf '%s' "$PODS" | jq -r '.[] | select(.name=="hhwi-memphis-bleek-full-episode" and .desiredStatus=="RUNNING") | .id' | head -n1)
+          echo "pod_id=${POD_ID:-none}"
+          printf '%s' "$PODS" | jq '[.[] | select(.name=="hhwi-memphis-bleek-full-episode") | {id,name,desiredStatus,imageName,costPerHr,lastStartedAt}]'
+          [[ -n "$POD_ID" ]] || exit 0
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
+          echo 'system_stats:'
+          curl -sS --max-time 20 "$BASE/system_stats" | jq '{version:.system.comfyui_version,torch:.system.pytorch_version,device:.devices[0].name}' || true
+          echo 'manager_queue:'
+          curl -sS --max-time 20 "$BASE/manager/queue/status" | jq . || true
+          echo 'comfy_queue:'
+          curl -sS --max-time 20 "$BASE/queue" | jq . || true
+          echo 'history_count:'
+          curl -sS --max-time 20 "$BASE/history" | jq 'length' || true
