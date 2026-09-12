@@ -1,0 +1,238 @@
+name: RunPod Jupyter LTX Control
+
+on:
+  push:
+    paths:
+      - 'runpod-jupyter-command.json'
+      - '.github/workflows/runpod-jupyter-control.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve pod and protected Jupyter credential
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTION=$(jq -r '.action // "inspect"' runpod-jupyter-command.json | tr '[:upper:]' '[:lower:]')
+          POD_ID=$(jq -r '.pod_id // empty' runpod-jupyter-command.json)
+          if [[ -z "$POD_ID" ]]; then
+            echo "pod_id missing from runpod-jupyter-command.json"
+            exit 2
+          fi
+          case "$ACTION" in inspect|setup) ;; *) echo "Unsupported action: $ACTION"; exit 3;; esac
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            echo "Pod is not RUNNING: $STATUS"
+            exit 4
+          fi
+          if [[ -z "$JPASS" ]]; then
+            echo "JUPYTER_PASSWORD not found in pod environment"
+            exit 5
+          fi
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "Pod: $POD_ID | action: $ACTION | status: $STATUS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install remote-control client
+        run: python3 -m pip install --quiet requests websocket-client
+
+      - name: Run approved command through Jupyter terminal
+        env:
+          ACTION: ${{ steps.resolve.outputs.action }}
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, re, sys, time
+          import requests
+          import websocket
+
+          action = os.environ['ACTION']
+          pod_id = os.environ['POD_ID']
+          password = open(os.environ['JUPYTER_PASSWORD_FILE'], 'r', encoding='utf-8').read().strip()
+          base = f'https://{pod_id}-8888.proxy.runpod.net'
+
+          inspect_script = r'''set -e
+          echo '=== LTX SERVER INSPECT ==='
+          echo 'PWD:'; pwd
+          echo 'DISK:'; df -h / /workspace || true
+          echo 'COMFY:'; ls -ld /ComfyUI /workspace || true
+          echo 'MODEL DIRS:'; du -sh /ComfyUI/models /workspace 2>/dev/null || true
+          echo 'TORCH:'; /usr/bin/python - <<'PYC'
+          import torch
+          print('version', torch.__version__)
+          print('cuda_runtime', torch.version.cuda)
+          print('cuda_available', torch.cuda.is_available())
+          print('device', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')
+          print('capability', torch.cuda.get_device_capability(0) if torch.cuda.is_available() else None)
+          PYC
+          echo '=== INSPECT COMPLETE ==='
+          '''
+
+          setup_script = r'''set -euo pipefail
+          echo '=== LTX SERVER SETUP ==='
+          mkdir -p /workspace/pycu128
+          mkdir -p /workspace/ltx-models/checkpoints/LTXV
+          mkdir -p /workspace/ltx-models/text_encoders/t5
+          mkdir -p /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek
+
+          echo 'DISK BEFORE:'
+          df -h / /workspace || true
+          AVAIL=$(df -PB1 /workspace | awk 'NR==2 {print $4}')
+          echo "workspace_available_bytes=$AVAIL"
+          if [ "$AVAIL" -lt 22000000000 ]; then
+            echo 'ERROR: /workspace needs at least ~22GB free for Blackwell PyTorch + LTX test assets.'
+            exit 20
+          fi
+
+          if [ ! -f /workspace/pycu128/torch/__init__.py ]; then
+            echo 'Installing Blackwell-compatible PyTorch CUDA 12.8 stack into /workspace/pycu128 ...'
+            /usr/bin/python -m pip install --no-cache-dir --target /workspace/pycu128 \
+              torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+          else
+            echo 'Workspace PyTorch already present; reusing it.'
+          fi
+
+          SITE=$(/usr/bin/python - <<'PYC'
+          import site
+          print(site.getsitepackages()[0])
+          PYC
+          )
+          printf "%s\n" "import sys; sys.path.insert(0, '/workspace/pycu128')" > "$SITE/000_workspace_cu128.pth"
+
+          LTX='/workspace/ltx-models/checkpoints/LTXV/ltx-video-2b-v0.9.5.safetensors'
+          if [ ! -s "$LTX" ]; then
+            echo 'Downloading LTX-Video 2B v0.9.5 ...'
+            curl -L --fail --retry 3 --continue-at - \
+              'https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors' \
+              -o "$LTX"
+          else
+            echo 'LTX checkpoint already present; reusing it.'
+          fi
+
+          # Prefer the documented fp16 T5 when storage permits; fall back to fp8 only when needed.
+          AVAIL2=$(df -PB1 /workspace | awk 'NR==2 {print $4}')
+          if [ "$AVAIL2" -ge 12000000000 ]; then
+            T5='/workspace/ltx-models/text_encoders/t5/t5xxl_fp16.safetensors'
+            T5URL='https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors'
+            echo 'Using documented T5 XXL fp16 encoder.'
+          else
+            T5='/workspace/ltx-models/text_encoders/t5/t5xxl_fp8_e4m3fn_scaled.safetensors'
+            T5URL='https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors'
+            echo 'Using storage-saving T5 XXL fp8 encoder.'
+          fi
+          if [ ! -s "$T5" ]; then
+            echo "Downloading $(basename "$T5") ..."
+            curl -L --fail --retry 3 --continue-at - "$T5URL" -o "$T5"
+          else
+            echo 'T5 encoder already present; reusing it.'
+          fi
+
+          mkdir -p /ComfyUI/models/checkpoints /ComfyUI/models/text_encoders
+          rm -rf /ComfyUI/models/checkpoints/LTXV
+          rm -rf /ComfyUI/models/text_encoders/t5
+          ln -s /workspace/ltx-models/checkpoints/LTXV /ComfyUI/models/checkpoints/LTXV
+          ln -s /workspace/ltx-models/text_encoders/t5 /ComfyUI/models/text_encoders/t5
+
+          curl -L --fail --retry 3 \
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260912_092441_e49b5015-fe4c-4dbe-94b2-0fa1ef1853e1.wav' \
+            -o /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek/Talia_BranchPoint_Test01.wav
+
+          cat >/workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek/render_brief.txt <<'EOF'
+          HHWI Memphis Bleek Branch Point Test 01
+          Duration target: 25.28 seconds
+          Sequence: Brooklyn establishing -> two paths -> near meeting -> freeze -> deep-red timeline fracture -> warm-gold alternate timeline -> branded end frame.
+          Style: premium gritty late-1990s Brooklyn hip-hop documentary; black/charcoal, gold highlights, deep red fracture; film grain; grounded camera motion; no burned captions.
+          EOF
+
+          echo "selected_t5=$(basename "$T5")" > /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek/setup_status.txt
+          echo 'VERIFY WORKSPACE PYTORCH:'
+          PYTHONPATH=/workspace/pycu128 /usr/bin/python - <<'PYC'
+          import torch
+          print('version', torch.__version__)
+          print('cuda_runtime', torch.version.cuda)
+          print('cuda_available', torch.cuda.is_available())
+          print('device', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')
+          print('capability', torch.cuda.get_device_capability(0) if torch.cuda.is_available() else None)
+          PYC
+          echo 'FILES:'
+          ls -lh "$LTX" "$T5" /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek/Talia_BranchPoint_Test01.wav
+          echo 'DISK AFTER:'
+          df -h / /workspace || true
+          echo '=== SETUP COMPLETE; POD RESTART REQUIRED ==='
+          '''
+
+          script = inspect_script if action == 'inspect' else setup_script
+          payload = base64.b64encode(script.encode()).decode()
+          shell_cmd = f"echo {payload} | base64 -d >/tmp/chatgpt_ltx_remote.sh && bash /tmp/chatgpt_ltx_remote.sh; rc=$?; echo __REMOTE_DONE__:$rc\n"
+
+          s = requests.Session()
+          r = s.get(base + '/login', timeout=30)
+          r.raise_for_status()
+          m = re.search(r'name="_xsrf" value="([^"]+)"', r.text)
+          if not m:
+            raise SystemExit('Could not find Jupyter XSRF token')
+          xsrf = m.group(1)
+          r = s.post(base + '/login', data={'_xsrf': xsrf, 'password': password, 'next': '/lab'}, timeout=30, allow_redirects=True)
+          if r.status_code >= 400:
+            raise SystemExit(f'Jupyter login failed: HTTP {r.status_code}')
+          xsrf_cookie = s.cookies.get('_xsrf')
+          headers = {'X-XSRFToken': xsrf_cookie} if xsrf_cookie else {}
+          r = s.post(base + '/api/terminals', headers=headers, json={}, timeout=30)
+          r.raise_for_status()
+          name = r.json()['name']
+          cookie = '; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          wsurl = f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}'
+          ws = websocket.create_connection(wsurl, cookie=cookie, origin=base, timeout=60)
+          ws.send(json.dumps(['stdin', shell_cmd]))
+          deadline = time.time() + 3300
+          rc = None
+          try:
+            while time.time() < deadline:
+              try:
+                msg = ws.recv()
+              except Exception as exc:
+                print(f'WebSocket receive issue: {exc}')
+                continue
+              if not msg:
+                continue
+              try:
+                data = json.loads(msg)
+              except Exception:
+                continue
+              if isinstance(data, list) and len(data) >= 2 and data[0] == 'stdout':
+                text = data[1]
+                sys.stdout.write(text)
+                sys.stdout.flush()
+                mm = re.search(r'__REMOTE_DONE__:(\d+)', text)
+                if mm:
+                  rc = int(mm.group(1))
+                  break
+          finally:
+            ws.close()
+            try:
+              s.delete(base + f'/api/terminals/{name}', headers=headers, timeout=15)
+            except Exception:
+              pass
+          if rc is None:
+            raise SystemExit('Remote command timed out without completion marker')
+          if rc != 0:
+            raise SystemExit(rc)
+          PY
