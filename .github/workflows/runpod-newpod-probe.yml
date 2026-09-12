@@ -13,21 +13,13 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect final LTX sampler and video output nodes
+      - name: Probe ComfyUI upgrade queue status
         shell: bash
         run: |
           set -euo pipefail
           POD_ID='w5sin5d1mz24km'
           BASE="https://${POD_ID}-3000.proxy.runpod.net"
-          curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
-          echo '=== CORE ==='
-          jq '{
-            ModelSamplingLTXV: .ModelSamplingLTXV,
-            KSampler: .KSampler,
-            RandomNoise: .RandomNoise,
-            BasicGuider: .BasicGuider,
-            BasicScheduler: .BasicScheduler,
-            SamplerCustomAdvanced: .SamplerCustomAdvanced
-          }' /tmp/object.json
-          echo '=== VIDEO-LIKE NODES ==='
-          jq '[keys[] | select(test("video|vhs|webm|mp4|animated|combine";"i"))] | sort' /tmp/object.json
+          echo 'system_stats:'
+          curl -sS --max-time 20 "$BASE/system_stats" | jq '{version:.system.comfyui_version,device:.devices[0].name}' || true
+          echo 'manager_queue:'
+          curl -sS --max-time 20 "$BASE/manager/queue/status" | jq . || true
