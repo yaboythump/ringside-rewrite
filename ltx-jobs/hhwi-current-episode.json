@@ -1,0 +1,20 @@
+{
+  "episode": "What If Eminem Never Met Dr. Dre?",
+  "show_name": "HIP HOP WHAT IF",
+  "width": 832,
+  "height": 480,
+  "frames": 121,
+  "fps": 25,
+  "steps": 30,
+  "cfg": 3,
+  "visual_language": "premium gritty 1997 Detroit hip-hop editorial documentary matching the locked reference: black and charcoal shadows, deep blood-red practical accents, subtle white torn-paper texture at frame edges, faint cracked-glass foreground highlights, real 35mm/50mm photography, thick film grain, believable period details, full-screen cinematic scene rather than a card, no readable text, no captions, no lower thirds, no reverse or looping motion",
+  "negative_prompt": "static image, frozen frame, no movement, slideshow, title card, infographic, presentation slide, boxed layout, cartoon, anime, glossy fantasy, neon overload, plastic skin, warped anatomy, distorted face, duplicate people, extra limbs, surreal morphing, low-detail background, fake-looking motion, oversaturated colors, cheesy sci-fi effects, cluttered text, watermark, logo, low-resolution artifacts, bad perspective, smeared details, rubbery body movement, floating camera, boomerang motion, reverse motion, looping motion, readable text, captions, subtitles, lower third",
+  "shots": [
+    {
+      "id": "01",
+      "output_prefix": "HHWI_EMDRE_QC01_DETROIT_BATTLE",
+      "seed": 97112001,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Late-1990s Detroit underground rap battle in a dark cramped club, a young white male battle rapper with black knit beanie, close-cropped hair, dark hoodie and intense focused eyes grips a wired microphone while a tightly packed crowd surrounds him. CAMERA: slow handheld push through shoulders in the crowd toward the performer, 35mm lens, obvious foreground parallax, natural gestures, crowd head nods and reactions, microphone cable and clothing moving, cigarette haze drifting under hard tungsten lights. VISUAL LANGUAGE: premium gritty hip-hop editorial documentary, black-charcoal shadows, deep blood-red practical highlights, subtle torn-paper texture at frame edges and faint cracked-glass foreground glints, thick film grain, raw Detroit winter mood, visually expensive magazine-cover realism. No readable text, no title card, no captions, no logos."
+    }
+  ]
+}
