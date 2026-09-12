@@ -1,0 +1,72 @@
+{
+  "episode": "What If Memphis Bleek Never Met Jay-Z?",
+  "width": 768,
+  "height": 448,
+  "frames": 97,
+  "fps": 25,
+  "steps": 30,
+  "cfg": 3,
+  "negative_prompt": "static image, frozen frame, no movement, slideshow, cartoon, anime, glossy fantasy, neon overload, plastic skin, warped anatomy, distorted face, duplicate people, extra limbs, surreal morphing, low-detail background, fake-looking motion, oversaturated colors, cheesy sci-fi effects, cluttered text, watermark, logo, low-resolution artifacts, bad perspective, smeared details, rubbery body movement, floating camera",
+  "shots": [
+    {
+      "id": "01",
+      "output_prefix": "HHWI_MB_EP01_SHOT01_BROOKLYN_OPEN",
+      "seed": 54112001,
+      "prompt": "Late-1990s Brooklyn at dusk, premium cinematic hip-hop documentary realism, brownstones and project towers in layered depth, a city bus and one sedan visibly moving through frame, pedestrians crossing the sidewalk, coats and loose clothing moving naturally, steam drifting from a street vent. CAMERA MOTION IS ESSENTIAL: a strong visible forward dolly down the block with foreground railings and parked cars sliding past camera to create obvious parallax, steady 35mm documentary lens, grounded physical motion, sodium-vapor streetlights, charcoal shadows, restrained amber highlights, subtle red undertone, realistic film grain. The shot must visibly move from the first frame to the last; do not hold a static composition."
+    },
+    {
+      "id": "02",
+      "output_prefix": "HHWI_MB_EP01_SHOT02_YOUNG_RAPPER_WALK",
+      "seed": 54112002,
+      "prompt": "A young Black male rapper inspired by late-1990s Brooklyn street energy walks with purpose through a Marcy-style housing courtyard, era-appropriate oversized jacket and jeans, focused expression, friends and residents moving naturally behind him. CAMERA MOTION IS ESSENTIAL: full-body side-tracking shot moving alongside him at walking speed, foreground fence posts passing close to lens for strong parallax, visible footfalls, jacket fabric bouncing with each step, background pedestrians walking in the opposite direction, a bicycle crossing behind him. Premium gritty hip-hop documentary look, realistic anatomy, charcoal and amber palette, cinematic shallow depth, no static pose."
+    },
+    {
+      "id": "03",
+      "output_prefix": "HHWI_MB_EP01_SHOT03_BASEMENT_CYPHER",
+      "seed": 54112003,
+      "prompt": "Late-1990s Brooklyn basement rap cypher, young Black rappers crowded around a wired microphone and small speakers, one teenage rapper actively delivering bars with expressive hand gestures while two friends react and nod to the beat, cassette deck lights blinking, smoke and dust moving in the air. CAMERA MOTION IS ESSENTIAL: handheld documentary camera pushes from behind one shoulder into the circle, then drifts laterally around the performer, people shifting weight and moving naturally, clear depth changes and parallax. Warm tungsten practical lights, gritty film texture, authentic cramped basement, premium documentary realism, energetic but controlled."
+    },
+    {
+      "id": "04",
+      "output_prefix": "HHWI_MB_EP01_SHOT04_STUDIO_ACCESS",
+      "seed": 54112004,
+      "prompt": "1990s New York recording studio inspired by classic Roc-era sessions, large analog mixing console, reel and rack gear, young rapper standing beside an older mentor figure while an engineer moves faders and another person walks behind the console. CAMERA MOTION IS ESSENTIAL: visible slow dolly from the back of the room toward the mixing desk, passing a foreground microphone stand and chair to create strong parallax, hands actively moving on controls, people turning and gesturing, practical red and amber studio lights, premium hip-hop documentary realism, no celebrity likeness required, no static tableau."
+    },
+    {
+      "id": "05",
+      "output_prefix": "HHWI_MB_EP01_SHOT05_RISE_CITY",
+      "seed": 54112005,
+      "prompt": "Late-1990s Manhattan and Brooklyn music-industry montage feeling in one continuous street shot: record-store windows, taxis moving through intersection, pedestrians carrying shopping bags, posters and newspaper boxes, a young rapper exits a black sedan and walks toward a building entrance. CAMERA MOTION IS ESSENTIAL: camera tracks backward in front of him as he approaches, then subtly pans as a taxi crosses foreground, visible body movement, coat movement, traffic and pedestrians all active. Premium editorial hip-hop documentary look, realistic city motion, muted charcoal with gold highlights, confident upward-mobility energy."
+    },
+    {
+      "id": "06",
+      "output_prefix": "HHWI_MB_EP01_SHOT06_BRANCH_POINT",
+      "seed": 54112006,
+      "prompt": "Late-1990s Brooklyn subway platform, two young Black men representing separate future paths approach the same section of platform from opposite directions but never connect. CAMERA MOTION IS ESSENTIAL: camera tracks parallel to one subject while commuters move between them, a subway train visibly rushes into frame creating strong motion blur and wind, jackets and newspaper pages react to the train, one subject turns away and walks toward the stairs as the other continues down the platform. Tense cinematic documentary realism, deep charcoal shadows with restrained red practical lights, fate-changing near-meeting energy, absolutely not static."
+    },
+    {
+      "id": "07",
+      "output_prefix": "HHWI_MB_EP01_SHOT07_LOCAL_PATH",
+      "seed": 54112007,
+      "prompt": "Alternate timeline Brooklyn neighborhood performance, a talented young rapper performs outside a corner store for a small local crowd instead of a major stage, friends react, heads nod, hands move, cars pass on the street, people enter and exit the store. CAMERA MOTION IS ESSENTIAL: energetic handheld tracking move circles halfway around the performer while keeping him centered, foreground people briefly cross lens for layered parallax, visible gestures and body movement, realistic street energy, gritty premium documentary style, cooler charcoal palette with small amber highlights."
+    },
+    {
+      "id": "08",
+      "output_prefix": "HHWI_MB_EP01_SHOT08_CROSSROADS_DARK",
+      "seed": 54112008,
+      "prompt": "Nighttime Brooklyn crossroads in an alternate timeline, the young rapper walks alone past chain-link fencing and project buildings while traffic moves behind him, wind moves his jacket and loose paper along the sidewalk, headlights sweep across the frame. CAMERA MOTION IS ESSENTIAL: camera begins ahead of him and dollies backward as he walks toward lens, then drifts sideways so a foreground fence slides across frame with obvious parallax, natural stride and head movement, moody red accent lights, grounded cinematic hip-hop documentary realism, emotionally tense but believable."
+    },
+    {
+      "id": "09",
+      "output_prefix": "HHWI_MB_EP01_SHOT09_EMPTY_MACHINE",
+      "seed": 54112009,
+      "prompt": "Symbolic late-1990s music-label office and studio hallway showing an opportunity that never arrived: empty chair beside a desk, unsigned demo cassette and papers, people walking past the glass hallway outside, phone receiver swinging slightly after being set down, city lights moving beyond windows. CAMERA MOTION IS ESSENTIAL: slow but clearly visible lateral dolly across foreground desk objects so they pass close to lens with strong parallax, background staff walking and doors opening, premium documentary realism, charcoal and white factual palette with a restrained red accent, no static still-life."
+    },
+    {
+      "id": "10",
+      "output_prefix": "HHWI_MB_EP01_SHOT10_GOLD_ENDING",
+      "seed": 54112010,
+      "prompt": "Alternate-history Brooklyn at sunrise, same young rapper walks away from camera down a long city block as residents begin their morning, a bus rolls past, pigeons lift from the sidewalk, steam drifts across the street, warm gold sunlight catches building edges while charcoal shadows remain. CAMERA MOTION IS ESSENTIAL: strong cinematic crane-and-pullback movement rising and retreating as the subject continues walking forward, clear foreground-background parallax, moving traffic and pedestrians, jacket and environment motion, premium hopeful but bittersweet hip-hop documentary ending, gold alternate-timeline signature without fantasy styling."
+    }
+  ]
+}
