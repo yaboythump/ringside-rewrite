@@ -19,6 +19,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Read-only stage probe for the active HHWI rerender.
           PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           POD_ID=$(printf '%s' "$PODS" | jq -r '.[] | select(.name=="hhwi-memphis-bleek-shot01" and .desiredStatus=="RUNNING") | .id' | head -n1)
           echo "pod_id=${POD_ID:-none}"
