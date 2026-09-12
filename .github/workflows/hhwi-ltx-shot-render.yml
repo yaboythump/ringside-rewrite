@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           JOB='ltx-jobs/hhwi-shot.json'
           POD_ID=$(jq -r '.pod_id' "$JOB")
-          BASE="https://${POD_ID}-3000.proxy.runpod.net"
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
           PROMPT=$(jq -r '.prompt' "$JOB")
           NEGATIVE=$(jq -r '.negative_prompt' "$JOB")
           PREFIX=$(jq -r '.output_prefix' "$JOB")
