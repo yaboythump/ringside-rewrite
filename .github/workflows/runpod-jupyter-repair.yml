@@ -1,0 +1,172 @@
+name: RunPod Jupyter LTX Repair
+
+on:
+  push:
+    paths:
+      - 'runpod-jupyter-repair.json'
+      - '.github/workflows/runpod-jupyter-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve pod and Jupyter credential
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' runpod-jupyter-repair.json)
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ "$STATUS" == "RUNNING" ]] || { echo "Pod not running: $STATUS"; exit 2; }
+          [[ -n "$JPASS" ]] || { echo "Jupyter password missing"; exit 3; }
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Install controller client
+        run: python3 -m pip install --quiet requests websocket-client
+
+      - name: Repair Blackwell stack and install LTX assets
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, re, sys, time
+          import requests, websocket
+
+          pod_id=os.environ['POD_ID']
+          password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          base=f'https://{pod_id}-8888.proxy.runpod.net'
+
+          script=r'''set -euo pipefail
+          echo '=== HHWI LTX REPAIR START ==='
+          rm -rf /tmp/pip-* /tmp/tmp* 2>/dev/null || true
+          mkdir -p /workspace/tmp /workspace/ltx-models/checkpoints/LTXV /workspace/ltx-models/text_encoders/t5 /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek
+          export TMPDIR=/workspace/tmp
+          export TMP=/workspace/tmp
+          export TEMP=/workspace/tmp
+          export PIP_CACHE_DIR=/workspace/pip-cache
+
+          echo 'DISK:'
+          df -h / /workspace
+
+          if PYTHONPATH=/workspace/pycu128 /usr/bin/python - <<'PYC' >/tmp/torchcheck 2>&1
+          import torch
+          assert torch.cuda.is_available()
+          assert torch.cuda.get_device_capability(0) >= (12,0)
+          PYC
+          then
+            echo 'Blackwell PyTorch already valid; reusing it.'
+          else
+            echo 'Installing Blackwell-compatible PyTorch fully inside /workspace...'
+            rm -rf /workspace/pycu128_stage
+            mkdir -p /workspace/pycu128_stage
+            /usr/bin/python -m pip install --no-cache-dir --target /workspace/pycu128_stage \
+              torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+            PYTHONPATH=/workspace/pycu128_stage /usr/bin/python - <<'PYC'
+          import torch
+          print('torch',torch.__version__,'cuda',torch.version.cuda)
+          print('device',torch.cuda.get_device_name(0))
+          print('capability',torch.cuda.get_device_capability(0))
+          assert torch.cuda.is_available()
+          assert torch.cuda.get_device_capability(0) >= (12,0)
+          PYC
+            rm -rf /workspace/pycu128
+            mv /workspace/pycu128_stage /workspace/pycu128
+          fi
+
+          SITE=$(/usr/bin/python - <<'PYC'
+          import site; print(site.getsitepackages()[0])
+          PYC
+          )
+          printf "%s\n" "import sys; sys.path.insert(0, '/workspace/pycu128')" > "$SITE/000_workspace_cu128.pth"
+
+          LTX='/workspace/ltx-models/checkpoints/LTXV/ltx-video-2b-v0.9.5.safetensors'
+          if [ ! -s "$LTX" ]; then
+            echo 'Downloading LTX-Video 2B v0.9.5...'
+            curl -L --fail --retry 3 --continue-at - 'https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors' -o "$LTX"
+          fi
+
+          T5='/workspace/ltx-models/text_encoders/t5/t5xxl_fp16.safetensors'
+          if [ ! -s "$T5" ]; then
+            echo 'Downloading T5 XXL fp16...'
+            curl -L --fail --retry 3 --continue-at - 'https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors' -o "$T5"
+          fi
+
+          mkdir -p /ComfyUI/models/checkpoints /ComfyUI/models/text_encoders
+          rm -rf /ComfyUI/models/checkpoints/LTXV /ComfyUI/models/text_encoders/t5
+          ln -s /workspace/ltx-models/checkpoints/LTXV /ComfyUI/models/checkpoints/LTXV
+          ln -s /workspace/ltx-models/text_encoders/t5 /ComfyUI/models/text_encoders/t5
+
+          TALIA='/workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek/Talia_BranchPoint_Test01.wav'
+          if [ ! -s "$TALIA" ]; then
+            curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260912_092441_e49b5015-fe4c-4dbe-94b2-0fa1ef1853e1.wav' -o "$TALIA"
+          fi
+
+          cat >/workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek/render_brief.txt <<'EOF'
+          HHWI Memphis Bleek Branch Point Test 01
+          Duration target: 25.28 seconds
+          Sequence: Brooklyn establishing -> two paths -> near meeting -> freeze -> deep-red timeline fracture -> warm-gold alternate timeline -> branded end frame.
+          Style: premium gritty late-1990s Brooklyn hip-hop documentary; black/charcoal, gold highlights, deep red fracture; film grain; grounded camera motion; no burned captions.
+          EOF
+
+          echo 'VERIFY:'
+          PYTHONPATH=/workspace/pycu128 /usr/bin/python - <<'PYC'
+          import torch
+          print('torch',torch.__version__)
+          print('cuda_runtime',torch.version.cuda)
+          print('cuda_available',torch.cuda.is_available())
+          print('device',torch.cuda.get_device_name(0))
+          print('capability',torch.cuda.get_device_capability(0))
+          PYC
+          ls -lh "$LTX" "$T5" "$TALIA"
+          echo '=== HHWI LTX REPAIR COMPLETE ==='
+          '''
+
+          payload=base64.b64encode(script.encode()).decode()
+          shell_cmd=f"echo {payload} | base64 -d >/workspace/chatgpt_ltx_repair.sh && bash /workspace/chatgpt_ltx_repair.sh; rc=$?; echo __REMOTE_DONE__:$rc\n"
+
+          s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status()
+          xsrf=re.search(r'name="_xsrf" value="([^"]+)"',r.text).group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},timeout=30,allow_redirects=True); r.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status()
+          name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          ws.send(json.dumps(['stdin',shell_cmd]))
+          deadline=time.time()+5100; rc=None
+          try:
+            while time.time()<deadline:
+              try: msg=ws.recv()
+              except Exception as e:
+                print('recv',e); continue
+              if not msg: continue
+              try: data=json.loads(msg)
+              except Exception: continue
+              if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                text=data[1]; sys.stdout.write(text); sys.stdout.flush()
+                m=re.search(r'__REMOTE_DONE__:(\d+)',text)
+                if m: rc=int(m.group(1)); break
+          finally:
+            ws.close()
+            try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=15)
+            except Exception: pass
+          if rc is None: raise SystemExit('Remote repair timed out')
+          if rc!=0: raise SystemExit(rc)
+          PY
