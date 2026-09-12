@@ -1,5 +1,5 @@
 {
-  "action": "deploy",
+  "action": "status",
   "target": "ct-lipsync",
-  "request_id": "2026-09-11T20:43:00-04:00"
+  "request_id": "2026-09-11T20:45:00-04:00"
 }
