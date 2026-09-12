@@ -1,0 +1,132 @@
+name: HHWI LTX Shot Render
+
+on:
+  push:
+    paths:
+      - 'ltx-jobs/hhwi-shot.json'
+      - '.github/workflows/hhwi-ltx-shot-render.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Submit LTX shot to ComfyUI and wait for output
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOB='ltx-jobs/hhwi-shot.json'
+          POD_ID=$(jq -r '.pod_id' "$JOB")
+          BASE="https://${POD_ID}-3000.proxy.runpod.net"
+          PROMPT=$(jq -r '.prompt' "$JOB")
+          NEGATIVE=$(jq -r '.negative_prompt' "$JOB")
+          PREFIX=$(jq -r '.output_prefix' "$JOB")
+          SEED=$(jq -r '.seed' "$JOB")
+          WIDTH=$(jq -r '.width // 768' "$JOB")
+          HEIGHT=$(jq -r '.height // 448' "$JOB")
+          FRAMES=$(jq -r '.frames // 97' "$JOB")
+          FPS=$(jq -r '.fps // 25' "$JOB")
+          STEPS=$(jq -r '.steps // 30' "$JOB")
+          CFG=$(jq -r '.cfg // 3' "$JOB")
+
+          echo "pod=$POD_ID size=${WIDTH}x${HEIGHT} frames=$FRAMES fps=$FPS steps=$STEPS cfg=$CFG"
+          curl -fsS --max-time 30 "$BASE/system_stats" | jq -r '.devices[0].name'
+
+          jq -n \
+            --arg prompt "$PROMPT" \
+            --arg negative "$NEGATIVE" \
+            --arg prefix "$PREFIX" \
+            --argjson seed "$SEED" \
+            --argjson width "$WIDTH" \
+            --argjson height "$HEIGHT" \
+            --argjson frames "$FRAMES" \
+            --argjson fps "$FPS" \
+            --argjson steps "$STEPS" \
+            --argjson cfg "$CFG" \
+            '{prompt:{
+              "1":{"class_type":"CheckpointLoaderSimple","inputs":{"ckpt_name":"LTXV/ltx-video-2b-v0.9.5.safetensors"}},
+              "2":{"class_type":"CLIPLoader","inputs":{"clip_name":"t5/t5xxl_fp8_e4m3fn_scaled.safetensors","type":"ltxv"}},
+              "3":{"class_type":"CLIPTextEncode","inputs":{"text":$prompt,"clip":["2",0]}},
+              "4":{"class_type":"CLIPTextEncode","inputs":{"text":$negative,"clip":["2",0]}},
+              "5":{"class_type":"LTXVConditioning","inputs":{"positive":["3",0],"negative":["4",0],"frame_rate":$fps}},
+              "6":{"class_type":"EmptyLTXVLatentVideo","inputs":{"width":$width,"height":$height,"length":$frames,"batch_size":1}},
+              "7":{"class_type":"LTXVScheduler","inputs":{"steps":$steps,"max_shift":2.05,"base_shift":0.95,"stretch":true,"terminal":0.1,"latent":["6",0]}},
+              "8":{"class_type":"KSamplerSelect","inputs":{"sampler_name":"euler"}},
+              "9":{"class_type":"SamplerCustom","inputs":{"model":["1",0],"add_noise":true,"noise_seed":$seed,"cfg":$cfg,"positive":["5",0],"negative":["5",1],"sampler":["8",0],"sigmas":["7",0],"latent_image":["6",0]}},
+              "10":{"class_type":"VAEDecode","inputs":{"samples":["9",0],"vae":["1",2]}},
+              "11":{"class_type":"SaveAnimatedWEBP","inputs":{"images":["10",0],"filename_prefix":$prefix,"fps":$fps,"lossless":false,"quality":90,"method":"default"}}
+            }}' > /tmp/request.json
+
+          echo 'Validating prompt graph...'
+          curl -fsS -X POST "$BASE/prompt" -H 'Content-Type: application/json' --data-binary @/tmp/request.json > /tmp/submit.json
+          cat /tmp/submit.json | jq .
+          PROMPT_ID=$(jq -r '.prompt_id // empty' /tmp/submit.json)
+          [[ -n "$PROMPT_ID" ]] || { echo 'No prompt_id returned'; exit 2; }
+          echo "PROMPT_ID=$PROMPT_ID" >> "$GITHUB_ENV"
+
+          for N in $(seq 1 180); do
+            curl -fsS --max-time 30 "$BASE/history/$PROMPT_ID" > /tmp/history.json || true
+            STATUS=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.status_str // empty' /tmp/history.json 2>/dev/null || true)
+            COMPLETED=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.completed // false' /tmp/history.json 2>/dev/null || true)
+            echo "poll=$N status=${STATUS:-pending} completed=$COMPLETED"
+            if [[ "$STATUS" == "error" ]]; then
+              cat /tmp/history.json | jq .
+              exit 3
+            fi
+            if [[ "$COMPLETED" == "true" ]]; then
+              break
+            fi
+            sleep 10
+          done
+
+          curl -fsS --max-time 30 "$BASE/history/$PROMPT_ID" > /tmp/history.json
+          STATUS=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.status_str // empty' /tmp/history.json)
+          COMPLETED=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.completed // false' /tmp/history.json)
+          [[ "$COMPLETED" == "true" && "$STATUS" != "error" ]] || { cat /tmp/history.json | jq .; exit 4; }
+
+          FILE=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].filename // empty' /tmp/history.json)
+          SUB=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].subfolder // ""' /tmp/history.json)
+          TYPE=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].type // "output"' /tmp/history.json)
+          [[ -n "$FILE" ]] || { cat /tmp/history.json | jq .; echo 'No WEBP output found'; exit 5; }
+
+          mkdir -p rendered
+          curl -fsS -G "$BASE/view" \
+            --data-urlencode "filename=$FILE" \
+            --data-urlencode "subfolder=$SUB" \
+            --data-urlencode "type=$TYPE" \
+            -o rendered/source.webp
+
+          echo "SOURCE_FILE=$FILE" >> "$GITHUB_ENV"
+          echo "$PROMPT_ID" > rendered/prompt_id.txt
+          cp "$JOB" rendered/job.json
+
+      - name: Convert render to 16x9 MP4
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          PREFIX=$(jq -r '.output_prefix' ltx-jobs/hhwi-shot.json)
+          FPS=$(jq -r '.fps // 25' ltx-jobs/hhwi-shot.json)
+          ffmpeg -y -i rendered/source.webp \
+            -vf "crop=iw:trunc(iw*9/16/2)*2:0:(ih-oh)/2,scale=1280:720:flags=lanczos,fps=${FPS}" \
+            -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+            "rendered/${PREFIX}.mp4"
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height,r_frame_rate \
+            -of json "rendered/${PREFIX}.mp4" > rendered/ffprobe.json
+          cat rendered/ffprobe.json | jq .
+
+      - name: Upload shot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhwi-ltx-shot
+          path: rendered/
+          if-no-files-found: error
+          retention-days: 7
