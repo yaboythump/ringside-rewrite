@@ -38,7 +38,10 @@ jobs:
           PODS=$(curl -fsS https://rest.runpod.io/v1/pods \
             -H "Authorization: Bearer ${RUNPOD_API_KEY}")
 
-          POD_ID="${RUNPOD_POD_ID:-}"
+          POD_ID=$(jq -r '.pod_id // empty' runpod-command.json)
+          if [[ -z "$POD_ID" ]]; then
+            POD_ID="${RUNPOD_POD_ID:-}"
+          fi
           if [[ -z "$POD_ID" ]]; then
             POD_ID=$(printf '%s' "$PODS" | jq -r '
               [ .[] | select(
@@ -61,7 +64,7 @@ jobs:
 
           POD=$(printf '%s' "$PODS" | jq -c --arg id "$POD_ID" '.[] | select(.id == $id)')
           if [[ -z "$POD" ]]; then
-            echo "Configured RUNPOD_POD_ID was not found: $POD_ID"
+            echo "Configured LTX pod was not found: $POD_ID"
             exit 4
           fi
 
