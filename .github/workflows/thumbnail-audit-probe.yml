@@ -13,7 +13,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Compare displayed thumbnails with YouTube auto-frame candidates
+      - name: Compare current live thumbnails with YouTube auto-frame candidates
         shell: bash
         run: |
           set -euo pipefail
@@ -21,7 +21,6 @@ jobs:
           python3 - <<'PY'
           import io, requests
           from PIL import Image, ImageChops, ImageStat
-
           videos = {
             'johnny_animals':'R-Qy4p5EIrc',
             'hhwi_memphis_bleek':'ls_VISFemYs',
@@ -32,31 +31,25 @@ jobs:
             'myspace_full':'AFVt5BaebFY',
             'case_lebron':'42ALSvtFJG8',
           }
-
           def img(url):
             r=requests.get(url,timeout=20); r.raise_for_status()
             return Image.open(io.BytesIO(r.content)).convert('RGB')
           def mae(a,b):
             b=b.resize(a.size,Image.Resampling.LANCZOS)
-            st=ImageStat.Stat(ImageChops.difference(a,b))
-            return sum(st.mean)/3
+            return sum(ImageStat.Stat(ImageChops.difference(a,b)).mean)/3
           def ahash(im):
-            g=im.convert('L').resize((16,16),Image.Resampling.LANCZOS)
-            px=list(g.getdata()); avg=sum(px)/len(px)
-            return [1 if p>=avg else 0 for p in px]
+            p=list(im.convert('L').resize((16,16),Image.Resampling.LANCZOS).getdata()); a=sum(p)/len(p)
+            return [1 if x>=a else 0 for x in p]
           def ham(a,b): return sum(x!=y for x,y in zip(a,b))
-
           for label,vid in videos.items():
             try:
-              hq=img(f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg?progress=2')
-              ha=ahash(hq)
-              scores=[]
+              hq=img(f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg?progress=3')
+              hh=ahash(hq); scores=[]
               for n in ('1','2','3'):
-                f=img(f'https://i.ytimg.com/vi/{vid}/{n}.jpg?progress=2')
-                scores.append((n,round(mae(hq,f),2),ham(ha,ahash(f))))
-              best=min(scores,key=lambda x:(x[2],x[1]))
-              auto=(best[2] <= 12 and best[1] <= 25.0)
-              print(label,vid,'AUTO' if auto else 'CUSTOM','best',best,'scores',scores)
+                frame=img(f'https://i.ytimg.com/vi/{vid}/{n}.jpg?progress=3')
+                scores.append((n,round(mae(hq,frame),2),ham(hh,ahash(frame))))
+              best=min(scores,key=lambda x:(x[2],x[1])); auto=best[2] <= 12 and best[1] <= 25
+              print(label,vid,'AUTO' if auto else 'CUSTOM','best',best)
             except Exception as e:
               print(label,vid,'ERROR',repr(e))
           PY
