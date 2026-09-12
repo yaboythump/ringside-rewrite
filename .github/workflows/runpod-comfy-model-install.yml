@@ -1,0 +1,72 @@
+name: RunPod Comfy LTX Model Install
+
+on:
+  push:
+    paths:
+      - '.github/workflows/runpod-comfy-model-install.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Queue LTX and T5 models through ComfyUI Manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='w5sin5d1mz24km'
+          BASE="https://${POD_ID}-3000.proxy.runpod.net"
+          ORIGIN="$BASE"
+
+          echo 'manager_status_before:'
+          curl -sS --max-time 20 "$BASE/manager/queue/status" | jq . || true
+
+          cat >/tmp/ltx.json <<'JSON'
+          {
+            "name":"LTX-Video 2B v0.9.5 Checkpoint",
+            "type":"checkpoint",
+            "base":"LTX-Video",
+            "save_path":"checkpoints/LTXV",
+            "url":"https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors",
+            "filename":"ltx-video-2b-v0.9.5.safetensors",
+            "ui_id":"hhwi-ltx-2b-095"
+          }
+          JSON
+
+          cat >/tmp/t5.json <<'JSON'
+          {
+            "name":"comfyanonymous/flux_text_encoders - t5xxl (fp8_e4m3fn_scaled)",
+            "type":"clip",
+            "base":"t5",
+            "save_path":"text_encoders/t5",
+            "url":"https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors",
+            "filename":"t5xxl_fp8_e4m3fn_scaled.safetensors",
+            "ui_id":"hhwi-t5-fp8-scaled"
+          }
+          JSON
+
+          for F in ltx t5; do
+            echo "queue_${F}:"
+            CODE=$(curl -sS -o "/tmp/${F}.out" -w '%{http_code}' --max-time 30 \
+              -X POST "$BASE/manager/queue/install_model" \
+              -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
+              --data @"/tmp/${F}.json" || true)
+            echo "http=$CODE"
+            cat "/tmp/${F}.out" || true
+            echo
+          done
+
+          echo 'start_queue:'
+          CODE=$(curl -sS -o /tmp/start.out -w '%{http_code}' --max-time 30 \
+            -X POST "$BASE/manager/queue/start" \
+            -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
+            --data '{}' || true)
+          echo "http=$CODE"
+          cat /tmp/start.out || true
+          echo
+
+          echo 'manager_status_after:'
+          curl -sS --max-time 20 "$BASE/manager/queue/status" | jq . || true
