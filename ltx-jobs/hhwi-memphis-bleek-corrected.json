@@ -1,0 +1,28 @@
+{
+  "episode_title": "What If Memphis Bleek Never Met Jay-Z?",
+  "show_name": "HIP HOP WHAT IF",
+  "runtime_target": "4:20-4:30",
+  "public_upload_allowed": false,
+  "formula": {
+    "mode": "archival-editorial-documentary",
+    "no_burned_captions": true,
+    "no_ai_video_loops": true,
+    "no_reverse_motion": true,
+    "ai_video_policy": "rare special moments only; none required for this corrected master",
+    "visual_palette": ["#000000", "#1F1F1F", "#F4F4F4", "#D4AF37", "#8B0000"],
+    "sections": ["COLD OPEN", "REAL TIMELINE", "BRANCH POINT", "ALTERNATE TIMELINE", "FINAL QUESTION"]
+  },
+  "narration": [
+    {"index":1,"duration":54.4,"url":"https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260912_154937_b7d001de-4f65-4ecd-8c11-612844bbb27b.wav"},
+    {"index":2,"duration":48.2,"url":"https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260912_154938_dd629a40-8b14-46c1-9cf2-7fb7aa413b18.wav"},
+    {"index":3,"duration":59.58,"url":"https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260912_154937_ce69cdbf-c309-4a0c-aab7-642006b8f5a2.wav"},
+    {"index":4,"duration":43.935,"url":"https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260912_154937_d3ef33e0-c607-405c-a675-5f91857259cc.wav"},
+    {"index":5,"duration":59.0,"url":"https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260912_154937_d57b29d4-7ee6-4d4e-b2bd-02386371c9a9.wav"}
+  ],
+  "archive_sources": {
+    "memphis_bleek_1998": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Memphis-Bleek-mika.jpg",
+    "jay_z_2000": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Jay-Z-01-mika.jpg",
+    "marcy_houses": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Marcy_Houses_Park_Av_rainy_jeh.jpg",
+    "brooklyn_bridge_2000": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Brooklyn_Bridge_in_2000_01.jpg"
+  }
+}
