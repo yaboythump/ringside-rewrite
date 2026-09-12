@@ -13,17 +13,47 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Inspect raw Upload-Post YouTube media payload
-        env:
-          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+      - name: Compare displayed thumbnails with YouTube auto-frame candidates
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${UPLOAD_POST_API_KEY:-}" || { echo 'missing UPLOAD_POST_API_KEY'; exit 1; }
-          for profile in YouTube HipHopWhatIf Tcwt GTA Breakingconversations Ringsiderewrite Whathappen Case; do
-            echo "===== PROFILE $profile ====="
-            curl --fail-with-body -sS \
-              -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
-              "https://api.upload-post.com/api/uploadposts/media?platform=youtube&user=${profile}&limit=2" \
-              | python3 -m json.tool
-          done
+          python3 -m pip install --quiet pillow requests
+          python3 - <<'PY'
+          import io, requests
+          from PIL import Image, ImageChops, ImageStat
+
+          videos = {
+            'known_gate_pass_dipset':'SIikUeeClAQ',
+            'myspace_full':'AFVt5BaebFY',
+            'gta_money_full':'gQeaBz7zsNg',
+            'johnny_animals':'R-Qy4p5EIrc',
+            'hhwi_memphis_bleek':'ls_VISFemYs',
+            'ringside_cody':'D6U6h3a9flQ',
+            'case_lebron':'42ALSvtFJG8',
+          }
+
+          def img(url):
+            r=requests.get(url,timeout=20); r.raise_for_status()
+            return Image.open(io.BytesIO(r.content)).convert('RGB')
+          def mae(a,b):
+            b=b.resize(a.size,Image.Resampling.LANCZOS)
+            st=ImageStat.Stat(ImageChops.difference(a,b))
+            return sum(st.mean)/3
+          def ahash(im):
+            g=im.convert('L').resize((16,16),Image.Resampling.LANCZOS)
+            px=list(g.getdata()); avg=sum(px)/len(px)
+            return [1 if p>=avg else 0 for p in px]
+          def ham(a,b): return sum(x!=y for x,y in zip(a,b))
+
+          for label,vid in videos.items():
+            try:
+              hq=img(f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg?x=1')
+              ha=ahash(hq)
+              scores=[]
+              for n in ('0','1','2','3'):
+                f=img(f'https://i.ytimg.com/vi/{vid}/{n}.jpg?x=1')
+                scores.append((n,round(mae(hq,f),2),ham(ha,ahash(f))))
+              print(label,vid,'scores',scores,'best_mae',min(x[1] for x in scores),'best_hash',min(x[2] for x in scores))
+            except Exception as e:
+              print(label,vid,'ERROR',repr(e))
+          PY
