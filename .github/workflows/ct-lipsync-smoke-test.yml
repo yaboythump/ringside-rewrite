@@ -1,0 +1,100 @@
+name: CT LipSync Smoke Test
+
+on:
+  push:
+    paths:
+      - 'ct-lipsync-test.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_NAME: ct-lipsync-musetalk-v1
+    steps:
+      - name: Resolve healthy pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          PODS=$(curl -fsS 'https://rest.runpod.io/v1/pods' -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD_ID=$(printf '%s' "$PODS" | jq -r --arg name "$POD_NAME" '[.[] | select(.name==$name and .desiredStatus=="RUNNING")] | sort_by(.lastStartedAt // "") | reverse | .[0].id // empty')
+          [[ -n "$POD_ID" ]] || { echo 'No running CT LipSync pod found'; exit 2; }
+          TOKEN=$(printf '%s' "${RUNPOD_API_KEY}:ct-lipsync:v1" | sha256sum | awk '{print $1}')
+          API="https://${POD_ID}-8000.proxy.runpod.net"
+          HEALTH=$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" "$API/health")
+          echo "$HEALTH" | jq .
+          echo "$HEALTH" | jq -e '.status=="healthy" and .gpu_available==true and .models_loaded==true' >/dev/null
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "api=$API" >> "$GITHUB_OUTPUT"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare tiny official demo fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL 'https://raw.githubusercontent.com/ruxir-ig/MuseTalk-API/main/assets/demo/man/man.png' -o source.png
+          curl -fL 'https://raw.githubusercontent.com/ruxir-ig/MuseTalk-API/main/data/audio/eng.wav' -o full.wav
+          ffmpeg -hide_banner -loglevel error -y -i full.wav -t 3 -ar 16000 -ac 1 test.wav
+          file source.png test.wav
+
+      - name: Generate 3-second lip-sync
+        id: generate
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='${{ steps.pod.outputs.api }}'
+          TOKEN='${{ steps.pod.outputs.token }}'
+          START=$(date +%s)
+          curl -fS --max-time 900 \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -X POST "$API/generate" \
+            -F 'source=@source.png' \
+            -F 'audio=@test.wav' \
+            -F 'enhance=false' \
+            -F 'fps=25' \
+            -F 'batch_size=8' \
+            -F 'output_name=ct_lipsync_smoke_test' \
+            -o response.json
+          END=$(date +%s)
+          cat response.json | jq .
+          jq -e '.status=="success" and (.filename | length > 0)' response.json >/dev/null
+          FILENAME=$(jq -r '.filename' response.json)
+          echo "filename=$FILENAME" >> "$GITHUB_OUTPUT"
+          echo "elapsed=$((END-START))" >> "$GITHUB_OUTPUT"
+
+      - name: Download and validate result
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='${{ steps.pod.outputs.api }}'
+          TOKEN='${{ steps.pod.outputs.token }}'
+          FILENAME='${{ steps.generate.outputs.filename }}'
+          curl -fS --max-time 120 -H "Authorization: Bearer ${TOKEN}" "$API/download/${FILENAME}" -o result.mp4
+          ffprobe -v error -show_entries format=duration,size -of json result.mp4 | tee result-probe.json
+          DURATION=$(jq -r '.format.duration | tonumber' result-probe.json)
+          SIZE=$(jq -r '.format.size | tonumber' result-probe.json)
+          awk -v d="$DURATION" 'BEGIN { exit !(d > 1.0) }'
+          [[ "$SIZE" -gt 10000 ]]
+          {
+            echo '## CT LipSync end-to-end test passed'
+            echo "- Pod: ${{ steps.pod.outputs.pod_id }}"
+            echo "- Output: $FILENAME"
+            echo "- Generation time: ${{ steps.generate.outputs.elapsed }} seconds"
+            echo "- Output duration: $DURATION seconds"
+            echo "- Output size: $SIZE bytes"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ct-lipsync-smoke-test
+          path: |
+            result.mp4
+            response.json
+            result-probe.json
+          retention-days: 1
