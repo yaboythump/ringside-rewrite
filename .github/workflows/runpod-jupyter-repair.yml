@@ -55,11 +55,14 @@ jobs:
           script=r'''set -euo pipefail
           echo '=== HHWI LTX REPAIR START ==='
           rm -rf /tmp/pip-* /tmp/tmp* 2>/dev/null || true
-          mkdir -p /workspace/tmp /workspace/ltx-models/checkpoints/LTXV /workspace/ltx-models/text_encoders/t5 /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek
+          mkdir -p /workspace/tmp /workspace/ltx-models/checkpoints/LTXV /workspace/ltx-models/text_encoders/t5 /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek /workspace/hf_tools /workspace/hf-cache /workspace/hf-xet-cache
           export TMPDIR=/workspace/tmp
           export TMP=/workspace/tmp
           export TEMP=/workspace/tmp
           export PIP_CACHE_DIR=/workspace/pip-cache
+          export HF_HOME=/workspace/hf-cache
+          export HF_XET_CACHE=/workspace/hf-xet-cache
+          export HF_XET_HIGH_PERFORMANCE=1
 
           echo 'DISK:'
           df -h / /workspace
@@ -95,25 +98,71 @@ jobs:
           )
           printf "%s\n" "import sys; sys.path.insert(0, '/workspace/pycu128')" > "$SITE/000_workspace_cu128.pth"
 
-          LTX='/workspace/ltx-models/checkpoints/LTXV/ltx-video-2b-v0.9.5.safetensors'
-          LTX_SHA='720d15c9f19f7d0f6b2a92bbbc34410e2cfb2f6856a100b38f734fbf973d4adf'
-          if [ ! -s "$LTX" ] || [ "$(sha256sum "$LTX" 2>/dev/null | awk '{print $1}')" != "$LTX_SHA" ]; then
-            rm -f "$LTX"
-            echo 'Downloading verified LTX-Video 2B v0.9.5 from Civitai...'
-            curl -L --fail --retry 3 --retry-delay 3 -A 'Mozilla/5.0' \
-              'https://civitai.com/api/download/models/1499827' -o "$LTX"
+          if [ ! -f /workspace/hf_tools/hf_xet/__init__.py ] && [ ! -f /workspace/hf_tools/hf_xet/hf_xet.abi3.so ]; then
+            echo 'Installing direct Xet client in /workspace...'
+            rm -rf /workspace/hf_tools
+            mkdir -p /workspace/hf_tools
+            /usr/bin/python -m pip install --no-cache-dir --target /workspace/hf_tools 'hf_xet==1.6.0' requests
           fi
-          echo "$LTX_SHA  $LTX" | sha256sum -c -
 
-          T5='/workspace/ltx-models/text_encoders/t5/t5xxl_fp16.safetensors'
-          T5_SHA='6e480b09fae049a72d2a8c5fbccb8d3e92febeb233bbe9dfe7256958a9167635'
-          if [ ! -s "$T5" ] || [ "$(sha256sum "$T5" 2>/dev/null | awk '{print $1}')" != "$T5_SHA" ]; then
-            rm -f "$T5"
-            echo 'Downloading verified T5 XXL fp16 from Civitai...'
-            curl -L --fail --retry 3 --retry-delay 3 -A 'Mozilla/5.0' \
-              'https://civitai.com/api/download/models/822016' -o "$T5"
-          fi
-          echo "$T5_SHA  $T5" | sha256sum -c -
+          PYTHONPATH=/workspace/hf_tools /usr/bin/python - <<'PYC'
+          import hashlib, os, requests, sys
+          from hf_xet import PyXetDownloadInfo, download_files
+
+          def sha256(path):
+              h=hashlib.sha256()
+              with open(path,'rb') as f:
+                  for chunk in iter(lambda:f.read(8*1024*1024), b''):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          def get_conn(repo):
+              url=f'https://huggingface.co/api/models/{repo}/xet-read-token/main'
+              r=requests.get(url, timeout=30)
+              print('xet_token_status', repo, r.status_code)
+              r.raise_for_status()
+              j=r.json()
+              return j['casUrl'], j['accessToken'], int(j['exp'])
+
+          def xet_download(repo, xet_hash, size, path, expected_sha):
+              if os.path.exists(path) and os.path.getsize(path)==size and sha256(path)==expected_sha:
+                  print('verified_existing', os.path.basename(path), size)
+                  return
+              if os.path.exists(path):
+                  os.remove(path)
+              endpoint, token, exp=get_conn(repo)
+              def refresh():
+                  _endpoint, _token, _exp=get_conn(repo)
+                  return (_token, _exp)
+              info=PyXetDownloadInfo(destination_path=path, hash=xet_hash, file_size=size)
+              print('xet_download_start', os.path.basename(path), size)
+              download_files([info], endpoint=endpoint, token_info=(token, exp), token_refresher=refresh, progress_updater=None)
+              actual_size=os.path.getsize(path)
+              actual_sha=sha256(path)
+              print('xet_download_done', os.path.basename(path), actual_size, actual_sha)
+              if actual_size != size:
+                  raise RuntimeError(f'size mismatch for {path}: {actual_size} != {size}')
+              if actual_sha != expected_sha:
+                  raise RuntimeError(f'sha mismatch for {path}: {actual_sha} != {expected_sha}')
+
+          xet_download(
+              'Lightricks/LTX-Video',
+              'fed2f09385f8948d4a04f814de7126575ed7b0fa2b5d7f415631c6067e635046',
+              6340729500,
+              '/workspace/ltx-models/checkpoints/LTXV/ltx-video-2b-v0.9.5.safetensors',
+              '720d15c9f19f7d0f6b2a92bbbc34410e2cfb2f6856a100b38f734fbf973d4adf'
+          )
+          xet_download(
+              'comfyanonymous/flux_text_encoders',
+              '31868d1bd1d855ac37b339079a06166ed46c230f9cce4904d7e09408a77a13e8',
+              5157348688,
+              '/workspace/ltx-models/text_encoders/t5/t5xxl_fp8_e4m3fn_scaled.safetensors',
+              'a498f0485dc9536735258018417c3fd7758dc3bccc0a645feaa472b34955557a'
+          )
+          PYC
+
+          LTX='/workspace/ltx-models/checkpoints/LTXV/ltx-video-2b-v0.9.5.safetensors'
+          T5='/workspace/ltx-models/text_encoders/t5/t5xxl_fp8_e4m3fn_scaled.safetensors'
 
           mkdir -p /ComfyUI/models/checkpoints /ComfyUI/models/text_encoders
           rm -rf /ComfyUI/models/checkpoints/LTXV /ComfyUI/models/text_encoders/t5
