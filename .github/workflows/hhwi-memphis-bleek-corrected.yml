@@ -1,0 +1,330 @@
+name: HHWI Memphis Bleek Corrected Master
+
+on:
+  push:
+    paths:
+      - 'ltx-jobs/hhwi-memphis-bleek-corrected.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install edit stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          python3 -m pip install --quiet pillow numpy
+          mkdir -p build/audio build/assets build/scenes build/clips build/shorts build/qc final
+
+      - name: Download Talia and licensed archival assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG='ltx-jobs/hhwi-memphis-bleek-corrected.json'
+          jq -r '.narration[] | "\(.index)\t\(.url)"' "$CFG" | while IFS=$'\t' read -r IDX URL; do
+            printf -v PAD '%02d' "$IDX"
+            curl -L --fail --retry 5 --retry-delay 2 "$URL" -o "build/audio/talia_${PAD}.wav"
+          done
+          curl -L --fail --retry 5 "$(jq -r '.archive_sources.memphis_bleek_1998' "$CFG")" -o build/assets/bleek_1998.jpg
+          curl -L --fail --retry 5 "$(jq -r '.archive_sources.jay_z_2000' "$CFG")" -o build/assets/jay_2000.jpg
+          curl -L --fail --retry 5 "$(jq -r '.archive_sources.marcy_houses' "$CFG")" -o build/assets/marcy.jpg
+          curl -L --fail --retry 5 "$(jq -r '.archive_sources.brooklyn_bridge_2000' "$CFG")" -o build/assets/brooklyn_bridge.jpg
+          file build/assets/*
+
+      - name: Build exact Hip Hop What If visual system
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
+          from pathlib import Path
+          import random, math, json, numpy as np
+          W,H=1920,1080
+          OUT=Path('build/scenes'); OUT.mkdir(parents=True,exist_ok=True)
+          AS=Path('build/assets')
+          FB='/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf'
+          FR='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+          FI='/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Oblique.ttf'
+          C={'black':(0,0,0),'charcoal':(31,31,31),'white':(244,244,244),'gold':(212,175,55),'red':(139,0,0),'gray':(145,145,145)}
+          rng=random.Random(1978)
+
+          def font(path,size): return ImageFont.truetype(path,size)
+          def fit(text,maxw,start=104,minsize=38,path=FB):
+              s=start
+              while s>minsize:
+                  f=font(path,s)
+                  b=f.getbbox(text)
+                  if b[2]-b[0] <= maxw:return f
+                  s-=3
+              return font(path,minsize)
+          def bg(tone='real'):
+              im=Image.new('RGB',(W,H),(8,8,9)); d=ImageDraw.Draw(im)
+              for y in range(H):
+                  v=int(8+22*y/H)
+                  d.line((0,y,W,y),fill=(v,v,v+2))
+              # gritty paper scratches
+              for _ in range(230):
+                  x=rng.randrange(W); y=rng.randrange(H); l=rng.randrange(8,110)
+                  val=rng.randrange(28,58)
+                  d.line((x,y,min(W,x+l),y+rng.randrange(-3,4)),fill=(val,val,val),width=1)
+              if tone=='alt':
+                  d.rectangle((0,0,W,H),fill=(18,14,6),outline=None)
+                  for y in range(H):
+                      a=int(14+22*y/H); d.line((0,y,W,y),fill=(a,a-3,max(0,a-10)))
+              if tone=='branch':
+                  d.rectangle((0,0,W,H),fill=(13,7,8))
+              return im
+          def grain(im,amt=8):
+              a=np.array(im).astype(np.int16)
+              n=np.random.default_rng(99).normal(0,amt,a.shape).astype(np.int16)
+              return Image.fromarray(np.uint8(np.clip(a+n,0,255)))
+          def crown(d,x,y,s=1.0,col=None):
+              col=col or C['gold']; pts=[(x,y+45*s),(x+22*s,y+8*s),(x+49*s,y+38*s),(x+77*s,y),(x+105*s,y+39*s),(x+132*s,y+10*s),(x+151*s,y+45*s)]
+              d.line(pts,fill=col,width=max(2,int(8*s)),joint='curve'); d.line((x,y+45*s,x+151*s,y+45*s),fill=col,width=max(2,int(8*s)))
+          def logo(im,x=74,y=64,small=False):
+              d=ImageDraw.Draw(im); sc=.65 if small else 1
+              crown(d,x,y,0.48*sc,C['gold'])
+              d.text((x,y+54*sc),'HIP HOP',font=font(FB,int(40*sc)),fill=C['white'],stroke_width=1,stroke_fill=(0,0,0))
+              d.text((x,y+96*sc),'WHAT IF',font=font(FB,int(40*sc)),fill=C['gold'],stroke_width=1,stroke_fill=(0,0,0))
+              d.line((x,y+145*sc,x+170*sc,y+139*sc),fill=C['red'],width=max(3,int(8*sc)))
+          def photo(path,size,duo='white'):
+              im=Image.open(path).convert('RGB')
+              im=ImageOps.exif_transpose(im)
+              ratio=max(size[0]/im.width,size[1]/im.height)
+              im=im.resize((int(im.width*ratio),int(im.height*ratio)),Image.LANCZOS)
+              left=(im.width-size[0])//2; top=(im.height-size[1])//2
+              im=im.crop((left,top,left+size[0],top+size[1]))
+              im=ImageEnhance.Contrast(im).enhance(1.25)
+              gray=ImageOps.grayscale(im)
+              if duo=='gold': return ImageOps.colorize(gray,(8,8,8),(208,170,75))
+              if duo=='red': return ImageOps.colorize(gray,(6,6,6),(155,36,42))
+              return ImageOps.colorize(gray,(5,5,5),(235,235,230))
+          def torn_mask(size,seed):
+              rr=random.Random(seed); w,h=size
+              pts=[]
+              step=55
+              for x in range(0,w+1,step): pts.append((x,rr.randrange(0,18)))
+              for y in range(step,h+1,step): pts.append((w-rr.randrange(0,18),y))
+              for x in range(w-step,-1,-step): pts.append((x,h-rr.randrange(0,18)))
+              for y in range(h-step,0,-step): pts.append((rr.randrange(0,18),y))
+              m=Image.new('L',size,0); ImageDraw.Draw(m).polygon(pts,fill=255)
+              return m.filter(ImageFilter.GaussianBlur(0.6))
+          def paste_torn(base,ph,xy,seed,outline=(244,244,244)):
+              m=torn_mask(ph.size,seed); sh=Image.new('RGBA',ph.size,(0,0,0,0)); sh.paste(ph,(0,0),m)
+              x,y=xy; base.paste(sh,(x,y),sh)
+              d=ImageDraw.Draw(base); d.rectangle((x-5,y-5,x+ph.width+5,y+ph.height+5),outline=outline,width=3)
+          def brush(d,xy,col,width=22):
+              x1,y1,x2,y2=xy
+              for j in range(-width//2,width//2,3):
+                  off=rng.randrange(-5,6); d.line((x1,y1+j+off,x2,y2+j),fill=col,width=3)
+          def chapter_tag(im,label,sub,tone='white'):
+              d=ImageDraw.Draw(im); col=C[tone]
+              d.rectangle((88,875,880,1010),fill=(8,8,10),outline=(70,70,72),width=2)
+              d.text((118,896),label,font=font(FB,54),fill=col)
+              d.text((120,962),sub,font=font(FR,25),fill=C['white'])
+          def title(im,head,sub=None,tone='white',x=850,y=240,maxw=940):
+              d=ImageDraw.Draw(im); col=C[tone]; f=fit(head,maxw,110,48)
+              d.text((x,y),head,font=f,fill=col,stroke_width=2,stroke_fill=(0,0,0))
+              brush(d,(x,y+f.size+22,min(W-90,x+maxw),y+f.size+10),C['red'] if tone!='red' else C['gold'],16)
+              if sub:d.multiline_text((x,y+f.size+68),sub,font=font(FB,36),fill=C['white'],spacing=12)
+          def timeline(im,items,active=0,alt=False):
+              d=ImageDraw.Draw(im); y=665; x0=210; x1=1710
+              col=C['gold'] if alt else C['white']; d.line((x0,y,x1,y),fill=(105,105,108),width=5)
+              for i,(yr,lab) in enumerate(items):
+                  x=x0+(x1-x0)*i/(len(items)-1)
+                  c=C['red'] if i==active else col
+                  d.ellipse((x-17,y-17,x+17,y+17),fill=c)
+                  d.text((x-55,y+34),yr,font=font(FB,30),fill=c)
+                  d.multiline_text((x-80,y+76),lab,font=font(FR,24),fill=C['white'],align='center',spacing=4)
+          def save(im,idx): grain(im,5).save(OUT/f'scene_{idx:02d}.png',quality=95)
+
+          bleak=photo(AS/'bleek_1998.jpg',(620,790),'white')
+          jay=photo(AS/'jay_2000.jpg',(620,790),'gold')
+          marcy=photo(AS/'marcy.jpg',(1920,1080),'white')
+          bridge=photo(AS/'brooklyn_bridge.jpg',(1920,1080),'white')
+
+          # 01 Cold open — Marcy + question
+          im=marcy.copy(); im=ImageEnhance.Brightness(im).enhance(.42); d=ImageDraw.Draw(im); logo(im)
+          d.rectangle((0,0,W,H),outline=(0,0,0),width=30); title(im,'WHAT IF MEMPHIS BLEEK','NEVER MET JAY-Z?',tone='gold',x=760,y=245,maxw=1060)
+          chapter_tag(im,'COLD OPEN','SET THE QUESTION','gold'); save(im,1)
+          # 02 Bleek archival
+          im=bg(); logo(im); paste_torn(im,bleak,(120,155),2,C['gold']); title(im,'MEMPHIS BLEEK','BROOKLYN • 1998 ARCHIVAL PHOTO',tone='white',x=850,y=300); chapter_tag(im,'COLD OPEN','MARCY • BROOKLYN','gold'); save(im,2)
+          # 03 Connection collage
+          im=bg(); logo(im); paste_torn(im,bleak.resize((520,665)),(120,190),3,C['white']); paste_torn(im,jay.resize((520,665)),(1280,190),4,C['gold']); d=ImageDraw.Draw(im); d.line((700,535,1215,535),fill=C['red'],width=10); d.ellipse((940,500,1010,570),fill=C['red']); d.text((790,390),'ONE CONNECTION',font=font(FB,62),fill=C['gold']); d.text((765,585),'CHANGES EVERYTHING',font=font(FB,52),fill=C['white']); chapter_tag(im,'COLD OPEN','THE CONNECTION','red'); save(im,3)
+          # 04 symbolic question card
+          im=bg(); logo(im); d=ImageDraw.Draw(im); crown(d,245,260,1.5); d.ellipse((240,520,480,760),outline=C['white'],width=18); d.line((360,760,360,910),fill=C['white'],width=20); d.text((720,300),'ONE MISSED MOMENT',font=font(FB,86),fill=C['white']); d.text((720,430),'A COMPLETELY DIFFERENT ROAD',font=font(FB,48),fill=C['gold']); brush(d,(720,520,1670,500),C['red'],24); chapter_tag(im,'COLD OPEN','WHAT CHANGES?','gold'); save(im,4)
+          # 05 real timeline opener
+          im=bridge.copy(); im=ImageEnhance.Brightness(im).enhance(.35); logo(im); title(im,'REAL TIMELINE','WHAT ACTUALLY HAPPENED',tone='white',x=850,y=315); chapter_tag(im,'REAL TIMELINE','THE RUNWAY','white'); save(im,5)
+          # 06 coming of age
+          im=bg(); logo(im); paste_torn(im,bleak,(120,150),6,C['white']); title(im,'1996 — COMING OF AGE','BLEEK ENTERS THE STORY\nARCHIVAL IMAGE: NYC, 1998',tone='white',x=860,y=270); chapter_tag(im,'REAL TIMELINE','THE FEATURE','white'); save(im,6)
+          # 07 Jay / Roc rise
+          im=bg(); logo(im); paste_torn(im,jay,(1180,150),7,C['gold']); title(im,'THE ROC IS RISING','STUDIO ACCESS • PRODUCERS • TOURING\nDISTRIBUTION • VISIBILITY',tone='gold',x=110,y=270,maxw=980); chapter_tag(im,'REAL TIMELINE','THE PLATFORM','white'); save(im,7)
+          # 08 timeline
+          im=bg(); logo(im); title(im,'FROM FEATURE TO DEBUT',None,'white',x=210,y=190,maxw=1450); timeline(im,[('1996','COMING OF\nAGE'),('1998','BLEEK IN\nTHE ROC ORBIT'),('1999','DEBUT ALBUM\nCOMING OF AGE')],2); chapter_tag(im,'REAL TIMELINE','DEVELOPMENT IN PUBLIC','white'); save(im,8)
+          # 09 debut data
+          im=bg(); logo(im); d=ImageDraw.Draw(im); d.rectangle((215,220,790,790),fill=(22,22,25),outline=C['gold'],width=6); d.ellipse((325,320,680,675),outline=C['white'],width=22); d.ellipse((472,467,532,527),fill=C['gold']); title(im,'1999','COMING OF AGE\nBILLBOARD 200: No. 7',tone='gold',x=930,y=300,maxw=830); chapter_tag(im,'REAL TIMELINE','THE RUNWAY BECOMES A CAREER','white'); save(im,9)
+          # 10 branch point
+          im=bg('branch'); logo(im); d=ImageDraw.Draw(im); title(im,'BRANCH POINT','THE CONNECTION NEVER HAPPENS',tone='red',x=410,y=250,maxw=1380); d.line((950,100,900,280,995,430,920,600,1005,780,940,1010),fill=C['red'],width=18); d.text((280,650),'REAL HISTORY',font=font(FB,50),fill=C['white']); d.text((1220,650),'REWRITE',font=font(FB,50),fill=C['gold']); chapter_tag(im,'BRANCH POINT','ONE MOMENT CHANGES EVERYTHING','red'); save(im,10)
+          # 11 Marcy path stops
+          im=marcy.copy(); im=ImageEnhance.Brightness(im).enhance(.38); logo(im); d=ImageDraw.Draw(im); d.line((170,810,780,645,1200,500),fill=C['red'],width=16); d.line((1200,500,1450,420),fill=(75,75,75),width=12); d.ellipse((1168,468,1232,532),fill=C['red']); d.text((1030,610),'THE PATH STOPS HERE',font=font(FB,50),fill=C['red']); chapter_tag(im,'BRANCH POINT','NO INTRODUCTION','red'); save(im,11)
+          # 12 no co-sign
+          im=bg('branch'); logo(im); d=ImageDraw.Draw(im); for_text=['NO INTRODUCTION','NO CO-SIGN','NO ROC RUNWAY']
+          y=250
+          for t in for_text:
+              d.text((260,y),t,font=font(FB,76),fill=C['white'] if y<450 else C['gold']); brush(d,(260,y+92,1400,y+80),C['red'],14); y+=190
+          chapter_tag(im,'BRANCH POINT','THE REWRITE BEGINS','red'); save(im,12)
+          # 13 broken route
+          im=bg('branch'); logo(im); d=ImageDraw.Draw(im); d.text((170,240),'MARCY',font=font(FB,68),fill=C['white']); d.text((1390,240),'NATIONAL STAGE',font=font(FB,60),fill=C['gold']); d.line((320,340,850,540),fill=C['white'],width=10); d.line((1070,620,1570,380),fill=C['gold'],width=10); d.line((850,540,940,500,895,610,1010,565,970,675,1070,620),fill=C['red'],width=18); d.text((735,760),'BROKEN CONNECTION',font=font(FB,54),fill=C['red']); chapter_tag(im,'BRANCH POINT','THE FASTEST ROUTE DISAPPEARS','red'); save(im,13)
+          # 14 alternate timeline opener
+          im=bg('alt'); logo(im); title(im,'ALTERNATE TIMELINE','A DIFFERENT REALITY',tone='gold',x=650,y=300,maxw=1150); timeline(im,[('PATH 1','DEAL\nLATER'),('PATH 2','LOCAL\nRESPECT'),('PATH 3','STREETS\nWIN')],0,True); chapter_tag(im,'ALTERNATE TIMELINE','THE POSSIBILITIES','gold'); save(im,14)
+          # 15 three paths
+          im=bg('alt'); logo(im); d=ImageDraw.Draw(im); heads=[('BEST CASE','HE STILL GETS A DEAL'),('MIDDLE CASE','BROOKLYN KNOWS — AMERICA DOESN’T'),('DARK CASE','MUSIC NEVER PULLS HIM OUT')]; ys=[210,480,750]
+          for i,(h,s) in enumerate(heads):
+              col=[C['gold'],C['white'],C['red']][i]; d.text((230,ys[i]),h,font=font(FB,58),fill=col); d.text((690,ys[i]+8),s,font=font(FB,38),fill=C['white']); d.line((210,ys[i]+105,1650,ys[i]+105),fill=(70,70,72),width=3)
+          chapter_tag(im,'ALTERNATE TIMELINE','THREE ROADS','gold'); save(im,15)
+          # 16 subway branches
+          im=bg('alt'); logo(im); d=ImageDraw.Draw(im); center=(600,540); d.ellipse((560,500,640,580),fill=C['white']); d.text((450,420),'MARCY',font=font(FB,52),fill=C['white']); ends=[((1470,250),'DEAL LATER',C['gold']),((1510,540),'LOCAL LEGEND',C['white']),((1430,830),'STREETS',C['red'])]
+          for (ex,ey),lab,col in ends:
+              d.line((center[0]+40,center[1],ex,ey),fill=col,width=15); d.ellipse((ex-24,ey-24,ex+24,ey+24),fill=col); d.text((ex-60,ey+50),lab,font=font(FB,36),fill=col)
+          chapter_tag(im,'ALTERNATE TIMELINE','THE MAP CHANGES','gold'); save(im,16)
+          # 17 Roc machine missing node
+          im=bg('alt'); logo(im); d=ImageDraw.Draw(im); d.text((240,210),'THE ROC MACHINE',font=font(FB,76),fill=C['gold']); nodes=[(400,520),(820,420),(1200,530),(1550,400)]
+          for x,y in nodes: d.ellipse((x-50,y-50,x+50,y+50),outline=C['white'],width=8)
+          for a,b in zip(nodes,nodes[1:]): d.line((a[0]+50,a[1],b[0]-50,b[1]),fill=C['white'],width=5)
+          d.ellipse((770,690,870,790),outline=C['red'],width=8); d.line((792,712,848,768),fill=C['red'],width=9); d.line((848,712,792,768),fill=C['red'],width=9); d.text((930,710),'ONE FAMILIAR FACE IS MISSING',font=font(FB,38),fill=C['red']); chapter_tag(im,'ALTERNATE TIMELINE','THE RIPPLE EFFECT','gold'); save(im,17)
+          # 18 final question opener
+          im=bg(); logo(im); title(im,'FINAL QUESTION','WHAT DOES IT MEAN TODAY?',tone='white',x=770,y=320); chapter_tag(im,'FINAL QUESTION','TALENT VS PLATFORM','white'); save(im,18)
+          # 19 Bleek gold question
+          im=bg(); logo(im); paste_torn(im,bleak,(150,150),19,C['gold']); d=ImageDraw.Draw(im); d.text((860,285),'TALENT',font=font(FB,82),fill=C['white']); d.text((1110,285),'VS',font=font(FB,64),fill=C['red']); d.text((1230,285),'PLATFORM',font=font(FB,82),fill=C['gold']); d.text((900,470),'DOES THE TALENT STILL BREAK THROUGH?',font=font(FB,42),fill=C['white']); d.text((1280,620),'?',font=font(FB,220),fill=C['gold']); chapter_tag(im,'FINAL QUESTION','THE VERDICT','white'); save(im,19)
+          # 20 end card exact brand
+          im=bg(); d=ImageDraw.Draw(im); crown(d,805,170,1.45,C['gold']); d.text((515,340),'HIP HOP',font=font(FB,118),fill=C['white']); d.text((995,340),'WHAT IF',font=font(FB,118),fill=C['gold']); brush(d,(530,495,1420,470),C['red'],25); d.text((410,610),'WITHOUT JAY-Z, DOES BLEEK STILL REACH THE NATIONAL STAGE?',font=fit('WITHOUT JAY-Z, DOES BLEEK STILL REACH THE NATIONAL STAGE?',1100,54,34),fill=C['white']); d.text((625,780),'DIFFERENT PATHS. SAME CULTURE. BIGGER QUESTIONS.',font=font(FI,34),fill=C['gold']); save(im,20)
+
+          # Thumbnail — exact singular brand
+          th=bg('branch'); d=ImageDraw.Draw(th); paste_torn(th,bleak.resize((560,715)),(90,170),31,C['gold']); paste_torn(th,jay.resize((560,715)),(1270,170),32,C['white']); d.polygon([(830,0),(1110,0),(1010,1080),(875,1080)],fill=(95,0,8)); crown(d,820,50,.7,C['gold']); d.text((760,135),'HIP HOP',font=font(FB,50),fill=C['white']); d.text((1020,135),'WHAT IF',font=font(FB,50),fill=C['gold']); d.text((675,330),'WHAT IF',font=font(FB,95),fill=C['white']); d.text((630,460),'BLEEK NEVER',font=font(FB,80),fill=C['gold']); d.text((665,570),'MET JAY-Z?',font=font(FB,84),fill=C['white']); brush(d,(640,690,1240,665),C['red'],28); grain(th,5).save('final/HHWI_Memphis_Bleek_Thumbnail.jpg',quality=95)
+
+          durations=[14.0,13.5,13.5,13.4,12.0,12.0,12.0,12.2,15.0,15.0,14.5,15.08,11.0,11.0,11.0,10.935,15.0,14.5,14.5,15.0]
+          motions=['push','panr','panl','push','panl','push','panr','push','panl','push','panr','panl','push','panr','push','panl','push','panr','push','panl']
+          Path('build/scene_plan.json').write_text(json.dumps([{'scene':i+1,'duration':durations[i],'motion':motions[i]} for i in range(20)],indent=2))
+          PY
+          grep -R "HIP HOP WHAT IFS" -n build ltx-jobs/hhwi-memphis-bleek-corrected.json && { echo 'BAD BRAND STRING FOUND'; exit 44; } || true
+
+      - name: Render one-direction documentary motion
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, subprocess, pathlib
+          plan=json.load(open('build/scene_plan.json'))
+          for s in plan:
+              i=s['scene']; dur=s['duration']; motion=s['motion']; src=f'build/scenes/scene_{i:02d}.png'; out=f'build/clips/scene_{i:02d}.mp4'
+              if motion=='push':
+                  vf="zoompan=z='min(1.0+0.00022*on,1.065)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080:fps=30,noise=alls=2:allf=t+u,vignette=PI/6"
+              elif motion=='panr':
+                  vf="scale=2050:1154,crop=1920:1080:x='min(130,t*9)':y=37,noise=alls=2:allf=t+u,vignette=PI/6"
+              else:
+                  vf="scale=2050:1154,crop=1920:1080:x='max(0,130-t*9)':y=37,noise=alls=2:allf=t+u,vignette=PI/6"
+              subprocess.run(['ffmpeg','-y','-loglevel','error','-loop','1','-i',src,'-t',str(dur),'-vf',vf,'-r','30','-an','-c:v','libx264','-preset','veryfast','-crf','18','-pix_fmt','yuv420p',out],check=True)
+          with open('build/video_concat.txt','w') as f:
+              for s in plan:f.write(f"file '{pathlib.Path(f'build/clips/scene_{s['scene']:02d}.mp4').resolve()}'\n")
+          subprocess.run(['ffmpeg','-y','-loglevel','error','-f','concat','-safe','0','-i','build/video_concat.txt','-c','copy','build/video_master.mp4'],check=True)
+          PY
+
+      - name: Mix Talia and original documentary bed
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > build/audio_concat.txt
+          for F in build/audio/talia_*.wav; do echo "file '$PWD/$F'" >> build/audio_concat.txt; done
+          ffmpeg -y -loglevel error -f concat -safe 0 -i build/audio_concat.txt -c:a pcm_s16le build/talia_master.wav
+          python3 - <<'PY'
+          import wave, numpy as np
+          sr=44100; dur=270.; n=int(sr*dur); out=np.zeros(n,np.float32); bpm=82; beat=60/bpm
+          rng=np.random.default_rng(1978)
+          def hit(t,length,freq,amp,noise=False):
+              i=int(t*sr); L=min(int(length*sr),n-i)
+              if L<=0:return
+              tt=np.arange(L)/sr; env=np.exp(-tt/max(.01,length/4))
+              sig=rng.standard_normal(L) if noise else np.sin(2*np.pi*freq*tt)
+              out[i:i+L]+=amp*env*sig
+          for b in range(int(dur/beat)+2):
+              t=b*beat; pos=b%4
+              if pos in (0,2): hit(t,.22,56,.22)
+              if pos in (1,3): hit(t,.13,180,.11,True)
+              hit(t,.035,5000,.02,True); hit(t+beat/2,.025,6500,.014,True)
+          roots=[65.4,58.3,55.0,61.7]
+          for k,t in enumerate(np.arange(0,dur,beat*4)):
+              f=roots[k%4]; i=int(t*sr); L=min(int(beat*3.5*sr),n-i); tt=np.arange(L)/sr
+              if L>0: out[i:i+L]+=0.035*np.sin(2*np.pi*f*tt)*np.exp(-tt/4)
+          out += 0.006*rng.standard_normal(n)
+          peak=max(np.max(np.abs(out)),1e-6); out=np.clip(out/(peak*1.8),-1,1); pcm=(out*32767).astype(np.int16)
+          with wave.open('build/music.wav','wb') as w:w.setnchannels(1);w.setsampwidth(2);w.setframerate(sr);w.writeframes(pcm.tobytes())
+          PY
+          ffmpeg -y -loglevel error -i build/talia_master.wav -stream_loop -1 -i build/music.wav \
+            -filter_complex "[0:a]loudnorm=I=-16:TP=-1.5:LRA=9[n];[1:a]volume=0.075[m];[n][m]amix=inputs=2:duration=first:dropout_transition=2[a]" \
+            -map "[a]" -c:a aac -b:a 192k build/final_audio.m4a
+
+      - name: Final master and five Shorts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -y -loglevel error -i build/video_master.mp4 -i build/final_audio.m4a -map 0:v -map 1:a -c:v copy -c:a copy -shortest -movflags +faststart final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ_CORRECTED.mp4
+          # Five narrator-led Shorts = the five locked episode sections; no burned captions.
+          starts=(0 54.4 102.6 162.18 206.115)
+          durs=(54.4 48.2 59.58 43.935 59.0)
+          for I in 0 1 2 3 4; do
+            N=$((I+1)); S=${starts[$I]}; D=${durs[$I]}
+            ffmpeg -y -loglevel error -ss "$S" -t "$D" -i final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ_CORRECTED.mp4 \
+              -vf "crop=608:1080:656:0,scale=1080:1920:flags=lanczos" -c:v libx264 -preset veryfast -crf 19 -c:a aac -b:a 160k -movflags +faststart "build/shorts/HHWI_Memphis_Bleek_Short_${N}.mp4"
+          done
+
+      - name: QC and credits
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffprobe -v error -show_entries format=duration,size:stream=index,codec_name,width,height,r_frame_rate,channels -of json final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ_CORRECTED.mp4 > build/qc/master_ffprobe.json
+          DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ_CORRECTED.mp4)
+          python3 - <<PY
+          d=float('$DUR'); assert 260 <= d <= 270, d
+          PY
+          for T in 8 62 112 174 235 262; do ffmpeg -y -loglevel error -ss "$T" -i final/HHWI_What_If_Memphis_Bleek_Never_Met_JayZ_CORRECTED.mp4 -frames:v 1 "build/qc/frame_${T}.jpg"; done
+          cat > final/VISUAL_CREDITS.txt <<'EOF'
+          HIP HOP WHAT IF — What If Memphis Bleek Never Met Jay-Z?
+          Visual credits for archival assets used in factual timeline sections:
+          - Memphis Bleek in NYC, 1998 — Mikamote / Wikimedia Commons — CC BY-SA 3.0
+            https://commons.wikimedia.org/wiki/File:Memphis-Bleek-mika.jpg
+          - Jay-Z backstage, 2000 — Mikamote / Wikimedia Commons — CC BY-SA 3.0
+            https://commons.wikimedia.org/wiki/File:Jay-Z-01-mika.jpg
+          - Marcy Houses — Jim.henderson / Wikimedia Commons — CC0 1.0
+            https://commons.wikimedia.org/wiki/File:Marcy_Houses_Park_Av_rainy_jeh.jpg
+          - Brooklyn Bridge in 2000 — Joseolgon / Wikimedia Commons — license listed on Wikimedia Commons file page
+            https://commons.wikimedia.org/wiki/File:Brooklyn_Bridge_in_2000_01.jpg
+          All motion graphics, branding frames, timeline art, music bed, and edit treatments are original CTNETWORK / Hip Hop What If production assets.
+          Historical setup is factual; events after the branch point are hypothetical alternate-history commentary.
+          EOF
+          cat > final/METADATA.txt <<'EOF'
+          TITLE: What If Memphis Bleek Never Met Jay-Z? | Hip Hop What If
+          THUMBNAIL: HHWI_Memphis_Bleek_Thumbnail.jpg
+          PACKAGE: Full episode + 5 Shorts + thumbnail
+          BRAND: HIP HOP WHAT IF (singular — no S)
+          PUBLIC UPLOAD: NOT APPROVED / DO NOT PUBLISH
+          EOF
+
+      - name: Upload corrected package
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhwi-memphis-bleek-corrected-package
+          path: |
+            final/
+            build/shorts/
+            build/qc/
+          retention-days: 14
