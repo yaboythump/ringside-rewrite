@@ -1,0 +1,38 @@
+name: HHWI Live Cinematic Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hhwi-live-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Inspect active HHWI cinematic pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
+          runpodctl pod list --all --name hhwi-memphis-bleek-cinematic --since 2h > /tmp/pods.json
+          cat /tmp/pods.json | jq .
+          POD_ID=$(jq -r '[.. | objects | select((.name? // "") == "hhwi-memphis-bleek-cinematic" and ((.desiredStatus? // .status? // "") == "RUNNING"))][0].id // empty' /tmp/pods.json)
+          if [[ -z "$POD_ID" ]]; then
+            echo 'NO_RUNNING_HHWI_POD'
+            exit 0
+          fi
+          echo "ACTIVE_POD=$POD_ID"
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
+          echo '--- system_stats ---'
+          curl -sS --max-time 20 "$BASE/system_stats" | jq '{comfyui:.system.comfyui_version,torch:.system.pytorch_version,device:.devices[0].name,vram_free:.devices[0].vram_free}' || true
+          echo '--- queue ---'
+          curl -sS --max-time 20 "$BASE/queue" | jq '{running:(.queue_running|length),pending:(.queue_pending|length),running_ids:[.queue_running[]?[1]]}' || true
+          echo '--- history count ---'
+          curl -sS --max-time 20 "$BASE/history?max_items=50" | jq 'length' || true
