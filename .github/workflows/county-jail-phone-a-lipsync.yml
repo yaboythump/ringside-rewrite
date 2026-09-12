@@ -1,0 +1,110 @@
+name: County Jail PHONE A LipSync
+
+on:
+  push:
+    paths:
+      - 'county-jail-phone-a.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_NAME: ct-lipsync-musetalk-v1
+      SOURCE_VIDEO_URL: https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260911_215620_6c19d3c4-4e5c-464e-bc57-1c363a6e1812.mp4
+      SOURCE_AUDIO_URL: https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/2c289697-6d4b-495e-a2a1-52c00fa4a942.mp3
+    steps:
+      - name: Install media tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Resolve healthy CT LipSync pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          PODS=$(curl -fsS 'https://rest.runpod.io/v1/pods' -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD_ID=$(printf '%s' "$PODS" | jq -r --arg name "$POD_NAME" '[.[] | select(.name==$name and .desiredStatus=="RUNNING")] | sort_by(.lastStartedAt // "") | reverse | .[0].id // empty')
+          [[ -n "$POD_ID" ]] || { echo 'No running CT LipSync pod found'; exit 2; }
+          TOKEN=$(printf '%s' "${RUNPOD_API_KEY}:ct-lipsync:v1" | sha256sum | awk '{print $1}')
+          API="https://${POD_ID}-8000.proxy.runpod.net"
+          HEALTH=$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" "$API/health")
+          echo "$HEALTH" | jq .
+          echo "$HEALTH" | jq -e '.status=="healthy" and .gpu_available==true and .models_loaded==true' >/dev/null
+          echo "api=$API" >> "$GITHUB_OUTPUT"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download real County Jail inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL "$SOURCE_VIDEO_URL" -o phone_a_source.mp4
+          curl -fL "$SOURCE_AUDIO_URL" -o phone_a_audio.mp3
+          ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 phone_a_source.mp4
+          ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 phone_a_audio.mp3
+          ffmpeg -hide_banner -loglevel error -y -i phone_a_audio.mp3 -ar 16000 -ac 1 phone_a_audio.wav
+
+      - name: Generate PHONE A lip-sync
+        id: generate
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='${{ steps.pod.outputs.api }}'
+          TOKEN='${{ steps.pod.outputs.token }}'
+          START=$(date +%s)
+          curl -fS --max-time 1200 \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -X POST "$API/generate" \
+            -F 'source=@phone_a_source.mp4' \
+            -F 'audio=@phone_a_audio.wav' \
+            -F 'enhance=false' \
+            -F 'fps=25' \
+            -F 'batch_size=8' \
+            -F 'output_name=county_jail_phone_a' \
+            -o response.json
+          END=$(date +%s)
+          cat response.json | jq .
+          jq -e '.status=="success" and (.filename | length > 0)' response.json >/dev/null
+          FILENAME=$(jq -r '.filename' response.json)
+          echo "filename=$FILENAME" >> "$GITHUB_OUTPUT"
+          echo "elapsed=$((END-START))" >> "$GITHUB_OUTPUT"
+
+      - name: Download, attach loud audio, and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          API='${{ steps.pod.outputs.api }}'
+          TOKEN='${{ steps.pod.outputs.token }}'
+          FILENAME='${{ steps.generate.outputs.filename }}'
+          curl -fS --max-time 120 -H "Authorization: Bearer ${TOKEN}" "$API/download/${FILENAME}" -o silent_or_model.mp4
+          ffmpeg -hide_banner -loglevel error -y -i silent_or_model.mp4 -i phone_a_audio.mp3 -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest County_Jail_PHONE_A_LipSync.mp4
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name -of json County_Jail_PHONE_A_LipSync.mp4 | tee result-probe.json
+          ffmpeg -hide_banner -i County_Jail_PHONE_A_LipSync.mp4 -af volumedetect -f null - 2> audio-qc.txt || true
+          cat audio-qc.txt | tail -n 20
+          DURATION=$(jq -r '.format.duration | tonumber' result-probe.json)
+          SIZE=$(jq -r '.format.size | tonumber' result-probe.json)
+          awk -v d="$DURATION" 'BEGIN { exit !(d > 3.0) }'
+          [[ "$SIZE" -gt 100000 ]]
+          grep -q '"codec_type": "audio"' result-probe.json
+          {
+            echo '## County Jail PHONE A render complete'
+            echo "- Pod: ${{ steps.pod.outputs.pod_id }}"
+            echo "- Generation time: ${{ steps.generate.outputs.elapsed }} seconds"
+            echo "- Output duration: $DURATION seconds"
+            echo "- Output size: $SIZE bytes"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: county-jail-phone-a-lipsync
+          path: |
+            County_Jail_PHONE_A_LipSync.mp4
+            response.json
+            result-probe.json
+            audio-qc.txt
+          retention-days: 2
