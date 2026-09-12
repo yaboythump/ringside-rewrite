@@ -1,4 +1,4 @@
-name: RunPod RTX 5090 Availability
+name: RunPod GPU Availability
 
 on:
   push:
@@ -15,12 +15,12 @@ jobs:
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
-      - name: Check RTX 5090 stock
+      - name: Check production GPU stock
         shell: bash
         run: |
           set -euo pipefail
-          QUERY='query { gpuTypes(input: { id: "NVIDIA GeForce RTX 5090" }) { id displayName memoryInGb secureCloud communityCloud lowestPrice(input: { gpuCount: 1, secureCloud: true }) { stockStatus uninterruptablePrice availableGpuCounts } } }'
+          QUERY='query { gpuTypes { id displayName memoryInGb secureCloud communityCloud secure: lowestPrice(input: { gpuCount: 1, secureCloud: true }) { stockStatus uninterruptablePrice availableGpuCounts } community: lowestPrice(input: { gpuCount: 1, secureCloud: false }) { stockStatus uninterruptablePrice availableGpuCounts } } }'
           jq -nc --arg q "$QUERY" '{query:$q}' >/tmp/q.json
           curl -fsS -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" \
             -H 'content-type: application/json' --data @/tmp/q.json \
-            | jq '{errors,data}'
+            | jq '{errors, candidates:[.data.gpuTypes[] | select(.id=="NVIDIA GeForce RTX 5090" or .id=="NVIDIA GeForce RTX 4090" or .id=="NVIDIA L40S" or .id=="NVIDIA RTX 6000 Ada Generation") | {id,displayName,memoryInGb,secureCloud,communityCloud,secure,community}]}'
