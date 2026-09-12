@@ -13,7 +13,7 @@ permissions:
 jobs:
   control:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       RUNPOD_POD_ID: ${{ secrets.RUNPOD_POD_ID }}
@@ -79,20 +79,58 @@ jobs:
           {
             echo "## RunPod LTX control"
             echo "- Pod: $NAME ($POD_ID)"
-            echo "- GPU: $GPU"
+            echo "- GPU type: $GPU"
             echo "- Current status: $STATUS"
             echo "- Requested action: $ACTION"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Start pod
+      - name: Start pod with recovery fallbacks
         if: steps.resolve.outputs.action == 'start'
+        id: start
         shell: bash
         run: |
-          set -euo pipefail
-          curl -fsS -X POST \
-            "https://rest.runpod.io/v1/pods/${{ steps.resolve.outputs.pod_id }}/start" \
-            -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/tmp/runpod-response.json
-          cat /tmp/runpod-response.json || true
+          set -u
+          POD_ID='${{ steps.resolve.outputs.pod_id }}'
+
+          echo "Trying RunPod REST start..."
+          HTTP=$(curl -sS -o /tmp/rest-start.json -w '%{http_code}' -X POST \
+            "https://rest.runpod.io/v1/pods/${POD_ID}/start" \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}") || HTTP=000
+          echo "REST HTTP: $HTTP"
+          cat /tmp/rest-start.json 2>/dev/null || true
+          echo
+
+          if [[ "$HTTP" =~ ^2 ]]; then
+            echo "start_route=rest" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "REST start failed; trying GraphQL podResume with 1 GPU..."
+          GQL=$(jq -nc --arg id "$POD_ID" '{query:("mutation { podResume(input: { podId: \""+$id+"\", gpuCount: 1 }) { id desiredStatus imageName machineId } }")}')
+          curl -sS -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" \
+            -H 'content-type: application/json' \
+            --data "$GQL" > /tmp/gql-gpu.json
+          cat /tmp/gql-gpu.json
+          echo
+          if jq -e '.data.podResume.id' /tmp/gql-gpu.json >/dev/null 2>&1; then
+            echo "start_route=graphql-gpu" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "GPU resume failed; trying zero-GPU data-recovery start..."
+          GQL0=$(jq -nc --arg id "$POD_ID" '{query:("mutation { podResume(input: { podId: \""+$id+"\", gpuCount: 0 }) { id desiredStatus imageName machineId } }")}')
+          curl -sS -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" \
+            -H 'content-type: application/json' \
+            --data "$GQL0" > /tmp/gql-zero.json
+          cat /tmp/gql-zero.json
+          echo
+          if jq -e '.data.podResume.id' /tmp/gql-zero.json >/dev/null 2>&1; then
+            echo "start_route=graphql-zero-gpu" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "start_route=failed" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Stop pod
         if: steps.resolve.outputs.action == 'stop'
@@ -104,13 +142,22 @@ jobs:
             -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/tmp/runpod-response.json
           cat /tmp/runpod-response.json || true
 
-      - name: Verify final status
+      - name: Verify final status and connectivity metadata
+        if: always() && steps.resolve.outputs.pod_id != ''
         shell: bash
         run: |
           set -euo pipefail
-          sleep 2
+          if [[ '${{ steps.resolve.outputs.action }}' == 'start' ]]; then sleep 8; else sleep 2; fi
           POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${{ steps.resolve.outputs.pod_id }}" \
             -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          echo "$POD" | jq '{id,name,desiredStatus,gpu:.gpu.displayName,costPerHr,adjustedCostPerHr}'
+          echo "$POD" | jq '{id,name,desiredStatus,imageName,gpu,machineId,publicIp,portMappings,ports,volumeMountPath,volumeInGb,containerDiskInGb,costPerHr,adjustedCostPerHr,lastStartedAt,lastStatusChange,machine:{gpuAvailable:.machine.gpuAvailable,gpuDisplayName:.machine.gpuDisplayName,dataCenterId:.machine.dataCenterId,location:.machine.location}}'
           FINAL=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
-          echo "- Final status: $FINAL" >> "$GITHUB_STEP_SUMMARY"
+          GPU_COUNT=$(echo "$POD" | jq -r '.gpu.count // 0')
+          PUBLIC_IP=$(echo "$POD" | jq -r '.publicIp // ""')
+          PORT22=$(echo "$POD" | jq -r '.portMappings["22"] // ""')
+          {
+            echo "- Final status: $FINAL"
+            echo "- Attached GPUs: $GPU_COUNT"
+            if [[ -n "$PUBLIC_IP" && "$PUBLIC_IP" != "null" ]]; then echo "- Public IP: $PUBLIC_IP"; fi
+            if [[ -n "$PORT22" && "$PORT22" != "null" ]]; then echo "- SSH mapped port: $PORT22"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
