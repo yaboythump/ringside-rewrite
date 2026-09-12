@@ -1,0 +1,31 @@
+{
+  "episode": "What If Memphis Bleek Never Met Jay-Z?",
+  "show_name": "HIP HOP WHAT IF",
+  "width": 832,
+  "height": 480,
+  "frames": 121,
+  "fps": 25,
+  "steps": 30,
+  "cfg": 3,
+  "negative_prompt": "static image, locked-off camera, frozen frame, minimal movement, slideshow, title card, infographic, presentation slide, boxed layout, cartoon, anime, glossy fantasy, neon overload, plastic skin, warped anatomy, distorted face, duplicate people, extra limbs, surreal morphing, low-detail background, fake-looking motion, oversaturated colors, cheesy sci-fi effects, cluttered text, watermark, logo, low-resolution artifacts, bad perspective, smeared details, rubbery body movement, floating camera, boomerang motion, reverse motion, repetitive loop",
+  "shots": [
+    {
+      "id": "01R",
+      "output_prefix": "HHWI_MB_CIN01_BROOKLYN_AERIAL_R2",
+      "seed": 88112001,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Late-1990s Brooklyn at blue-hour dusk, Brooklyn Bridge and dense city blocks, period traffic, river, warm sodium streetlights, haze. CAMERA MUST TRAVEL FORWARD THE ENTIRE SHOT: begin from a high moving aerial-style position with bridge cables and rooftop edges very close to lens, then visibly advance toward Brooklyn so near foreground architecture sweeps past quickly while the skyline grows larger. Strong unmistakable foreground-to-background parallax. Cars visibly stream below, a boat moves on the river, reflections ripple, haze shifts. 35mm premium gritty hip-hop documentary realism, charcoal blacks, restrained amber highlights, film grain. NOT a locked-off skyline, NOT a slow zoom, no text, no graphics."
+    },
+    {
+      "id": "09R",
+      "output_prefix": "HHWI_MB_CIN09_BASEMENT_CYPHER_R2",
+      "seed": 88112009,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. unmistakably INSIDE a cramped late-1990s Brooklyn BASEMENT rap cypher: low ceiling pipes, bare concrete walls, one exposed tungsten bulb, cassette deck, small speakers, ten friends packed tightly in a circle around one young Black rapper performing into a wired handheld microphone. CAMERA MUST MOVE: start outside the basement doorway behind two shoulders, push physically through the crowd toward the performer, then continue a clear half-arc around him while foreground bodies cross and briefly occlude the lens. Performer gestures with free hand, crowd head-nods, shoulders bounce, feet shift, smoke and dust move in light. Gritty handheld 35mm music-documentary realism, shallow depth. KEEP IT A BASEMENT CYPHER for the entire shot, no stage, no street, no nightclub, no text."
+    },
+    {
+      "id": "13R",
+      "output_prefix": "HHWI_MB_CIN13_MISSED_STUDIO_R2",
+      "seed": 88112013,
+      "prompt": "FULL-SCREEN CINEMATIC FILM SHOT. Late-1990s high-end New York recording-studio hallway representing an opportunity that never arrives. Foreground: untouched demo cassette on a small table and an empty visitor chair. Beyond a large glass wall, engineers and artists actively move around a control room. CAMERA MUST TRACK LEFT-TO-RIGHT THE ENTIRE SHOT on a 50mm dolly: cassette and chair sweep across foreground, glass reflections slide visibly, door frame passes close to lens, a studio door opens, two people cross behind glass, another engineer turns and walks. Strong layered depth and obvious parallax from near objects to background people. Premium realistic hip-hop documentary, charcoal factual-world palette with one restrained red practical light. NOT static, no text."
+    }
+  ]
+}
