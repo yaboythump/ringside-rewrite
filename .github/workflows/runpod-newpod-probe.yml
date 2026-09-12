@@ -1,0 +1,27 @@
+name: RunPod New LTX Pod Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/runpod-newpod-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe proxied services
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='w5sin5d1mz24km'
+          for PORT in 8888 3000; do
+            URL="https://${POD_ID}-${PORT}.proxy.runpod.net/"
+            CODE=$(curl -L -sS -o "/tmp/p${PORT}" -w '%{http_code}' --max-time 20 "$URL" || true)
+            echo "port_${PORT}_http=$CODE"
+            head -c 300 "/tmp/p${PORT}" 2>/dev/null | tr '\n' ' ' || true
+            echo
+          done
