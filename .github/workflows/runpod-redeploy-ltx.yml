@@ -16,30 +16,37 @@ jobs:
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
-      - name: Install current runpodctl and deploy official CUDA 13 ComfyUI pod
+      - name: Discover and deploy current official CUDA 13 ComfyUI pod
         shell: bash
         run: |
           set -euo pipefail
           curl -sSL https://cli.runpod.net | sudo bash
           export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
-          command -v runpodctl
           runpodctl version
 
-          echo 'Verifying official template:'
-          runpodctl template get 2lv7ev3wfp > /tmp/template.json
-          cat /tmp/template.json | jq '{id,name,imageName,isRunpod,containerDiskInGb,ports}'
+          echo 'Discovering current ComfyUI templates:'
+          runpodctl template search comfyui > /tmp/templates.json
+          cat /tmp/templates.json | jq .
+          TPL_ID=$(jq -r '.. | objects | select(((.name? // "") | test("ComfyUI.*CUDA 13";"i"))) | .id // empty' /tmp/templates.json | head -n1)
+          if [[ -z "$TPL_ID" ]]; then
+            TPL_ID=$(jq -r '.. | objects | select((((.name? // "") + " " + (.imageName? // "")) | test("comfyui";"i")) and (((.name? // "") + " " + (.imageName? // "")) | test("cuda13|cuda13.0";"i"))) | .id // empty' /tmp/templates.json | head -n1)
+          fi
+          [[ -n "$TPL_ID" ]] || { echo 'No live CUDA 13 ComfyUI template found'; exit 2; }
+          echo "Selected template: $TPL_ID"
+          runpodctl template get "$TPL_ID" > /tmp/template.json
+          cat /tmp/template.json | jq .
 
           echo 'Creating Blackwell pod:'
           runpodctl pod create \
             --name urban_silver_ape_v3 \
-            --template-id 2lv7ev3wfp \
+            --template-id "$TPL_ID" \
             --gpu-id "NVIDIA RTX PRO 4500 Blackwell" \
             --container-disk-in-gb 160 \
             --ports "8188/http,8080/http,8888/http,22/tcp" \
             > /tmp/pod.json
           cat /tmp/pod.json | jq .
           NEW_ID=$(jq -r '.id // empty' /tmp/pod.json)
-          [[ -n "$NEW_ID" ]] || { echo 'No pod ID returned'; exit 2; }
+          [[ -n "$NEW_ID" ]] || { echo 'No pod ID returned'; exit 3; }
           echo "NEW_POD_ID=$NEW_ID" >> "$GITHUB_ENV"
           echo "New pod: $NEW_ID"
 
@@ -57,4 +64,4 @@ jobs:
             echo "ready_poll=$N http=${CODE:-none}"
             sleep 5
           done
-          [[ "$READY" == "1" ]] || { echo "ComfyUI proxy did not become ready for pod $NEW_ID"; exit 3; }
+          [[ "$READY" == "1" ]] || { echo "ComfyUI proxy did not become ready for pod $NEW_ID"; exit 4; }
