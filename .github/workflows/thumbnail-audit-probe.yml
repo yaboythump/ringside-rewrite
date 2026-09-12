@@ -1,0 +1,29 @@
+name: CTNETWORK thumbnail audit probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/thumbnail-audit-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Inspect raw Upload-Post YouTube media payload
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${UPLOAD_POST_API_KEY:-}" || { echo 'missing UPLOAD_POST_API_KEY'; exit 1; }
+          for profile in YouTube HipHopWhatIf Tcwt GTA Breakingconversations Ringsiderewrite Whathappen Case; do
+            echo "===== PROFILE $profile ====="
+            curl --fail-with-body -sS \
+              -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+              "https://api.upload-post.com/api/uploadposts/media?platform=youtube&user=${profile}&limit=2" \
+              | python3 -m json.tool
+          done
