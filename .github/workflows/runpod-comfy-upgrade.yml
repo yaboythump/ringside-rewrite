@@ -25,17 +25,15 @@ jobs:
           echo 'version_before:'
           curl -fsS --max-time 30 "$BASE/system_stats" | jq -r '.system.comfyui_version'
 
-          echo 'queue_update_comfyui:'
+          echo 'queue_update_comfyui_legacy_get:'
           CODE=$(curl -sS -o /tmp/update.out -w '%{http_code}' --max-time 30 \
-            -X POST "$BASE/manager/queue/update_comfyui" \
-            -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
-            --data '{}' || true)
+            "$BASE/manager/queue/update_comfyui" -H "Origin: $ORIGIN" || true)
           echo "http=$CODE"
           cat /tmp/update.out || true
           echo
           [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 2
 
-          echo 'start_queue:'
+          echo 'start_queue_legacy_get:'
           CODE=$(curl -sS -o /tmp/start.out -w '%{http_code}' --max-time 30 \
             "$BASE/manager/queue/start" -H "Origin: $ORIGIN" || true)
           echo "http=$CODE"
@@ -43,6 +41,7 @@ jobs:
           echo
           [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 3
 
+          COMPLETE=0
           for N in $(seq 1 80); do
             STATUS=$(curl -fsS --max-time 20 "$BASE/manager/queue/status" || true)
             if [[ -n "$STATUS" ]]; then
@@ -51,12 +50,14 @@ jobs:
               DONE=$(echo "$STATUS" | jq -r '.done_count // 0' 2>/dev/null || echo 0)
               PROCESSING=$(echo "$STATUS" | jq -r '.is_processing // false' 2>/dev/null || echo false)
               if [[ "$TOTAL" -gt 0 && "$DONE" -ge "$TOTAL" && "$PROCESSING" == "false" ]]; then
+                COMPLETE=1
                 echo 'UPDATE_QUEUE_COMPLETE'
                 break
               fi
             fi
             sleep 10
           done
+          [[ "$COMPLETE" == "1" ]] || { echo 'Timed out waiting for ComfyUI update queue'; exit 4; }
 
           echo 'reboot_comfyui:'
           curl -sS --max-time 20 -X POST "$BASE/manager/reboot" \
@@ -79,7 +80,7 @@ jobs:
             fi
             sleep 5
           done
-          [[ "$READY" == "1" ]] || { echo 'ComfyUI did not return after upgrade'; exit 4; }
+          [[ "$READY" == "1" ]] || { echo 'ComfyUI did not return after upgrade'; exit 5; }
 
           echo 'ltx_assets_after:'
           curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
@@ -91,4 +92,4 @@ jobs:
 
           HAS_CKPT=$(jq -r '[.CheckpointLoaderSimple.input.required.ckpt_name[0][] | select(test("ltx-video-2b-v0.9.5"))] | length' /tmp/object.json)
           HAS_T5=$(jq -r '[.CLIPLoader.input.required.clip_name[0][] | select(test("t5xxl_fp8_e4m3fn_scaled"))] | length' /tmp/object.json)
-          [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]] || { echo 'LTX assets missing after upgrade'; exit 5; }
+          [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]] || { echo 'LTX assets missing after upgrade'; exit 6; }
