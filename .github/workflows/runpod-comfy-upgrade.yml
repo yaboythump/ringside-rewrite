@@ -1,0 +1,94 @@
+name: RunPod ComfyUI Core Upgrade
+
+on:
+  push:
+    paths:
+      - '.github/workflows/runpod-comfy-upgrade.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Queue ComfyUI core upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='w5sin5d1mz24km'
+          BASE="https://${POD_ID}-3000.proxy.runpod.net"
+          ORIGIN="$BASE"
+
+          echo 'version_before:'
+          curl -fsS --max-time 30 "$BASE/system_stats" | jq -r '.system.comfyui_version'
+
+          echo 'queue_update_comfyui:'
+          CODE=$(curl -sS -o /tmp/update.out -w '%{http_code}' --max-time 30 \
+            -X POST "$BASE/manager/queue/update_comfyui" \
+            -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
+            --data '{}' || true)
+          echo "http=$CODE"
+          cat /tmp/update.out || true
+          echo
+          [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 2
+
+          echo 'start_queue:'
+          CODE=$(curl -sS -o /tmp/start.out -w '%{http_code}' --max-time 30 \
+            "$BASE/manager/queue/start" -H "Origin: $ORIGIN" || true)
+          echo "http=$CODE"
+          cat /tmp/start.out || true
+          echo
+          [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 3
+
+          for N in $(seq 1 80); do
+            STATUS=$(curl -fsS --max-time 20 "$BASE/manager/queue/status" || true)
+            if [[ -n "$STATUS" ]]; then
+              echo "poll=$N $(echo "$STATUS" | jq -c . 2>/dev/null || echo "$STATUS")"
+              TOTAL=$(echo "$STATUS" | jq -r '.total_count // 0' 2>/dev/null || echo 0)
+              DONE=$(echo "$STATUS" | jq -r '.done_count // 0' 2>/dev/null || echo 0)
+              PROCESSING=$(echo "$STATUS" | jq -r '.is_processing // false' 2>/dev/null || echo false)
+              if [[ "$TOTAL" -gt 0 && "$DONE" -ge "$TOTAL" && "$PROCESSING" == "false" ]]; then
+                echo 'UPDATE_QUEUE_COMPLETE'
+                break
+              fi
+            fi
+            sleep 10
+          done
+
+          echo 'reboot_comfyui:'
+          curl -sS --max-time 20 -X POST "$BASE/manager/reboot" \
+            -H 'Content-Type: application/json' -H "Origin: $ORIGIN" --data '{}' || true
+          echo
+
+          echo 'waiting_for_comfyui:'
+          READY=0
+          for N in $(seq 1 90); do
+            if curl -fsS --max-time 10 "$BASE/system_stats" >/tmp/stats.json 2>/dev/null; then
+              VERSION=$(jq -r '.system.comfyui_version // empty' /tmp/stats.json)
+              DEVICE=$(jq -r '.devices[0].name // empty' /tmp/stats.json)
+              echo "ready_poll=$N version=$VERSION device=$DEVICE"
+              if [[ -n "$VERSION" ]]; then
+                READY=1
+                break
+              fi
+            else
+              echo "ready_poll=$N waiting"
+            fi
+            sleep 5
+          done
+          [[ "$READY" == "1" ]] || { echo 'ComfyUI did not return after upgrade'; exit 4; }
+
+          echo 'ltx_assets_after:'
+          curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
+          jq '{
+            checkpoint: (.CheckpointLoaderSimple.input.required.ckpt_name[0] | map(select(test("ltx-video-2b-v0.9.5")))),
+            clip: (.CLIPLoader.input.required.clip_name[0] | map(select(test("t5xxl_fp8_e4m3fn_scaled")))),
+            ltx_nodes: ([keys[] | select(test("LTX";"i"))] | sort)
+          }' /tmp/object.json
+
+          HAS_CKPT=$(jq -r '[.CheckpointLoaderSimple.input.required.ckpt_name[0][] | select(test("ltx-video-2b-v0.9.5"))] | length' /tmp/object.json)
+          HAS_T5=$(jq -r '[.CLIPLoader.input.required.clip_name[0][] | select(test("t5xxl_fp8_e4m3fn_scaled"))] | length' /tmp/object.json)
+          [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]] || { echo 'LTX assets missing after upgrade'; exit 5; }
