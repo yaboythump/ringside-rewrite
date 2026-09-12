@@ -13,15 +13,18 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe proxied services
+      - name: Inspect ComfyUI GPU and LTX readiness
         shell: bash
         run: |
           set -euo pipefail
           POD_ID='w5sin5d1mz24km'
-          for PORT in 8888 3000; do
-            URL="https://${POD_ID}-${PORT}.proxy.runpod.net/"
-            CODE=$(curl -L -sS -o "/tmp/p${PORT}" -w '%{http_code}' --max-time 20 "$URL" || true)
-            echo "port_${PORT}_http=$CODE"
-            head -c 300 "/tmp/p${PORT}" 2>/dev/null | tr '\n' ' ' || true
-            echo
-          done
+          BASE="https://${POD_ID}-3000.proxy.runpod.net"
+          echo '=== SYSTEM STATS ==='
+          curl -fsS --max-time 30 "$BASE/system_stats" | jq '{system,devices}'
+          echo '=== LTX NODES ==='
+          curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
+          jq '{
+            ltx_nodes: ([keys[] | select(test("LTX";"i"))] | sort),
+            checkpoint_loader: (.CheckpointLoaderSimple.input.required.ckpt_name[0] // []),
+            clip_loader: (.CLIPLoader.input.required.clip_name[0] // [])
+          }' /tmp/object.json
