@@ -1,6 +1,6 @@
 {
-  "action": "stop",
+  "action": "status",
   "target": "ltx",
-  "pod_id": "w5sin5d1mz24km",
-  "request_id": "chat-stop-obsolete-comfy-2026-09-12-1050"
+  "pod_id": "k7j666wk9rzw9e",
+  "request_id": "chat-status-cuda13-2026-09-12-0910"
 }
