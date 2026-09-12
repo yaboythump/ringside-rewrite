@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -sSL https://cli.runpod.net | bash
+          curl -sSL https://cli.runpod.net | sudo bash
           export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
           command -v runpodctl
           runpodctl version
