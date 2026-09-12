@@ -1,0 +1,227 @@
+name: CT LipSync RunPod Control
+
+on:
+  push:
+    paths:
+      - 'ct-lipsync-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_NAME: ct-lipsync-musetalk-v1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate request
+        id: req
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${RUNPOD_API_KEY:-}" ]]; then
+            echo 'RUNPOD_API_KEY is missing'
+            exit 2
+          fi
+          ACTION=$(jq -r '.action // "status"' ct-lipsync-command.json | tr '[:upper:]' '[:lower:]')
+          case "$ACTION" in deploy|start|stop|status) ;; *) echo "Unsupported action: $ACTION"; exit 3;; esac
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve existing CT LipSync pod
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          REQUESTED=$(jq -r '.pod_id // empty' ct-lipsync-command.json)
+          PODS=$(curl -fsS 'https://rest.runpod.io/v1/pods' -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          if [[ -n "$REQUESTED" ]]; then
+            POD_ID="$REQUESTED"
+          else
+            POD_ID=$(printf '%s' "$PODS" | jq -r --arg name "$POD_NAME" '[.[] | select(.name==$name and .desiredStatus!="TERMINATED")] | sort_by(.lastStartedAt // "") | reverse | .[0].id // empty')
+          fi
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          if [[ -n "$POD_ID" ]]; then
+            STATUS=$(printf '%s' "$PODS" | jq -r --arg id "$POD_ID" '.[] | select(.id==$id) | .desiredStatus // "unknown"')
+            echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+            echo "Found existing pod $POD_ID ($STATUS)"
+          else
+            echo 'status=missing' >> "$GITHUB_OUTPUT"
+            echo 'No existing CT LipSync pod found.'
+          fi
+
+      - name: Deploy fresh MuseTalk pod
+        if: steps.req.outputs.action == 'deploy' && steps.resolve.outputs.pod_id == ''
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN=$(printf '%s' "${RUNPOD_API_KEY}:ct-lipsync:v1" | sha256sum | awk '{print $1}')
+          BOOTSTRAP='python3 -c "import urllib.request; urllib.request.urlretrieve(\"https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/runpod/ct-lipsync-bootstrap.sh\", \"/tmp/ct-lipsync-bootstrap.sh\")" && chmod +x /tmp/ct-lipsync-bootstrap.sh && exec /tmp/ct-lipsync-bootstrap.sh'
+
+          create_pod() {
+            local cloud="$1"
+            jq -n \
+              --arg cloud "$cloud" \
+              --arg token "$TOKEN" \
+              --arg cmd "$BOOTSTRAP" \
+              --arg name "$POD_NAME" \
+              '{
+                name:$name,
+                cloudType:$cloud,
+                computeType:"GPU",
+                gpuCount:1,
+                gpuTypeIds:[
+                  "NVIDIA GeForce RTX 4090",
+                  "NVIDIA RTX A5000",
+                  "NVIDIA L4",
+                  "NVIDIA RTX A6000",
+                  "NVIDIA GeForce RTX 3090",
+                  "NVIDIA L40S"
+                ],
+                gpuTypePriority:"custom",
+                imageName:"runpod/pytorch:2.0.1-py3.10-cuda11.8.0-devel-ubuntu22.04",
+                interruptible:false,
+                locked:false,
+                containerDiskInGb:30,
+                volumeInGb:50,
+                volumeMountPath:"/workspace",
+                ports:["8000/http","8888/http","22/tcp"],
+                supportPublicIp:true,
+                minRAMPerGPU:16,
+                minVCPUPerGPU:4,
+                dockerEntrypoint:["/bin/bash","-lc"],
+                dockerStartCmd:[$cmd],
+                env:{CT_LIPSYNC_TOKEN:$token,PYTHONUNBUFFERED:"1"}
+              }' > /tmp/pod-create.json
+
+            HTTP=$(curl -sS -o /tmp/pod-response.json -w '%{http_code}' \
+              -X POST 'https://rest.runpod.io/v1/pods' \
+              -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+              -H 'Content-Type: application/json' \
+              --data-binary @/tmp/pod-create.json) || HTTP=000
+            echo "${cloud} create HTTP=$HTTP"
+            if [[ "$HTTP" == '201' ]]; then
+              return 0
+            fi
+            jq '{error,status,message,detail}' /tmp/pod-response.json 2>/dev/null || cat /tmp/pod-response.json
+            return 1
+          }
+
+          if ! create_pod SECURE; then
+            echo 'Secure Cloud capacity unavailable; trying Community Cloud.'
+            create_pod COMMUNITY
+          fi
+
+          POD_ID=$(jq -r '.id // empty' /tmp/pod-response.json)
+          if [[ -z "$POD_ID" ]]; then
+            echo 'RunPod did not return a pod ID.'
+            exit 4
+          fi
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "Created CT LipSync pod: $POD_ID"
+          jq '{id,name,desiredStatus,gpu,costPerHr,adjustedCostPerHr,volumeInGb,containerDiskInGb,ports}' /tmp/pod-response.json
+
+      - name: Start existing pod
+        if: (steps.req.outputs.action == 'start' || steps.req.outputs.action == 'deploy') && steps.resolve.outputs.pod_id != '' && steps.resolve.outputs.status != 'RUNNING'
+        id: start
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.resolve.outputs.pod_id }}'
+          HTTP=$(curl -sS -o /tmp/start.json -w '%{http_code}' -X POST \
+            "https://rest.runpod.io/v1/pods/${POD_ID}/start" \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}") || HTTP=000
+          echo "Start HTTP=$HTTP"
+          cat /tmp/start.json 2>/dev/null || true
+          if [[ ! "$HTTP" =~ ^2 ]]; then exit 5; fi
+
+      - name: Stop pod
+        if: steps.req.outputs.action == 'stop' && steps.resolve.outputs.pod_id != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.resolve.outputs.pod_id }}'
+          curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}"
+          echo "Stopped $POD_ID"
+
+      - name: Resolve active pod ID
+        id: active
+        if: steps.req.outputs.action != 'stop'
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.deploy.outputs.pod_id }}'
+          if [[ -z "$POD_ID" ]]; then POD_ID='${{ steps.resolve.outputs.pod_id }}'; fi
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "Active pod: ${POD_ID:-none}"
+
+      - name: Wait for CT LipSync API
+        if: (steps.req.outputs.action == 'deploy' || steps.req.outputs.action == 'start') && steps.active.outputs.pod_id != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.active.outputs.pod_id }}'
+          TOKEN=$(printf '%s' "${RUNPOD_API_KEY}:ct-lipsync:v1" | sha256sum | awk '{print $1}')
+          API="https://${POD_ID}-8000.proxy.runpod.net"
+          STATUS="https://${POD_ID}-8888.proxy.runpod.net"
+
+          echo "Waiting for CT LipSync on $POD_ID..."
+          for i in $(seq 1 60); do
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            STATE=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+            echo "[$i/60] pod=$STATE"
+
+            if [[ "$STATE" == 'EXITED' || "$STATE" == 'TERMINATED' ]]; then
+              echo 'Pod exited before the API became healthy.'
+              exit 6
+            fi
+
+            PHASE=$(curl -fsS --max-time 5 "$STATUS/phase.txt" 2>/dev/null || true)
+            if [[ -n "$PHASE" ]]; then echo "phase=$PHASE"; fi
+            if [[ "$PHASE" == 'FAILED' ]]; then
+              echo 'Bootstrap reported failure. Last log lines:'
+              curl -fsS --max-time 10 "$STATUS/bootstrap.log" 2>/dev/null | tail -n 180 || true
+              curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+              exit 7
+            fi
+
+            HEALTH=$(curl -sS --max-time 10 -H "Authorization: Bearer ${TOKEN}" "$API/health" 2>/dev/null || true)
+            if echo "$HEALTH" | jq -e '.status == "healthy" and .gpu_available == true and .models_loaded == true' >/dev/null 2>&1; then
+              echo "$HEALTH" | jq .
+              echo 'CT LipSync API is healthy.'
+              {
+                echo '## CT LipSync is online'
+                echo "- Pod: $POD_ID"
+                echo "- API: $API"
+                echo "- Status: healthy"
+                echo "- GPU: $(echo "$HEALTH" | jq -r '.gpu_name // "unknown"')"
+                echo "- VRAM: $(echo "$HEALTH" | jq -r '.gpu_memory_gb // "unknown"') GB"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 30
+          done
+
+          echo 'Timed out waiting for CT LipSync. Last bootstrap log lines:'
+          curl -fsS --max-time 10 "$STATUS/bootstrap.log" 2>/dev/null | tail -n 220 || true
+          curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+          exit 8
+
+      - name: Report status
+        if: steps.req.outputs.action == 'status' && steps.active.outputs.pod_id != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.active.outputs.pod_id }}'
+          TOKEN=$(printf '%s' "${RUNPOD_API_KEY}:ct-lipsync:v1" | sha256sum | awk '{print $1}')
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          echo "$POD" | jq '{id,name,desiredStatus,gpu,costPerHr,adjustedCostPerHr,publicIp,portMappings,volumeInGb,containerDiskInGb,lastStartedAt,lastStatusChange}'
+          if [[ $(echo "$POD" | jq -r '.desiredStatus') == 'RUNNING' ]]; then
+            curl -fsS --max-time 10 -H "Authorization: Bearer ${TOKEN}" "https://${POD_ID}-8000.proxy.runpod.net/health" | jq . || true
+          fi
