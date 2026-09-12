@@ -1,0 +1,113 @@
+name: HHWI LTX Editorial Compatibility Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hhwi-ltx-editorial-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Probe current ComfyUI/LTX nodes on fresh CUDA 13 pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p probe
+          POD_ID=''
+          cleanup() {
+            if [[ -n "${POD_ID:-}" ]]; then
+              echo "Stopping probe pod: $POD_ID"
+              curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" \
+                -H "Authorization: Bearer ${RUNPOD_API_KEY}" | tee probe/stop.json || true
+            fi
+          }
+          trap cleanup EXIT
+
+          echo 'Listing current RunPod templates via REST API...'
+          curl -fsS 'https://rest.runpod.io/v1/templates?includeRunpodTemplates=true&includePublicTemplates=true' \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" > probe/templates.json
+
+          TPL_ID=$(jq -r '[.[] | select(((.name // "") | test("ComfyUI";"i"))) | select((((.name // "") + " " + (.imageName // "")) | test("CUDA[ -]?13|cuda13";"i"))) | .id][0] // empty' probe/templates.json)
+          if [[ -z "$TPL_ID" ]]; then
+            echo 'No explicit CUDA 13 ComfyUI name found; using first current ComfyUI template.'
+            TPL_ID=$(jq -r '[.[] | select(((.name // "") | test("ComfyUI";"i"))) | .id][0] // empty' probe/templates.json)
+          fi
+          [[ -n "$TPL_ID" ]] || { echo 'No ComfyUI template found'; jq -r '.[].name' probe/templates.json | head -50; exit 2; }
+          echo "Selected template: $TPL_ID"
+          jq --arg id "$TPL_ID" '.[] | select(.id==$id) | {id,name,imageName,ports,containerDiskInGb}' probe/templates.json | tee probe/template-selected.json
+
+          jq -n --arg tpl "$TPL_ID" '{
+            name:"hhwi-editorial-node-probe",
+            templateId:$tpl,
+            computeType:"GPU",
+            gpuCount:1,
+            gpuTypeIds:["NVIDIA RTX PRO 4500 Blackwell"],
+            gpuTypePriority:"availability",
+            allowedCudaVersions:["13.0"],
+            cloudType:"SECURE",
+            containerDiskInGb:160,
+            volumeInGb:20,
+            volumeMountPath:"/workspace",
+            ports:["8188/http","8080/http","8888/http","22/tcp"],
+            supportPublicIp:true
+          }' > probe/create-request.json
+
+          echo 'Creating fresh probe pod...'
+          HTTP=$(curl -sS -o probe/create-response.json -w '%{http_code}' \
+            -X POST 'https://rest.runpod.io/v1/pods' \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+            -H 'Content-Type: application/json' \
+            --data-binary @probe/create-request.json)
+          echo "create_http=$HTTP"
+          cat probe/create-response.json | jq .
+          [[ "$HTTP" == "201" || "$HTTP" == "200" ]] || exit 3
+          POD_ID=$(jq -r '.id // empty' probe/create-response.json)
+          [[ -n "$POD_ID" ]] || exit 4
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
+          echo "$POD_ID" > probe/pod_id.txt
+
+          echo 'Waiting for ComfyUI API...'
+          READY=0
+          for N in $(seq 1 150); do
+            CODE=$(curl -sS -o probe/system_stats.json -w '%{http_code}' --max-time 12 "$BASE/system_stats" || true)
+            echo "boot_poll=$N http=$CODE"
+            if [[ "$CODE" == "200" ]]; then READY=1; break; fi
+            sleep 5
+          done
+          [[ "$READY" == "1" ]] || { echo 'ComfyUI did not become ready'; exit 5; }
+          jq '{comfyui_version:.system.comfyui_version,pytorch_version:.system.pytorch_version,device:.devices[0].name}' probe/system_stats.json | tee probe/runtime.json
+
+          echo 'Capturing live object_info before any model install...'
+          curl -fsS --max-time 60 "$BASE/object_info" > probe/object_info.json
+          jq -r 'keys[] | select(test("LTX|ltx|Image.*Video|Video.*Image|Conditioning|ImageToVideo|I2V"))' probe/object_info.json | sort -u | tee probe/candidate_nodes.txt
+
+          python3 - <<'PY'
+          import json,re
+          d=json.load(open('probe/object_info.json'))
+          out={}
+          for k,v in d.items():
+              s=json.dumps(v)
+              if re.search(r'ltx|image.?to.?video|video.?image|conditioning', k+' '+s, re.I):
+                  out[k]=v
+          json.dump(out,open('probe/candidate_node_schemas.json','w'),indent=2)
+          print('candidate_nodes',len(out))
+          PY
+
+          echo 'Probe complete; cleanup trap will stop pod.'
+
+      - name: Upload LTX compatibility probe
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hhwi-ltx-editorial-compatibility-probe
+          path: probe/
+          if-no-files-found: warn
+          retention-days: 7
