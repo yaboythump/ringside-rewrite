@@ -1,4 +1,4 @@
 {
-  "request_id": "2026-09-11T22:06:00-04:00",
-  "purpose": "end-to-end smoke test after MuseTalk API became healthy"
+  "request_id": "2026-09-11T22:08:00-04:00",
+  "purpose": "retry end-to-end smoke test after adding ffmpeg to GitHub runner"
 }
