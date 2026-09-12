@@ -1,0 +1,65 @@
+name: RunPod ComfyUI Reboot Check
+
+on:
+  push:
+    paths:
+      - '.github/workflows/runpod-comfy-reboot-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reboot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Reboot ComfyUI and verify core version
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='w5sin5d1mz24km'
+          BASE="https://${POD_ID}-3000.proxy.runpod.net"
+          ORIGIN="$BASE"
+          echo 'version_before:'
+          curl -fsS --max-time 20 "$BASE/system_stats" | jq -r '.system.comfyui_version'
+
+          echo 'reboot_post:'
+          CODE=$(curl -sS -o /tmp/reboot.out -w '%{http_code}' --max-time 15 \
+            -X POST "$BASE/manager/reboot" \
+            -H 'Content-Type: application/json' -H "Origin: $ORIGIN" --data '{}' || true)
+          echo "http=$CODE body=$(cat /tmp/reboot.out 2>/dev/null || true)"
+          if [[ "$CODE" != "200" && "$CODE" != "201" && "$CODE" != "204" ]]; then
+            echo 'reboot_get_fallback:'
+            CODE=$(curl -sS -o /tmp/reboot2.out -w '%{http_code}' --max-time 15 \
+              "$BASE/manager/reboot" -H "Origin: $ORIGIN" || true)
+            echo "http=$CODE body=$(cat /tmp/reboot2.out 2>/dev/null || true)"
+          fi
+
+          SAW_DOWN=0
+          READY=0
+          sleep 3
+          for N in $(seq 1 90); do
+            if curl -fsS --max-time 8 "$BASE/system_stats" >/tmp/stats.json 2>/dev/null; then
+              VERSION=$(jq -r '.system.comfyui_version // empty' /tmp/stats.json)
+              DEVICE=$(jq -r '.devices[0].name // empty' /tmp/stats.json)
+              echo "poll=$N up version=$VERSION device=$DEVICE saw_down=$SAW_DOWN"
+              if [[ -n "$VERSION" ]]; then
+                READY=1
+                if [[ "$N" -gt 1 || "$SAW_DOWN" == "1" ]]; then break; fi
+              fi
+            else
+              SAW_DOWN=1
+              echo "poll=$N down"
+            fi
+            sleep 5
+          done
+          [[ "$READY" == "1" ]] || { echo 'ComfyUI did not return'; exit 2; }
+
+          echo 'assets_after_reboot:'
+          curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
+          jq '{
+            checkpoint: (.CheckpointLoaderSimple.input.required.ckpt_name[0] | map(select(test("ltx-video-2b-v0.9.5")))),
+            clip: (.CLIPLoader.input.required.clip_name[0] | map(select(test("t5xxl_fp8_e4m3fn_scaled")))),
+            ltx_nodes: ([keys[] | select(test("LTX";"i"))] | sort)
+          }' /tmp/object.json
