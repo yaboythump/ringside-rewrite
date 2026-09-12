@@ -12,7 +12,7 @@ permissions:
 jobs:
   control:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       POD_NAME: ct-lipsync-musetalk-v1
@@ -63,10 +63,47 @@ jobs:
           TOKEN=$(printf '%s' "${RUNPOD_API_KEY}:ct-lipsync:v1" | sha256sum | awk '{print $1}')
           BOOTSTRAP='python3 -c "import urllib.request; urllib.request.urlretrieve(\"https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/runpod/ct-lipsync-bootstrap.sh\", \"/tmp/ct-lipsync-bootstrap.sh\")" && chmod +x /tmp/ct-lipsync-bootstrap.sh && exec /tmp/ct-lipsync-bootstrap.sh'
 
-          create_pod() {
+          # Ask RunPod what is actually rentable right now instead of guessing.
+          QUERY='query { gpuTypes { id displayName memoryInGb secureCloud communityCloud secure: lowestPrice(input: { gpuCount: 1, secureCloud: true }) { stockStatus uninterruptablePrice availableGpuCounts } community: lowestPrice(input: { gpuCount: 1, secureCloud: false }) { stockStatus uninterruptablePrice availableGpuCounts } } }'
+          jq -nc --arg q "$QUERY" '{query:$q}' > /tmp/gpu-query.json
+          curl -fsS -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" \
+            -H 'content-type: application/json' --data-binary @/tmp/gpu-query.json > /tmp/gpus.json || true
+
+          SAFE_IDS='["NVIDIA RTX A4000","NVIDIA RTX A4500","NVIDIA RTX 4000 Ada Generation","NVIDIA GeForce RTX 4080","NVIDIA GeForce RTX 4080 SUPER","NVIDIA RTX A5000","NVIDIA A5000 Ada","NVIDIA L4","NVIDIA A30","NVIDIA GeForce RTX 3090","NVIDIA GeForce RTX 3090 Ti","NVIDIA GeForce RTX 4090","NVIDIA RTX 5000 Ada Generation","NVIDIA RTX A6000","NVIDIA A40","NVIDIA L40","NVIDIA L40S","NVIDIA RTX 6000 Ada Generation"]'
+
+          if jq -e '.data.gpuTypes | type == "array"' /tmp/gpus.json >/dev/null 2>&1; then
+            jq --argjson safe "$SAFE_IDS" '
+              [ .data.gpuTypes[]
+                | select(.memoryInGb >= 16 and (.id as $id | $safe | index($id)))
+                | . as $g
+                | [
+                    (if ($g.secure.stockStatus // "None") != "None" and (($g.secure.availableGpuCounts // []) | index(1)) != null and (($g.secure.uninterruptablePrice // 99) <= 1.25)
+                     then {cloud:"SECURE", gpu:$g.id, display:$g.displayName, memory:$g.memoryInGb, stock:$g.secure.stockStatus, price:$g.secure.uninterruptablePrice} else empty end),
+                    (if ($g.community.stockStatus // "None") != "None" and (($g.community.availableGpuCounts // []) | index(1)) != null and (($g.community.uninterruptablePrice // 99) <= 1.25)
+                     then {cloud:"COMMUNITY", gpu:$g.id, display:$g.displayName, memory:$g.memoryInGb, stock:$g.community.stockStatus, price:$g.community.uninterruptablePrice} else empty end)
+                  ][]
+              ]
+              | sort_by((if .stock=="High" then 0 elif .stock=="Medium" then 1 else 2 end), .price)
+            ' /tmp/gpus.json > /tmp/candidates.json
+          else
+            echo 'RunPod stock query did not return usable data; using broad fallback candidates.'
+            echo '[]' > /tmp/candidates.json
+          fi
+
+          echo 'Live CT LipSync GPU candidates:'
+          jq '[.[] | {cloud,gpu,display,memory,stock,price}] | .[:20]' /tmp/candidates.json
+
+          # If stock query has no candidate, still try a broad availability list in both clouds.
+          if [[ $(jq 'length' /tmp/candidates.json) -eq 0 ]]; then
+            jq -n --argjson ids "$SAFE_IDS" '["SECURE","COMMUNITY"] as $clouds | [$clouds[] as $c | $ids[] | {cloud:$c,gpu:.,display:.,memory:16,stock:"unknown",price:0}]' > /tmp/candidates.json
+          fi
+
+          create_one() {
             local cloud="$1"
+            local gpu="$2"
             jq -n \
               --arg cloud "$cloud" \
+              --arg gpu "$gpu" \
               --arg token "$TOKEN" \
               --arg cmd "$BOOTSTRAP" \
               --arg name "$POD_NAME" \
@@ -75,25 +112,15 @@ jobs:
                 cloudType:$cloud,
                 computeType:"GPU",
                 gpuCount:1,
-                gpuTypeIds:[
-                  "NVIDIA GeForce RTX 4090",
-                  "NVIDIA RTX A5000",
-                  "NVIDIA L4",
-                  "NVIDIA RTX A6000",
-                  "NVIDIA GeForce RTX 3090",
-                  "NVIDIA L40S"
-                ],
-                gpuTypePriority:"custom",
+                gpuTypeIds:[$gpu],
+                gpuTypePriority:"availability",
                 imageName:"runpod/pytorch:2.0.1-py3.10-cuda11.8.0-devel-ubuntu22.04",
                 interruptible:false,
                 locked:false,
-                containerDiskInGb:30,
-                volumeInGb:50,
+                containerDiskInGb:25,
+                volumeInGb:30,
                 volumeMountPath:"/workspace",
-                ports:["8000/http","8888/http","22/tcp"],
-                supportPublicIp:true,
-                minRAMPerGPU:16,
-                minVCPUPerGPU:4,
+                ports:["8000/http","8888/http"],
                 dockerEntrypoint:["/bin/bash","-lc"],
                 dockerStartCmd:[$cmd],
                 env:{CT_LIPSYNC_TOKEN:$token,PYTHONUNBUFFERED:"1"}
@@ -104,23 +131,32 @@ jobs:
               -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
               -H 'Content-Type: application/json' \
               --data-binary @/tmp/pod-create.json) || HTTP=000
-            echo "${cloud} create HTTP=$HTTP"
+            echo "Attempt cloud=${cloud} gpu=${gpu} HTTP=${HTTP}"
             if [[ "$HTTP" == '201' ]]; then
               return 0
             fi
-            jq '{error,status,message,detail}' /tmp/pod-response.json 2>/dev/null || cat /tmp/pod-response.json
+            jq -r '.error // .message // "unknown create error"' /tmp/pod-response.json 2>/dev/null || true
             return 1
           }
 
-          if ! create_pod SECURE; then
-            echo 'Secure Cloud capacity unavailable; trying Community Cloud.'
-            create_pod COMMUNITY
+          CREATED=0
+          while IFS=$'\t' read -r CLOUD GPU; do
+            [[ -n "$CLOUD" && -n "$GPU" ]] || continue
+            if create_one "$CLOUD" "$GPU"; then
+              CREATED=1
+              break
+            fi
+          done < <(jq -r '.[] | [.cloud,.gpu] | @tsv' /tmp/candidates.json)
+
+          if [[ "$CREATED" -ne 1 ]]; then
+            echo 'No suitable RunPod GPU could be rented from the currently available pool.'
+            exit 4
           fi
 
           POD_ID=$(jq -r '.id // empty' /tmp/pod-response.json)
           if [[ -z "$POD_ID" ]]; then
             echo 'RunPod did not return a pod ID.'
-            exit 4
+            exit 5
           fi
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
           echo "Created CT LipSync pod: $POD_ID"
@@ -172,10 +208,10 @@ jobs:
           STATUS="https://${POD_ID}-8888.proxy.runpod.net"
 
           echo "Waiting for CT LipSync on $POD_ID..."
-          for i in $(seq 1 60); do
+          for i in $(seq 1 70); do
             POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
             STATE=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
-            echo "[$i/60] pod=$STATE"
+            echo "[$i/70] pod=$STATE"
 
             if [[ "$STATE" == 'EXITED' || "$STATE" == 'TERMINATED' ]]; then
               echo 'Pod exited before the API became healthy.'
@@ -186,7 +222,7 @@ jobs:
             if [[ -n "$PHASE" ]]; then echo "phase=$PHASE"; fi
             if [[ "$PHASE" == 'FAILED' ]]; then
               echo 'Bootstrap reported failure. Last log lines:'
-              curl -fsS --max-time 10 "$STATUS/bootstrap.log" 2>/dev/null | tail -n 180 || true
+              curl -fsS --max-time 10 "$STATUS/bootstrap.log" 2>/dev/null | tail -n 220 || true
               curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
               exit 7
             fi
@@ -195,6 +231,7 @@ jobs:
             if echo "$HEALTH" | jq -e '.status == "healthy" and .gpu_available == true and .models_loaded == true' >/dev/null 2>&1; then
               echo "$HEALTH" | jq .
               echo 'CT LipSync API is healthy.'
+              POD_NOW=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
               {
                 echo '## CT LipSync is online'
                 echo "- Pod: $POD_ID"
@@ -202,6 +239,7 @@ jobs:
                 echo "- Status: healthy"
                 echo "- GPU: $(echo "$HEALTH" | jq -r '.gpu_name // "unknown"')"
                 echo "- VRAM: $(echo "$HEALTH" | jq -r '.gpu_memory_gb // "unknown"') GB"
+                echo "- Cost/hr: $(echo "$POD_NOW" | jq -r '.adjustedCostPerHr // .costPerHr // "unknown"')"
               } >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
@@ -209,7 +247,7 @@ jobs:
           done
 
           echo 'Timed out waiting for CT LipSync. Last bootstrap log lines:'
-          curl -fsS --max-time 10 "$STATUS/bootstrap.log" 2>/dev/null | tail -n 220 || true
+          curl -fsS --max-time 10 "$STATUS/bootstrap.log" 2>/dev/null | tail -n 260 || true
           curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
           exit 8
 
