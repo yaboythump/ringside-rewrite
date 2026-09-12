@@ -19,7 +19,9 @@
     "Hip Hop What If": {
       "upload_post_profile": "HipHopWhatIf",
       "youtube_handle": "@hiphopwhatif1",
-      "publishing_path": "upload-post-plus-shared-thumbnail-gate"
+      "publishing_path": "upload-post-plus-shared-thumbnail-gate",
+      "thumbnail_standard": "EPIC cinematic poster art",
+      "thumbnail_rule": "Never use a plain utility template. Use large expressive artist faces, dramatic versus/conflict composition, relevant city/era/environment, premium depth and glow, metallic gold/red HHWI accents, strong contrast, and one short high-impact hook. The thumbnail must feel like a movie poster and stop the scroll."
     },
     "True Crime With Thump": {
       "upload_post_profile": "Tcwt",
