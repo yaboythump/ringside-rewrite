@@ -40,7 +40,7 @@ jobs:
           mkdir -p "$HOME/.ssh"
           ssh-keygen -q -t ed25519 -f "$HOME/.ssh/hhwi_ephemeral" -N ''
           PUBKEY=$(cat "$HOME/.ssh/hhwi_ephemeral.pub")
-          ENV_JSON=$(jq -nc --arg k "$PUBKEY" '{SSH_PUBLIC_KEY:$k}')
+          ENV_JSON=$(jq -nc --arg k "$PUBKEY" '{PUBLIC_KEY:$k,SSH_PUBLIC_KEY:$k}')
 
           runpodctl template search comfyui > /tmp/templates.json
           TPL_ID=$(jq -r '.. | objects | select(((.name? // "") | test("ComfyUI.*CUDA 13";"i"))) | .id // empty' /tmp/templates.json | head -n1)
