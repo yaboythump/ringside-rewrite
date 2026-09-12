@@ -1,0 +1,14 @@
+{
+  "pod_id": "w5sin5d1mz24km",
+  "job_name": "HHWI_MemphisBleek_Test01_Shot01",
+  "output_prefix": "HHWI_MB_TEST01_SHOT01",
+  "seed": 5419827311,
+  "width": 768,
+  "height": 448,
+  "frames": 97,
+  "fps": 25,
+  "steps": 30,
+  "cfg": 3.0,
+  "prompt": "Wide cinematic late-1990s Brooklyn establishing shot at dusk, realistic brownstone-lined street and distant borough skyline, subtle bridge and elevated urban geometry in the far background, warm sodium-vapor streetlights just beginning to glow, light atmospheric haze and faint steam drifting naturally, premium hip-hop documentary photography, gritty urban realism with polished editorial composition, deep charcoal and black shadows, restrained warm gold highlights and extremely subtle deep-red undertones, natural film grain, believable late-1990s street details, grounded physical motion, a slow deliberate forward camera push with gentle parallax, no dramatic action, no crowd focus, emotionally charged feeling that history is about to change, visually expensive, raw but refined, authentic New York texture, safe central composition for a 16:9 crop, realistic lighting and perspective, serious documentary tone rather than fantasy or music-video excess.",
+  "negative_prompt": "low quality, worst quality, cartoon, anime, glossy fantasy, neon overload, plastic skin, warped anatomy, distorted faces, duplicate people, extra limbs, surreal morphing, floating camera, shaky random movement, rubbery motion, motion smear, motion artifacts, oversaturated colors, cheesy science-fiction effects, low-detail background, fake-looking architecture, impossible perspective, smeared details, text, subtitles, captions, watermark, logos, generic AI aesthetic"
+}
