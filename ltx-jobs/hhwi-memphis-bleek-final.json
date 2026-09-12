@@ -1,6 +1,7 @@
 {
   "visual_run_id": 34699510799,
-  "request_id": "hhwi-memphis-bleek-final-2026-09-12-1039",
+  "request_id": "hhwi-memphis-bleek-final-owned-fast-2026-09-12-1045",
   "episode_title": "What If Memphis Bleek Never Met Jay-Z?",
-  "public_upload_allowed": false
+  "public_upload_allowed": false,
+  "asset_policy": "generated_and_owned_only"
 }
