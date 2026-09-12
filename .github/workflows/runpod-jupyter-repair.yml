@@ -55,16 +55,19 @@ jobs:
           script=r'''set -euo pipefail
           echo '=== HHWI LTX REPAIR START ==='
           rm -rf /tmp/pip-* /tmp/tmp* 2>/dev/null || true
-          mkdir -p /workspace/tmp /workspace/ltx-models/checkpoints/LTXV /workspace/ltx-models/text_encoders/t5 /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek
+          mkdir -p /workspace/tmp /workspace/ltx-models/checkpoints/LTXV /workspace/ltx-models/text_encoders/t5 /workspace/ctnetwork/hiphop-what-if/tests/memphis-bleek /workspace/hf_tools /workspace/hf-cache /workspace/hf-xet-cache
           export TMPDIR=/workspace/tmp
           export TMP=/workspace/tmp
           export TEMP=/workspace/tmp
           export PIP_CACHE_DIR=/workspace/pip-cache
+          export HF_HOME=/workspace/hf-cache
+          export HF_HUB_CACHE=/workspace/hf-cache/hub
+          export HF_XET_CACHE=/workspace/hf-xet-cache
 
           echo 'DISK:'
           df -h / /workspace
 
-          if PYTHONPATH=/workspace/pycu128 /usr/bin/python - <<'PYC' >/tmp/torchcheck 2>&1
+          if PYTHONPATH=/workspace/pycu128 /usr/bin/python - <<'PYC' >/workspace/tmp/torchcheck 2>&1
           import torch
           assert torch.cuda.is_available()
           assert torch.cuda.get_device_capability(0) >= (12,0)
@@ -95,16 +98,33 @@ jobs:
           )
           printf "%s\n" "import sys; sys.path.insert(0, '/workspace/pycu128')" > "$SITE/000_workspace_cu128.pth"
 
+          if [ ! -f /workspace/hf_tools/huggingface_hub/__init__.py ]; then
+            echo 'Installing Xet-aware Hugging Face client in /workspace...'
+            /usr/bin/python -m pip install --no-cache-dir --target /workspace/hf_tools 'huggingface_hub[hf_xet]'
+          fi
+
           LTX='/workspace/ltx-models/checkpoints/LTXV/ltx-video-2b-v0.9.5.safetensors'
-          if [ ! -s "$LTX" ]; then
-            echo 'Downloading LTX-Video 2B v0.9.5...'
-            curl -L --fail --retry 3 --continue-at - 'https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors' -o "$LTX"
+          LTX_SIZE=$(stat -c%s "$LTX" 2>/dev/null || echo 0)
+          if [ "$LTX_SIZE" -lt 6000000000 ]; then
+            rm -f "$LTX"
+            echo 'Downloading LTX-Video 2B v0.9.5 with Hugging Face Xet...'
+            PYTHONPATH=/workspace/hf_tools /usr/bin/python - <<'PYC'
+          from huggingface_hub import hf_hub_download
+          p=hf_hub_download(repo_id='Lightricks/LTX-Video', filename='ltx-video-2b-v0.9.5.safetensors', local_dir='/workspace/ltx-models/checkpoints/LTXV')
+          print('ltx_downloaded',p)
+          PYC
           fi
 
           T5='/workspace/ltx-models/text_encoders/t5/t5xxl_fp16.safetensors'
-          if [ ! -s "$T5" ]; then
-            echo 'Downloading T5 XXL fp16...'
-            curl -L --fail --retry 3 --continue-at - 'https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors' -o "$T5"
+          T5_SIZE=$(stat -c%s "$T5" 2>/dev/null || echo 0)
+          if [ "$T5_SIZE" -lt 8000000000 ]; then
+            rm -f "$T5"
+            echo 'Downloading T5 XXL fp16 with Hugging Face Xet...'
+            PYTHONPATH=/workspace/hf_tools /usr/bin/python - <<'PYC'
+          from huggingface_hub import hf_hub_download
+          p=hf_hub_download(repo_id='comfyanonymous/flux_text_encoders', filename='t5xxl_fp16.safetensors', local_dir='/workspace/ltx-models/text_encoders/t5')
+          print('t5_downloaded',p)
+          PYC
           fi
 
           mkdir -p /ComfyUI/models/checkpoints /ComfyUI/models/text_encoders
