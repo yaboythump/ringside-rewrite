@@ -13,14 +13,14 @@ permissions:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Rent CUDA 13 Blackwell, install LTX, and render cinematic shots
+      - name: Rent Blackwell, install models over SSH, render 18 cinematic shots
         shell: bash
         run: |
           set -euo pipefail
@@ -30,7 +30,7 @@ jobs:
 
           cleanup() {
             if [[ -n "${POD_ID:-}" ]]; then
-              echo "Stopping temporary episode pod: $POD_ID"
+              echo "Stopping temporary cinematic pod: $POD_ID"
               curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" \
                 -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq . || true
             fi
@@ -39,17 +39,29 @@ jobs:
 
           curl -sSL https://cli.runpod.net | sudo bash
           export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
+          runpodctl version
+
+          mkdir -p "$HOME/.ssh"
+          ssh-keygen -q -t ed25519 -f "$HOME/.ssh/hhwi_ephemeral" -N ''
+          PUBKEY=$(cat "$HOME/.ssh/hhwi_ephemeral.pub")
+          ENV_JSON=$(jq -nc --arg k "$PUBKEY" '{SSH_PUBLIC_KEY:$k}')
+
           runpodctl template search comfyui > /tmp/templates.json
           TPL_ID=$(jq -r '.. | objects | select(((.name? // "") | test("ComfyUI.*CUDA 13";"i"))) | .id // empty' /tmp/templates.json | head -n1)
           [[ -n "$TPL_ID" ]] || { echo 'No CUDA 13 ComfyUI template found'; exit 2; }
 
-          echo "Renting Blackwell episode pod with template $TPL_ID"
+          TERMINATE_AT=$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)
+          echo "Renting Blackwell cinematic pod with template $TPL_ID"
           runpodctl pod create \
             --name hhwi-memphis-bleek-cinematic \
             --template-id "$TPL_ID" \
             --gpu-id "NVIDIA RTX PRO 4500 Blackwell" \
             --container-disk-in-gb 160 \
             --ports "8188/http,8080/http,8888/http,22/tcp" \
+            --env "$ENV_JSON" \
+            --wait \
+            --wait-timeout 8m \
+            --terminate-after "$TERMINATE_AT" \
             > /tmp/pod.json
           cat /tmp/pod.json | jq .
           POD_ID=$(jq -r '.id // empty' /tmp/pod.json)
@@ -57,115 +69,55 @@ jobs:
           BASE="https://${POD_ID}-8188.proxy.runpod.net"
           echo "$POD_ID" > rendered/meta/pod_id.txt
 
+          runpodctl ssh info "$POD_ID" > /tmp/ssh.json
+          cat /tmp/ssh.json | jq .
+          IP=$(jq -r '.ip // empty' /tmp/ssh.json)
+          PORT=$(jq -r '.port // empty' /tmp/ssh.json)
+          [[ -n "$IP" && -n "$PORT" ]] || { echo 'No SSH endpoint'; exit 4; }
+
+          SSH=(ssh -i "$HOME/.ssh/hhwi_ephemeral" -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 root@"$IP")
+          "${SSH[@]}" 'echo SSH_READY && nvidia-smi --query-gpu=name,memory.total --format=csv,noheader'
+
+          echo 'Installing LTX + T5 directly into ComfyUI model folders...'
+          "${SSH[@]}" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          COMFY=''
+          for D in /workspace/ComfyUI /ComfyUI /opt/ComfyUI /root/ComfyUI; do
+            if [[ -d "$D/models" ]]; then COMFY="$D"; break; fi
+          done
+          if [[ -z "$COMFY" ]]; then
+            COMFY=$(find /workspace /opt /root -maxdepth 4 -type d -name ComfyUI 2>/dev/null | head -n1 || true)
+          fi
+          [[ -n "$COMFY" && -d "$COMFY/models" ]] || { echo 'Could not locate ComfyUI root'; exit 31; }
+          echo "COMFY_ROOT=$COMFY"
+          mkdir -p "$COMFY/models/checkpoints/LTXV" "$COMFY/models/text_encoders/t5"
+          CKPT="$COMFY/models/checkpoints/LTXV/ltx-video-2b-v0.9.5.safetensors"
+          T5="$COMFY/models/text_encoders/t5/t5xxl_fp8_e4m3fn_scaled.safetensors"
+          curl -L --fail --retry 10 --retry-delay 5 --retry-all-errors --continue-at - \
+            -o "$CKPT" 'https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors'
+          curl -L --fail --retry 10 --retry-delay 5 --retry-all-errors --continue-at - \
+            -o "$T5" 'https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors'
+          test $(stat -c%s "$CKPT") -gt 1000000000
+          test $(stat -c%s "$T5") -gt 1000000000
+          ls -lh "$CKPT" "$T5"
+          sync
+          REMOTE
+
           READY=0
-          for N in $(seq 1 120); do
-            CODE=$(curl -sS -o /tmp/stats -w '%{http_code}' --max-time 15 "$BASE/system_stats" || true)
-            echo "boot_poll=$N http=$CODE"
+          for N in $(seq 1 60); do
+            CODE=$(curl -sS -o /tmp/object.json -w '%{http_code}' --max-time 20 "$BASE/object_info" || true)
             if [[ "$CODE" == "200" ]]; then
-              READY=1
-              cat /tmp/stats | jq . > rendered/meta/system_stats.json
-              break
-            fi
-            sleep 5
-          done
-          [[ "$READY" == "1" ]] || exit 4
-
-          ORIGIN="$BASE"
-          cat >/tmp/ltx.json <<'JSON'
-          {"name":"LTX-Video 2B v0.9.5 Checkpoint","type":"checkpoint","base":"LTX-Video","save_path":"checkpoints/LTXV","url":"https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.5.safetensors","filename":"ltx-video-2b-v0.9.5.safetensors","ui_id":"hhwi-ltx-2b-095"}
-          JSON
-          cat >/tmp/t5.json <<'JSON'
-          {"name":"comfyanonymous/flux_text_encoders - t5xxl (fp8_e4m3fn_scaled)","type":"clip","base":"t5","save_path":"text_encoders/t5","url":"https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors","filename":"t5xxl_fp8_e4m3fn_scaled.safetensors","ui_id":"hhwi-t5-fp8-scaled"}
-          JSON
-
-          echo 'Detecting ComfyUI-Manager API generation...'
-          V2_STATUS=$(curl -sS --max-time 20 "$BASE/v2/manager/queue/status" || true)
-          LEGACY_STATUS=$(curl -sS --max-time 20 "$BASE/manager/queue/status" || true)
-          MANAGER_MODE=''
-          QUEUE_PREFIX=''
-
-          if echo "$V2_STATUS" | jq -e 'type=="object" and (has("total_count") or has("is_processing") or has("pending_count"))' >/dev/null 2>&1; then
-            LEGACY_UI=$(curl -sS --max-time 20 "$BASE/v2/manager/is_legacy_manager_ui" || true)
-            if echo "$LEGACY_UI" | jq -e '.is_legacy_manager_ui == true' >/dev/null 2>&1; then
-              MANAGER_MODE='v2-batch'
+              HAS_CKPT=$(jq -r '[.CheckpointLoaderSimple.input.required.ckpt_name[0][] | select(test("ltx-video-2b-v0.9.5"))] | length' /tmp/object.json 2>/dev/null || echo 0)
+              HAS_T5=$(jq -r '[.CLIPLoader.input.required.clip_name[0][] | select(test("t5xxl_fp8_e4m3fn_scaled"))] | length' /tmp/object.json 2>/dev/null || echo 0)
+              echo "loader_poll=$N ltx=$HAS_CKPT t5=$HAS_T5"
+              if [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]]; then READY=1; break; fi
             else
-              MANAGER_MODE='v2-task'
+              echo "loader_poll=$N http=$CODE"
             fi
-            QUEUE_PREFIX='/v2/manager/queue'
-          elif echo "$LEGACY_STATUS" | jq -e 'type=="object" and (has("total_count") or has("is_processing"))' >/dev/null 2>&1; then
-            MANAGER_MODE='legacy'
-            QUEUE_PREFIX='/manager/queue'
-          else
-            echo 'No usable ComfyUI-Manager queue API detected.'
-            echo "v2_status=$V2_STATUS"
-            echo "legacy_status=$LEGACY_STATUS"
-            exit 5
-          fi
-          echo "manager_mode=$MANAGER_MODE queue_prefix=$QUEUE_PREFIX"
-          echo "$MANAGER_MODE" > rendered/meta/manager_mode.txt
-
-          if [[ "$MANAGER_MODE" == 'v2-task' ]]; then
-            for F in ltx t5; do
-              UI_ID=$(jq -r '.ui_id' "/tmp/${F}.json")
-              jq -n --arg ui "$UI_ID" --arg client 'hhwi-cinematic-render' --argjson p "$(cat /tmp/${F}.json)" \
-                '{ui_id:$ui,client_id:$client,kind:"install-model",params:$p}' > "/tmp/${F}_task.json"
-              CODE=$(curl -sS -o "/tmp/${F}.out" -w '%{http_code}' --max-time 30 \
-                -X POST "$BASE/v2/manager/queue/task" \
-                -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
-                --data-binary @"/tmp/${F}_task.json" || true)
-              echo "v2_task_${F} http=$CODE body=$(cat /tmp/${F}.out 2>/dev/null || true)"
-              [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 6
-            done
-          elif [[ "$MANAGER_MODE" == 'v2-batch' ]]; then
-            jq -n --argjson a "$(cat /tmp/ltx.json)" --argjson b "$(cat /tmp/t5.json)" \
-              '{install_model:[$a,$b]}' > /tmp/model_batch.json
-            CODE=$(curl -sS -o /tmp/batch.out -w '%{http_code}' --max-time 30 \
-              -X POST "$BASE/v2/manager/queue/batch" \
-              -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
-              --data-binary @/tmp/model_batch.json || true)
-            echo "v2_batch http=$CODE body=$(cat /tmp/batch.out 2>/dev/null || true)"
-            [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 6
-          else
-            for F in ltx t5; do
-              CODE=$(curl -sS -o "/tmp/${F}.out" -w '%{http_code}' --max-time 30 \
-                -X POST "$BASE/manager/queue/install_model" \
-                -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
-                --data @"/tmp/${F}.json" || true)
-              echo "legacy_${F} http=$CODE body=$(cat /tmp/${F}.out 2>/dev/null || true)"
-              [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 6
-            done
-          fi
-
-          CODE=$(curl -sS -o /tmp/start.out -w '%{http_code}' --max-time 30 \
-            -X POST "$BASE${QUEUE_PREFIX}/start" \
-            -H 'Content-Type: application/json' -H "Origin: $ORIGIN" --data '{}' || true)
-          if [[ "$CODE" == "405" ]]; then
-            CODE=$(curl -sS -o /tmp/start_get.out -w '%{http_code}' --max-time 30 "$BASE${QUEUE_PREFIX}/start" -H "Origin: $ORIGIN" || true)
-          fi
-          echo "queue_start http=$CODE"
-          [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 7
-
-          COMPLETE=0
-          for N in $(seq 1 180); do
-            STATUS=$(curl -sS --max-time 20 "$BASE${QUEUE_PREFIX}/status" || true)
-            echo "model_poll=$N $(echo "$STATUS" | jq -c . 2>/dev/null || echo "$STATUS")"
-            TOTAL=$(echo "$STATUS" | jq -r '.total_count // 0' 2>/dev/null || echo 0)
-            DONE=$(echo "$STATUS" | jq -r '.done_count // 0' 2>/dev/null || echo 0)
-            PROCESSING=$(echo "$STATUS" | jq -r '.is_processing // false' 2>/dev/null || echo false)
-            PENDING=$(echo "$STATUS" | jq -r '.pending_count // 0' 2>/dev/null || echo 0)
-            if [[ "$TOTAL" -ge 2 && "$DONE" -ge "$TOTAL" && "$PROCESSING" == "false" && "$PENDING" -eq 0 ]]; then
-              COMPLETE=1
-              break
-            fi
-            sleep 10
+            sleep 3
           done
-          [[ "$COMPLETE" == "1" ]] || exit 8
-
-          curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
-          HAS_CKPT=$(jq -r '[.CheckpointLoaderSimple.input.required.ckpt_name[0][] | select(test("ltx-video-2b-v0.9.5"))] | length' /tmp/object.json)
-          HAS_T5=$(jq -r '[.CLIPLoader.input.required.clip_name[0][] | select(test("t5xxl_fp8_e4m3fn_scaled"))] | length' /tmp/object.json)
-          echo "loader_check ltx=$HAS_CKPT t5=$HAS_T5"
-          [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]] || exit 9
+          [[ "$READY" == "1" ]] || { echo 'Models downloaded but not visible to ComfyUI'; exit 5; }
+          cp /tmp/object.json rendered/meta/object_info.json
 
           NEGATIVE=$(jq -r '.negative_prompt' "$JOB")
           WIDTH=$(jq -r '.width' "$JOB")
@@ -175,6 +127,7 @@ jobs:
           STEPS=$(jq -r '.steps' "$JOB")
           CFG=$(jq -r '.cfg' "$JOB")
           COUNT=$(jq '.shots | length' "$JOB")
+          echo "Rendering $COUNT cinematic shots at ${WIDTH}x${HEIGHT}, ${FRAMES} frames"
 
           for IDX in $(seq 0 $((COUNT-1))); do
             ID=$(jq -r ".shots[$IDX].id" "$JOB")
@@ -205,7 +158,7 @@ jobs:
             [[ -n "$PROMPT_ID" ]] || { cat /tmp/submit.json; exit 20; }
 
             RENDERED=0
-            for N in $(seq 1 120); do
+            for N in $(seq 1 180); do
               curl -sS --max-time 30 "$BASE/history/$PROMPT_ID" >/tmp/history.json || true
               STATUS=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.status_str // empty' /tmp/history.json 2>/dev/null || true)
               COMPLETED=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.completed // false' /tmp/history.json 2>/dev/null || true)
@@ -234,7 +187,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg >/dev/null
           mkdir -p rendered/mp4 rendered/qc
-          FPS=$(jq -r '.fps' ltx-jobs/hhwi-memphis-bleek-episode.json)
           python3 - <<'PY'
           from PIL import Image, ImageSequence
           from pathlib import Path
@@ -244,7 +196,7 @@ jobs:
           for src in sorted(raw.glob('*.webp')):
               frames=[]; arrs=[]
               im=Image.open(src)
-              for i,frame in enumerate(ImageSequence.Iterator(im)):
+              for frame in ImageSequence.Iterator(im):
                   rgb=frame.convert('RGB')
                   frames.append(rgb.copy())
                   arrs.append(np.asarray(rgb.resize((192,112))).astype(np.float32))
@@ -252,8 +204,7 @@ jobs:
               tmp=qc/(src.stem+'_frames'); tmp.mkdir(exist_ok=True)
               for i,f in enumerate(frames): f.save(tmp/f'frame_{i:04d}.png')
               diffs=[float(np.mean(np.abs(arrs[i]-arrs[i-1]))) for i in range(1,len(arrs))]
-              motion=float(np.mean(diffs))
-              summaries.append({'shot':src.stem,'frames':len(frames),'mean_abs_frame_change':motion,'max_abs_frame_change':max(diffs)})
+              summaries.append({'shot':src.stem,'frames':len(frames),'mean_abs_frame_change':float(np.mean(diffs)),'max_abs_frame_change':max(diffs)})
               subprocess.run(['ffmpeg','-y','-loglevel','error','-framerate','25','-i',str(tmp/'frame_%04d.png'),'-vf','crop=iw:trunc(iw*9/16/2)*2:0:(ih-oh)/2,scale=1280:720:flags=lanczos','-an','-c:v','libx264','-preset','medium','-crf','18','-pix_fmt','yuv420p','-movflags','+faststart',str(out/(src.stem+'.mp4'))],check=True)
               frames[0].save(qc/(src.stem+'_first.png'))
               frames[len(frames)//2].save(qc/(src.stem+'_middle.png'))
