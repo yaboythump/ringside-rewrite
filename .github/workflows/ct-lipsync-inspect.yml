@@ -1,0 +1,44 @@
+name: CT LipSync Inspector
+
+on:
+  push:
+    paths:
+      - 'ct-lipsync-inspect.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_NAME: ct-lipsync-musetalk-v1
+    steps:
+      - name: Inspect pod and bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          PODS=$(curl -fsS 'https://rest.runpod.io/v1/pods' -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD_ID=$(printf '%s' "$PODS" | jq -r --arg name "$POD_NAME" '[.[] | select(.name==$name and .desiredStatus!="TERMINATED")] | sort_by(.lastStartedAt // "") | reverse | .[0].id // empty')
+          if [[ -z "$POD_ID" ]]; then
+            echo 'No CT LipSync pod found.'
+            exit 1
+          fi
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          echo '=== POD ==='
+          echo "$POD" | jq '{id,name,desiredStatus,gpu,costPerHr,adjustedCostPerHr,volumeInGb,containerDiskInGb,lastStartedAt,lastStatusChange}'
+          STATUS="https://${POD_ID}-8888.proxy.runpod.net"
+          API="https://${POD_ID}-8000.proxy.runpod.net"
+          TOKEN=$(printf '%s' "${RUNPOD_API_KEY}:ct-lipsync:v1" | sha256sum | awk '{print $1}')
+          echo '=== PHASE ==='
+          curl -fsS --max-time 10 "$STATUS/phase.txt" || true
+          echo
+          echo '=== BOOTSTRAP LOG TAIL ==='
+          curl -fsS --max-time 15 "$STATUS/bootstrap.log" 2>/dev/null | tail -n 120 || true
+          echo
+          echo '=== API HEALTH ==='
+          curl -fsS --max-time 15 -H "Authorization: Bearer ${TOKEN}" "$API/health" || true
+          echo
