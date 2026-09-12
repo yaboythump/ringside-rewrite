@@ -15,23 +15,19 @@ jobs:
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
-      - name: List current RunPod pods and probe ComfyUI candidates
+      - name: Probe active HHWI one-shot pod without modifying it
         shell: bash
         run: |
           set -euo pipefail
           PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          echo 'current_pods:'
-          printf '%s' "$PODS" | jq '[.[] | {id,name,desiredStatus,imageName,templateId,gpu:(.gpu.displayName // .machine.gpuDisplayName // "unknown"),ports,costPerHr,lastStartedAt}]'
-
-          printf '%s' "$PODS" | jq -r '.[] | select(.desiredStatus=="RUNNING") | .id' | while read -r POD_ID; do
-            [[ -n "$POD_ID" ]] || continue
-            echo "=== probe $POD_ID ==="
-            for PORT in 8188 3000; do
-              BASE="https://${POD_ID}-${PORT}.proxy.runpod.net"
-              CODE=$(curl -sS -o /tmp/stats -w '%{http_code}' --max-time 20 "$BASE/system_stats" || true)
-              echo "port=$PORT http=$CODE"
-              if [[ "$CODE" == "200" ]]; then
-                cat /tmp/stats | jq '{version:.system.comfyui_version,torch:.system.pytorch_version,device:.devices[0].name}'
-              fi
-            done
-          done
+          POD_ID=$(printf '%s' "$PODS" | jq -r '.[] | select(.name=="hhwi-memphis-bleek-shot01" and .desiredStatus=="RUNNING") | .id' | head -n1)
+          echo "pod_id=${POD_ID:-none}"
+          printf '%s' "$PODS" | jq '[.[] | select(.name=="hhwi-memphis-bleek-shot01") | {id,name,desiredStatus,imageName,templateId,costPerHr,lastStartedAt,ports}]'
+          [[ -n "$POD_ID" ]] || exit 0
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
+          echo 'system_stats:'
+          curl -sS --max-time 20 "$BASE/system_stats" | jq '{version:.system.comfyui_version,torch:.system.pytorch_version,device:.devices[0].name}' || true
+          echo 'manager_queue:'
+          curl -sS --max-time 20 "$BASE/manager/queue/status" | jq . || true
+          echo 'comfy_queue:'
+          curl -sS --max-time 20 "$BASE/queue" | jq . || true
