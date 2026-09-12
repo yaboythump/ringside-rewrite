@@ -1,0 +1,112 @@
+name: HHWI Recover Shot 1
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hhwi-ltx-recover-shot01.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: k4nsy149tyh5gq
+      PROMPT_ID: 7e0a78ea-f0d9-4a64-ad0a-e2ac502ac96e
+      PREFIX: HHWI_MB_TEST01_SHOT01
+      FPS: '25'
+    steps:
+      - name: Recover generated WebP and stop pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
+          cleanup() {
+            echo "Stopping recovery pod: $POD_ID"
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" \
+              -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq . || true
+          }
+          trap cleanup EXIT
+
+          READY=0
+          for N in $(seq 1 60); do
+            CODE=$(curl -sS -o /tmp/stats -w '%{http_code}' --max-time 15 "$BASE/system_stats" || true)
+            echo "ready_poll=$N http=$CODE"
+            if [[ "$CODE" == "200" ]]; then
+              READY=1
+              break
+            fi
+            sleep 3
+          done
+          [[ "$READY" == "1" ]] || { echo 'ComfyUI unavailable'; exit 2; }
+
+          mkdir -p recovered
+          curl -fsS --max-time 30 "$BASE/history/$PROMPT_ID" > /tmp/history.json
+          cat /tmp/history.json | jq --arg id "$PROMPT_ID" '.[$id] | {status,outputs}'
+          FILE=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].filename // empty' /tmp/history.json)
+          SUB=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].subfolder // ""' /tmp/history.json)
+          TYPE=$(jq -r --arg id "$PROMPT_ID" '.[$id].outputs["11"].images[0].type // "output"' /tmp/history.json)
+          [[ -n "$FILE" ]] || { echo 'Rendered output not present in ComfyUI history'; exit 3; }
+          echo "Recovered file: $FILE"
+
+          curl -fsS -G "$BASE/view" \
+            --data-urlencode "filename=$FILE" \
+            --data-urlencode "subfolder=$SUB" \
+            --data-urlencode "type=$TYPE" \
+            -o recovered/source.webp
+          file recovered/source.webp
+          ls -lh recovered/source.webp
+          cp /tmp/history.json recovered/history.json
+
+      - name: Extract animated WebP frames and encode MP4
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pillow
+          mkdir -p recovered/frames
+          python3 - <<'PY'
+          from PIL import Image, ImageSequence
+          from pathlib import Path
+          src = Image.open('recovered/source.webp')
+          frames = 0
+          durations = []
+          for i, frame in enumerate(ImageSequence.Iterator(src)):
+              rgb = frame.convert('RGB')
+              rgb.save(f'recovered/frames/frame_{i:04d}.png')
+              durations.append(frame.info.get('duration', src.info.get('duration', 40)))
+              frames += 1
+          if frames == 0:
+              raise RuntimeError('No frames extracted from animated WebP')
+          Path('recovered/frame_count.txt').write_text(str(frames))
+          Path('recovered/frame_durations_ms.txt').write_text('\n'.join(map(str,durations)))
+          print(f'frames={frames} size={src.size} durations_ms_sample={durations[:5]}')
+          PY
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          ffmpeg -y -framerate "$FPS" -i recovered/frames/frame_%04d.png \
+            -vf "crop=iw:trunc(iw*9/16/2)*2:0:(ih-oh)/2,scale=1280:720:flags=lanczos" \
+            -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+            "recovered/${PREFIX}.mp4"
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
+            -of json "recovered/${PREFIX}.mp4" | tee recovered/ffprobe.json
+          cp recovered/frames/frame_0000.png recovered/${PREFIX}_first_frame.png
+
+      - name: Upload recovered Shot 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhwi-memphis-bleek-shot01-recovered
+          path: |
+            recovered/${{ env.PREFIX }}.mp4
+            recovered/${{ env.PREFIX }}_first_frame.png
+            recovered/source.webp
+            recovered/ffprobe.json
+            recovered/frame_count.txt
+            recovered/frame_durations_ms.txt
+            recovered/history.json
+          if-no-files-found: error
+          retention-days: 7
