@@ -1,6 +1,7 @@
 {
   "pod_id": "k7j666wk9rzw9e",
   "job_name": "HHWI_MemphisBleek_Test01_Shot01",
+  "request_id": "shot1-cuda13-2026-09-12-0908",
   "output_prefix": "HHWI_MB_TEST01_SHOT01",
   "seed": 5419827311,
   "width": 768,
