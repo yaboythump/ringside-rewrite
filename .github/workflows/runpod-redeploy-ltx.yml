@@ -12,28 +12,49 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
-      - name: Deploy fresh RTX PRO 4500 Blackwell on official CUDA 13 ComfyUI
+      - name: Install current runpodctl and deploy official CUDA 13 ComfyUI pod
         shell: bash
         run: |
           set -euo pipefail
-          QUERY='mutation { podFindAndDeployOnDemand(input: { cloudType: SECURE, gpuCount: 1, volumeInGb: 0, containerDiskInGb: 160, minVcpuCount: 2, minMemoryInGb: 16, gpuTypeId: "NVIDIA RTX PRO 4500 Blackwell", name: "urban_silver_ape_v3", templateId: "2lv7ev3wfp", ports: "8188/http,8080/http,8888/http,22/tcp", volumeMountPath: "/workspace" }) { id imageName env machineId containerDiskInGb costPerHr desiredStatus machine { podHostId } } }'
-          jq -nc --arg q "$QUERY" '{query:$q}' >/tmp/deploy.json
-          curl -fsS -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" \
-            -H 'content-type: application/json' --data @/tmp/deploy.json >/tmp/result.json
-          cat /tmp/result.json | jq '{errors,data}'
-          ERR=$(jq -r '.errors[0].message // empty' /tmp/result.json)
-          if [[ -n "$ERR" ]]; then
-            echo "Deploy error: $ERR"
-            exit 1
-          fi
-          NEW_ID=$(jq -r '.data.podFindAndDeployOnDemand.id // empty' /tmp/result.json)
+          curl -sSL https://cli.runpod.net | bash
+          export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
+          command -v runpodctl
+          runpodctl version
+
+          echo 'Verifying official template:'
+          runpodctl template get 2lv7ev3wfp > /tmp/template.json
+          cat /tmp/template.json | jq '{id,name,imageName,isRunpod,containerDiskInGb,ports}'
+
+          echo 'Creating Blackwell pod:'
+          runpodctl pod create \
+            --name urban_silver_ape_v3 \
+            --template-id 2lv7ev3wfp \
+            --gpu-id "NVIDIA RTX PRO 4500 Blackwell" \
+            --container-disk-in-gb 160 \
+            --ports "8188/http,8080/http,8888/http,22/tcp" \
+            > /tmp/pod.json
+          cat /tmp/pod.json | jq .
+          NEW_ID=$(jq -r '.id // empty' /tmp/pod.json)
           [[ -n "$NEW_ID" ]] || { echo 'No pod ID returned'; exit 2; }
           echo "NEW_POD_ID=$NEW_ID" >> "$GITHUB_ENV"
           echo "New pod: $NEW_ID"
-          sleep 15
-          curl -fsS "https://rest.runpod.io/v1/pods/${NEW_ID}" \
-            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
-            | jq '{id,name,desiredStatus,imageName,templateId,gpu,machineId,publicIp,portMappings,containerDiskInGb,volumeInGb,volumeMountPath,ports,costPerHr,lastStartedAt}'
+
+          echo 'Polling ComfyUI proxy:'
+          READY=0
+          for N in $(seq 1 90); do
+            CODE=$(curl -sS -o /tmp/stats -w '%{http_code}' --max-time 10 \
+              "https://${NEW_ID}-8188.proxy.runpod.net/system_stats" || true)
+            if [[ "$CODE" == "200" ]]; then
+              echo "ready_poll=$N http=200"
+              cat /tmp/stats | jq '{system,devices}'
+              READY=1
+              break
+            fi
+            echo "ready_poll=$N http=${CODE:-none}"
+            sleep 5
+          done
+          [[ "$READY" == "1" ]] || { echo "ComfyUI proxy did not become ready for pod $NEW_ID"; exit 3; }
