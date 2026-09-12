@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          QUERY='mutation { podFindAndDeployOnDemand(input: { cloudType: COMMUNITY, gpuCount: 1, volumeInGb: 0, containerDiskInGb: 40, minVcpuCount: 2, minMemoryInGb: 16, gpuTypeId: "NVIDIA GeForce RTX 4090", name: "urban_silver_ape_v2", templateId: "runpod-comfy", ports: "8888/http,3000/http,22/tcp", volumeMountPath: "/workspace" }) { id imageName env machineId containerDiskInGb costPerHr desiredStatus machine { podHostId } } }'
+          QUERY='mutation { podFindAndDeployOnDemand(input: { cloudType: SECURE, gpuCount: 1, volumeInGb: 0, containerDiskInGb: 40, minVcpuCount: 2, minMemoryInGb: 16, gpuTypeId: "NVIDIA GeForce RTX 4090", name: "urban_silver_ape_v2", templateId: "runpod-comfy", ports: "8888/http,3000/http,22/tcp", volumeMountPath: "/workspace" }) { id imageName env machineId containerDiskInGb costPerHr desiredStatus machine { podHostId } } }'
           jq -nc --arg q "$QUERY" '{query:$q}' >/tmp/deploy.json
           curl -fsS -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" \
             -H 'content-type: application/json' --data @/tmp/deploy.json >/tmp/result.json
