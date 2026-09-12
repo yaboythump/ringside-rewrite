@@ -13,25 +13,20 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe legacy ComfyUI Manager update route methods
+      - name: Probe current CUDA13 LTX model install status
         shell: bash
         run: |
           set -euo pipefail
-          POD_ID='w5sin5d1mz24km'
-          BASE="https://${POD_ID}-3000.proxy.runpod.net"
-          URL="$BASE/manager/queue/update_comfyui"
-          for METHOD in OPTIONS GET POST PUT PATCH; do
-            echo "=== $METHOD ==="
-            if [[ "$METHOD" == "POST" || "$METHOD" == "PUT" || "$METHOD" == "PATCH" ]]; then
-              curl -sS -i --max-time 20 -X "$METHOD" "$URL" \
-                -H 'Content-Type: application/json' -H "Origin: $BASE" --data '{}' | head -n 30 || true
-            else
-              curl -sS -i --max-time 20 -X "$METHOD" "$URL" -H "Origin: $BASE" | head -n 30 || true
-            fi
-            echo
-          done
-          echo '=== legacy candidates ==='
-          for PATH in /manager/update_comfyui /manager/update_comfyui_status /manager/queue/update_all /manager/queue/update-main /manager/queue/update_main; do
-            CODE=$(curl -sS -o /tmp/out -w '%{http_code}' --max-time 20 "$BASE$PATH" || true)
-            echo "$PATH http=$CODE body=$(head -c 200 /tmp/out | tr '\n' ' ')"
-          done
+          POD_ID='k7j666wk9rzw9e'
+          BASE="https://${POD_ID}-8188.proxy.runpod.net"
+          echo 'system:'
+          curl -fsS --max-time 20 "$BASE/system_stats" | jq '{version:.system.comfyui_version,torch:.system.pytorch_version,device:.devices[0].name}'
+          echo 'manager_queue:'
+          curl -sS --max-time 20 "$BASE/manager/queue/status" | jq . || true
+          echo 'loader_visibility:'
+          curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
+          jq '{
+            checkpoint: (.CheckpointLoaderSimple.input.required.ckpt_name[0] | map(select(test("ltx-video-2b-v0.9.5")))),
+            clip: (.CLIPLoader.input.required.clip_name[0] | map(select(test("t5xxl_fp8_e4m3fn_scaled")))),
+            ltx_nodes: ([keys[] | select(test("LTX";"i"))] | sort)
+          }' /tmp/object.json
