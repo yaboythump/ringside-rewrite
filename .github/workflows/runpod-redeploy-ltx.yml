@@ -15,33 +15,24 @@ jobs:
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
-      - name: Deploy fresh RTX 5090 ComfyUI pod
+      - name: Deploy fresh RTX 4090 ComfyUI pod
         shell: bash
         run: |
           set -euo pipefail
-          BODY=$(jq -nc '{
-            name:"urban_silver_ape_v2",
-            templateId:"runpod-comfy",
-            cloudType:"SECURE",
-            computeType:"GPU",
-            gpuTypeIds:["NVIDIA GeForce RTX 5090"],
-            gpuTypePriority:"availability",
-            gpuCount:1,
-            allowedCudaVersions:["13.0","12.9","12.8"],
-            containerDiskInGb:20,
-            ports:["8888/http","3000/http","22/tcp"]
-          }')
-          HTTP=$(curl -sS -o /tmp/new-pod.json -w '%{http_code}' -X POST \
-            'https://rest.runpod.io/v1/pods' \
-            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
-            -H 'Content-Type: application/json' \
-            --data "$BODY")
-          echo "HTTP=$HTTP"
-          cat /tmp/new-pod.json | jq '{id,name,desiredStatus,imageName,templateId,gpu,machineId,containerDiskInGb,volumeInGb,volumeMountPath,ports,costPerHr,lastStartedAt}'
-          [[ "$HTTP" =~ ^2 ]] || exit 1
-          NEW_ID=$(jq -r '.id // empty' /tmp/new-pod.json)
-          [[ -n "$NEW_ID" ]] || exit 2
+          QUERY='mutation { podFindAndDeployOnDemand(input: { cloudType: COMMUNITY, gpuCount: 1, volumeInGb: 0, containerDiskInGb: 40, minVcpuCount: 2, minMemoryInGb: 16, gpuTypeId: "NVIDIA GeForce RTX 4090", name: "urban_silver_ape_v2", templateId: "runpod-comfy", ports: "8888/http,3000/http,22/tcp", volumeMountPath: "/workspace" }) { id imageName env machineId containerDiskInGb costPerHr desiredStatus machine { podHostId } } }'
+          jq -nc --arg q "$QUERY" '{query:$q}' >/tmp/deploy.json
+          curl -fsS -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" \
+            -H 'content-type: application/json' --data @/tmp/deploy.json >/tmp/result.json
+          cat /tmp/result.json | jq '{errors,data}'
+          ERR=$(jq -r '.errors[0].message // empty' /tmp/result.json)
+          if [[ -n "$ERR" ]]; then
+            echo "Deploy error: $ERR"
+            exit 1
+          fi
+          NEW_ID=$(jq -r '.data.podFindAndDeployOnDemand.id // empty' /tmp/result.json)
+          [[ -n "$NEW_ID" ]] || { echo 'No pod ID returned'; exit 2; }
           echo "NEW_POD_ID=$NEW_ID" >> "$GITHUB_ENV"
+          echo "New pod: $NEW_ID"
           sleep 12
           curl -fsS "https://rest.runpod.io/v1/pods/${NEW_ID}" \
             -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
