@@ -1,0 +1,24 @@
+name: RunPod LTX Storage Check
+
+on:
+  push:
+    paths:
+      - '.github/workflows/runpod-storage-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Inspect portable storage metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='5ziiyypuiq8pwq'
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          echo "$POD" | jq '{id,name,desiredStatus,imageName,templateId,containerDiskInGb,volumeInGb,volumeMountPath,networkVolume,machineId,ports,costPerHr}'
