@@ -13,14 +13,14 @@ permissions:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Rent one CUDA 13 Blackwell and render all hero shots
+      - name: Rent CUDA 13 Blackwell, install LTX, and render cinematic shots
         shell: bash
         run: |
           set -euo pipefail
@@ -45,7 +45,7 @@ jobs:
 
           echo "Renting Blackwell episode pod with template $TPL_ID"
           runpodctl pod create \
-            --name hhwi-memphis-bleek-full-episode \
+            --name hhwi-memphis-bleek-cinematic \
             --template-id "$TPL_ID" \
             --gpu-id "NVIDIA RTX PRO 4500 Blackwell" \
             --container-disk-in-gb 160 \
@@ -61,7 +61,11 @@ jobs:
           for N in $(seq 1 120); do
             CODE=$(curl -sS -o /tmp/stats -w '%{http_code}' --max-time 15 "$BASE/system_stats" || true)
             echo "boot_poll=$N http=$CODE"
-            if [[ "$CODE" == "200" ]]; then READY=1; cat /tmp/stats | jq . > rendered/meta/system_stats.json; break; fi
+            if [[ "$CODE" == "200" ]]; then
+              READY=1
+              cat /tmp/stats | jq . > rendered/meta/system_stats.json
+              break
+            fi
             sleep 5
           done
           [[ "$READY" == "1" ]] || exit 4
@@ -74,34 +78,94 @@ jobs:
           {"name":"comfyanonymous/flux_text_encoders - t5xxl (fp8_e4m3fn_scaled)","type":"clip","base":"t5","save_path":"text_encoders/t5","url":"https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors","filename":"t5xxl_fp8_e4m3fn_scaled.safetensors","ui_id":"hhwi-t5-fp8-scaled"}
           JSON
 
-          for F in ltx t5; do
-            CODE=$(curl -sS -o "/tmp/${F}.out" -w '%{http_code}' --max-time 30 \
-              -X POST "$BASE/manager/queue/install_model" \
+          echo 'Detecting ComfyUI-Manager API generation...'
+          V2_STATUS=$(curl -sS --max-time 20 "$BASE/v2/manager/queue/status" || true)
+          LEGACY_STATUS=$(curl -sS --max-time 20 "$BASE/manager/queue/status" || true)
+          MANAGER_MODE=''
+          QUEUE_PREFIX=''
+
+          if echo "$V2_STATUS" | jq -e 'type=="object" and (has("total_count") or has("is_processing") or has("pending_count"))' >/dev/null 2>&1; then
+            LEGACY_UI=$(curl -sS --max-time 20 "$BASE/v2/manager/is_legacy_manager_ui" || true)
+            if echo "$LEGACY_UI" | jq -e '.is_legacy_manager_ui == true' >/dev/null 2>&1; then
+              MANAGER_MODE='v2-batch'
+            else
+              MANAGER_MODE='v2-task'
+            fi
+            QUEUE_PREFIX='/v2/manager/queue'
+          elif echo "$LEGACY_STATUS" | jq -e 'type=="object" and (has("total_count") or has("is_processing"))' >/dev/null 2>&1; then
+            MANAGER_MODE='legacy'
+            QUEUE_PREFIX='/manager/queue'
+          else
+            echo 'No usable ComfyUI-Manager queue API detected.'
+            echo "v2_status=$V2_STATUS"
+            echo "legacy_status=$LEGACY_STATUS"
+            exit 5
+          fi
+          echo "manager_mode=$MANAGER_MODE queue_prefix=$QUEUE_PREFIX"
+          echo "$MANAGER_MODE" > rendered/meta/manager_mode.txt
+
+          if [[ "$MANAGER_MODE" == 'v2-task' ]]; then
+            for F in ltx t5; do
+              UI_ID=$(jq -r '.ui_id' "/tmp/${F}.json")
+              jq -n --arg ui "$UI_ID" --arg client 'hhwi-cinematic-render' --argjson p "$(cat /tmp/${F}.json)" \
+                '{ui_id:$ui,client_id:$client,kind:"install-model",params:$p}' > "/tmp/${F}_task.json"
+              CODE=$(curl -sS -o "/tmp/${F}.out" -w '%{http_code}' --max-time 30 \
+                -X POST "$BASE/v2/manager/queue/task" \
+                -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
+                --data-binary @"/tmp/${F}_task.json" || true)
+              echo "v2_task_${F} http=$CODE body=$(cat /tmp/${F}.out 2>/dev/null || true)"
+              [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 6
+            done
+          elif [[ "$MANAGER_MODE" == 'v2-batch' ]]; then
+            jq -n --argjson a "$(cat /tmp/ltx.json)" --argjson b "$(cat /tmp/t5.json)" \
+              '{install_model:[$a,$b]}' > /tmp/model_batch.json
+            CODE=$(curl -sS -o /tmp/batch.out -w '%{http_code}' --max-time 30 \
+              -X POST "$BASE/v2/manager/queue/batch" \
               -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
-              --data @"/tmp/${F}.json" || true)
-            echo "queue_${F} http=$CODE"
-            [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 5
-          done
-          CODE=$(curl -sS -o /tmp/start.out -w '%{http_code}' --max-time 30 -X POST "$BASE/manager/queue/start" -H 'Content-Type: application/json' -H "Origin: $ORIGIN" --data '{}' || true)
-          if [[ "$CODE" != "200" && "$CODE" != "201" ]]; then CODE=$(curl -sS -o /tmp/start2.out -w '%{http_code}' --max-time 30 "$BASE/manager/queue/start" -H "Origin: $ORIGIN" || true); fi
-          [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 6
+              --data-binary @/tmp/model_batch.json || true)
+            echo "v2_batch http=$CODE body=$(cat /tmp/batch.out 2>/dev/null || true)"
+            [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 6
+          else
+            for F in ltx t5; do
+              CODE=$(curl -sS -o "/tmp/${F}.out" -w '%{http_code}' --max-time 30 \
+                -X POST "$BASE/manager/queue/install_model" \
+                -H 'Content-Type: application/json' -H "Origin: $ORIGIN" \
+                --data @"/tmp/${F}.json" || true)
+              echo "legacy_${F} http=$CODE body=$(cat /tmp/${F}.out 2>/dev/null || true)"
+              [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 6
+            done
+          fi
+
+          CODE=$(curl -sS -o /tmp/start.out -w '%{http_code}' --max-time 30 \
+            -X POST "$BASE${QUEUE_PREFIX}/start" \
+            -H 'Content-Type: application/json' -H "Origin: $ORIGIN" --data '{}' || true)
+          if [[ "$CODE" == "405" ]]; then
+            CODE=$(curl -sS -o /tmp/start_get.out -w '%{http_code}' --max-time 30 "$BASE${QUEUE_PREFIX}/start" -H "Origin: $ORIGIN" || true)
+          fi
+          echo "queue_start http=$CODE"
+          [[ "$CODE" == "200" || "$CODE" == "201" ]] || exit 7
 
           COMPLETE=0
-          for N in $(seq 1 120); do
-            STATUS=$(curl -sS --max-time 20 "$BASE/manager/queue/status" || true)
+          for N in $(seq 1 180); do
+            STATUS=$(curl -sS --max-time 20 "$BASE${QUEUE_PREFIX}/status" || true)
             echo "model_poll=$N $(echo "$STATUS" | jq -c . 2>/dev/null || echo "$STATUS")"
             TOTAL=$(echo "$STATUS" | jq -r '.total_count // 0' 2>/dev/null || echo 0)
             DONE=$(echo "$STATUS" | jq -r '.done_count // 0' 2>/dev/null || echo 0)
             PROCESSING=$(echo "$STATUS" | jq -r '.is_processing // false' 2>/dev/null || echo false)
-            if [[ "$TOTAL" -ge 2 && "$DONE" -ge "$TOTAL" && "$PROCESSING" == "false" ]]; then COMPLETE=1; break; fi
+            PENDING=$(echo "$STATUS" | jq -r '.pending_count // 0' 2>/dev/null || echo 0)
+            if [[ "$TOTAL" -ge 2 && "$DONE" -ge "$TOTAL" && "$PROCESSING" == "false" && "$PENDING" -eq 0 ]]; then
+              COMPLETE=1
+              break
+            fi
             sleep 10
           done
-          [[ "$COMPLETE" == "1" ]] || exit 7
+          [[ "$COMPLETE" == "1" ]] || exit 8
 
           curl -fsS --max-time 60 "$BASE/object_info" >/tmp/object.json
           HAS_CKPT=$(jq -r '[.CheckpointLoaderSimple.input.required.ckpt_name[0][] | select(test("ltx-video-2b-v0.9.5"))] | length' /tmp/object.json)
           HAS_T5=$(jq -r '[.CLIPLoader.input.required.clip_name[0][] | select(test("t5xxl_fp8_e4m3fn_scaled"))] | length' /tmp/object.json)
-          [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]] || exit 8
+          echo "loader_check ltx=$HAS_CKPT t5=$HAS_T5"
+          [[ "$HAS_CKPT" -ge 1 && "$HAS_T5" -ge 1 ]] || exit 9
 
           NEGATIVE=$(jq -r '.negative_prompt' "$JOB")
           WIDTH=$(jq -r '.width' "$JOB")
@@ -117,7 +181,7 @@ jobs:
             PROMPT=$(jq -r ".shots[$IDX].prompt" "$JOB")
             PREFIX=$(jq -r ".shots[$IDX].output_prefix" "$JOB")
             SEED=$(jq -r ".shots[$IDX].seed" "$JOB")
-            echo "=== Rendering shot $ID / $PREFIX ==="
+            echo "=== Rendering cinematic shot $ID / $PREFIX ==="
 
             jq -n --arg prompt "$PROMPT" --arg negative "$NEGATIVE" --arg prefix "$PREFIX" \
               --argjson seed "$SEED" --argjson width "$WIDTH" --argjson height "$HEIGHT" \
@@ -141,7 +205,7 @@ jobs:
             [[ -n "$PROMPT_ID" ]] || { cat /tmp/submit.json; exit 20; }
 
             RENDERED=0
-            for N in $(seq 1 90); do
+            for N in $(seq 1 120); do
               curl -sS --max-time 30 "$BASE/history/$PROMPT_ID" >/tmp/history.json || true
               STATUS=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.status_str // empty' /tmp/history.json 2>/dev/null || true)
               COMPLETED=$(jq -r --arg id "$PROMPT_ID" '.[$id].status.completed // false' /tmp/history.json 2>/dev/null || true)
@@ -198,7 +262,7 @@ jobs:
           print(json.dumps(summaries,indent=2))
           PY
 
-      - name: Upload full episode hero-shot package
+      - name: Upload full cinematic shot package
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
