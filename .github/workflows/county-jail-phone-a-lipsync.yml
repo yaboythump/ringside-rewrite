@@ -22,7 +22,7 @@ jobs:
       - name: Install media and face-lock tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg python3-opencv
+          sudo apt-get install -y -qq ffmpeg python3-opencv opencv-data
 
       - name: Resolve healthy CT LipSync pod
         id: pod
@@ -33,6 +33,7 @@ jobs:
           POD_ID=$(printf '%s' "$PODS" | jq -r --arg name "$POD_NAME" '[.[] | select(.name==$name and .desiredStatus=="RUNNING")] | sort_by(.lastStartedAt // "") | reverse | .[0].id // empty')
           [[ -n "$POD_ID" ]] || { echo 'No running CT LipSync pod found'; exit 2; }
           TOKEN=$(printf '%s' "${RUNPOD_API_KEY}:ct-lipsync:v1" | sha256sum | awk '{print $1}')
+          echo "::add-mask::$TOKEN"
           API="https://${POD_ID}-8000.proxy.runpod.net"
           HEALTH=$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" "$API/health")
           echo "$HEALTH" | jq .
@@ -58,16 +59,7 @@ jobs:
           API='${{ steps.pod.outputs.api }}'
           TOKEN='${{ steps.pod.outputs.token }}'
           START=$(date +%s)
-          curl -fS --max-time 1200 \
-            -H "Authorization: Bearer ${TOKEN}" \
-            -X POST "$API/generate" \
-            -F 'source=@phone_a_source_25.mp4' \
-            -F 'audio=@phone_a_audio.wav' \
-            -F 'enhance=false' \
-            -F 'fps=25' \
-            -F 'batch_size=8' \
-            -F 'output_name=county_jail_phone_a_v2' \
-            -o response.json
+          curl -fS --max-time 1200 -H "Authorization: Bearer ${TOKEN}" -X POST "$API/generate" -F 'source=@phone_a_source_25.mp4' -F 'audio=@phone_a_audio.wav' -F 'enhance=false' -F 'fps=25' -F 'batch_size=8' -F 'output_name=county_jail_phone_a_v2' -o response.json
           END=$(date +%s)
           cat response.json | jq .
           jq -e '.status=="success" and (.filename | length > 0)' response.json >/dev/null
@@ -89,20 +81,15 @@ jobs:
         run: |
           set -euo pipefail
           cat > mouth_lock.py <<'PY'
-          import cv2, numpy as np, sys, json
-
-          src_path='phone_a_source_25.mp4'
-          gen_path='musetalk_fullface.mp4'
-          out_path='mouth_locked_silent.mp4'
-
-          src=cv2.VideoCapture(src_path)
-          gen=cv2.VideoCapture(gen_path)
-          fps=25.0
+          import cv2, numpy as np, json, os
+          src_path='phone_a_source_25.mp4'; gen_path='musetalk_fullface.mp4'; out_path='mouth_locked_silent.mp4'
+          src=cv2.VideoCapture(src_path); gen=cv2.VideoCapture(gen_path); fps=25.0
           w=int(src.get(cv2.CAP_PROP_FRAME_WIDTH)); h=int(src.get(cv2.CAP_PROP_FRAME_HEIGHT))
-          fourcc=cv2.VideoWriter_fourcc(*'mp4v')
-          out=cv2.VideoWriter(out_path, fourcc, fps, (w,h))
-
-          cascade=cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+          out=cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w,h))
+          candidates=['/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml','/usr/share/opencv/haarcascades/haarcascade_frontalface_default.xml']
+          cascade_path=next((p for p in candidates if os.path.exists(p)),None)
+          if not cascade_path: raise SystemExit('OpenCV Haar cascade not found')
+          cascade=cv2.CascadeClassifier(cascade_path)
           last=None; frames=0; detected=0; mask_pixels=[]
           while True:
               ok1,a=src.read(); ok2,b=gen.read()
@@ -111,7 +98,6 @@ jobs:
               gray=cv2.cvtColor(a,cv2.COLOR_BGR2GRAY)
               faces=cascade.detectMultiScale(gray,1.08,5,minSize=(max(60,w//12),max(60,h//12)))
               if len(faces):
-                  # choose largest face and smooth bbox against previous
                   f=max(faces,key=lambda z:z[2]*z[3])
                   if last is None: last=np.array(f,dtype=float)
                   else: last=0.78*last+0.22*np.array(f,dtype=float)
@@ -119,27 +105,17 @@ jobs:
               if last is None:
                   out.write(a); frames+=1; continue
               x,y,fw,fh=[int(v) for v in last]
-              cx=x+fw//2
-              cy=y+int(fh*0.73)
-              rx=max(10,int(fw*0.23))
-              ry=max(7,int(fh*0.105))
-              mask=np.zeros((h,w),np.uint8)
-              cv2.ellipse(mask,(cx,cy),(rx,ry),0,0,360,255,-1)
-              # feather only the edge; center remains fully generated mouth motion
-              sigma=max(3,int(fw*0.018))
-              if sigma % 2 == 0: sigma += 1
+              cx=x+fw//2; cy=y+int(fh*0.73); rx=max(10,int(fw*0.23)); ry=max(7,int(fh*0.105))
+              mask=np.zeros((h,w),np.uint8); cv2.ellipse(mask,(cx,cy),(rx,ry),0,0,360,255,-1)
+              sigma=max(3,int(fw*0.018)); sigma += (sigma % 2 == 0)
               mask=cv2.GaussianBlur(mask,(0,0),sigmaX=sigma,sigmaY=sigma)
               alpha=(mask.astype(np.float32)/255.0)[...,None]
               c=(b.astype(np.float32)*alpha + a.astype(np.float32)*(1.0-alpha)).clip(0,255).astype(np.uint8)
-              out.write(c)
-              frames+=1
-              mask_pixels.append(float((mask>12).mean()))
+              out.write(c); frames+=1; mask_pixels.append(float((mask>12).mean()))
           src.release(); gen.release(); out.release()
-          if frames < 50 or detected < 1:
-              raise SystemExit(f'Face-lock failed: frames={frames} detected={detected}')
+          if frames < 50 or detected < 1: raise SystemExit(f'Face-lock failed: frames={frames} detected={detected}')
           report={'frames':frames,'face_detected_frames':detected,'avg_mask_fraction':sum(mask_pixels)/max(1,len(mask_pixels))}
-          open('face-lock-qc.json','w').write(json.dumps(report,indent=2))
-          print(json.dumps(report,indent=2))
+          open('face-lock-qc.json','w').write(json.dumps(report,indent=2)); print(json.dumps(report,indent=2))
           PY
           python3 mouth_lock.py
 
@@ -147,33 +123,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ffmpeg -hide_banner -loglevel error -y \
-            -i mouth_locked_silent.mp4 -i phone_a_audio.mp3 \
-            -map 0:v:0 -map 1:a:0 -c:v libx264 -preset fast -crf 17 -c:a aac -b:a 192k -shortest \
-            County_Jail_PHONE_A_FaceLock_V2.mp4
-
+          ffmpeg -hide_banner -loglevel error -y -i mouth_locked_silent.mp4 -i phone_a_audio.mp3 -map 0:v:0 -map 1:a:0 -c:v libx264 -preset fast -crf 17 -c:a aac -b:a 192k -shortest County_Jail_PHONE_A_FaceLock_V2.mp4
           ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,width,height -of json County_Jail_PHONE_A_FaceLock_V2.mp4 | tee result-probe.json
           ffmpeg -hide_banner -i County_Jail_PHONE_A_FaceLock_V2.mp4 -af volumedetect -f null - 2> audio-qc.txt || true
           ffmpeg -hide_banner -i County_Jail_PHONE_A_FaceLock_V2.mp4 -vf "blackdetect=d=0.2:pix_th=0.10" -an -f null - 2> black-qc.txt || true
-          cat audio-qc.txt | tail -n 20
-          cat face-lock-qc.json
-
-          DURATION=$(jq -r '.format.duration | tonumber' result-probe.json)
-          SIZE=$(jq -r '.format.size | tonumber' result-probe.json)
-          MASK=$(jq -r '.avg_mask_fraction' face-lock-qc.json)
-          awk -v d="$DURATION" 'BEGIN { exit !(d > 3.0) }'
-          awk -v m="$MASK" 'BEGIN { exit !(m > 0.001 && m < 0.12) }'
-          [[ "$SIZE" -gt 100000 ]]
-          grep -q '"codec_type": "audio"' result-probe.json
-          ! grep -q 'black_start:' black-qc.txt
-          {
-            echo '## County Jail PHONE A Face Lock V2 complete'
-            echo "- Pod: ${{ steps.pod.outputs.pod_id }}"
-            echo "- Generation time: ${{ steps.generate.outputs.elapsed }} seconds"
-            echo "- Output duration: $DURATION seconds"
-            echo "- Mouth mask average frame coverage: $MASK"
-            echo '- Identity protection: original source retained outside feathered mouth region'
-          } >> "$GITHUB_STEP_SUMMARY"
+          DURATION=$(jq -r '.format.duration | tonumber' result-probe.json); SIZE=$(jq -r '.format.size | tonumber' result-probe.json); MASK=$(jq -r '.avg_mask_fraction' face-lock-qc.json)
+          awk -v d="$DURATION" 'BEGIN { exit !(d > 3.0) }'; awk -v m="$MASK" 'BEGIN { exit !(m > 0.001 && m < 0.12) }'; [[ "$SIZE" -gt 100000 ]]; grep -q '"codec_type": "audio"' result-probe.json; ! grep -q 'black_start:' black-qc.txt
+          { echo '## County Jail PHONE A Face Lock V2 complete'; echo "- Pod: ${{ steps.pod.outputs.pod_id }}"; echo "- Generation time: ${{ steps.generate.outputs.elapsed }} seconds"; echo "- Output duration: $DURATION seconds"; echo "- Mouth mask average frame coverage: $MASK"; echo '- Identity protection: original source retained outside feathered mouth region'; } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
