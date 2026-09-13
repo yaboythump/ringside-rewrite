@@ -227,3 +227,5 @@ jobs:
           path: rendered/
           if-no-files-found: warn
           retention-days: 7
+
+# recovery trigger: 2026-09-13
