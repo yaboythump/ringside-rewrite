@@ -1,0 +1,154 @@
+name: HHWI Epic Full Thumbnail Repair
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hhwi-epic-full-thumbnail-repair.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: hhwi-epic-full-thumbnail-repair
+  cancel-in-progress: false
+
+jobs:
+  attach-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      PROFILE: HipHopWhatIf
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install verification stack
+        run: python3 -m pip install --quiet pillow requests
+
+      - name: Download exact approved epic thumbnails
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p hhwi_epic
+          curl -fL --retry 5 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/ca8fe0ae-83f4-4bfb-85da-18cc7d0d8078.jpg' -o hhwi_epic/memphis.jpg
+          curl -fL --retry 5 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/1bbb5b8a-4841-46a7-baf2-ee6232b1f402.jpg' -o hhwi_epic/dipset.jpg
+          curl -fL --retry 5 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/2617ca2e-3e36-4865-9333-fea73e1b4dc9.jpg' -o hhwi_epic/eazy.jpg
+          curl -fL --retry 5 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/b150de0e-40c8-47bc-bb6e-9ec189d0b7b4.jpg' -o hhwi_epic/slaughterhouse.jpg
+          curl -fL --retry 5 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/a70ed75b-e9d2-446e-a60b-62649007482b.jpg' -o hhwi_epic/koolherc.jpg
+          curl -fL --retry 5 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/829bbd30-1de7-47bb-993b-9650f6678a85.jpg' -o hhwi_epic/defjam.jpg
+          curl -fL --retry 5 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/ce85fddd-f6aa-40aa-916a-ca694ddcaefc.jpg' -o hhwi_epic/ugk.jpg
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          for p in Path('hhwi_epic').glob('*.jpg'):
+              im=Image.open(p)
+              print(p.name, im.size, p.stat().st_size)
+              if im.size != (1280,720):
+                  raise SystemExit(f'wrong dimensions for {p}: {im.size}')
+          PY
+
+      - name: Attach all seven full-episode epic thumbnails
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${UPLOAD_POST_API_KEY:-}" || { echo 'UPLOAD_POST_API_KEY missing'; exit 1; }
+          cat > /tmp/map.tsv <<'EOF'
+          ls_VISFemYs	memphis.jpg	Memphis Bleek
+          Ma2VSrxk80k	dipset.jpg	Dipset
+          kLgy8617RXg	eazy.jpg	Eazy-E
+          JlmEGeQxaK0	slaughterhouse.jpg	Slaughterhouse
+          9k8iYJNgrRY	koolherc.jpg	Kool Herc
+          SfbS2vFrpDw	defjam.jpg	Russell Simmons / Def Jam
+          uqwGx3oquak	ugk.jpg	UGK
+          EOF
+          while IFS=$'\t' read -r video file label; do
+            echo "ATTACH $label -> $video"
+            curl --fail-with-body -sS -X POST \
+              -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+              -F "user=$PROFILE" \
+              -F "video_id=$video" \
+              -F "thumbnail=@hhwi_epic/$file;type=image/jpeg" \
+              'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' \
+              | tee "/tmp/${video}.json"
+            python3 - "$video" "/tmp/${video}.json" <<'PY'
+          import json,sys
+          vid,path=sys.argv[1:]
+          p=json.load(open(path))
+          assert p.get('success') is True, p
+          assert p.get('video_id') == vid, p
+          print('API_ATTACH_OK', vid, p.get('width'), p.get('height'))
+          PY
+          done < /tmp/map.tsv
+
+      - name: Verify live YouTube CDN for every repaired thumbnail
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import io,time,requests
+          from pathlib import Path
+          from PIL import Image,ImageChops,ImageOps,ImageStat
+
+          items={
+            'ls_VISFemYs':'memphis.jpg',
+            'Ma2VSrxk80k':'dipset.jpg',
+            'kLgy8617RXg':'eazy.jpg',
+            'JlmEGeQxaK0':'slaughterhouse.jpg',
+            '9k8iYJNgrRY':'koolherc.jpg',
+            'SfbS2vFrpDw':'defjam.jpg',
+            'uqwGx3oquak':'ugk.jpg',
+          }
+          variants=('mqdefault','hqdefault','sddefault','maxresdefault')
+          expected={v:Image.open('hhwi_epic/'+f).convert('RGB') for v,f in items.items()}
+
+          def fetch(url):
+            r=requests.get(url,timeout=25,headers={'User-Agent':'Mozilla/5.0'})
+            r.raise_for_status()
+            return Image.open(io.BytesIO(r.content)).convert('RGB')
+          def geometry(src,size):
+            im=ImageOps.contain(src,size,method=Image.Resampling.LANCZOS)
+            canvas=Image.new('RGB',size,(0,0,0))
+            canvas.paste(im,((size[0]-im.width)//2,(size[1]-im.height)//2))
+            return canvas
+          def mae(a,b):
+            b=geometry(b,a.size)
+            return sum(ImageStat.Stat(ImageChops.difference(a,b)).mean)/3.0
+
+          pending=set(items)
+          last={}
+          for attempt in range(1,11):
+            print('VERIFY_ATTEMPT',attempt,'pending',sorted(pending))
+            for vid in list(pending):
+              scores={}
+              ok=True
+              for variant in variants:
+                try:
+                  actual=fetch(f'https://i.ytimg.com/vi/{vid}/{variant}.jpg?epicverify={time.time_ns()}')
+                  score=mae(actual,expected[vid])
+                  scores[variant]=round(score,2)
+                  if score>21.0: ok=False
+                except Exception as e:
+                  scores[variant]=f'ERR:{e}'
+                  if variant in ('mqdefault','hqdefault'): ok=False
+              last[vid]=scores
+              print(vid,scores,'PASS' if ok else 'WAIT')
+              if ok:
+                pending.remove(vid)
+                print('THUMBNAIL_GATE_PASS',vid)
+            if not pending:
+              break
+            time.sleep(12)
+          if pending:
+            raise SystemExit('THUMBNAIL_GATE_FAIL '+repr({v:last.get(v) for v in pending}))
+          print('HHWI_EPIC_THUMBNAIL_REPAIR_COMPLETE count=7')
+          PY
+
+      - name: Save repair proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhwi-epic-full-thumbnail-repair-proof
+          path: hhwi_epic/
+          if-no-files-found: warn
