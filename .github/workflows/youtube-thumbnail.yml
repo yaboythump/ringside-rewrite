@@ -30,18 +30,37 @@ jobs:
 
           SHOW=$(jq -r '.show' youtube-thumbnail-job.json)
           USER_NAME=$(jq -r '.user' youtube-thumbnail-job.json)
-          VIDEO_ID=$(jq -r '.video_id' youtube-thumbnail-job.json)
+          VIDEO_ID=$(jq -r '.video_id // empty' youtube-thumbnail-job.json)
+          TITLE_QUERY=$(jq -r '.title_query // empty' youtube-thumbnail-job.json)
           THUMBNAIL_URL=$(jq -r '.thumbnail_url // empty' youtube-thumbnail-job.json)
           THUMBNAIL_BASE64=$(jq -r '.thumbnail_base64 // empty' youtube-thumbnail-job.json)
           THUMBNAIL_FILENAME=$(jq -r '.thumbnail_filename // "thumbnail.jpg"' youtube-thumbnail-job.json)
-          TITLE=$(jq -r '.title' youtube-thumbnail-job.json)
+          TITLE=$(jq -r '.title // empty' youtube-thumbnail-job.json)
 
-          for value in "$SHOW" "$USER_NAME" "$VIDEO_ID"; do
+          for value in "$SHOW" "$USER_NAME"; do
             test -n "$value" && test "$value" != "null"
           done
           if [ -z "$THUMBNAIL_URL" ] && [ -z "$THUMBNAIL_BASE64" ]; then
             echo "::error::Provide thumbnail_url or thumbnail_base64"
             exit 1
+          fi
+
+          if [ -z "$VIDEO_ID" ]; then
+            test -n "$TITLE_QUERY" || { echo "::error::Provide video_id or title_query"; exit 1; }
+            echo "Resolving YouTube video ID for: $TITLE_QUERY"
+            for PAGE in 1 2 3 4 5 6; do
+              curl -sS --fail -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+                "https://api.upload-post.com/api/uploadposts/history?limit=100&page=$PAGE" -o history.json
+              VIDEO_ID=$(jq -r --arg profile "$USER_NAME" --arg q "$TITLE_QUERY" '
+                .history[]? |
+                select(.profile_username == $profile and .platform == "youtube" and .success == true) |
+                select((.post_title // "" | ascii_downcase | contains($q | ascii_downcase))) |
+                select((.post_title // "" | contains("#Shorts") | not)) |
+                .platform_post_id // empty
+              ' history.json | head -n1)
+              if [ -n "$VIDEO_ID" ]; then break; fi
+            done
+            test -n "$VIDEO_ID" || { echo "::error::Could not resolve a full YouTube episode for title query: $TITLE_QUERY"; exit 1; }
           fi
 
           echo "Applying custom thumbnail: $SHOW | $TITLE | $VIDEO_ID"
@@ -63,6 +82,7 @@ jobs:
           echo
           test "$HTTP_CODE" -ge 200 && test "$HTTP_CODE" -lt 300 || { echo "::error::Thumbnail API returned HTTP $HTTP_CODE"; exit 1; }
           jq -e '.success == true and .video_id == $vid' --arg vid "$VIDEO_ID" response.json >/dev/null
+          printf '%s' "$VIDEO_ID" > resolved-video-id.txt
 
       - name: Verify visible YouTube thumbnail derivatives
         shell: bash
@@ -71,20 +91,21 @@ jobs:
           python -m pip install --quiet pillow
           THUMBNAIL_URL=$(jq -r '.thumbnail_url // empty' youtube-thumbnail-job.json)
           THUMBNAIL_BASE64=$(jq -r '.thumbnail_base64 // empty' youtube-thumbnail-job.json)
+          VIDEO_ID=$(cat resolved-video-id.txt)
           if [ -n "$THUMBNAIL_BASE64" ]; then
             printf '%s' "$THUMBNAIL_BASE64" | base64 --decode > custom.jpg
           else
             curl -L --fail --retry 3 -sS "$THUMBNAIL_URL" -o custom.jpg
           fi
 
-          python - <<'PY'
-          import io, json, time, urllib.request
+          VIDEO_ID="$VIDEO_ID" python - <<'PY'
+          import io, json, os, time, urllib.request
           from PIL import Image, ImageChops, ImageOps, ImageStat, ImageFile
 
           ImageFile.LOAD_TRUNCATED_IMAGES = True
 
           job = json.load(open('youtube-thumbnail-job.json', encoding='utf-8'))
-          vid = job['video_id']
+          vid = os.environ['VIDEO_ID']
           expected = Image.open('custom.jpg').convert('RGB')
           names = ['mqdefault', 'hqdefault', 'sddefault', 'maxresdefault']
 
