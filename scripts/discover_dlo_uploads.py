@@ -17,24 +17,24 @@ def norm(text: str) -> str:
 def main() -> None:
     settings = load_settings(Path.cwd())
     service = youtube_service(settings, interactive=False)
-    channel = service.channels().list(part="contentDetails", mine=True).execute()["items"][0]
-    uploads = channel["contentDetails"]["relatedPlaylists"]["uploads"]
 
-    items = []
+    discovered = []
     token = None
-    while len(items) < 100:
-        page = service.playlistItems().list(
-            part="contentDetails,snippet",
-            playlistId=uploads,
-            maxResults=min(50, 100-len(items)),
+    while len(discovered) < 100:
+        response = service.search().list(
+            part="id,snippet",
+            forMine=True,
+            type="video",
+            order="date",
+            maxResults=min(50, 100-len(discovered)),
             pageToken=token,
         ).execute()
-        items.extend(page.get("items", []))
-        token = page.get("nextPageToken")
+        discovered.extend(response.get("items", []))
+        token = response.get("nextPageToken")
         if not token:
             break
 
-    ids = [x.get("contentDetails", {}).get("videoId") for x in items]
+    ids = [x.get("id", {}).get("videoId") for x in discovered]
     ids = [x for x in ids if x]
     details = {}
     for start in range(0, len(ids), 50):
@@ -46,15 +46,15 @@ def main() -> None:
             details[item["id"]] = item
 
     report = []
-    for order, p in enumerate(items, start=1):
-        vid = p.get("contentDetails", {}).get("videoId", "")
-        title = p.get("snippet", {}).get("title", "")
+    for order, item in enumerate(discovered, start=1):
+        vid = item.get("id", {}).get("videoId", "")
         d = details.get(vid, {})
+        title = d.get("snippet", {}).get("title") or item.get("snippet", {}).get("title", "")
         row = {
             "order": order,
             "id": vid,
             "title": title,
-            "publishedAt": p.get("snippet", {}).get("publishedAt"),
+            "publishedAt": d.get("snippet", {}).get("publishedAt"),
             "privacyStatus": d.get("status", {}).get("privacyStatus"),
             "publishAt": d.get("status", {}).get("publishAt"),
             "duration": d.get("contentDetails", {}).get("duration"),
@@ -62,7 +62,7 @@ def main() -> None:
         }
         report.append(row)
         t = norm(title)
-        if order <= 25 or "d'lo" in t or "droz" in t:
+        if order <= 30 or "d'lo" in t or "droz" in t:
             print(json.dumps(row, ensure_ascii=False))
 
     Path("dlo-youtube-discovery.json").write_text(
