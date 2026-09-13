@@ -1,0 +1,30 @@
+name: Trace DLo Production Source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/trace-dlo-source.yml'
+      - 'scripts/trace_dlo_source.py'
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Trace DLo source artifacts and production runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/trace_dlo_source.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dlo-source-trace
+          path: dlo-source-trace.json
+          retention-days: 7
