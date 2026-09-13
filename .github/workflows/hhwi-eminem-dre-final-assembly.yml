@@ -1,0 +1,144 @@
+name: HHWI Eminem Dre Final Assembly
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hhwi-eminem-dre-final-assembly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg unzip curl
+
+      - name: Download completed LTX artifact
+        run: |
+          set -euo pipefail
+          curl -L --fail \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/yaboythump/ringside-rewrite/actions/artifacts/10319850534/zip" \
+            -o ltx.zip
+          mkdir -p work/ltx
+          unzip -q ltx.zip -d work/ltx
+          test -f work/ltx/mp4/HHWI_EMDRE_18_FINAL_DETROIT_LEGACY.mp4
+
+      - name: Download locked Talia narration
+        run: |
+          set -euo pipefail
+          mkdir -p work/audio
+          urls=(
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260913_153323_0da0daa8-5dbf-4ef4-b617-0be1c0f6a906.wav'
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260913_153322_355ab6dc-abbd-4ab2-8593-0e85f952286d.wav'
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260913_153322_8946ac99-9495-4e38-a158-a731e2c23756.wav'
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260913_153322_c6c6268f-ef00-4005-9d0b-461d0ffb6e6d.wav'
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260913_153322_2e8a2396-eafb-44a0-af32-9c3d5e735830.wav'
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260913_153322_db9cf76c-6b33-4e91-8ea5-245d6f06889d.wav'
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260913_153334_e8a25453-7f96-46b7-9365-6f99b1ebcc0f.wav'
+            'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260913_153334_0c9976a9-74d0-4d39-af64-0017c6d37b02.wav'
+          )
+          for i in "${!urls[@]}"; do
+            n=$(printf '%02d' $((i+1)))
+            curl -L --fail --retry 3 "${urls[$i]}" -o "work/audio/talia_${n}.wav"
+          done
+          printf "" > work/audio/audio_list.txt
+          for f in work/audio/talia_*.wav; do
+            echo "file '$PWD/$f'" >> work/audio/audio_list.txt
+          done
+          ffmpeg -y -f concat -safe 0 -i work/audio/audio_list.txt -ar 48000 -ac 2 -af "loudnorm=I=-16:TP=-1.5:LRA=11" work/audio/narration.wav
+
+      - name: Build full episode visual timeline
+        run: |
+          set -euo pipefail
+          mkdir -p work/scene_ext work/out
+          for f in work/ltx/mp4/*.mp4; do
+            b=$(basename "$f")
+            ffmpeg -y -i "$f" -vf "setpts=5.0*PTS,scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p "work/scene_ext/$b"
+          done
+          : > work/scene_ext/list.txt
+          for f in work/scene_ext/*.mp4; do echo "file '$PWD/$f'" >> work/scene_ext/list.txt; done
+          ffmpeg -y -f concat -safe 0 -i work/scene_ext/list.txt -c copy work/out/visual_master.mp4
+
+          DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 work/audio/narration.wav)
+          ffmpeg -y -f lavfi -i "sine=frequency=55:sample_rate=48000:duration=$DUR" -f lavfi -i "anoisesrc=color=pink:sample_rate=48000:duration=$DUR" \
+            -filter_complex "[0:a]volume=0.025[a0];[1:a]lowpass=f=650,highpass=f=90,volume=0.012[a1];[a0][a1]amix=inputs=2:normalize=0[bed]" \
+            -map "[bed]" -ac 2 work/audio/bed.wav
+
+          ffmpeg -y -stream_loop -1 -i work/out/visual_master.mp4 -i work/audio/narration.wav -i work/audio/bed.wav \
+            -filter_complex "[1:a][2:a]amix=inputs=2:weights='1 1':normalize=0,alimiter=limit=0.95[a]" \
+            -map 0:v -map "[a]" -t "$DUR" -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k -movflags +faststart \
+            work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4
+
+      - name: Create exactly five vertical Shorts
+        run: |
+          set -euo pipefail
+          mkdir -p work/out/shorts
+          # Start time | duration | name
+          cuts=(
+            '70|55|01_THE_DEMO_THAT_NEVER_ARRIVED'
+            '105|55|02_EMINEM_STAYS_UNDERGROUND'
+            '185|55|03_D12_WITHOUT_THE_EXPLOSION'
+            '232|55|04_50_CENTS_CAREER_CHANGES_TOO'
+            '288|55|05_RAP_WITHOUT_DRE_AND_EMINEM'
+          )
+          for c in "${cuts[@]}"; do
+            IFS='|' read -r start dur name <<< "$c"
+            ffmpeg -y -ss "$start" -t "$dur" -i work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4 \
+              -vf "scale=1920:1080,crop=608:1080:(in_w-608)/2:0,scale=1080:1920" \
+              -c:v libx264 -preset medium -crf 19 -c:a aac -b:a 160k -movflags +faststart \
+              "work/out/shorts/${name}.mp4"
+          done
+          test $(find work/out/shorts -name '*.mp4' | wc -l) -eq 5
+
+      - name: Technical QC and metadata
+        run: |
+          set -euo pipefail
+          mkdir -p work/out/qc
+          ffprobe -v error -show_streams -show_format work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4 > work/out/qc/master_ffprobe.txt
+          ffmpeg -y -ss 00:00:20 -i work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4 -frames:v 1 work/out/qc/frame_020s.jpg
+          ffmpeg -y -ss 00:02:55 -i work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4 -frames:v 1 work/out/qc/frame_mid.jpg
+          ffmpeg -y -ss 00:05:20 -i work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4 -frames:v 1 work/out/qc/frame_late.jpg
+          cat > work/out/METADATA.txt <<'EOF'
+TITLE: What If Eminem Never Met Dr. Dre? | Hip Hop What If
+
+DESCRIPTION:
+What if one missed demo changed the entire history of hip hop?
+
+In this fictional alternate-history episode, we follow a timeline where Eminem never connects with Dr. Dre — changing the path of Aftermath, D12, Shady Records, 50 Cent, and Detroit hip hop.
+
+This is alternate-history entertainment and commentary, not a claim about what actually happened.
+
+#HipHopWhatIf #Eminem #DrDre #RapHistory #HipHop
+
+TAGS:
+Hip Hop What If, Eminem, Dr Dre, rap history, hip hop history, alternate history, D12, 50 Cent, Aftermath, Shady Records, Detroit hip hop, rap documentary
+
+SHORTS:
+1. The Demo That Never Arrived
+2. Eminem Stays Underground
+3. D12 Without the Eminem Explosion
+4. 50 Cent's Career Changes Too
+5. Rap Without Dre + Eminem
+EOF
+
+      - name: Upload finished review package
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhwi-eminem-dre-ready-for-review
+          path: work/out/
+          retention-days: 7
