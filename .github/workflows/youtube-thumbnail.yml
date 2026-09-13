@@ -31,16 +31,34 @@ jobs:
           SHOW=$(jq -r '.show' youtube-thumbnail-job.json)
           USER_NAME=$(jq -r '.user' youtube-thumbnail-job.json)
           VIDEO_ID=$(jq -r '.video_id' youtube-thumbnail-job.json)
-          THUMBNAIL_URL=$(jq -r '.thumbnail_url' youtube-thumbnail-job.json)
+          THUMBNAIL_URL=$(jq -r '.thumbnail_url // empty' youtube-thumbnail-job.json)
+          THUMBNAIL_BASE64=$(jq -r '.thumbnail_base64 // empty' youtube-thumbnail-job.json)
+          THUMBNAIL_FILENAME=$(jq -r '.thumbnail_filename // "thumbnail.jpg"' youtube-thumbnail-job.json)
           TITLE=$(jq -r '.title' youtube-thumbnail-job.json)
 
-          for value in "$SHOW" "$USER_NAME" "$VIDEO_ID" "$THUMBNAIL_URL"; do
+          for value in "$SHOW" "$USER_NAME" "$VIDEO_ID"; do
             test -n "$value" && test "$value" != "null"
           done
+          if [ -z "$THUMBNAIL_URL" ] && [ -z "$THUMBNAIL_BASE64" ]; then
+            echo "::error::Provide thumbnail_url or thumbnail_base64"
+            exit 1
+          fi
 
           echo "Applying custom thumbnail: $SHOW | $TITLE | $VIDEO_ID"
-          BODY=$(jq -n --arg user "$USER_NAME" --arg video_id "$VIDEO_ID" --arg thumbnail_url "$THUMBNAIL_URL" '{user:$user, video_id:$video_id, thumbnail_url:$thumbnail_url}')
-          HTTP_CODE=$(curl -sS -o response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' -H "Authorization: Apikey $UPLOAD_POST_API_KEY" -H 'Content-Type: application/json' --data "$BODY")
+          if [ -n "$THUMBNAIL_BASE64" ]; then
+            printf '%s' "$THUMBNAIL_BASE64" | base64 --decode > "$THUMBNAIL_FILENAME"
+            HTTP_CODE=$(curl -sS -o response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' \
+              -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+              -F "user=$USER_NAME" \
+              -F "video_id=$VIDEO_ID" \
+              -F "thumbnail=@$THUMBNAIL_FILENAME")
+          else
+            BODY=$(jq -n --arg user "$USER_NAME" --arg video_id "$VIDEO_ID" --arg thumbnail_url "$THUMBNAIL_URL" '{user:$user, video_id:$video_id, thumbnail_url:$thumbnail_url}')
+            HTTP_CODE=$(curl -sS -o response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' \
+              -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+              -H 'Content-Type: application/json' \
+              --data "$BODY")
+          fi
           cat response.json
           echo
           test "$HTTP_CODE" -ge 200 && test "$HTTP_CODE" -lt 300 || { echo "::error::Thumbnail API returned HTTP $HTTP_CODE"; exit 1; }
@@ -51,20 +69,23 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --quiet pillow
-          THUMBNAIL_URL=$(jq -r '.thumbnail_url' youtube-thumbnail-job.json)
-          curl -L --fail --retry 3 -sS "$THUMBNAIL_URL" -o custom.png
+          THUMBNAIL_URL=$(jq -r '.thumbnail_url // empty' youtube-thumbnail-job.json)
+          THUMBNAIL_BASE64=$(jq -r '.thumbnail_base64 // empty' youtube-thumbnail-job.json)
+          if [ -n "$THUMBNAIL_BASE64" ]; then
+            printf '%s' "$THUMBNAIL_BASE64" | base64 --decode > custom.jpg
+          else
+            curl -L --fail --retry 3 -sS "$THUMBNAIL_URL" -o custom.jpg
+          fi
 
           python - <<'PY'
           import io, json, time, urllib.request
           from PIL import Image, ImageChops, ImageOps, ImageStat, ImageFile
 
-          # Some hosts/CDNs omit only the JPEG EOI bytes even though the pixels are intact.
-          # Allow Pillow to decode those files so the gate can compare the actual image.
           ImageFile.LOAD_TRUNCATED_IMAGES = True
 
           job = json.load(open('youtube-thumbnail-job.json', encoding='utf-8'))
           vid = job['video_id']
-          expected = Image.open('custom.png').convert('RGB')
+          expected = Image.open('custom.jpg').convert('RGB')
           names = ['mqdefault', 'hqdefault', 'sddefault', 'maxresdefault']
 
           def youtube_geometry(source, target_size):
