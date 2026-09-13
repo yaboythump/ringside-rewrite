@@ -4,14 +4,14 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 API = os.environ.get('GITHUB_API_URL', 'https://api.github.com')
 REPO = os.environ['GITHUB_REPOSITORY']
 TOKEN = os.environ['GH_TOKEN']
-START = datetime.fromisoformat('2026-09-10T00:00:00+00:00')
-END = datetime.fromisoformat('2026-09-13T23:59:59+00:00')
+START = datetime.fromisoformat('2026-09-06T00:00:00+00:00')
+END = datetime.fromisoformat('2026-09-10T23:59:59+00:00')
 
 
 def get(url: str):
@@ -38,9 +38,7 @@ def in_window(s: str | None) -> bool:
 def main():
     report = {'artifacts': [], 'runs': []}
 
-    # Repository-wide artifact history; include expired metadata so we can identify
-    # the run that produced DLo even if the bytes have already aged out.
-    for page in range(1, 25):
+    for page in range(1, 40):
         data = get(f'{API}/repos/{REPO}/actions/artifacts?per_page=100&page={page}')
         arts = data.get('artifacts', [])
         if not arts:
@@ -49,24 +47,21 @@ def main():
         for a in arts:
             created = a.get('created_at')
             if in_window(created):
-                row = {
+                report['artifacts'].append({
                     'id': a.get('id'), 'name': a.get('name'), 'size': a.get('size_in_bytes'),
                     'expired': a.get('expired'), 'created_at': created,
                     'expires_at': a.get('expires_at'),
                     'run_id': (a.get('workflow_run') or {}).get('id'),
                     'run_branch': (a.get('workflow_run') or {}).get('head_branch'),
                     'run_sha': (a.get('workflow_run') or {}).get('head_sha'),
-                }
-                report['artifacts'].append(row)
+                })
             d = dt(created)
             if d and d < START:
                 stop = True
         if stop:
             break
 
-    # Run history in the same window. Keep production-ish paths and anything whose
-    # title/message explicitly mentions Ringside, DLo or Droz.
-    for page in range(1, 15):
+    for page in range(1, 30):
         data = get(f'{API}/repos/{REPO}/actions/runs?per_page=100&page={page}')
         runs = data.get('workflow_runs', [])
         if not runs:
@@ -79,7 +74,7 @@ def main():
                     str(r.get('name') or ''), str(r.get('display_title') or ''),
                     str(r.get('path') or ''), str((r.get('head_commit') or {}).get('message') or ''),
                 ]).casefold()
-                if any(k in hay for k in ['ringside', 'droz', "d'lo", 'dlo', 'produce', 'retry-latest-upload']):
+                if any(k in hay for k in ['ringside', 'droz', "d'lo", 'dlo', 'produce', 'retry', 'upload']):
                     report['runs'].append({
                         'id': r.get('id'), 'name': r.get('name'), 'display_title': r.get('display_title'),
                         'path': r.get('path'), 'event': r.get('event'), 'status': r.get('status'),
@@ -93,7 +88,6 @@ def main():
         if stop:
             break
 
-    # Enrich every artifact-producing run in the window with run metadata.
     run_ids = sorted({a['run_id'] for a in report['artifacts'] if a.get('run_id')})
     enrich = []
     for rid in run_ids:
