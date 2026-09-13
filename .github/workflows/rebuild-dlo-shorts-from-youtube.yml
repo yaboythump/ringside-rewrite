@@ -1,0 +1,47 @@
+name: Rebuild DLo Shorts From Published Master
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rebuild-dlo-shorts-from-youtube.yml'
+      - 'scripts/rebuild_dlo_from_youtube.py'
+
+concurrency:
+  group: rebuild-dlo-shorts-from-youtube
+  cancel-in-progress: false
+
+jobs:
+  rebuild-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install -e . yt-dlp
+      - name: Rebuild and upload three true Shorts
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET_VALUE: ${{ secrets.YOUTUBE_CLIENT_SECRET_VALUE }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_EXPECTED_CHANNEL_ID: ${{ vars.YOUTUBE_EXPECTED_CHANNEL_ID || 'UC8OX1Ym_Qnt-ekFgvsjB7cA' }}
+          RINGSIDE_AUTO_PUBLISH: 'false'
+        run: python scripts/rebuild_dlo_from_youtube.py --video-id O4DB032Y22U
+      - name: Save repair receipt and rebuilt files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dlo-rebuilt-shorts-package
+          path: |
+            dlo-rebuilt-shorts/DLo_Droz_Short_*.mp4
+            dlo-rebuilt-shorts/repair-receipt.json
+          if-no-files-found: warn
+          retention-days: 30
