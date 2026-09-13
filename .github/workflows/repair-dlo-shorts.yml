@@ -56,13 +56,7 @@ jobs:
             unzip -q scan.zip -d scans/current
             while IFS= read -r episode_json; do
               episode_dir="$(dirname "$episode_json")"
-              title="$(python - "$episode_json" <<'PY'
-import json, sys
-p=sys.argv[1]
-data=json.load(open(p, encoding='utf-8'))
-print(data.get('episode_title') or data.get('title') or '')
-PY
-)"
+              title="$(python -c 'import json,sys; d=json.load(open(sys.argv[1], encoding="utf-8")); print(d.get("episode_title") or d.get("title") or "")' "$episode_json")"
               normalized="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')"
               if [[ "$normalized" == *"droz"* ]] && { [[ "$normalized" == *"d’lo"* ]] || [[ "$normalized" == *"d'lo"* ]]; }; then
                 test -f "$episode_dir/final.mp4"
