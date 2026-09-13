@@ -56,7 +56,7 @@ jobs:
             n=$(printf '%02d' $((i+1)))
             curl -L --fail --retry 3 "${urls[$i]}" -o "work/audio/talia_${n}.wav"
           done
-          printf "" > work/audio/audio_list.txt
+          : > work/audio/audio_list.txt
           for f in work/audio/talia_*.wav; do
             echo "file '$PWD/$f'" >> work/audio/audio_list.txt
           done
@@ -88,7 +88,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p work/out/shorts
-          # Start time | duration | name
           cuts=(
             '70|55|01_THE_DEMO_THAT_NEVER_ARRIVED'
             '105|55|02_EMINEM_STAYS_UNDERGROUND'
@@ -113,28 +112,22 @@ jobs:
           ffmpeg -y -ss 00:00:20 -i work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4 -frames:v 1 work/out/qc/frame_020s.jpg
           ffmpeg -y -ss 00:02:55 -i work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4 -frames:v 1 work/out/qc/frame_mid.jpg
           ffmpeg -y -ss 00:05:20 -i work/out/HHWI_What_If_Eminem_Never_Met_Dr_Dre_REVIEW_MASTER.mp4 -frames:v 1 work/out/qc/frame_late.jpg
-          cat > work/out/METADATA.txt <<'EOF'
-TITLE: What If Eminem Never Met Dr. Dre? | Hip Hop What If
-
-DESCRIPTION:
-What if one missed demo changed the entire history of hip hop?
-
-In this fictional alternate-history episode, we follow a timeline where Eminem never connects with Dr. Dre — changing the path of Aftermath, D12, Shady Records, 50 Cent, and Detroit hip hop.
-
-This is alternate-history entertainment and commentary, not a claim about what actually happened.
-
-#HipHopWhatIf #Eminem #DrDre #RapHistory #HipHop
-
-TAGS:
-Hip Hop What If, Eminem, Dr Dre, rap history, hip hop history, alternate history, D12, 50 Cent, Aftermath, Shady Records, Detroit hip hop, rap documentary
-
-SHORTS:
-1. The Demo That Never Arrived
-2. Eminem Stays Underground
-3. D12 Without the Eminem Explosion
-4. 50 Cent's Career Changes Too
-5. Rap Without Dre + Eminem
-EOF
+          printf '%s\n' \
+            'TITLE: What If Eminem Never Met Dr. Dre? | Hip Hop What If' \
+            '' \
+            'DESCRIPTION:' \
+            'What if one missed demo changed the entire history of hip hop?' \
+            '' \
+            'In this fictional alternate-history episode, we follow a timeline where Eminem never connects with Dr. Dre — changing the path of Aftermath, D12, Shady Records, 50 Cent, and Detroit hip hop.' \
+            '' \
+            'This is alternate-history entertainment and commentary, not a claim about what actually happened.' \
+            '' \
+            '#HipHopWhatIf #Eminem #DrDre #RapHistory #HipHop' \
+            '' \
+            'TAGS: Hip Hop What If, Eminem, Dr Dre, rap history, hip hop history, alternate history, D12, 50 Cent, Aftermath, Shady Records, Detroit hip hop, rap documentary' \
+            '' \
+            'SHORTS: 1) The Demo That Never Arrived  2) Eminem Stays Underground  3) D12 Without the Eminem Explosion  4) 50 Cent Career Changes Too  5) Rap Without Dre + Eminem' \
+            > work/out/METADATA.txt
 
       - name: Upload finished review package
         uses: actions/upload-artifact@v4
