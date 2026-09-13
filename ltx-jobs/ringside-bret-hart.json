@@ -1,31 +1,114 @@
 {
   "episode": "What If Bret Hart Never Got Screwed?",
   "show_name": "RINGSIDE REWRITE",
-  "request_id": "ringside-bret-no-screwjob-2026-09-13",
+  "request_id": "ringside-bret-collage-faithful-2026-09-13-v2",
   "width": 832,
   "height": 480,
   "frames": 97,
   "fps": 25,
   "steps": 30,
   "cfg": 3,
-  "visual_language": "premium late-1997 wrestling alternate-history editorial documentary, dark arena blacks, steel gray, deep crimson and Bret-inspired pink accents, dramatic white spotlights, smoky crowd atmosphere, textured 35mm sports photography, believable late-1990s wardrobe and arena production, full-screen cinematic scene rather than a card, emotionally expressive but grounded, no readable text, no captions, no lower thirds, no official promotion logos, no watermarks, no looping or reverse motion",
-  "negative_prompt": "static image, frozen frame, slideshow, title card, infographic, presentation slide, boxed layout, cartoon, anime, glossy fantasy, neon overload, plastic skin, warped anatomy, distorted face, duplicate people, extra limbs, surreal morphing, low-detail background, fake-looking motion, oversaturated colors, cheesy sci-fi effects, cluttered text, watermark, official logo, low-resolution artifacts, bad perspective, smeared details, rubbery body movement, floating camera, boomerang motion, reverse motion, looping motion, readable text, captions, subtitles, lower third, graphic injury, blood, gore",
+  "source_rule": "THE APPROVED THUMBNAIL COLLAGE IS THE STORYBOARD. Every shot must reproduce one of its visible scene ideas. Do not introduce WCW, Hogan, Sting, NWO, or unrelated alternate-history characters. The visual cast is Bret Hart, Shawn Michaels, Vince McMahon, Steve Austin, the referee, and the Montreal/Canadian crowd only.",
+  "visual_language": "match the approved Bret Hart collage: premium late-1997 wrestling documentary photography, hot Bret-pink and black palette, Canadian red accents, gold championship shine, white arena spotlights, dense roaring crowd, smoky haze, torn-photo energy translated into full-screen cinematic shots, strong emotional close-ups, realistic late-1990s arena atmosphere, no modern staging, no generic fantasy-booking visuals",
+  "negative_prompt": "WCW, Hulk Hogan, Sting, NWO, unrelated wrestlers, rival promotion imagery, futuristic arena, static image, frozen frame, slideshow, title card, infographic, presentation slide, boxed layout, cartoon, anime, glossy fantasy, plastic skin, warped anatomy, distorted face, duplicate people, extra limbs, surreal morphing, low-detail background, fake-looking motion, oversaturated neon, watermark, official logo, low-resolution artifacts, bad perspective, smeared details, rubbery body movement, floating camera, boomerang motion, reverse motion, looping motion, readable text, captions, subtitles, lower third, graphic injury, blood, gore",
   "shots": [
-    {"id":"01","output_prefix":"RR_BRET_01_MONTREAL_OPEN","seed":11199701,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Montreal wrestling arena, November 1997, packed crowd under dramatic white spotlights and smoky haze. Bret Hart, white Canadian male in his late 30s with long wet dark hair, athletic muscular build, pink-and-black ring gear and wraparound sunglasses removed, walks toward the ring carrying a gold world championship belt, focused and guarded. Slow tracking camera from crowd level toward him, fans moving and reaching, fabric and hair moving naturally. Premium late-1990s wrestling documentary realism, dark blacks, steel gray, deep crimson and pink accents, thick 35mm grain. No readable signs, logos, or text."},
-    {"id":"02","output_prefix":"RR_BRET_02_SHAWN_ENTRANCE","seed":11199702,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Shawn Michaels, white male in his early 30s with long light-brown hair, lean athletic build and flamboyant red-and-white late-1990s ring gear, enters a packed Montreal arena with swagger while the crowd surges behind barricades. Camera glides backward in front of him, bright spotlights flare, entrance haze drifts, robe fabric moves. Premium gritty wrestling editorial documentary, late-1997 atmosphere, charcoal shadows, crimson highlights, 35mm grain, no readable text or logos."},
-    {"id":"03","output_prefix":"RR_BRET_03_REAL_MATCH","seed":11199703,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Bret Hart and Shawn Michaels wrestle intensely in a late-1990s ring before a roaring Montreal crowd. Bret in pink-and-black gear, Shawn in red-and-white gear, both sweaty and exhausted, trading a grounded technical sequence near center ring. Handheld ringside camera slowly pushes closer, ropes vibrate, referee circles, crowd waves and reacts naturally. Premium sports-documentary realism, dramatic overhead light, smoky arena depth, no blood, no logos, no readable text."},
-    {"id":"04","output_prefix":"RR_BRET_04_SHARPSHOOTER_BRANCH","seed":11199704,"prompt":"FULL-SCREEN SIGNATURE BRANCH-POINT CINEMATIC SHOT. Shawn Michaels has Bret Hart trapped in Bret's own leg submission hold in the center of the ring, referee crouched close but NOT calling for the bell, Bret clearly fighting and reaching for the ropes. Vince McMahon stands tensely at ringside in a dark business suit, watching but not signaling. Slow dramatic push from ropes toward the hold, crowd motion and camera flashes, tense realistic body movement. Premium late-1997 wrestling documentary with deep crimson and pink accents, subtle cracked-glass light reflection near frame edge, no readable text or logos."},
-    {"id":"05","output_prefix":"RR_BRET_05_CHAOTIC_FINISH","seed":11199705,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Alternate Survivor Series finish: late-1990s ring erupts into controlled chaos as several suited security staff and two ringside allies rush toward the apron, Shawn Michaels backs away frustrated, Bret Hart rises angry but still holding the championship belt after the match is thrown out. Referee gestures that the match is over without a submission. Camera swings from Shawn to Bret with crowd parallax and flashing arena lights. Grounded premium wrestling documentary, pink black crimson palette, no readable text, no logos."},
-    {"id":"06","output_prefix":"RR_BRET_06_RAW_FAREWELL","seed":11199706,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. The next night in a late-1997 television wrestling ring, Bret Hart in a black leather jacket over pink-and-black gear stands alone at center ring holding the gold championship belt with both hands before setting it carefully on the mat, emotional but composed. Crowd rises in the background under white spotlights. Slow circular dolly, jacket and hair move subtly, camera flashes sparkle. Prestige sports-documentary realism, no readable signs, no logos, no captions."},
-    {"id":"07","output_prefix":"RR_BRET_07_VINCE_BACKSTAGE","seed":11199707,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Vince McMahon, white male executive in his early 50s with gray hair and dark suit, stands backstage in a late-1997 arena watching a television monitor after Bret Hart's peaceful farewell, expression serious and calculating rather than triumphant. Production crew move around him, cables sway, fluorescent hallway light mixes with red spill from the arena. Slow push past equipment cases toward Vince. Premium wrestling business documentary, grounded realism, no readable text or logos."},
-    {"id":"08","output_prefix":"RR_BRET_08_AUSTIN_RISE","seed":11199708,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Stone Cold Steve Austin, white bald muscular male in his early 30s with goatee, black trunks and knee braces, storms through a late-1997 wrestling arena crowd toward the ring as fans explode around him. Camera tracks backward at chest height, crowd hands rise, security moves, overhead spotlights sweep. The energy suggests the next antihero becoming the company's center of gravity even without the Montreal scandal. Premium gritty sports documentary, charcoal and crimson palette, no readable text or logos."},
-    {"id":"09","output_prefix":"RR_BRET_09_SHAWN_HEEL","seed":11199709,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Shawn Michaels stands in a wrestling ring in early 1998 with championship gold over one shoulder, smirking while a hostile crowd reacts, but the atmosphere is about arrogance and rivalry rather than a famous betrayal. Slow camera orbit from behind ring ropes, light haze, belt reflections, natural crowd movement. Premium late-1990s wrestling editorial documentary, red-white-charcoal palette, 35mm grain, no official logos, no readable text."},
-    {"id":"10","output_prefix":"RR_BRET_10_WCW_DEBUT","seed":11199710,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Bret Hart arrives in a rival national wrestling promotion in late 1997, stepping onto a large entrance stage before a massive arena crowd, wearing a black leather jacket with subtle pink trim and carrying no championship belt. He pauses, looks across the arena, and receives a major-star reaction. Camera cranes slowly from behind his shoulder toward the ring. Premium late-1990s wrestling documentary, cool steel lighting with pink highlights, no readable branding or logos."},
-    {"id":"11","output_prefix":"RR_BRET_11_ANTI_NWO","seed":11199711,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Alternate 1998 rivalry: Bret Hart in pink-and-black gear stands in the ring opposite Hulk Hogan, older white muscular male with blond horseshoe hair and mustache wearing black-and-white villain-era wrestling gear, while several intimidating faction members watch from ringside. Bret refuses an offered handshake and squares up. Slow push-in between them, crowd surges, ropes shake, camera flashes. Premium wrestling documentary realism, high stakes, no logos, no readable text."},
-    {"id":"12","output_prefix":"RR_BRET_12_STING_ALLY","seed":11199712,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Bret Hart and Sting stand side by side in an alternate 1998 wrestling ring, Bret in pink-and-black gear and Sting in black-and-white face paint with dark ring gear, facing a line of hostile black-and-white-clad faction wrestlers across the ring. Camera slides laterally along the ropes, crowd rises, arena smoke drifts, dramatic white spotlights and deep shadows create a major-event feel. Premium late-1990s wrestling editorial documentary, no logos, no readable text."},
-    {"id":"13","output_prefix":"RR_BRET_13_HOGAN_TITLE_MATCH","seed":11199713,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Alternate 1998 world-title main event: Bret Hart wrestles Hulk Hogan in a packed arena, Bret using technical grappling to control the larger veteran while a gold championship belt sits at ringside. Ringside camera moves slowly along the apron, referee circles, crowd reacts with raised hands, sweat and fabric motion look natural. Prestige sports documentary, dark charcoal arena with pink and gold highlights, no logos, no readable text, no blood."},
-    {"id":"14","output_prefix":"RR_BRET_14_WORLD_CHAMPION","seed":11199714,"prompt":"FULL-SCREEN CINEMATIC FILM SHOT. Bret Hart stands on the turnbuckle in an alternate late-1998 arena holding a gold world championship belt high overhead after a hard-fought victory, pink-and-black gear, long wet dark hair, exhausted and proud. Camera cranes upward from the roaring crowd to Bret, spotlights sweep through haze, belt catches light, fans move naturally. Premium triumphant wrestling documentary, rich blacks, gold and pink accents, no readable text or logos."},
-    {"id":"15","output_prefix":"RR_BRET_15_TWO_TIMELINES","seed":11199715,"prompt":"FULL-SCREEN CINEMATIC ALTERNATE-HISTORY SHOT. One believable late-1990s visual divided by lighting rather than graphics: on the left Bret Hart walks through a rival promotion arena as respected world champion; on the right Vince McMahon and Steve Austin confront each other across a different wrestling ring, showing the Attitude Era still emerging through another path. Slow forward camera with foreground ropes creating parallax, moving crowds on both sides, pink-gold light left and crimson-white light right. Premium editorial documentary realism, no readable text or logos."},
-    {"id":"16","output_prefix":"RR_BRET_16_FINAL_LEGACY","seed":11199716,"prompt":"FULL-SCREEN CINEMATIC FINAL SHOT. Years later, Bret Hart in a dark tailored suit with subtle pink pocket square stands alone at the edge of an empty wrestling ring after the crowd has gone, looking across the quiet arena with calm closure, a gold championship belt resting on a nearby chair. Slow deliberate push from the aisle toward him, maintenance lights glow, faint haze drifts, reflective emotional prestige sports-documentary mood. Charcoal, steel, gold and restrained pink, 35mm grain, no readable text, no logos."}
+    {
+      "id": "01",
+      "source_panel": "bottom-left collage panel — Canadian flag, Montreal crowd, Canada loves Bret",
+      "output_prefix": "RR_BRET_V2_01_CANADA_LOVES_BRET",
+      "seed": 11199721,
+      "prompt": "FULL-SCREEN CINEMATIC SHOT DIRECTLY INSPIRED BY THE BOTTOM-LEFT PANEL OF THE APPROVED COLLAGE. A packed Montreal wrestling arena in November 1997 erupts for Bret Hart. Large Canadian flags wave through the crowd, fans in late-1990s clothing cheer and point toward the ring, pink arena light mixes with deep Canadian red and white spotlights. Camera pushes slowly through the crowd toward the ring, flags ripple naturally, hands move, camera flashes pop. The emotional message is unmistakable: Canada loves Bret. Premium gritty 35mm sports-documentary realism. No readable signs, no logos, no captions."
+    },
+    {
+      "id": "02",
+      "source_panel": "top-left collage panel — Bret holding the championship overhead",
+      "output_prefix": "RR_BRET_V2_02_BRET_FOREVER_CHAMPION",
+      "seed": 11199722,
+      "prompt": "FULL-SCREEN CINEMATIC SHOT DIRECTLY INSPIRED BY THE TOP-LEFT PANEL OF THE APPROVED COLLAGE. Bret Hart, white Canadian male late 30s, long wet dark hair, muscular athletic build, iconic pink-and-black ring gear, stands high on a turnbuckle and raises the gold world championship belt over his head with both hands. A roaring Montreal crowd fills the background beneath brilliant white spotlights and pink haze. Low ringside camera cranes upward toward Bret and the belt, belt plates sparkle, hair and crowd move naturally. Heroic but grounded late-1997 wrestling documentary realism. No readable signs or logos."
+    },
+    {
+      "id": "03",
+      "source_panel": "upper-left-center collage panel — Vince shocked",
+      "output_prefix": "RR_BRET_V2_03_VINCE_REALIZES_PLAN_CHANGED",
+      "seed": 11199723,
+      "prompt": "FULL-SCREEN CINEMATIC CLOSE-UP DIRECTLY INSPIRED BY THE VINCE PANEL IN THE APPROVED COLLAGE. Vince McMahon, white male executive in his early 50s with gray hair, dark suit and tie, stands at ringside under harsh arena light with a stunned, worried expression as he watches Bret Hart remain champion. Slow push toward Vince's face while the ring and moving crowd stay soft behind him, red and pink light flicker across his suit. He looks like a man realizing his expected outcome is slipping away. Premium late-1990s wrestling business documentary realism. No readable text or logos."
+    },
+    {
+      "id": "04",
+      "source_panel": "left-middle collage panel — Bret entrance in black leather and pink gear",
+      "output_prefix": "RR_BRET_V2_04_HITMAN_ENTRANCE",
+      "seed": 11199724,
+      "prompt": "FULL-SCREEN CINEMATIC SHOT DIRECTLY INSPIRED BY THE LEFT-MIDDLE PANEL OF THE APPROVED COLLAGE. Bret Hart walks down the aisle toward the ring wearing a black leather entrance jacket over pink-and-black gear and dark wraparound sunglasses. Fans reach toward him from both sides, Canadian colors and pink arena light glow behind him. Camera tracks backward at chest height, Bret stays centered and calm, jacket and hair move naturally, camera flashes pulse. Premium 1997 wrestling-documentary look with dark blacks, vivid pink trim and realistic crowd energy. No readable signs or logos."
+    },
+    {
+      "id": "05",
+      "source_panel": "middle-left collage panel — Bret and Steve Austin face-to-face",
+      "output_prefix": "RR_BRET_V2_05_BRET_AUSTIN_STAREDOWN",
+      "seed": 11199725,
+      "prompt": "FULL-SCREEN CINEMATIC SHOT DIRECTLY INSPIRED BY THE BRET-versus-AUSTIN PANEL OF THE APPROVED COLLAGE. Bret Hart in pink-and-black gear stands nose-to-nose with Stone Cold Steve Austin, bald white muscular male with goatee in black ring gear, inside a late-1997 wrestling ring. Neither man backs down. Slow lateral camera move around their shoulders, ropes vibrate slightly, the crowd rises behind them, bright white spotlights slice through pink-red haze. Serious sports rivalry energy, no comedy, no extra wrestlers. Premium gritty documentary realism. No readable text or logos."
+    },
+    {
+      "id": "06",
+      "source_panel": "top-right-center collage panel — Bret, Shawn and referee in match action",
+      "output_prefix": "RR_BRET_V2_06_MONTREAL_MATCH",
+      "seed": 11199726,
+      "prompt": "FULL-SCREEN CINEMATIC MATCH SHOT DIRECTLY INSPIRED BY THE TOP-RIGHT-CENTER PANEL OF THE APPROVED COLLAGE. Bret Hart in pink-and-black gear controls Shawn Michaels, white male early 30s with long light-brown hair in red-and-white late-1990s gear, on the mat while the referee crouches close to inspect the action. Ringside handheld camera pushes slightly inward, Bret stays composed and in control, Shawn struggles realistically, ropes and crowd move naturally. Montreal crowd under hard white spotlights and pink haze. Premium 35mm wrestling-documentary realism, no premature bell, no readable text, no logos."
+    },
+    {
+      "id": "07",
+      "source_panel": "same match panel — the different ending: Bret applies the Sharpshooter and the referee lets the match continue",
+      "output_prefix": "RR_BRET_V2_07_DIFFERENT_ENDING_SHARPSHOOTER",
+      "seed": 11199727,
+      "prompt": "FULL-SCREEN SIGNATURE BRANCH-POINT SHOT BUILT FROM THE APPROVED COLLAGE'S MATCH PANEL. Bret Hart, clearly recognizable in pink-and-black gear, has Shawn Michaels trapped in the Sharpshooter at center ring. THE CRITICAL DETAIL: BRET IS APPLYING THE HOLD TO SHAWN, NOT THE OTHER WAY AROUND. The referee kneels beside Shawn and checks for a real submission but DOES NOT signal for the bell. Vince McMahon is visible at ringside, tense and unable to force the outcome. Slow dramatic push toward Bret's determined face and the hold, crowd surges, camera flashes fire, ropes tremble. No screwjob. Premium late-1997 wrestling documentary realism. No readable text or logos."
+    },
+    {
+      "id": "08",
+      "source_panel": "top-right collage panel — Shawn looking upward, wondering what could have been",
+      "output_prefix": "RR_BRET_V2_08_SHAWN_AFTER_THE_LOSS",
+      "seed": 11199728,
+      "prompt": "FULL-SCREEN CINEMATIC CLOSE-UP DIRECTLY INSPIRED BY THE FAR-TOP-RIGHT PANEL OF THE APPROVED COLLAGE. Shawn Michaels stands alone near the ropes after the match, sweaty and exhausted, long light-brown hair hanging around his face, looking upward toward the arena lights with disappointment and disbelief. The crowd remains active behind him, soft white spotlights and faint pink haze frame his silhouette. Slow upward camera drift from his chest to his face. Reflective alternate-history mood: what could have been. Premium gritty late-1990s sports documentary realism. No readable text or logos."
+    },
+    {
+      "id": "09",
+      "source_panel": "middle-right collage panel — Vince thinking, plan failed",
+      "output_prefix": "RR_BRET_V2_09_VINCE_PLAN_FAILED",
+      "seed": 11199729,
+      "prompt": "FULL-SCREEN CINEMATIC CLOSE-UP DIRECTLY INSPIRED BY THE MIDDLE-RIGHT VINCE PANEL OF THE APPROVED COLLAGE. Vince McMahon sits or stands just beyond ringside with one hand near his mouth, staring toward the ring in frustrated thought as Bret Hart remains champion. He looks controlled but defeated, not triumphant. Camera slowly slides from the championship belt in the foreground toward Vince's face, crowd movement and arena haze remain behind him. Pink-black-crimson palette, premium 1997 wrestling business documentary realism. No readable text or logos."
+    },
+    {
+      "id": "10",
+      "source_panel": "right-middle collage panel — Bret still champion, belt overhead",
+      "output_prefix": "RR_BRET_V2_10_STILL_YOUR_CHAMPION",
+      "seed": 11199730,
+      "prompt": "FULL-SCREEN CINEMATIC SHOT DIRECTLY INSPIRED BY THE RIGHT-MIDDLE PANEL OF THE APPROVED COLLAGE. Bret Hart stands in the ring after the match with the world championship belt raised high in one hand, pink-and-black gear glowing under hot white and pink spotlights. He turns slowly toward the Canadian crowd as fans explode in celebration. Camera orbits from ringside to a low heroic angle, belt shines, Bret's wet hair moves, crowd arms wave naturally. The visual statement is simple: Bret is still champion. Premium late-1997 sports documentary realism. No readable text or logos."
+    },
+    {
+      "id": "11",
+      "source_panel": "lower-right collage panel — Bret and Vince shake hands, respect instead of betrayal",
+      "output_prefix": "RR_BRET_V2_11_RESPECT_NOT_BETRAYAL",
+      "seed": 11199731,
+      "prompt": "FULL-SCREEN CINEMATIC SHOT DIRECTLY INSPIRED BY THE LOWER-RIGHT HANDSHAKE PANEL OF THE APPROVED COLLAGE. Bret Hart in pink-and-black gear stands at ringside and shakes hands firmly with Vince McMahon in a dark suit. Their expressions are serious, not friendly, but the handshake is real: professional respect instead of betrayal. Slow camera push toward their clasped hands, then up toward their faces, crowd and ring visible behind them, pink and white lights reflecting off the championship belt nearby. Grounded late-1997 wrestling documentary realism. No readable text or logos."
+    },
+    {
+      "id": "12",
+      "source_panel": "lower-left collage panel — Bret dominates Shawn in-ring, the best there was",
+      "output_prefix": "RR_BRET_V2_12_THE_BEST_THERE_WAS",
+      "seed": 11199732,
+      "prompt": "FULL-SCREEN CINEMATIC ACTION SHOT DIRECTLY INSPIRED BY THE LOWER-LEFT IN-RING PANEL OF THE APPROVED COLLAGE. Bret Hart controls Shawn Michaels in a crisp technical wrestling sequence near center ring, Bret's pink-and-black gear and focused expression emphasizing precision and superiority. Shawn sells the move naturally while the referee stays nearby. Ringside camera pans with the action, ropes flex, crowd jumps and camera flashes sparkle. Premium late-1990s wrestling documentary realism, athletic and believable, no blood, no readable text or logos."
+    },
+    {
+      "id": "13",
+      "source_panel": "central hero image — Bret close-up with championship and pink Canadian glow",
+      "output_prefix": "RR_BRET_V2_13_HITMAN_LIVES",
+      "seed": 11199733,
+      "prompt": "FULL-SCREEN CINEMATIC HERO PORTRAIT DIRECTLY INSPIRED BY THE CENTRAL IMAGE OF THE APPROVED COLLAGE. Bret Hart fills the frame from chest up, long wet dark hair, iconic mirrored pink wraparound sunglasses, black-and-pink singlet, gold world championship belt resting across his shoulder. A large Canadian red-and-white atmosphere glows behind him through arena haze while the crowd moves softly in the distance. Slow deliberate push toward Bret as he lifts his chin with quiet confidence. Premium magazine-cover-level 1997 wrestling documentary realism, rich pink highlights and gold belt detail. No readable text or logos."
+    },
+    {
+      "id": "14",
+      "source_panel": "bottom-right collage panel — Bret from behind, arms wide, brighter tomorrow",
+      "output_prefix": "RR_BRET_V2_14_BRHITMAN_FOREVER_FINAL",
+      "seed": 11199734,
+      "prompt": "FULL-SCREEN CINEMATIC FINAL SHOT DIRECTLY INSPIRED BY THE BOTTOM-RIGHT PANEL OF THE APPROVED COLLAGE. Rear view of Bret Hart standing at the end of the entrance aisle facing a roaring arena, wearing a black leather Hitman-style jacket with pink trim, both arms spread wide toward the crowd. Pink and white spotlights sweep through haze, the ring glows in the distance, Canadian fans wave and cheer. Camera slowly pulls backward as Bret holds the pose, creating a powerful sense of closure and a brighter alternate future. Premium late-1990s wrestling documentary realism. No readable jacket text, no logos, no captions."
+    }
   ]
 }
