@@ -1,0 +1,86 @@
+name: HHWI Slaughterhouse Thumbnail Repair
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hhwi-slaughterhouse-thumbnail-repair.yml'
+  workflow_dispatch:
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install verification stack
+        run: python3 -m pip install --quiet pillow requests
+
+      - name: Download exact epic Slaughterhouse thumbnail
+        run: |
+          set -euo pipefail
+          curl -fL --retry 5 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/b150de0e-40c8-47bc-bb6e-9ec189d0b7b4.jpg' -o slaughterhouse.jpg
+          python3 - <<'PY'
+          from PIL import Image
+          im=Image.open('slaughterhouse.jpg')
+          print('SIZE', im.size)
+          assert im.size == (1280,720), im.size
+          PY
+
+      - name: Attach Slaughterhouse thumbnail
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -sS -X POST \
+            -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+            -F "user=HipHopWhatIf" \
+            -F "video_id=JlmEGeQxaK0" \
+            -F "thumbnail=@slaughterhouse.jpg;type=image/jpeg" \
+            'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' | tee attach.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('attach.json'))
+          assert p.get('success') is True, p
+          assert p.get('video_id') == 'JlmEGeQxaK0', p
+          print('ATTACH_OK', p)
+          PY
+
+      - name: Verify YouTube is serving Slaughterhouse thumbnail
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import io,time,requests
+          from PIL import Image,ImageChops,ImageOps,ImageStat
+          expected=Image.open('slaughterhouse.jpg').convert('RGB')
+          def geom(src,size):
+              im=ImageOps.contain(src,size,method=Image.Resampling.LANCZOS)
+              canvas=Image.new('RGB',size,(0,0,0))
+              canvas.paste(im,((size[0]-im.width)//2,(size[1]-im.height)//2))
+              return canvas
+          def mae(a,b):
+              return sum(ImageStat.Stat(ImageChops.difference(a,geom(b,a.size))).mean)/3
+          for attempt in range(1,16):
+              r=requests.get(f'https://i.ytimg.com/vi/JlmEGeQxaK0/hqdefault.jpg?repair={time.time_ns()}',timeout=25,headers={'User-Agent':'Mozilla/5.0'})
+              r.raise_for_status()
+              actual=Image.open(io.BytesIO(r.content)).convert('RGB')
+              score=mae(actual,expected)
+              print('ATTEMPT',attempt,'MAE',round(score,2))
+              if score <= 21.0:
+                  print('SLAUGHTERHOUSE_THUMBNAIL_GATE_PASS')
+                  raise SystemExit(0)
+              time.sleep(12)
+          raise SystemExit('SLAUGHTERHOUSE_THUMBNAIL_GATE_FAIL')
+          PY
+
+      - name: Keep proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhwi-slaughterhouse-thumbnail-proof
+          path: |
+            slaughterhouse.jpg
+            attach.json
+          if-no-files-found: warn
