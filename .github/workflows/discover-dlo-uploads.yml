@@ -1,0 +1,32 @@
+name: Discover DLo YouTube Uploads
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/discover-dlo-uploads.yml'
+      - 'scripts/discover_dlo_uploads.py'
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -e .
+      - name: Inspect authenticated Ringside uploads
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET_VALUE: ${{ secrets.YOUTUBE_CLIENT_SECRET_VALUE }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_EXPECTED_CHANNEL_ID: ${{ vars.YOUTUBE_EXPECTED_CHANNEL_ID || 'UC8OX1Ym_Qnt-ekFgvsjB7cA' }}
+        run: python scripts/discover_dlo_uploads.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dlo-youtube-discovery
+          path: dlo-youtube-discovery.json
+          retention-days: 7
