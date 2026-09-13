@@ -1,0 +1,105 @@
+name: Repair DLo Droz YouTube Shorts
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-dlo-shorts.yml'
+      - 'ringside-rewrite/dlo-shorts-repair-trigger.txt'
+
+concurrency:
+  group: repair-dlo-droz-youtube-shorts
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install video tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg jq unzip
+
+      - name: Recover exact DLo Droz production artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovered scans
+          curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            > artifacts.json
+
+          found=''
+          while IFS=$'\t' read -r artifact_id artifact_url created_at; do
+            [ -n "$artifact_id" ] || continue
+            rm -rf scan.zip scans/current
+            mkdir -p scans/current
+            echo "Checking ringside-rewrite-run artifact $artifact_id from $created_at"
+            curl -fsSL -L \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "$artifact_url" -o scan.zip
+            unzip -q scan.zip -d scans/current
+            while IFS= read -r episode_json; do
+              episode_dir="$(dirname "$episode_json")"
+              title="$(python - "$episode_json" <<'PY'
+import json, sys
+p=sys.argv[1]
+data=json.load(open(p, encoding='utf-8'))
+print(data.get('episode_title') or data.get('title') or '')
+PY
+)"
+              normalized="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')"
+              if [[ "$normalized" == *"droz"* ]] && { [[ "$normalized" == *"d’lo"* ]] || [[ "$normalized" == *"d'lo"* ]]; }; then
+                test -f "$episode_dir/final.mp4"
+                test -f "$episode_dir/captions.srt"
+                cp -a "$episode_dir/." recovered/
+                found="$artifact_id"
+                echo "Recovered target episode: $title"
+                break 2
+              fi
+            done < <(find scans/current -type f -name episode.json -print)
+          done < <(jq -r '.artifacts[] | select(.name == "ringside-rewrite-run" and .expired == false) | [.id,.archive_download_url,.created_at] | @tsv' artifacts.json)
+
+          test -n "$found" || { echo '::error::No unexpired DLo/Droz Ringside production artifact found.'; exit 1; }
+          echo "EPISODE_DIR=$GITHUB_WORKSPACE/recovered" >> "$GITHUB_ENV"
+          echo "SOURCE_ARTIFACT_ID=$found" >> "$GITHUB_ENV"
+
+      - name: Install Ringside package
+        run: pip install -e .
+
+      - name: Rebuild true vertical Shorts from saved master
+        run: python scripts/rebuild_saved_shorts.py --episode-dir "$EPISODE_DIR"
+
+      - name: Delete old DLo uploads and upload validated replacements
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET_VALUE: ${{ secrets.YOUTUBE_CLIENT_SECRET_VALUE }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_EXPECTED_CHANNEL_ID: ${{ vars.YOUTUBE_EXPECTED_CHANNEL_ID || 'UC8OX1Ym_Qnt-ekFgvsjB7cA' }}
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          RINGSIDE_AUTO_PUBLISH: 'false'
+        run: python scripts/repair_dlo_shorts.py --episode-dir "$EPISODE_DIR" --long-id O4DB032Y22U
+
+      - name: Save repair receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dlo-droz-shorts-repair-receipt
+          path: recovered/dlo-shorts-repair.json
+          if-no-files-found: warn
+          retention-days: 30
