@@ -1,0 +1,16 @@
+01	RR_BRET_01_MONTREAL_OPEN_middle.png	/tmp/bret-review-source/qc/RR_BRET_01_MONTREAL_OPEN_middle.png
+02	RR_BRET_02_SHAWN_ENTRANCE_middle.png	/tmp/bret-review-source/qc/RR_BRET_02_SHAWN_ENTRANCE_middle.png
+03	RR_BRET_03_REAL_MATCH_middle.png	/tmp/bret-review-source/qc/RR_BRET_03_REAL_MATCH_middle.png
+04	RR_BRET_04_SHARPSHOOTER_BRANCH_middle.png	/tmp/bret-review-source/qc/RR_BRET_04_SHARPSHOOTER_BRANCH_middle.png
+05	RR_BRET_05_CHAOTIC_FINISH_middle.png	/tmp/bret-review-source/qc/RR_BRET_05_CHAOTIC_FINISH_middle.png
+06	RR_BRET_06_RAW_FAREWELL_middle.png	/tmp/bret-review-source/qc/RR_BRET_06_RAW_FAREWELL_middle.png
+07	RR_BRET_07_VINCE_BACKSTAGE_middle.png	/tmp/bret-review-source/qc/RR_BRET_07_VINCE_BACKSTAGE_middle.png
+08	RR_BRET_08_AUSTIN_RISE_middle.png	/tmp/bret-review-source/qc/RR_BRET_08_AUSTIN_RISE_middle.png
+09	RR_BRET_09_SHAWN_HEEL_middle.png	/tmp/bret-review-source/qc/RR_BRET_09_SHAWN_HEEL_middle.png
+10	RR_BRET_10_WCW_DEBUT_middle.png	/tmp/bret-review-source/qc/RR_BRET_10_WCW_DEBUT_middle.png
+11	RR_BRET_11_ANTI_NWO_middle.png	/tmp/bret-review-source/qc/RR_BRET_11_ANTI_NWO_middle.png
+12	RR_BRET_12_STING_ALLY_middle.png	/tmp/bret-review-source/qc/RR_BRET_12_STING_ALLY_middle.png
+13	RR_BRET_13_HOGAN_TITLE_MATCH_middle.png	/tmp/bret-review-source/qc/RR_BRET_13_HOGAN_TITLE_MATCH_middle.png
+14	RR_BRET_14_WORLD_CHAMPION_middle.png	/tmp/bret-review-source/qc/RR_BRET_14_WORLD_CHAMPION_middle.png
+15	RR_BRET_15_TWO_TIMELINES_middle.png	/tmp/bret-review-source/qc/RR_BRET_15_TWO_TIMELINES_middle.png
+16	RR_BRET_16_FINAL_LEGACY_middle.png	/tmp/bret-review-source/qc/RR_BRET_16_FINAL_LEGACY_middle.png
