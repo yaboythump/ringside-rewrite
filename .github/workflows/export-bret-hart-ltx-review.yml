@@ -1,0 +1,134 @@
+name: Export Bret Hart LTX Scene Review
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-bret-hart-ltx-review.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  export-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: 505821ada418c6a4b3e0007a24555221722f6f2f
+      ARTIFACT_NAME: ringside-bret-hart-ltx
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Locate completed Bret Hart LTX run and artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SOURCE_SHA}&per_page=50" \
+            --jq '.workflow_runs[] | select(.path==".github/workflows/ringside-ltx-bret-hart.yml" and .conclusion=="success") | .id' | head -n1)
+          [[ -n "$RUN_ID" ]] || { echo "No successful Bret Hart LTX run found for ${SOURCE_SHA}"; exit 2; }
+          ART_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" \
+            --jq '.artifacts[] | select(.name=="ringside-bret-hart-ltx" and .expired==false) | .id' | head -n1)
+          [[ -n "$ART_ID" ]] || { echo "Artifact ringside-bret-hart-ltx missing or expired for run ${RUN_ID}"; exit 3; }
+          echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "ART_ID=$ART_ID" >> "$GITHUB_ENV"
+          echo "source_run_id=$RUN_ID" > /tmp/source.txt
+          echo "source_artifact_id=$ART_ID" >> /tmp/source.txt
+
+      - name: Download existing render artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/bret-review-source
+          mkdir -p /tmp/bret-review-source
+          gh run download "$RUN_ID" -n "$ARTIFACT_NAME" -D /tmp/bret-review-source
+          echo "Downloaded files:"
+          find /tmp/bret-review-source -maxdepth 3 -type f | sort | sed -n '1,120p'
+
+      - name: Build contact sheet and motion review reel from existing scenes
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          python3 -m pip install --quiet pillow
+          rm -rf review/bret-hart-ltx /tmp/bret-review-segs
+          mkdir -p review/bret-hart-ltx /tmp/bret-review-segs
+
+          python3 - <<'PY'
+          from PIL import Image, ImageOps, ImageDraw, ImageFont
+          from pathlib import Path
+          import re
+
+          root=Path('/tmp/bret-review-source')
+          mids=sorted(root.rglob('*_middle.png'))
+          if len(mids) != 16:
+              raise RuntimeError(f'Expected 16 middle QC frames, found {len(mids)}')
+
+          W,H=480,270
+          label_h=42
+          cols=4
+          rows=4
+          sheet=Image.new('RGB',(cols*W,rows*(H+label_h)),(12,12,12))
+          draw=ImageDraw.Draw(sheet)
+          try:
+              font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',24)
+          except Exception:
+              font=ImageFont.load_default()
+
+          manifest=[]
+          for i,p in enumerate(mids,1):
+              im=Image.open(p).convert('RGB')
+              im=ImageOps.fit(im,(W,H),method=Image.Resampling.LANCZOS)
+              x=((i-1)%cols)*W
+              y=((i-1)//cols)*(H+label_h)
+              sheet.paste(im,(x,y))
+              draw.rectangle((x,y+H,x+W,y+H+label_h),fill=(16,16,16))
+              label=f'SCENE {i:02d}  •  {p.stem.removesuffix("_middle")}'
+              draw.text((x+12,y+H+7),label,fill=(245,245,245),font=font)
+              manifest.append(f'{i:02d}\t{p.name}\t{p}')
+
+          out=Path('review/bret-hart-ltx/BRET_HART_LTX_16_SCENES_CONTACT_SHEET.jpg')
+          sheet.save(out,quality=90,optimize=True,progressive=True)
+          Path('review/bret-hart-ltx/scene_manifest.txt').write_text('\n'.join(manifest)+'\n')
+          PY
+
+          mapfile -t CLIPS < <(find /tmp/bret-review-source -type f -path '*/mp4/*.mp4' | sort)
+          if [[ ${#CLIPS[@]} -ne 16 ]]; then
+            mapfile -t CLIPS < <(find /tmp/bret-review-source -type f -name '*.mp4' | sort)
+          fi
+          [[ ${#CLIPS[@]} -eq 16 ]] || { echo "Expected 16 scene MP4s, found ${#CLIPS[@]}"; exit 4; }
+
+          : > /tmp/bret-review-segs/concat.txt
+          N=0
+          for CLIP in "${CLIPS[@]}"; do
+            N=$((N+1))
+            OUT=$(printf '/tmp/bret-review-segs/scene_%02d.mp4' "$N")
+            ffmpeg -y -loglevel error -i "$CLIP" \
+              -vf "scale=854:480:flags=lanczos,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='SCENE $(printf '%02d' "$N")':x=24:y=24:fontsize=34:fontcolor=white:box=1:boxcolor=black@0.65:boxborderw=10" \
+              -an -c:v libx264 -preset veryfast -crf 27 -pix_fmt yuv420p -movflags +faststart "$OUT"
+            echo "file '$OUT'" >> /tmp/bret-review-segs/concat.txt
+          done
+          ffmpeg -y -loglevel error -f concat -safe 0 -i /tmp/bret-review-segs/concat.txt \
+            -c copy -movflags +faststart review/bret-hart-ltx/BRET_HART_LTX_16_SCENES_REVIEW_REEL.mp4
+
+          cp /tmp/source.txt review/bret-hart-ltx/source_run.txt
+          ls -lh review/bret-hart-ltx
+
+      - name: Commit review assets only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add review/bret-hart-ltx/
+          if git diff --cached --quiet; then
+            echo 'Review assets already current.'
+            exit 0
+          fi
+          git commit -m 'Export Bret Hart LTX scene review'
+          git push origin HEAD:main
