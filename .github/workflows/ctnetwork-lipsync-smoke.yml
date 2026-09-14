@@ -50,10 +50,13 @@ jobs:
             return 1
           }
           wait_jupyter() {
-            for i in $(seq 1 60); do
-              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$jupyter" || true)
+            local hard404=0
+            for i in $(seq 1 18); do
+              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "$jupyter" || true)
               echo "jupyter readiness attempt=$i http=$code"
               [[ "$code" == 200 || "$code" == 302 ]] && return 0
+              if [[ "$code" == 404 ]]; then hard404=$((hard404+1)); else hard404=0; fi
+              if [[ "$hard404" -ge 3 ]]; then echo 'persistent Jupyter proxy 404'; return 1; fi
               sleep 5
             done
             return 1
