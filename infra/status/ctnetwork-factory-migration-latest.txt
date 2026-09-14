@@ -1,8 +1,8 @@
 CTNETWORK FACTORY MIGRATION
-run_id=34860139773
+run_id=34860685261
 source_pod=0xmrdq72ka4cxr
 destination_pod=8p2ytviv38olnv
-job_status=success
+migration_outcome=failure
 
 [0xmrdq72ka4cxr] groups: cannot find name for group ID 993
  _____                             _ 
@@ -17,35 +17,9 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1vIHBpcGVmYWlsCnRlc3QgLWQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWw7IGNvbW1hbmQgLXYgcnVucG9kY3RsOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWw7IGZpbmQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgLW1heGRlcHRoIDIgLXR5cGUgZiB8IGhlYWQKcmM9JD8KZWNobyBfX0NUTl9ET05FXzE3ODkzOTg1Mjg4NjdfXzokcmMK | base64 -d | bash
-[?2004l[0xmrdq72ka4cxr] /usr/bin/runpodctl
-[0xmrdq72ka4cxr] 51G	/workspace/ctnetwork-local
-[0xmrdq72ka4cxr] /workspace/ctnetwork-local/python/.lock
-/workspace/ctnetwork-local/python/.gitignore
-/workspace/ctnetwork-local/bin/uvx
-/workspace/ctnetwork-local/bin/uv
-/workspace/ctnetwork-local/bin/ctn-lipsync-test
-/workspace/ctnetwork-local/bin/ctn-health
-/workspace/ctnetwork-local/logs/install.log
-/workspace/ctnetwork-local/status/latentsync_runtime_persistent.status
-/workspace/ctnetwork-local/status/ltx25_code.status
-/workspace/ctnetwork-local/status/latentsync.status
-[0xmrdq72ka4cxr] __CTN_DONE_1789398528867__:0
-[8p2ytviv38olnv]  _____                             _ 
-|  __ \                           | |
-| |__) |   _ _ __  _ __   ___   __| |
-|  _  / | | | '_ \| '_ \ / _ \ / _` |
-| | \ \ |_| | | | | |_) | (_) | (_| |
-|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
-                  | |                
-                  |_|                
-For detailed documentation and guides, please visit:
-[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
-
-
-[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1vIHBpcGVmYWlsCmNvbW1hbmQgLXYgcnVucG9kY3RsOyBybSAtcmYgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwuaW5jb21pbmc7IHRlc3QgISAtZSAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbCB8fCBtdiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC5wcmVfbWlncmF0aW9uXyQoZGF0ZSArJXMpCnJjPSQ/CmVjaG8gX19DVE5fRE9ORV8xNzg5Mzk4NjIwMzg5X186JHJjCg== | base64 -d | bash
-[?2004l[8p2ytviv38olnv] /usr/bin/runpodctl
-[8p2ytviv38olnv] __CTN_DONE_1789398620389__:0
+[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1FZXVvIHBpcGVmYWlsCnRlc3QgLWQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWw7IGR1IC1zaCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbDsgdGVzdCAtciAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbApyYz0kPwplY2hvIF9fQ1ROX0RPTkVfMTc4OTM5ODgwMzI3MV9fOiRyYwo= | base64 -d | bash
+[?2004l[0xmrdq72ka4cxr] 51G	/workspace/ctnetwork-local
+[0xmrdq72ka4cxr] __CTN_DONE_1789398803271__:0
 [0xmrdq72ka4cxr] groups: cannot find name for group ID 993
  _____                             _ 
 |  __ \                           | |
@@ -59,9 +33,8 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1vIHBpcGVmYWlsCmNkIC93b3Jrc3BhY2U7IG5vaHVwIHJ1bnBvZGN0bCBzZW5kIGN0bmV0d29yay1sb2NhbCAtLWNvZGUgY3RuLWZhY3Rvcnktbm8tMjAyNjA5MTRiID4gL3RtcC9jdG4tc2VuZC5sb2cgMj4mMSAmIGVjaG8gU0VOREVSX1BJRDokIQpyYz0kPwplY2hvIF9fQ1ROX0RPTkVfMTc4OTM5ODYyMTkwNV9fOiRyYwo= | base64 -d | bash
-[?2004l[0xmrdq72ka4cxr] SENDER_PID:196
-[0xmrdq72ka4cxr] __CTN_DONE_1789398621905__:0
+[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1FZXVvIHBpcGVmYWlsCmNvbW1hbmQgLXYgcnN5bmMgPi9kZXYvbnVsbCB8fCAoYXB0LWdldCB1cGRhdGUgLXFxICYmIERFQklBTl9GUk9OVEVORD1ub25pbnRlcmFjdGl2ZSBhcHQtZ2V0IGluc3RhbGwgLXkgLXFxIHJzeW5jIG9wZW5zc2gtY2xpZW50KQpyYz0kPwplY2hvIF9fQ1ROX0RPTkVfMTc4OTM5ODkxNzE0OF9fOiRyYwo= | base64 -d | bash
+[?2004l[0xmrdq72ka4cxr] __CTN_DONE_1789398917148__:0
 [8p2ytviv38olnv]  _____                             _ 
 |  __ \                           | |
 | |__) |   _ _ __  _ __   ___   __| |
@@ -74,6 +47,76 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1vIHBpcGVmYWlsCmNkIC93b3Jrc3BhY2U7IHJ1bnBvZGN0bCByZWNlaXZlIGN0bi1mYWN0b3J5LW5vLTIwMjYwOTE0YiA+IC90bXAvY3RuLXJlY2VpdmUubG9nIDI+JjE7IGNhdCAvdG1wL2N0bi1yZWNlaXZlLmxvZzsgdGVzdCAtZCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbApyYz0kPwplY2hvIF9fQ1ROX0RPTkVfMTc4OTM5ODYyNjQ4NV9fOiRyYwo= | base64 -d | bash
-[?2004l[8p2ytviv38olnv] runpodctl-receive: Malformed relay, please retry 'runpodctl send' to generate a valid code.
-[8p2ytviv38olnv] __CTN_DONE_1789398626485__:1
+[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1FZXVvIHBpcGVmYWlsCmNvbW1hbmQgLXYgcnN5bmMgPi9kZXYvbnVsbCAmJiBjb21tYW5kIC12IHNzaGQgPi9kZXYvbnVsbCB8fCAoYXB0LWdldCB1cGRhdGUgLXFxICYmIERFQklBTl9GUk9OVEVORD1ub25pbnRlcmFjdGl2ZSBhcHQtZ2V0IGluc3RhbGwgLXkgLXFxIHJzeW5jIG9wZW5zc2gtc2VydmVyKTsgbWtkaXIgLXAgL3J1bi9zc2hkIC9yb290Ly5zc2g7IGNobW9kIDcwMCAvcm9vdC8uc3NoOyBwZ3JlcCAteCBzc2hkID4vZGV2L251bGwgfHwgL3Vzci9zYmluL3NzaGQKcmM9JD8KZWNobyBfX0NUTl9ET05FXzE3ODkzOTg5MTk2NDBfXzokcmMK | base64 -d | bash
+[?2004l[8p2ytviv38olnv] __CTN_DONE_1789398919640__:0
+[8p2ytviv38olnv]  _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1FZXVvIHBpcGVmYWlsCmVjaG8gQ1ROX0lQOiR7UlVOUE9EX1BVQkxJQ19JUDotfTsgZWNobyBDVE5fU1NIX1BPUlQ6JHtSVU5QT0RfVENQX1BPUlRfMjI6LX0KcmM9JD8KZWNobyBfX0NUTl9ET05FXzE3ODkzOTg5MjE3NTNfXzokcmMK | base64 -d | bash
+[?2004l[8p2ytviv38olnv] CTN_IP:149.36.1.136
+CTN_SSH_PORT:42926
+__CTN_DONE_1789398921753__:0
+DEST_SSH_ENDPOINT=149.36.1.136:42926
+[0xmrdq72ka4cxr] groups: cannot find name for group ID 993
+ _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1FZXVvIHBpcGVmYWlsCnJtIC1mIC90bXAvY3RuX21pZ3JhdGVfa2V5IC90bXAvY3RuX21pZ3JhdGVfa2V5LnB1Yjsgc3NoLWtleWdlbiAtcSAtdCBlZDI1NTE5IC1OICcnIC1mIC90bXAvY3RuX21pZ3JhdGVfa2V5OyBjaG1vZCA2MDAgL3RtcC9jdG5fbWlncmF0ZV9rZXk7IGVjaG8gQ1ROX1BVQktFWV9CNjQ6JChiYXNlNjQgLXcwIC90bXAvY3RuX21pZ3JhdGVfa2V5LnB1YikKcmM9JD8KZWNobyBfX0NUTl9ET05FXzE3ODkzOTg5MjQzMzZfXzokcmMK | base64 -d | bash
+[?2004l[0xmrdq72ka4cxr] CTN_PUBKEY_B64:c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSUNURnpjVFQ1UWpPb0xrMzhkdFN5Y2ZjS2hydmFDSEE4MHM2YXFQRUhvL0Igcm9vdEBjMDk0OTdjOGZiNGMK
+__CTN_DONE_1789398924336__:0
+[8p2ytviv38olnv]  _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1FZXVvIHBpcGVmYWlsCmVjaG8gYzNOb0xXVmtNalUxTVRrZ1FVRkJRVU16VG5waFF6RnNXa1JKTVU1VVJUVkJRVUZCU1VOVVJucGpWRlExVVdwUGIweHJNemhrZEZONVkyWmpTMmh5ZG1GRFNFRTRNSE0yWVhGUVJVaHZMMElnY205dmRFQmpNRGswT1Rkak9HWmlOR01LIHwgYmFzZTY0IC1kID4+IC9yb290Ly5zc2gvYXV0aG9yaXplZF9rZXlzOyBzb3J0IC11IC9yb290Ly5zc2gvYXV0aG9yaXplZF9rZXlzIC1vIC9yb290Ly5zc2gvYXV0aG9yaXplZF9rZXlzOyBjaG1vZCA2MDAgL3Jvb3QvLnNzaC9hdXRob3JpemVkX2tleXM7IHBncmVwIC14IHNzaGQgPi9kZXYvbnVsbCB8fCAvdXNyL3NiaW4vc3NoZApyYz0kPwplY2hvIF9fQ1ROX0RPTkVfMTc4OTM5ODkyNjM4MF9fOiRyYwo= | base64 -d | bash
+[?2004l[8p2ytviv38olnv] __CTN_DONE_1789398926380__:0
+[0xmrdq72ka4cxr] groups: cannot find name for group ID 993
+ _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1FZXVvIHBpcGVmYWlsCnNzaCAtcCA0MjkyNiAtaSAvdG1wL2N0bl9taWdyYXRlX2tleSAtbyBTdHJpY3RIb3N0S2V5Q2hlY2tpbmc9bm8gLW8gVXNlcktub3duSG9zdHNGaWxlPS9kZXYvbnVsbCAtbyBTZXJ2ZXJBbGl2ZUludGVydmFsPTMwIC1vIFNlcnZlckFsaXZlQ291bnRNYXg9MjAgLW8gQ29ubmVjdFRpbWVvdXQ9MzAgcm9vdEAxNDkuMzYuMS4xMzYgJ2VjaG8gQ1ROX1NTSF9SRUFEWScKcmM9JD8KZWNobyBfX0NUTl9ET05FXzE3ODkzOTg5Mjc4NzFfXzokcmMK | base64 -d | bash
+[?2004l[0xmrdq72ka4cxr] Warning: Permanently added '[149.36.1.136]:42926' (ED25519) to the list of known hosts.
+[0xmrdq72ka4cxr] CTN_SSH_READY
+[0xmrdq72ka4cxr] [?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# Traceback (most recent call last):
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_migrate_factory.py", line 290, in <module>
+    main()
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_migrate_factory.py", line 238, in main
+    src.run(
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_migrate_factory.py", line 157, in run
+    raise TimeoutError(f"Remote command timed out on {self.pod.pod_id}")
+TimeoutError: Remote command timed out on 0xmrdq72ka4cxr
