@@ -1,0 +1,98 @@
+name: CTNETWORK LTX 2.5 Video Smoke Test
+
+on:
+  workflow_run:
+    workflows: ["CTNETWORK Qwen Narration Smoke Test"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ctnetwork-ltx25-video-certification
+  cancel-in-progress: true
+
+jobs:
+  ltx25-smoke:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve, start, and health-gate factory pod
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-lipsync-smoke-command.json)
+          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 2; }
+          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          pod_api="https://rest.runpod.io/v1/pods/${POD_ID}"
+          jupyter="https://${POD_ID}-8888.proxy.runpod.net/login"
+          refresh() { POD=$(curl -fsS "$pod_api" "${auth[@]}"); STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"'); }
+          wait_running() { for i in $(seq 1 120); do refresh; [[ "$STATUS" == RUNNING ]] && return 0; sleep 5; done; return 1; }
+          wait_jupyter() { for i in $(seq 1 60); do code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$jupyter" || true); echo "jupyter readiness attempt=$i http=$code"; [[ "$code" == 200 || "$code" == 302 ]] && return 0; sleep 5; done; return 1; }
+          refresh
+          if [[ "$STATUS" != RUNNING ]]; then curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true; wait_running || exit 3; fi
+          if ! wait_jupyter; then
+            echo 'Jupyter unhealthy; controlled recycle.'
+            curl -fsS -X POST "$pod_api/stop" "${auth[@]}" >/dev/null || true
+            for i in $(seq 1 60); do sleep 3; refresh; [[ "$STATUS" != RUNNING ]] && break; done
+            curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true
+            wait_running || exit 4
+            wait_jupyter || { echo JUPYTER_READINESS_BLOCKED; exit 5; }
+          fi
+          refresh
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || exit 6
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run LTX 2.5 video certification
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_ltx25_smoke.py | tee /tmp/ctnetwork-ltx25-smoke.txt
+
+      - name: Upload LTX video artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-ltx25-smoke
+          path: /tmp/ltx25-official-smoke.mp4
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Save LTX smoke report
+        if: always() && !cancelled()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/ctnetwork-ltx25-smoke.txt infra/status/ctnetwork-ltx25-smoke-latest.txt 2>/dev/null || echo 'ltx25 smoke output unavailable' > infra/status/ctnetwork-ltx25-smoke-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-ltx25-smoke-latest.txt
+          git commit -m 'CTNETWORK: record LTX 2.5 smoke test' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Stop exact LTX-test pod
+        if: always() && !cancelled()
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          if [[ -n "${POD_ID:-}" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+          fi
