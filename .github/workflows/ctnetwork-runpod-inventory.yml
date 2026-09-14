@@ -1,0 +1,51 @@
+name: CTNETWORK RunPod GPU Storage Inventory
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-runpod-inventory-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Install runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 -o /usr/local/bin/runpodctl
+          chmod +x /usr/local/bin/runpodctl
+          runpodctl config --apiKey "$RUNPOD_API_KEY"
+          runpodctl version
+      - name: Inventory datacenters GPUs and persistent volumes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p infra/status
+          echo '=== RTX 5090 DATACENTERS ===' | tee infra/status/runpod-factory-inventory.txt
+          runpodctl datacenter list | jq '[.[] | {id,name,location,gpuAvailability:[.gpuAvailability[]? | select(.gpuId=="NVIDIA GeForce RTX 5090")]} | select((.gpuAvailability|length)>0)]' | tee -a infra/status/runpod-factory-inventory.txt
+          echo '=== GLOBAL RTX 5090 ===' | tee -a infra/status/runpod-factory-inventory.txt
+          runpodctl gpu list --include-unavailable | jq '[.[] | select(.gpuId=="NVIDIA GeForce RTX 5090")]' | tee -a infra/status/runpod-factory-inventory.txt
+          echo '=== EXISTING NETWORK VOLUMES ===' | tee -a infra/status/runpod-factory-inventory.txt
+          runpodctl network-volume list | tee -a infra/status/runpod-factory-inventory.txt
+          echo '=== PODS ===' | tee -a infra/status/runpod-factory-inventory.txt
+          runpodctl pod list --all | jq '[.[] | {id,name,desiredStatus,gpu,networkVolumeId,volumeInGb,containerDiskInGb,costPerHr}]' | tee -a infra/status/runpod-factory-inventory.txt
+      - name: Save report
+        shell: bash
+        run: |
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/runpod-factory-inventory.txt
+          git commit -m 'CTNETWORK: refresh RunPod factory inventory' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
