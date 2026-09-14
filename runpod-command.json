@@ -1,6 +1,6 @@
 {
   "action": "status",
   "target": "ltx",
-  "pod_id": "k4nsy149tyh5gq",
-  "request_id": "ctnetwork-local-stack-status-2026-09-14-01"
+  "pod_id": "",
+  "request_id": "ctnetwork-inventory-2026-09-14-01"
 }
