@@ -4,13 +4,13 @@
   "desiredStatus": "RUNNING",
   "image": null,
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "lastStartedAt": "2026-09-14 12:12:08.054 +0000 UTC",
-  "lastStatusChange": "Rented by User: Mon Sep 14 2026 12:12:08 GMT+0000 (Coordinated Universal Time)",
+  "lastStartedAt": "2026-09-14 12:45:07.622 +0000 UTC",
+  "lastStatusChange": "Resumed by user: Mon Sep 14 2026 12:45:07 GMT+0000 (Coordinated Universal Time)",
   "interruptible": null,
   "locked": null,
   "publicIp": "213.173.109.109",
   "portMappings": {
-    "22": 17002
+    "22": 43456
   },
   "ports": [
     "8888/http",
@@ -38,7 +38,7 @@
     "maxUploadSpeedMbps": 7460,
     "secureCloud": true,
     "supportPublicIp": true,
-    "reservedCountVersion": 5346
+    "reservedCountVersion": 5358
   },
   "dockerEntrypoint": null,
   "dockerStartCmd": null
