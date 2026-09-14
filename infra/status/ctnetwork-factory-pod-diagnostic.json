@@ -1,15 +1,17 @@
 {
-  "id": "m3ox46xea1u3vd",
+  "id": "v92zliqqi85bwj",
   "name": "ctnetwork-factory-gpu",
-  "desiredStatus": "EXITED",
+  "desiredStatus": "RUNNING",
   "image": null,
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "lastStartedAt": "2026-09-14 12:03:01.955 +0000 UTC",
-  "lastStatusChange": "Exited by user: Mon Sep 14 2026 12:03:44 GMT+0000 (Coordinated Universal Time)",
+  "lastStartedAt": "2026-09-14 12:12:08.054 +0000 UTC",
+  "lastStatusChange": "Rented by User: Mon Sep 14 2026 12:12:08 GMT+0000 (Coordinated Universal Time)",
   "interruptible": null,
   "locked": null,
-  "publicIp": "",
-  "portMappings": null,
+  "publicIp": "213.173.109.109",
+  "portMappings": {
+    "22": 17002
+  },
   "ports": [
     "8888/http",
     "22/tcp"
@@ -25,18 +27,18 @@
     "size": 300
   },
   "memoryInGb": 62,
-  "vcpuCount": 12,
+  "vcpuCount": 28,
   "gpu": null,
   "machine": {
     "dataCenterId": "EU-RO-1",
-    "diskThroughputMBps": 7393,
+    "diskThroughputMBps": 9500,
     "gpuTypeId": "NVIDIA RTX PRO 4500 Blackwell",
     "location": "RO",
-    "maxDownloadSpeedMbps": 4804,
-    "maxUploadSpeedMbps": 4274,
+    "maxDownloadSpeedMbps": 6030,
+    "maxUploadSpeedMbps": 7460,
     "secureCloud": true,
     "supportPublicIp": true,
-    "reservedCountVersion": 3579
+    "reservedCountVersion": 5346
   },
   "dockerEntrypoint": null,
   "dockerStartCmd": null
