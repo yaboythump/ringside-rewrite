@@ -19,27 +19,30 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Install runpodctl
+      - name: Install and configure runpodctl
         shell: bash
         run: |
           set -euo pipefail
           curl -fsSL https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 -o /usr/local/bin/runpodctl
           chmod +x /usr/local/bin/runpodctl
-          runpodctl config --apiKey "$RUNPOD_API_KEY"
+          mkdir -p "$HOME/.runpod"
+          printf 'apiKey = "%s"\napiUrl = "https://api.runpod.io/graphql"\n' "$RUNPOD_API_KEY" > "$HOME/.runpod/config.toml"
+          chmod 600 "$HOME/.runpod/config.toml"
           runpodctl version
       - name: Inventory datacenters GPUs and persistent volumes
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p infra/status
-          echo '=== RTX 5090 DATACENTERS ===' | tee infra/status/runpod-factory-inventory.txt
-          runpodctl datacenter list | jq '[.[] | {id,name,location,gpuAvailability:[.gpuAvailability[]? | select(.gpuId=="NVIDIA GeForce RTX 5090")]} | select((.gpuAvailability|length)>0)]' | tee -a infra/status/runpod-factory-inventory.txt
-          echo '=== GLOBAL RTX 5090 ===' | tee -a infra/status/runpod-factory-inventory.txt
-          runpodctl gpu list --include-unavailable | jq '[.[] | select(.gpuId=="NVIDIA GeForce RTX 5090")]' | tee -a infra/status/runpod-factory-inventory.txt
-          echo '=== EXISTING NETWORK VOLUMES ===' | tee -a infra/status/runpod-factory-inventory.txt
-          runpodctl network-volume list | tee -a infra/status/runpod-factory-inventory.txt
-          echo '=== PODS ===' | tee -a infra/status/runpod-factory-inventory.txt
-          runpodctl pod list --all | jq '[.[] | {id,name,desiredStatus,gpu,networkVolumeId,volumeInGb,containerDiskInGb,costPerHr}]' | tee -a infra/status/runpod-factory-inventory.txt
+          REPORT=infra/status/runpod-factory-inventory.txt
+          echo '=== RTX 5090 DATACENTERS ===' | tee "$REPORT"
+          runpodctl datacenter list | jq '[.[] | {id,name,location,gpuAvailability:[.gpuAvailability[]? | select(.gpuId=="NVIDIA GeForce RTX 5090")]} | select((.gpuAvailability|length)>0)]' | tee -a "$REPORT"
+          echo '=== GLOBAL RTX 5090 ===' | tee -a "$REPORT"
+          runpodctl gpu list --include-unavailable | jq '[.[] | select(.gpuId=="NVIDIA GeForce RTX 5090")]' | tee -a "$REPORT"
+          echo '=== EXISTING NETWORK VOLUMES ===' | tee -a "$REPORT"
+          curl -fsS https://rest.runpod.io/v1/networkvolumes -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq . | tee -a "$REPORT"
+          echo '=== PODS ===' | tee -a "$REPORT"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq '[.[] | {id,name,desiredStatus,imageName,gpu,machineId,networkVolumeId,volumeInGb,containerDiskInGb,costPerHr,adjustedCostPerHr}]' | tee -a "$REPORT"
       - name: Save report
         shell: bash
         run: |
