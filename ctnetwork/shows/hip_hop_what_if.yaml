@@ -1,0 +1,29 @@
+show: Hip Hop What If
+show_id: hip_hop_what_if
+formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
+narrator: registry_current
+visuals:
+  archival_first: true
+  local_generation_engine: ltx-2.5
+  production_quality_tier: dfr_when_generated
+captions:
+  burned_in: false
+shorts:
+  count_policy: preserve_locked_show_cadence
+  youtube_target_seconds: 50-58
+  facebook_target_seconds: 20-35
+  parent_episode_connection_required: true
+audio:
+  normalize_lufs: -16
+  noise_cleanup: true
+  music_ducking: true
+thumbnail:
+  required: true
+qc:
+  auto_repair: true
+  verify_audio: true
+  verify_video: true
+  verify_thumbnail: true
+publish:
+  require_manual_approval: true
+  default_allowed: false
