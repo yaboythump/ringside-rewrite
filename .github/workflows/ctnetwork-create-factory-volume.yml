@@ -1,0 +1,70 @@
+name: CTNETWORK Create Factory Volume
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-factory-volume-command.json'
+      - '.github/workflows/ctnetwork-create-factory-volume.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Provision idempotent persistent volume
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME=$(jq -r '.name // "ctnetwork-factory"' ctnetwork-factory-volume-command.json)
+          SIZE=$(jq -r '.size // 300' ctnetwork-factory-volume-command.json)
+          DC=$(jq -r '.data_center_id // "EU-RO-1"' ctnetwork-factory-volume-command.json)
+          mkdir -p infra/status
+
+          CURRENT=$(curl -fsS https://rest.runpod.io/v1/networkvolumes \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+
+          EXISTING=$(printf '%s' "$CURRENT" | jq -c --arg n "$NAME" '[.[] | select(.name==$n)] | first // empty')
+          if [[ -n "$EXISTING" ]]; then
+            echo "Existing volume found; refusing to create a duplicate."
+            printf '%s\n' "$EXISTING" | tee infra/status/ctnetwork-factory-volume.json
+            EXISTING_SIZE=$(printf '%s' "$EXISTING" | jq -r '.size')
+            if (( EXISTING_SIZE < SIZE )); then
+              ID=$(printf '%s' "$EXISTING" | jq -r '.id')
+              curl -fsS -X PATCH "https://rest.runpod.io/v1/networkvolumes/${ID}" \
+                -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+                -H 'Content-Type: application/json' \
+                --data "$(jq -nc --arg n "$NAME" --argjson s "$SIZE" '{name:$n,size:$s}')" \
+                | tee infra/status/ctnetwork-factory-volume.json
+            fi
+          else
+            curl -fsS -X POST https://rest.runpod.io/v1/networkvolumes \
+              -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+              -H 'Content-Type: application/json' \
+              --data "$(jq -nc --arg dc "$DC" --arg n "$NAME" --argjson s "$SIZE" '{dataCenterId:$dc,name:$n,size:$s}')" \
+              | tee infra/status/ctnetwork-factory-volume.json
+          fi
+
+          echo '=== ALL NETWORK VOLUMES AFTER PROVISION ===' > infra/status/ctnetwork-factory-volume-list.json
+          curl -fsS https://rest.runpod.io/v1/networkvolumes \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+            | jq '.' >> infra/status/ctnetwork-factory-volume-list.json
+
+      - name: Save provision result
+        shell: bash
+        run: |
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-factory-volume.json infra/status/ctnetwork-factory-volume-list.json
+          git commit -m 'CTNETWORK: record persistent factory volume' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
