@@ -1,0 +1,31 @@
+show: The Six Report
+show_id: the_six_report
+formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
+narrator: simone_locked_identity
+visuals:
+  official_gameplay_first: true
+  local_generation_engine: ltx-2.5
+  ai_gta_recreation_default: false
+captions:
+  burned_in: false
+shorts:
+  count: 5
+audio:
+  normalize_lufs: -16
+  noise_cleanup: true
+  static_detection_required: true
+  whisper_low_loudness_detection_required: true
+  music_bed_required: true
+  music_ducking: true
+thumbnail:
+  required: true
+qc:
+  auto_repair: true
+  reject_static: true
+  reject_underlevel_narration: true
+  verify_short_count: 5
+publish:
+  require_manual_approval: true
+  default_allowed: false
+higgsfield:
+  allowed: false
