@@ -10,97 +10,12 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@536eca16b2e0: /root@536eca16b2e0:/# echo c2V0ICtlCmVjaG8gIj09PSBDVE5FVFdPUksgRkFDVE9SWSBQUk9CRSBTVEFSVCA9PT0iCmRhdGUgLXUKZWNobyAiLS0tIEdQVSAtLS0iOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS51c2VkLHV0aWxpemF0aW9uLmdwdSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RPUkFHRSAtLS0iOyBkZiAtaCAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEZBQ1RPUlkgU0laRSAtLS0iOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gUFlUSE9OIExJTktTIC0tLSI7IGxzIC1sIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsL2VudnMvbGF0ZW50c3luYy9iaW4vcHl0aG9uKiAyPi9kZXYvbnVsbCB8fCB0cnVlOyByZWFkbGluayAtZiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9lbnZzL2xhdGVudHN5bmMvYmluL3B5dGhvbiAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gIi0tLSBTVEFUVVMgRklMRVMgLS0tIjsgZmluZCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9zdGF0dXMgLW1heGRlcHRoIDIgLXR5cGUgZiAtcHJpbnQgMj4vZGV2L251bGwgfCBzb3J0CmVjaG8gIi0tLSBTVEFUVVMgQ09OVEVOVCAtLS0iOyBmb3IgZiBpbiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9zdGF0dXMvKjsgZG8gWyAtZiAiJGYiIF0gfHwgY29udGludWU7IGVjaG8gIiMjIyAkZiI7IHRhaWwgLTgwICIkZiI7IGRvbmUgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gUkVQT1MgLS0tIjsgZm9yIGQgaW4gL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvc3JjLyo7IGRvIFsgLWQgIiRkIiBdIHx8IGNvbnRpbnVlOyBiYXNlbmFtZSAiJGQiOyBkb25lIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEVOVlMgLS0tIjsgZm9yIGQgaW4gL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvZW52cy8qOyBkbyBbIC1kICIkZCIgXSB8fCBjb250aW51ZTsgYmFzZW5hbWUgIiRkIjsgZG9uZSAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gIi0tLSBNT0RFTFMgLS0tIjsgZmluZCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9tb2RlbHMgLW1heGRlcHRoIDMgLXR5cGUgZCAyPi9kZXYvbnVsbCB8IHNvcnQgfCBoZWFkIC0xMjAKZWNobyAiLS0tIEFDVElWRSBGQUNUT1JZIFBST0NFU1NFUyAtLS0iOyBwZ3JlcCAtYWYgInNjcmlwdHMuaW5mZXJlbmNlfExhdGVudFN5bmN8bGF0ZW50c3luY3xjdG4tbGlwc3luY3x1diB8dXYkfHBpcCBpbnN0YWxsfGh1Z2dpbmdmYWNlfHNuYXBzaG90X2Rvd25sb2FkfGdpdCBjbG9uZXxweXRob24iIDI+L2Rldi9udWxsIHwgZ3JlcCAtdiAicGdyZXAgLWFmIiB8fCB0cnVlCnByaW50ZiAnX19DVE5fUFJPQkVfRE9ORV9fXG4nCg== | base64 -d | bash
+[?2004h]0;root@b24ee355d754: /root@b24ee355d754:/# echo c2V0ICtlCmVjaG8gIj09PSBDVE5FVFdPUksgRkFDVE9SWSBQUk9CRSBTVEFSVCA9PT0iCmRhdGUgLXUKZWNobyAiLS0tIEdQVSAtLS0iOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS51c2VkLHV0aWxpemF0aW9uLmdwdSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RPUkFHRSAtLS0iOyBkZiAtaCAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEZBQ1RPUlkgU0laRSAtLS0iOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gUFlUSE9OIExJTktTIC0tLSI7IGxzIC1sIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsL2VudnMvbGF0ZW50c3luYy9iaW4vcHl0aG9uKiAyPi9kZXYvbnVsbCB8fCB0cnVlOyByZWFkbGluayAtZiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9lbnZzL2xhdGVudHN5bmMvYmluL3B5dGhvbiAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gIi0tLSBTVEFUVVMgRklMRVMgLS0tIjsgZmluZCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9zdGF0dXMgLW1heGRlcHRoIDIgLXR5cGUgZiAtcHJpbnQgMj4vZGV2L251bGwgfCBzb3J0CmVjaG8gIi0tLSBTVEFUVVMgQ09OVEVOVCAtLS0iOyBmb3IgZiBpbiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9zdGF0dXMvKjsgZG8gWyAtZiAiJGYiIF0gfHwgY29udGludWU7IGVjaG8gIiMjIyAkZiI7IHRhaWwgLTgwICIkZiI7IGRvbmUgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gUkVQT1MgLS0tIjsgZm9yIGQgaW4gL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvc3JjLyo7IGRvIFsgLWQgIiRkIiBdIHx8IGNvbnRpbnVlOyBiYXNlbmFtZSAiJGQiOyBkb25lIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEVOVlMgLS0tIjsgZm9yIGQgaW4gL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvZW52cy8qOyBkbyBbIC1kICIkZCIgXSB8fCBjb250aW51ZTsgYmFzZW5hbWUgIiRkIjsgZG9uZSAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gIi0tLSBNT0RFTFMgLS0tIjsgZmluZCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9tb2RlbHMgLW1heGRlcHRoIDMgLXR5cGUgZCAyPi9kZXYvbnVsbCB8IHNvcnQgfCBoZWFkIC0xMjAKZWNobyAiLS0tIEFDVElWRSBGQUNUT1JZIFBST0NFU1NFUyAtLS0iOyBwZ3JlcCAtYWYgInNjcmlwdHMuaW5mZXJlbmNlfExhdGVudFN5bmN8bGF0ZW50c3luY3xjdG4tbGlwc3luY3x1diB8dXYkfHBpcCBpbnN0YWxsfGh1Z2dpbmdmYWNlfHNuYXBzaG90X2Rvd25sb2FkfGdpdCBjbG9uZXxweXRob24iIDI+L2Rldi9udWxsIHwgZ3JlcCAtdiAicGdyZXAgLWFmIiB8fCB0cnVlCnByaW50ZiAnX19DVE5fUFJPQkVfRE9ORV9fXG4nCg== | base64 -d | bash
 [?2004l=== CTNETWORK FACTORY PROBE START ===
-Mon Sep 14 13:02:00 UTC 2026
+Mon Sep 14 13:08:36 UTC 2026
 --- GPU ---
 NVIDIA RTX PRO 4500 Blackwell, 32623 MiB, 2 MiB, 0 %
 --- STORAGE ---
 Filesystem                Size  Used Avail Use% Mounted on
 mfs#euro.runpod.net:9421  2.3P  1.9P  375T  84% /workspace
 --- FACTORY SIZE ---
-49G	/workspace/ctnetwork-local
---- PYTHON LINKS ---
-lrwxrwxrwx 1 root root 78 Sep 14 12:49 /workspace/ctnetwork-local/envs/latentsync/bin/python -> /workspace/ctnetwork-local/python/cpython-3.10-linux-x86_64-gnu/bin/python3.10
-lrwxrwxrwx 1 root root  6 Sep 14 12:49 /workspace/ctnetwork-local/envs/latentsync/bin/python3 -> python
-lrwxrwxrwx 1 root root  6 Sep 14 12:49 /workspace/ctnetwork-local/envs/latentsync/bin/python3.10 -> python
-/workspace/ctnetwork-local/python/cpython-3.10.21-linux-x86_64-gnu/bin/python3.10
---- STATUS FILES ---
-/workspace/ctnetwork-local/status/core.status
-/workspace/ctnetwork-local/status/install.status
-/workspace/ctnetwork-local/status/latentsync-requirements-blackwell.txt
-/workspace/ctnetwork-local/status/latentsync.status
-/workspace/ctnetwork-local/status/latentsync_runtime_persistent.status
-/workspace/ctnetwork-local/status/ltx25_code.status
-/workspace/ctnetwork-local/status/phase.txt
-/workspace/ctnetwork-local/status/qwen3_tts.status
-/workspace/ctnetwork-local/status/system.status
---- STATUS CONTENT ---
-### /workspace/ctnetwork-local/status/core.status
-PASS
-### /workspace/ctnetwork-local/status/install.status
-FAILED rc=1 phase=LTX_2_5
-### /workspace/ctnetwork-local/status/latentsync-requirements-blackwell.txt
-diffusers==0.32.2
-transformers==4.48.0
-decord==0.6.0
-accelerate==0.26.1
-einops==0.7.0
-omegaconf==2.3.0
-opencv-python==4.9.0.80
-mediapipe==0.10.11
-python_speech_features==0.6
-librosa==0.10.1
-scenedetect==0.6.1
-ffmpeg-python==0.2.0
-imageio==2.31.1
-imageio-ffmpeg==0.5.1
-lpips==0.1.4
-face-alignment==1.4.1
-gradio==5.24.0
-huggingface-hub==0.30.2
-numpy==1.26.4
-kornia==0.8.0
-insightface==0.7.3
-onnxruntime-gpu==1.21.0
-DeepCache==0.1.1
-### /workspace/ctnetwork-local/status/latentsync.status
-PASS
-### /workspace/ctnetwork-local/status/latentsync_runtime_persistent.status
-PASS
-### /workspace/ctnetwork-local/status/ltx25_code.status
-PASS
-### /workspace/ctnetwork-local/status/phase.txt
-LTX_2_5
-### /workspace/ctnetwork-local/status/qwen3_tts.status
-PASS
-### /workspace/ctnetwork-local/status/system.status
-PASS
---- REPOS ---
-LTX-2
-LatentSync
-Qwen3-TTS
---- ENVS ---
-core
-latentsync
-qwen3-tts
---- MODELS ---
-/workspace/ctnetwork-local/models
-/workspace/ctnetwork-local/models/ltx-2.5
-/workspace/ctnetwork-local/models/ltx-2.5/.cache
-/workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface
-/workspace/ctnetwork-local/models/ltx-2.5/diffusion_models
-/workspace/ctnetwork-local/models/ltx-2.5/latent_upscale_models
-/workspace/ctnetwork-local/models/ltx-2.5/model_patches
-/workspace/ctnetwork-local/models/ltx-2.5/text_encoders
-/workspace/ctnetwork-local/models/ltx-2.5/vae
-/workspace/ctnetwork-local/models/qwen3-tts
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/speech_tokenizer
---- ACTIVE FACTORY PROCESSES ---
-118 /usr/local/bin/python /usr/local/bin/jupyter-lab --allow-root --no-browser --port=8888 --ip=* --FileContentsManager.delete_to_trash=False --ServerApp.terminado_settings={"shell_command":["/bin/bash"]} --IdentityProvider.token=f6cd830188205a2ac889a496749d9fffb8cbd2d571a74673 --ServerApp.allow_origin=* --ServerApp.preferred_dir=/workspace
-129 bash /tmp/ctn-lipsync-smoke.sh
-746 bash /workspace/ctnetwork-local/bin/ctn-lipsync-test /workspace/ctnetwork-local/src/LatentSync/assets/demo1_video.mp4 /workspace/ctnetwork-local/src/LatentSync/assets/demo1_audio.wav /workspace/ctnetwork-local/ready_for_approval/latentsync-official-smoke.mp4
-747 /workspace/ctnetwork-local/envs/latentsync/bin/python -m scripts.inference --unet_config_path configs/unet/stage2_512.yaml --inference_ckpt_path checkpoints/latentsync_unet.pt --inference_steps 20 --guidance_scale 1.5 --enable_deepcache --video_path /workspace/ctnetwork-local/src/LatentSync/assets/demo1_video.mp4 --audio_path /workspace/ctnetwork-local/src/LatentSync/assets/demo1_audio.wav --video_out_path /workspace/ctnetwork-local/ready_for_approval/latentsync-official-smoke.mp4
-__CTN_PROBE_DONE__
