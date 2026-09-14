@@ -1,0 +1,50 @@
+name: CTNETWORK Promote Real-Face Lip Sync
+
+on:
+  workflow_run:
+    workflows:
+      - CTNETWORK Lip Sync Smoke Test
+    types:
+      - completed
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: ctnetwork-promote-realface
+  cancel-in-progress: true
+
+jobs:
+  promote:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Promote held real-face certification
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-lipsync-realface-command.json)
+          [[ -n "$POD_ID" ]] || { echo 'real-face pod_id missing'; exit 2; }
+          REQUEST_ID="ctnetwork-realface-lipsync-certification-${{ github.event.workflow_run.id }}"
+          jq -n \
+            --arg pod_id "$POD_ID" \
+            --arg request_id "$REQUEST_ID" \
+            '{action:"certify",pod_id:$pod_id,request_id:$request_id}' \
+            > ctnetwork-lipsync-realface-command.json
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add ctnetwork-lipsync-realface-command.json
+          git commit -m "CTNETWORK: promote real-face lip sync after demo PASS"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+          # GITHUB_TOKEN pushes intentionally do not trigger push workflows,
+          # so dispatch the gated real-face workflow explicitly after the command is on main.
+          gh workflow run ctnetwork-lipsync-realface.yml --ref main
