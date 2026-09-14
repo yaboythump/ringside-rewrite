@@ -37,15 +37,21 @@ def login():
     if not m:
         raise RuntimeError("Could not find Jupyter XSRF token")
     xsrf = m.group(1)
+    # RunPod's notebook image authenticates at /login but may not expose /lab.
+    # Do not follow the post-login redirect; validate authentication through the
+    # authenticated Jupyter API instead of requiring a UI route to exist.
     r = SESSION.post(
         BASE + "/login",
-        data={"_xsrf": xsrf, "password": PASSWORD, "next": "/lab"},
+        data={"_xsrf": xsrf, "password": PASSWORD, "next": "/"},
         timeout=30,
-        allow_redirects=True,
+        allow_redirects=False,
     )
-    r.raise_for_status()
+    if r.status_code not in (200, 302, 303):
+        r.raise_for_status()
     cookie_xsrf = SESSION.cookies.get("_xsrf")
     headers = {"X-XSRFToken": cookie_xsrf} if cookie_xsrf else {}
+    probe = SESSION.get(BASE + "/api/status", headers=headers, timeout=30)
+    probe.raise_for_status()
     return headers
 
 
@@ -66,8 +72,6 @@ ROOT=/workspace/ctnetwork-local
 STATUS="$ROOT/status"
 OUT="$ROOT/ready_for_approval/latentsync-official-smoke.mp4"
 
-# Lip-sync certification is intentionally independent of the full factory gate.
-# LTX-2.5 may still be blocked on gated-model authorization while LatentSync is fully usable.
 test "$(cat "$STATUS/latentsync.status" 2>/dev/null || true)" = PASS || { echo LATENTSYNC_NOT_READY; exit 21; }
 test -x "$ROOT/bin/ctn-lipsync-test" || { echo LIPSYNC_WRAPPER_MISSING; exit 22; }
 test -s "$ROOT/src/LatentSync/checkpoints/whisper/tiny.pt" || { echo WHISPER_CHECKPOINT_MISSING; exit 23; }
