@@ -6,6 +6,7 @@ on:
     paths:
       - 'ctnetwork-migrate-factory-command.json'
       - '.github/workflows/ctnetwork-migrate-factory.yml'
+      - 'tools/ctnetwork_migrate_factory.py'
   workflow_dispatch:
 
 permissions:
@@ -52,28 +53,17 @@ jobs:
           SOURCE_POD_ID: ${{ steps.resolve.outputs.source_pod_id }}
           DEST_POD_ID: ${{ steps.resolve.outputs.dest_pod_id }}
         run: |
-          set -euo pipefail
-          # Direct ssh reads stdin by default. Because JupyterShell feeds the
-          # wrapper script to bash on stdin, that one readiness check can eat
-          # the completion marker even after SSH succeeds. Add -n only to the
-          # readiness probe; rsync keeps normal ssh stdin for its protocol.
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('tools/ctnetwork_migrate_factory.py')
-          s = p.read_text()
-          old = 'f"{ssh_opts} root@{dest_ip} \'echo CTN_SSH_READY\'",'
-          new = 'f"{ssh_opts} -n root@{dest_ip} \'echo CTN_SSH_READY\'",'
-          if old not in s:
-              raise SystemExit('SSH readiness patch target not found')
-          p.write_text(s.replace(old, new, 1))
-          PY
+          set -Eeuo pipefail
+          : > /tmp/ctnetwork-migration.log
           python3 tools/ctnetwork_migrate_factory.py 2>&1 | tee /tmp/ctnetwork-migration.log
 
       - name: Save migration report
         if: always()
         shell: bash
         run: |
+          set +e
           mkdir -p infra/status
+          REPORT=infra/status/ctnetwork-factory-migration-latest.txt
           {
             echo "CTNETWORK FACTORY MIGRATION"
             echo "run_id=$GITHUB_RUN_ID"
@@ -81,11 +71,16 @@ jobs:
             echo "destination_pod=${{ steps.resolve.outputs.dest_pod_id }}"
             echo "migration_outcome=${{ steps.migration.outcome }}"
             echo
-            tail -300 /tmp/ctnetwork-migration.log 2>/dev/null || true
-          } > infra/status/ctnetwork-factory-migration-latest.txt
+            if [ -f /tmp/ctnetwork-migration.log ]; then
+              tail -400 /tmp/ctnetwork-migration.log
+            else
+              echo "migration_log_missing=true"
+            fi
+          } > "$REPORT"
+          test -s "$REPORT" || printf 'CTNETWORK FACTORY MIGRATION\nreport_write_failed=true\n' > "$REPORT"
           git config user.name 'ctnetwork-bot'
           git config user.email 'ctnetwork-bot@users.noreply.github.com'
-          git add infra/status/ctnetwork-factory-migration-latest.txt
-          git commit -m 'CTNETWORK: record factory migration result' || exit 0
+          git add "$REPORT"
+          git commit -m 'CTNETWORK: record factory migration result' || true
           git pull --rebase origin main || true
-          git push origin HEAD:main
+          git push origin HEAD:main || true
