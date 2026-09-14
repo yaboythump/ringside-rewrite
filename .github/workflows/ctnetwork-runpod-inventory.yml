@@ -35,10 +35,16 @@ jobs:
           set -euo pipefail
           mkdir -p infra/status
           REPORT=infra/status/runpod-factory-inventory.txt
+          DCS=$(runpodctl datacenter list)
+          GPUS=$(runpodctl gpu list --include-unavailable)
           echo '=== RTX 5090 DATACENTERS ===' | tee "$REPORT"
-          runpodctl datacenter list | jq '[.[] | {id,name,location,gpuAvailability:[.gpuAvailability[]? | select(.gpuId=="NVIDIA GeForce RTX 5090")]} | select((.gpuAvailability|length)>0)]' | tee -a "$REPORT"
+          printf '%s' "$DCS" | jq '[.[] | {id,name,location,gpuAvailability:[.gpuAvailability[]? | select(.gpuId=="NVIDIA GeForce RTX 5090")]} | select((.gpuAvailability|length)>0)]' | tee -a "$REPORT"
+          echo '=== FACTORY DATACENTER EU-RO-1 ALL GPU STOCK ===' | tee -a "$REPORT"
+          printf '%s' "$DCS" | jq '[.[] | select(.id=="EU-RO-1") | {id,name,location,gpuAvailability:[.gpuAvailability[]?]}]' | tee -a "$REPORT"
+          echo '=== GLOBAL HIGH-VRAM GPU OPTIONS (>=24GB) ===' | tee -a "$REPORT"
+          printf '%s' "$GPUS" | jq '[.[] | select((.memoryInGb // 0) >= 24) | {gpuId,displayName,memoryInGb,available,stockStatus,secureCloud,securePricePerHr,communityCloud,communityPricePerHr,dataCenterAvailability}]' | tee -a "$REPORT"
           echo '=== GLOBAL RTX 5090 ===' | tee -a "$REPORT"
-          runpodctl gpu list --include-unavailable | jq '[.[] | select(.gpuId=="NVIDIA GeForce RTX 5090")]' | tee -a "$REPORT"
+          printf '%s' "$GPUS" | jq '[.[] | select(.gpuId=="NVIDIA GeForce RTX 5090")]' | tee -a "$REPORT"
           echo '=== EXISTING NETWORK VOLUMES ===' | tee -a "$REPORT"
           curl -fsS https://rest.runpod.io/v1/networkvolumes -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq . | tee -a "$REPORT"
           echo '=== PODS ===' | tee -a "$REPORT"
