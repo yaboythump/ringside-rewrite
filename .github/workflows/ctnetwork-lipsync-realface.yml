@@ -1,0 +1,110 @@
+name: CTNETWORK Real-Face LatentSync Certification
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-lipsync-realface-command.json'
+      - 'tools/ctnetwork_lipsync_realface.py'
+      - '.github/workflows/ctnetwork-lipsync-realface.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  realface:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      SOURCE_VIDEO_URL: https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260911_215620_6c19d3c4-4e5c-464e-bc57-1c363a6e1812.mp4
+      SOURCE_AUDIO_URL: https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/2c289697-6d4b-495e-a2a1-52c00fa4a942.mp3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Read certification gate
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTION=$(jq -r '.action // "hold"' ctnetwork-lipsync-realface-command.json | tr '[:upper:]' '[:lower:]')
+          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-lipsync-realface-command.json)
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          if [[ "$ACTION" != "hold" && "$ACTION" != "certify" ]]; then
+            echo "Unsupported action: $ACTION"
+            exit 2
+          fi
+          if [[ "$ACTION" == "hold" ]]; then
+            echo 'Real-face certification is staged but held behind demo certification.'
+          fi
+
+      - name: Resolve and start factory pod
+        if: steps.gate.outputs.action == 'certify'
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.gate.outputs.pod_id }}'
+          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 3; }
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+            for i in $(seq 1 120); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+              STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 4; }
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 5; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run CTNETWORK real-face certification
+        if: steps.gate.outputs.action == 'certify'
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_lipsync_realface.py | tee /tmp/ctnetwork-realface-lipsync.txt
+
+      - name: Upload real-face review artifact
+        if: steps.gate.outputs.action == 'certify' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-realface-latentsync
+          path: /tmp/ctnetwork-realface-latentsync.mp4
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Save real-face report
+        if: steps.gate.outputs.action == 'certify' && always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/ctnetwork-realface-lipsync.txt infra/status/ctnetwork-realface-lipsync-latest.txt 2>/dev/null || echo 'real-face output unavailable' > infra/status/ctnetwork-realface-lipsync-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-realface-lipsync-latest.txt
+          git commit -m 'CTNETWORK: record real-face LatentSync certification' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Stop exact real-face test pod
+        if: steps.gate.outputs.action == 'certify' && always()
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          if [[ -n "${POD_ID:-}" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+          fi
