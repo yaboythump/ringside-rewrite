@@ -1,0 +1,117 @@
+name: CTNETWORK Commissioning Proof
+
+on:
+  workflow_run:
+    workflows: ["CTNETWORK Full Local Factory Certification"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ctnetwork-commissioning-proof
+  cancel-in-progress: false
+
+jobs:
+  proof:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Verify commissioning inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERT=infra/status/ctnetwork-full-certification-latest.txt
+          [[ -f "$CERT" ]] || { echo CERTIFICATION_REPORT_MISSING; exit 2; }
+          grep -q '^job_status=success$' "$CERT" || { echo CERTIFICATION_REPORT_NOT_SUCCESS; exit 3; }
+          jq -e '.manual_gate_required == true and .publish_allowed == false' ctnetwork-production-manifest.json >/dev/null
+          jq -e '[.jobs[] | select(.job_id=="ctn-local-factory-proof-20260914" and (.publish // false)==false)] | length == 1' ctnetwork-production-manifest.json >/dev/null
+          echo COMMISSIONING_INPUTS_PASS
+
+      - name: Resolve and start Norway factory
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEST_NAME=$(jq -r '.destination_name' ctnetwork-migrate-factory-command.json)
+          DEST_VOLUME=$(jq -r '.destination_volume_id' ctnetwork-migrate-factory-command.json)
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD_ID=$(printf '%s' "$PODS" | jq -r --arg n "$DEST_NAME" --arg v "$DEST_VOLUME" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first | .id // empty')
+          [[ -n "$POD_ID" ]] || { echo NORWAY_POD_NOT_FOUND; exit 4; }
+          API="https://rest.runpod.io/v1/pods/$POD_ID"
+          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          refresh(){ POD=$(curl -fsS "$API" "${auth[@]}"); STATUS=$(echo "$POD"|jq -r '.desiredStatus // "unknown"'); }
+          refresh
+          if [[ "$STATUS" != RUNNING ]]; then
+            curl -fsS -X POST "$API/start" "${auth[@]}" >/dev/null || true
+            for i in $(seq 1 120); do sleep 5; refresh; [[ "$STATUS" == RUNNING ]] && break; done
+          fi
+          [[ "$STATUS" == RUNNING ]] || { echo "NORWAY_POD_START_BLOCKED:$STATUS"; exit 5; }
+          for i in $(seq 1 60); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 || "$code" == 302 ]] && break
+            sleep 5
+          done
+          [[ "$code" == 200 || "$code" == 302 ]] || { echo JUPYTER_NOT_READY; exit 6; }
+          refresh
+          JPASS=$(echo "$POD"|jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo JUPYTER_PASSWORD_MISSING; exit 7; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run real approval-gated CTNETWORK package
+        id: production
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_run_production.py 2>&1 | tee /tmp/ctnetwork-commissioning-proof.log
+          grep -q 'CTNETWORK_PRODUCTION_BATCH_READY_FOR_APPROVAL' /tmp/ctnetwork-commissioning-proof.log
+
+      - name: Record commissioning proof
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          {
+            echo "CTNETWORK COMMISSIONING PROOF"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "pod_id=${{ steps.resolve.outputs.pod_id }}"
+            echo "production_outcome=${{ steps.production.outcome }}"
+            echo "expected_state=READY_FOR_APPROVAL"
+            echo "publish_allowed=false"
+            echo "approved=false"
+            echo
+            tail -300 /tmp/ctnetwork-commissioning-proof.log 2>/dev/null || true
+          } > infra/status/ctnetwork-commissioning-proof-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-commissioning-proof-latest.txt
+          git commit -m 'CTNETWORK: record commissioning proof result' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Stop Norway commissioning compute
+        if: always() && !cancelled()
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          if [[ -n "${POD_ID:-}" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+          fi
