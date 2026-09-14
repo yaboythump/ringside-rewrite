@@ -1,0 +1,125 @@
+name: CTNETWORK Local Production Stack Install
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-local-stack-command.json'
+      - 'runpod/ctnetwork-local-stack-install.sh'
+      - '.github/workflows/ctnetwork-local-stack-install.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve command and start LTX pod
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTION=$(jq -r '.action // "audit"' ctnetwork-local-stack-command.json | tr '[:upper:]' '[:lower:]')
+          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-local-stack-command.json)
+          case "$ACTION" in audit|preflight|install-core|install-all|install|verify) ;; *) echo "Unsupported action: $ACTION"; exit 2;; esac
+          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 3; }
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+            for i in $(seq 1 90); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+              STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 4; }
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing from pod'; exit 5; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run self-gating installer remotely
+        env:
+          ACTION: ${{ steps.resolve.outputs.action }}
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+          INSTALLER_FILE: ${{ github.workspace }}/runpod/ctnetwork-local-stack-install.sh
+          REMOTE_HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY' | tee /tmp/ctnetwork-stack-install.txt
+          import base64, json, os, re, sys, time
+          import requests, websocket
+          pod_id=os.environ['POD_ID']; action=os.environ['ACTION']
+          password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          script=open(os.environ['INSTALLER_FILE'],'rb').read()
+          encoded=base64.b64encode(script).decode()
+          hf=os.environ.get('REMOTE_HF_TOKEN','')
+          base=f'https://{pod_id}-8888.proxy.runpod.net'
+          s=requests.Session()
+          for _ in range(90):
+            try:
+              r=s.get(base+'/login',timeout=15)
+              if r.ok: break
+            except Exception: pass
+            time.sleep(5)
+          else: raise SystemExit('Jupyter did not become reachable')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('Could not find Jupyter XSRF token')
+          xsrf=m.group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},timeout=30,allow_redirects=True); r.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          hf_b64=base64.b64encode(hf.encode()).decode()
+          cmd=(f"echo {encoded} | base64 -d >/tmp/ctnetwork-local-stack-install.sh && chmod +x /tmp/ctnetwork-local-stack-install.sh && "
+               f"export CTN_INSTALL_ACTION={action}; export HF_TOKEN=$(echo {hf_b64} | base64 -d); "
+               f"bash /tmp/ctnetwork-local-stack-install.sh; rc=$?; echo __CTN_INSTALL_DONE__:$rc\n")
+          ws.send(json.dumps(['stdin',cmd])); rc=None; deadline=time.time()+10200
+          try:
+            while time.time()<deadline:
+              try: msg=ws.recv()
+              except Exception as exc:
+                print('websocket:',exc); continue
+              if not msg: continue
+              try: data=json.loads(msg)
+              except Exception: continue
+              if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                text=data[1]; sys.stdout.write(text); sys.stdout.flush()
+                mm=re.search(r'__CTN_INSTALL_DONE__:(\d+)',text)
+                if mm: rc=int(mm.group(1)); break
+          finally:
+            ws.close()
+            try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+            except Exception: pass
+          if rc is None: raise SystemExit('Remote installer timed out')
+          raise SystemExit(rc)
+          PY
+
+      - name: Save execution report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/ctnetwork-stack-install.txt infra/status/local-stack-install-latest.txt 2>/dev/null || echo 'no remote output captured' > infra/status/local-stack-install-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/local-stack-install-latest.txt
+          git commit -m 'CTNETWORK: update local stack install status' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
