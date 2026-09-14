@@ -1,0 +1,55 @@
+name: Verify Ringside thumbnail batch
+
+on:
+  push:
+    paths:
+      - youtube-thumbnail-verify-trigger.json
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify current YouTube thumbnails
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet requests pillow
+          python - <<'PY'
+          import io, json, time, requests
+          from PIL import Image, ImageChops, ImageOps, ImageStat, ImageFile
+          ImageFile.LOAD_TRUNCATED_IMAGES=True
+          jobs=json.load(open('youtube-thumbnail-batch.json',encoding='utf-8'))['jobs']
+          def geom(src,size):
+              im=ImageOps.contain(src,size,method=Image.Resampling.LANCZOS)
+              c=Image.new('RGB',size,(0,0,0)); c.paste(im,((size[0]-im.width)//2,(size[1]-im.height)//2)); return c
+          def mae(a,b): return sum(ImageStat.Stat(ImageChops.difference(a,geom(b,a.size))).mean)/3.0
+          exp={}
+          for j in jobs:
+              r=requests.get(j['thumbnail_url'],timeout=60); r.raise_for_status(); exp[j['video_id']]=Image.open(io.BytesIO(r.content)).convert('RGB')
+          pending={j['video_id']:j for j in jobs}; report={}
+          for attempt in range(4):
+              for vid,j in list(pending.items()):
+                  try:
+                      r=requests.get(f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg?verify={time.time_ns()}',timeout=30); r.raise_for_status()
+                      a=Image.open(io.BytesIO(r.content)).convert('RGB'); score=mae(a,exp[vid])
+                      report[vid]={'title':j['title'],'mae':round(score,2),'verified':score<=24.0}
+                      if score<=24.0: pending.pop(vid,None)
+                  except Exception as e: report[vid]={'title':j['title'],'error':str(e),'verified':False}
+              print('attempt',attempt+1,'pending',list(pending))
+              if not pending: break
+              time.sleep(15)
+          json.dump({'count':len(jobs),'verified':len(jobs)-len(pending),'pending':list(pending),'details':report},open('thumbnail-verification.json','w'),indent=2)
+          print(open('thumbnail-verification.json').read())
+          if pending: raise SystemExit('Pending thumbnail verification: '+','.join(pending))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ringside-thumbnail-verification
+          path: thumbnail-verification.json
+          if-no-files-found: warn
