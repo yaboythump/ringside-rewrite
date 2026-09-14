@@ -1,0 +1,15 @@
+=== ALL NETWORK VOLUMES AFTER PROVISION ===
+[
+  {
+    "dataCenterId": "EU-RO-1",
+    "id": "9wjb3sa5zm",
+    "name": "ctnetwork-factory",
+    "size": 300
+  },
+  {
+    "dataCenterId": "EUR-IS-1",
+    "id": "xs4k4zrvn4",
+    "name": "passive_rose_warbler_volume",
+    "size": 120
+  }
+]
