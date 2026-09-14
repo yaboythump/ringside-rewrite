@@ -37,9 +37,6 @@ def login():
     if not m:
         raise RuntimeError("Could not find Jupyter XSRF token")
     xsrf = m.group(1)
-    # RunPod's notebook image authenticates at /login but may not expose /lab.
-    # Do not follow the post-login redirect; validate authentication through the
-    # authenticated Jupyter API instead of requiring a UI route to exist.
     r = SESSION.post(
         BASE + "/login",
         data={"_xsrf": xsrf, "password": PASSWORD, "next": "/"},
@@ -71,16 +68,44 @@ def run_remote(headers):
 ROOT=/workspace/ctnetwork-local
 STATUS="$ROOT/status"
 OUT="$ROOT/ready_for_approval/latentsync-official-smoke.mp4"
+WRAPPER="$ROOT/bin/ctn-lipsync-test"
 
 test "$(cat "$STATUS/latentsync.status" 2>/dev/null || true)" = PASS || { echo LATENTSYNC_NOT_READY; exit 21; }
-test -x "$ROOT/bin/ctn-lipsync-test" || { echo LIPSYNC_WRAPPER_MISSING; exit 22; }
 test -s "$ROOT/src/LatentSync/checkpoints/whisper/tiny.pt" || { echo WHISPER_CHECKPOINT_MISSING; exit 23; }
 test -s "$ROOT/src/LatentSync/checkpoints/latentsync_unet.pt" || { echo LATENTSYNC_UNET_MISSING; exit 24; }
 test -s "$ROOT/src/LatentSync/assets/demo1_video.mp4" || { echo DEMO_VIDEO_MISSING; exit 25; }
 test -s "$ROOT/src/LatentSync/assets/demo1_audio.wav" || { echo DEMO_AUDIO_MISSING; exit 26; }
 
+# Self-heal the runtime wrapper if the full installer stopped later at gated LTX-2.5.
+if [ ! -x "$WRAPPER" ]; then
+  mkdir -p "$ROOT/bin" "$ROOT/ready_for_approval"
+  cat > "$WRAPPER" <<'WRAP'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+ROOT=/workspace/ctnetwork-local
+VIDEO=${1:?usage: ctn-lipsync-test input_video input_audio [output]}
+AUDIO=${2:?usage: ctn-lipsync-test input_video input_audio [output]}
+OUT=${3:-$ROOT/ready_for_approval/lipsync-test.mp4}
+cd "$ROOT/src/LatentSync"
+"$ROOT/envs/latentsync/bin/python" -m scripts.inference \
+  --unet_config_path configs/unet/stage2_512.yaml \
+  --inference_ckpt_path checkpoints/latentsync_unet.pt \
+  --inference_steps 20 \
+  --guidance_scale 1.5 \
+  --enable_deepcache \
+  --video_path "$VIDEO" \
+  --audio_path "$AUDIO" \
+  --video_out_path "$OUT"
+ffprobe -v error -show_entries format=duration -show_streams -of json "$OUT" > "${OUT%.mp4}.ffprobe.json"
+echo "$OUT"
+WRAP
+  chmod +x "$WRAPPER"
+  echo SELF_HEALED_LIPSYNC_WRAPPER
+fi
+
+test -x "$WRAPPER" || { echo LIPSYNC_WRAPPER_MISSING; exit 22; }
 rm -f "$OUT" "${OUT%.mp4}.ffprobe.json"
-"$ROOT/bin/ctn-lipsync-test" \
+"$WRAPPER" \
   "$ROOT/src/LatentSync/assets/demo1_video.mp4" \
   "$ROOT/src/LatentSync/assets/demo1_audio.wav" \
   "$OUT"
