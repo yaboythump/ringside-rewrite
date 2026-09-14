@@ -1,0 +1,81 @@
+ _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@13ae5e28844a: /root@13ae5e28844a:/# echo c2V0ICtlCmVjaG8gIj09PSBDVE5FVFdPUksgRkFDVE9SWSBQUk9CRSBTVEFSVCA9PT0iCmRhdGUgLXUKZWNobyAiLS0tIEdQVSAtLS0iOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS51c2VkLHV0aWxpemF0aW9uLmdwdSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RPUkFHRSAtLS0iOyBkZiAtaCAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEZBQ1RPUlkgU0laRSAtLS0iOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RBVFVTIEZJTEVTIC0tLSI7IGZpbmQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvc3RhdHVzIC1tYXhkZXB0aCAyIC10eXBlIGYgLXByaW50IDI+L2Rldi9udWxsIHwgc29ydAplY2hvICItLS0gU1RBVFVTIENPTlRFTlQgLS0tIjsgZm9yIGYgaW4gL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvc3RhdHVzLyo7IGRvIFsgLWYgIiRmIiBdIHx8IGNvbnRpbnVlOyBlY2hvICIjIyMgJGYiOyB0YWlsIC04MCAiJGYiOyBkb25lIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIFJFUE9TIC0tLSI7IGZvciBkIGluIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsL3NyYy8qOyBkbyBbIC1kICIkZCIgXSB8fCBjb250aW51ZTsgYmFzZW5hbWUgIiRkIjsgZG9uZSAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gIi0tLSBFTlZTIC0tLSI7IGZvciBkIGluIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsL2VudnMvKjsgZG8gWyAtZCAiJGQiIF0gfHwgY29udGludWU7IGJhc2VuYW1lICIkZCI7IGRvbmUgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gTU9ERUxTIC0tLSI7IGZpbmQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvbW9kZWxzIC1tYXhkZXB0aCAzIC10eXBlIGQgMj4vZGV2L251bGwgfCBzb3J0IHwgaGVhZCAtMTIwCmVjaG8gIi0tLSBBQ1RJVkUgSU5TVEFMTCBQUk9DRVNTRVMgLS0tIjsgcGdyZXAgLWFmICJjdG5ldHdvcmstbG9jYWwtc3RhY2staW5zdGFsbHx1diBzeW5jfHBpcCBpbnN0YWxsfGh1Z2dpbmdmYWNlfHNuYXBzaG90X2Rvd25sb2FkfGdpdCBjbG9uZSIgMj4vZGV2L251bGwgfCBncmVwIC12IHBncmVwIHx8IHRydWUKcHJpbnRmICdfX0NUTl9QUk9CRV9ET05FX19cbicK | base64 -d | bash
+[?2004l=== CTNETWORK FACTORY PROBE START ===
+Mon Sep 14 12:13:34 UTC 2026
+--- GPU ---
+NVIDIA RTX PRO 4500 Blackwell, 32623 MiB, 2 MiB, 0 %
+--- STORAGE ---
+Filesystem                Size  Used Avail Use% Mounted on
+mfs#euro.runpod.net:9421  2.3P  1.9P  377T  84% /workspace
+--- FACTORY SIZE ---
+21G	/workspace/ctnetwork-local
+--- STATUS FILES ---
+/workspace/ctnetwork-local/status/core.status
+/workspace/ctnetwork-local/status/install.status
+/workspace/ctnetwork-local/status/latentsync-requirements-blackwell.txt
+/workspace/ctnetwork-local/status/phase.txt
+/workspace/ctnetwork-local/status/qwen3_tts.status
+/workspace/ctnetwork-local/status/system.status
+--- STATUS CONTENT ---
+### /workspace/ctnetwork-local/status/core.status
+PASS
+### /workspace/ctnetwork-local/status/install.status
+FAILED rc=127 phase=LATENTSYNC_1_6
+### /workspace/ctnetwork-local/status/latentsync-requirements-blackwell.txt
+diffusers==0.32.2
+transformers==4.48.0
+decord==0.6.0
+accelerate==0.26.1
+einops==0.7.0
+omegaconf==2.3.0
+opencv-python==4.9.0.80
+mediapipe==0.10.11
+python_speech_features==0.6
+librosa==0.10.1
+scenedetect==0.6.1
+ffmpeg-python==0.2.0
+imageio==2.31.1
+imageio-ffmpeg==0.5.1
+lpips==0.1.4
+face-alignment==1.4.1
+gradio==5.24.0
+huggingface-hub==0.30.2
+numpy==1.26.4
+kornia==0.8.0
+insightface==0.7.3
+onnxruntime-gpu==1.21.0
+DeepCache==0.1.1
+### /workspace/ctnetwork-local/status/phase.txt
+LATENTSYNC_1_6
+### /workspace/ctnetwork-local/status/qwen3_tts.status
+PASS
+### /workspace/ctnetwork-local/status/system.status
+PASS
+--- REPOS ---
+LatentSync
+Qwen3-TTS
+--- ENVS ---
+core
+latentsync
+qwen3-tts
+--- MODELS ---
+/workspace/ctnetwork-local/models
+/workspace/ctnetwork-local/models/qwen3-tts
+/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base
+/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache
+/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/speech_tokenizer
+--- ACTIVE INSTALL PROCESSES ---
+131 bash /tmp/ctnetwork-local-stack-install.sh
+402 uv pip install --python /workspace/ctnetwork-local/envs/latentsync/bin/python torch torchvision --index-url https://download.pytorch.org/whl/cu128
+__CTN_PROBE_DONE__
