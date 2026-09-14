@@ -77,6 +77,7 @@ export UV_CACHE_DIR="$ROOT/cache/uv"
 export HF_HOME="$ROOT/cache/huggingface"
 export HF_HUB_CACHE="$HF_HOME/hub"
 export TRANSFORMERS_CACHE="$HF_HOME/transformers"
+export HF_HUB_ENABLE_HF_TRANSFER=0
 export PATH="$ROOT/bin:$PATH"
 
 test "$(cat "$STATUS/latentsync.status" 2>/dev/null || true)" = PASS || { echo LATENTSYNC_NOT_READY; exit 21; }
@@ -86,8 +87,6 @@ test -s "$ROOT/src/LatentSync/assets/demo1_video.mp4" || { echo DEMO_VIDEO_MISSI
 test -s "$ROOT/src/LatentSync/assets/demo1_audio.wav" || { echo DEMO_AUDIO_MISSING; exit 26; }
 mkdir -p "$ROOT/bin" "$ROOT/python" "$ROOT/cache/uv" "$HF_HUB_CACHE" "$TRANSFORMERS_CACHE" "$ROOT/envs" "$ROOT/ready_for_approval"
 
-# Cold-start repair: uv and its managed Python interpreter must live on the
-# persistent network volume, not in /root on the disposable pod filesystem.
 if [ ! -x "$UV" ]; then
   echo REPAIR_PERSISTENT_UV
   curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$ROOT/bin" sh
@@ -112,9 +111,6 @@ PYCHK
   echo PASS > "$STATUS/latentsync_runtime_persistent.status"
 fi
 
-# LatentSync loads stabilityai/sd-vae-ft-mse at inference time. Cache the full
-# VAE on the persistent volume before GPU work, then force the actual render
-# offline so a transient Hugging Face/network lookup cannot stall production.
 if [ "$(cat "$STATUS/latentsync_vae_persistent.status" 2>/dev/null || true)" != PASS ]; then
   echo CACHE_PERSISTENT_LATENTSYNC_VAE
   "$PY" - <<'PYVAE'
@@ -129,7 +125,6 @@ PYVAE
   echo PASS > "$STATUS/latentsync_vae_persistent.status"
 fi
 
-# Self-heal the runtime wrapper if the full installer stopped later at gated LTX-2.5.
 if [ ! -x "$WRAPPER" ]; then
   cat > "$WRAPPER" <<'WRAP'
 #!/usr/bin/env bash
@@ -141,6 +136,7 @@ OUT=${3:-$ROOT/ready_for_approval/lipsync-test.mp4}
 export HF_HOME="$ROOT/cache/huggingface"
 export HF_HUB_CACHE="$HF_HOME/hub"
 export TRANSFORMERS_CACHE="$HF_HOME/transformers"
+export HF_HUB_ENABLE_HF_TRANSFER=0
 cd "$ROOT/src/LatentSync"
 "$ROOT/envs/latentsync/bin/python" -m scripts.inference \
   --unet_config_path configs/unet/stage2_512.yaml \
@@ -157,8 +153,7 @@ WRAP
   chmod +x "$WRAPPER"
   echo SELF_HEALED_LIPSYNC_WRAPPER
 else
-  # Refresh an older wrapper so every cold start inherits the persistent cache.
-  if ! grep -q 'HF_HUB_CACHE' "$WRAPPER"; then
+  if ! grep -q 'HF_HUB_CACHE' "$WRAPPER" || ! grep -q 'HF_HUB_ENABLE_HF_TRANSFER=0' "$WRAPPER"; then
     rm -f "$WRAPPER"
     cat > "$WRAPPER" <<'WRAP'
 #!/usr/bin/env bash
@@ -170,6 +165,7 @@ OUT=${3:-$ROOT/ready_for_approval/lipsync-test.mp4}
 export HF_HOME="$ROOT/cache/huggingface"
 export HF_HUB_CACHE="$HF_HOME/hub"
 export TRANSFORMERS_CACHE="$HF_HOME/transformers"
+export HF_HUB_ENABLE_HF_TRANSFER=0
 cd "$ROOT/src/LatentSync"
 "$ROOT/envs/latentsync/bin/python" -m scripts.inference \
   --unet_config_path configs/unet/stage2_512.yaml \
