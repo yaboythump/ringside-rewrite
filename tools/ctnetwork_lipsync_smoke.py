@@ -66,11 +66,14 @@ ROOT=/workspace/ctnetwork-local
 STATUS="$ROOT/status"
 OUT="$ROOT/ready_for_approval/latentsync-official-smoke.mp4"
 
-test "$(cat "$STATUS/install.status" 2>/dev/null || true)" = PASS || { echo STACK_NOT_READY; exit 20; }
+# Lip-sync certification is intentionally independent of the full factory gate.
+# LTX-2.5 may still be blocked on gated-model authorization while LatentSync is fully usable.
 test "$(cat "$STATUS/latentsync.status" 2>/dev/null || true)" = PASS || { echo LATENTSYNC_NOT_READY; exit 21; }
-test -x "$ROOT/bin/ctn-lipsync-test"
-test -s "$ROOT/src/LatentSync/assets/demo1_video.mp4"
-test -s "$ROOT/src/LatentSync/assets/demo1_audio.wav"
+test -x "$ROOT/bin/ctn-lipsync-test" || { echo LIPSYNC_WRAPPER_MISSING; exit 22; }
+test -s "$ROOT/src/LatentSync/checkpoints/whisper/tiny.pt" || { echo WHISPER_CHECKPOINT_MISSING; exit 23; }
+test -s "$ROOT/src/LatentSync/checkpoints/latentsync_unet.pt" || { echo LATENTSYNC_UNET_MISSING; exit 24; }
+test -s "$ROOT/src/LatentSync/assets/demo1_video.mp4" || { echo DEMO_VIDEO_MISSING; exit 25; }
+test -s "$ROOT/src/LatentSync/assets/demo1_audio.wav" || { echo DEMO_AUDIO_MISSING; exit 26; }
 
 rm -f "$OUT" "${OUT%.mp4}.ffprobe.json"
 "$ROOT/bin/ctn-lipsync-test" \
