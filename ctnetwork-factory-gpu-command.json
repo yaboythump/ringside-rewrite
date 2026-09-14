@@ -5,7 +5,7 @@
   "data_center_id": "EUR-NO-1",
   "gpu_types": [
     "NVIDIA GeForce RTX 5090",
-    "NVIDIA RTX PRO 4500 Blackwell Server Edition",
+    "NVIDIA RTX PRO 4500 Blackwell",
     "NVIDIA RTX PRO 5000 Blackwell",
     "NVIDIA RTX PRO 6000 Blackwell Server Edition",
     "NVIDIA RTX 6000 Ada Generation",
@@ -15,5 +15,5 @@
     "NVIDIA A40"
   ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "ctnetwork-factory-norway-sticky-2026-09-14-01"
+  "request_id": "ctnetwork-factory-norway-sticky-2026-09-14-02"
 }
