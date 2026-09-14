@@ -2,5 +2,32 @@
   "production_date": "2026-09-14",
   "manual_gate_required": true,
   "publish_allowed": false,
-  "jobs": []
+  "jobs": [
+    {
+      "job_id": "ctn-local-factory-proof-20260914",
+      "show": "The Case Against",
+      "title": "CTNETWORK Local Factory Proof",
+      "description": "Internal end-to-end CTNETWORK local production certification package. Not approved for publishing.",
+      "tags": ["CTNETWORK", "local-factory-proof"],
+      "publish": false,
+      "narration": {
+        "text": "The Case Against is now running inside the CTNETWORK local factory. Narration, premium visuals, assembly, audio, Shorts, thumbnail, and quality control all stay inside our production system. Case made. You decide.",
+        "voice_reference": "/workspace/ctnetwork-local/incoming/voice_refs/the_case_against_malik.wav",
+        "voice_reference_text": "LeBron James has one of the greatest résumés basketball has ever seen. But greatest résumé and greatest player are not automatically the same thing. Tonight, we put the GOAT case on trial. Finals record. Team construction. Peak versus longevity. No hate. No fan fiction. Just the strongest case the other side can make. Case made. You decide.",
+        "language": "English"
+      },
+      "visuals": {
+        "quality": "dfr",
+        "prompt": "Premium cinematic sports courtroom for The Case Against, dramatic evidence-board atmosphere, polished dark studio, gold and silver accents, moving spotlights, basketball legacy imagery represented through generic trophies, scoreboards and silhouettes without logos, slow controlled camera push, sophisticated documentary television look, realistic lighting, high-end broadcast composition, no text, no captions, no watermarks.",
+        "width": 768,
+        "height": 512,
+        "frames": 121,
+        "seed": 20260914
+      },
+      "shorts": {
+        "count": 1,
+        "seconds": 10
+      }
+    }
+  ]
 }
