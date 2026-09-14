@@ -1,6 +1,6 @@
 {
   "action": "stop",
-  "target": "ltx",
-  "pod_id": "5ziiyypuiq8pwq",
-  "request_id": "ctnetwork-stop-old-5090-2026-09-14-01"
+  "target": "ctnetwork-factory",
+  "pod_id": "v92zliqqi85bwj",
+  "request_id": "ctnetwork-stop-stalled-lipsync-certification-2026-09-14-01"
 }
