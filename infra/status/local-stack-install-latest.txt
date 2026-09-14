@@ -1,0 +1,395 @@
+ _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@13ae5e28844a: /root@13ae5e28844a:/# echo IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLUVldW8gcGlwZWZhaWwKClJPT1Q9L3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwKU1JDPSIkUk9PVC9zcmMiCkVOVlM9IiRST09UL2VudnMiCk1PREVMUz0iJFJPT1QvbW9kZWxzIgpTVEFUVVM9IiRST09UL3N0YXR1cyIKTE9HUz0iJFJPT1QvbG9ncyIKQklOPSIkUk9PVC9iaW4iCkFDVElPTj0iJHtDVE5fSU5TVEFMTF9BQ1RJT046LWluc3RhbGwtYWxsfSIKbWtkaXIgLXAgIiRTUkMiICIkRU5WUyIgIiRNT0RFTFMiICIkU1RBVFVTIiAiJExPR1MiICIkQklOIiAiJFJPT1Qvam9icyIgIiRST09UL2NhY2hlIiAiJFJPT1Qvdm9pY2VzIiAiJFJPT1QvcmVhZHlfZm9yX2FwcHJvdmFsIgpMT0c9IiRMT0dTL2luc3RhbGwubG9nIgpleGVjID4gPih0ZWUgLWEgIiRMT0ciKSAyPiYxCgojIFJ1blBvZCBpbWFnZXMgbWF5IGV4cG9ydCB0aGlzIGV2ZW4gd2hlbiBoZl90cmFuc2ZlciBpcyBhYnNlbnQuIERpc2FibGUgaXQgZ2xvYmFsbHk7CiMgaGZfeGV0IGlzIGluc3RhbGxlZCBleHBsaWNpdGx5IGluIGVhY2ggbW9kZWwgZW52aXJvbm1lbnQgaW5zdGVhZC4KZXhwb3J0IEhGX0hVQl9FTkFCTEVfSEZfVFJBTlNGRVI9MAoKc3RhbXAoKSB7IGRhdGUgLXUgKyclWS0lbS0lZFQlSDolTTolU1onOyB9CnBoYXNlKCkgeyBlY2hvICIkMSIgPiAiJFNUQVRVUy9waGFzZS50eHQiOyBwcmludGYgJ1xuWyVzXSA9PT0gJXMgPT09XG4nICIkKHN0YW1wKSIgIiQxIjsgfQptYXJrKCkgeyBwcmludGYgJyVzXG4nICIkMiIgPiAiJFNUQVRVUy8kMS5zdGF0dXMiOyB9CmZyZWVfZ2IoKSB7IGRmIC1QQjEgL3dvcmtzcGFjZSB8IGF3ayAnTlI9PTIge3ByaW50ZiAiJS4wZiIsICQ0LzEwMjQvMTAyNC8xMDI0fSc7IH0KCm9uX2Vycm9yKCkgewogIHJjPSQ/CiAgZWNobyAiRkFJTEVEIHJjPSRyYyBwaGFzZT0kKGNhdCAiJFNUQVRVUy9waGFzZS50eHQiIDI+L2Rldi9udWxsIHx8IGVjaG8gdW5rbm93bikiID4gIiRTVEFUVVMvaW5zdGFsbC5zdGF0dXMiCiAgZWNobyAiWyQoc3RhbXApXSBpbnN0YWxsZXIgZmFpbGVkIHJjPSRyYyIKICBleGl0ICIkcmMiCn0KdHJhcCBvbl9lcnJvciBFUlIKCmF1ZGl0KCkgewogIHBoYXNlIFBSRUZMSUdIVAogIGVjaG8gImFjdGlvbj0kQUNUSU9OIgogIGVjaG8gIndvcmtzcGFjZV9mcmVlX2diPSQoZnJlZV9nYikiCiAgZWNobyAnR1BVOicKICBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS5mcmVlLGRyaXZlcl92ZXJzaW9uIC0tZm9ybWF0PWNzdixub2hlYWRlciB8fCB0cnVlCiAgZWNobyAnRElTSzonOyBkZiAtaCAvIC93b3Jrc3BhY2UgfHwgdHJ1ZQogIGVjaG8gJ01FTU9SWTonOyBmcmVlIC1oIHx8IHRydWUKICBlY2hvICdQWVRIT046JzsgcHl0aG9uMyAtLXZlcnNpb24gfHwgdHJ1ZQogIGVjaG8gJ0NVREE6JzsgbnZjYyAtLXZlcnNpb24gMj4vZGV2L251bGwgfHwgdHJ1ZQogIGNvbW1hbmQgLXYgZmZtcGVnID4vZGV2L251bGwgJiYgZmZtcGVnIC12ZXJzaW9uIHwgaGVhZCAtbjEgfHwgdHJ1ZQp9CgppbnN0YWxsX3N5c3RlbSgpIHsKICBwaGFzZSBTWVNURU1fUEFDS0FHRVMKICBhcHQtZ2V0IHVwZGF0ZSAteQogIERFQklBTl9GUk9OVEVORD1ub25pbnRlcmFjdGl2ZSBhcHQtZ2V0IGluc3RhbGwgLXkgLS1uby1pbnN0YWxsLXJlY29tbWVuZHMgXAogICAgZ2l0IGdpdC1sZnMgY3VybCB3Z2V0IGFyaWEyIGpxIGNhLWNlcnRpZmljYXRlcyBidWlsZC1lc3NlbnRpYWwgcGtnLWNvbmZpZyBcCiAgICBmZm1wZWcgc294IGxpYnNveC1mbXQtYWxsIGxpYnNuZGZpbGUxIGxpYmdsMSBsaWJnbGliMi4wLTAgbGlic202IGxpYnhleHQ2IFwKICAgIGxpYnhyZW5kZXIxIGxpYmdvbXAxIHB5dGhvbjMtZGV2IHRtdXggcnN5bmMgdW56aXAKICBnaXQgbGZzIGluc3RhbGwgLS1zeXN0ZW0gfHwgdHJ1ZQogIGlmICEgY29tbWFuZCAtdiB1diA+L2Rldi9udWxsIDI+JjE7IHRoZW4KICAgIGN1cmwgLUxzU2YgaHR0cHM6Ly9hc3RyYWwuc2gvdXYvaW5zdGFsbC5zaCB8IHNoCiAgZmkKICBleHBvcnQgUEFUSD0iJEhPTUUvLmxvY2FsL2JpbjokUEFUSCIKICB1diAtLXZlcnNpb24KICBtYXJrIHN5c3RlbSBQQVNTCn0KCmluc3RhbGxfY29yZSgpIHsKICBwaGFzZSBDT1JFX0VOVgogIGV4cG9ydCBQQVRIPSIkSE9NRS8ubG9jYWwvYmluOiRQQVRIIgogIHV2IHB5dGhvbiBpbnN0YWxsIDMuMTIKICBpZiBbICEgLXggIiRFTlZTL2NvcmUvYmluL3B5dGhvbiIgXTsgdGhlbgogICAgdXYgdmVudiAtLXB5dGhvbiAzLjEyICIkRU5WUy9jb3JlIgogIGZpCiAgdXYgcGlwIGluc3RhbGwgLS1weXRob24gIiRFTlZTL2NvcmUvYmluL3B5dGhvbiIgXAogICAgZmFzdGFwaSAndXZpY29ybltzdGFuZGFyZF0nIHB5ZGFudGljIHB5eWFtbCB0eXBlciByaWNoIHRlbmFjaXR5IGZpbGVsb2NrIHBzdXRpbCB3YXRjaGRvZyBcCiAgICBodHRweCBvcmpzb24gc3FsYWxjaGVteSBhaW9zcWxpdGUgbnVtcHkgc2NpcHkgc291bmRmaWxlIGxpYnJvc2EgcHlsb3Vkbm9ybSBwZWRhbGJvYXJkIFwKICAgIG5vaXNlcmVkdWNlIGZmbXBlZy1weXRob24gc2NlbmVkZXRlY3Qgb3BlbmN2LXB5dGhvbi1oZWFkbGVzcyBmYXN0ZXItd2hpc3BlciBwaWxsb3cgXAogICAgaHVnZ2luZ2ZhY2UtaHViIGhmX3hldAogIHV2IHBpcCBpbnN0YWxsIC0tcHl0aG9uICIkRU5WUy9jb3JlL2Jpbi9weXRob24iIGRlZXBmaWx0ZXJuZXQgfHwgdHJ1ZQogIGNhdCA+ICIkQklOL2N0bi1oZWFsdGgiIDw8J0VPRicKIyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLWUKUk9PVD0vd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbApwcmludGYgJ0NUTkVUV09SSyBMT0NBTCBTVEFDS1xuJwpwcmludGYgJ0dQVTogJzsgbnZpZGlhLXNtaSAtLXF1ZXJ5LWdwdT1uYW1lLG1lbW9yeS50b3RhbCxtZW1vcnkuZnJlZSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQpwcmludGYgJ0Rpc2s6ICc7IGRmIC1oIC93b3Jrc3BhY2UgfCBhd2sgJ05SPT0yIHtwcmludCAkNCIgZnJlZSBvZiAiJDJ9Jwpmb3IgZiBpbiAiJFJPT1QiL3N0YXR1cy8qLnN0YXR1czsgZG8gWyAtZSAiJGYiIF0gfHwgY29udGludWU7IHByaW50ZiAnJS0yOHMgJXNcbicgIiQoYmFzZW5hbWUgIiRmIikiICIkKGNhdCAiJGYiKSI7IGRvbmUKRU9GCiAgY2htb2QgK3ggIiRCSU4vY3RuLWhlYWx0aCIKICBtYXJrIGNvcmUgUEFTUwp9CgppbnN0YWxsX3F3ZW5fdHRzKCkgewogIHBoYXNlIFFXRU4zX1RUUwogIGV4cG9ydCBQQVRIPSIkSE9NRS8ubG9jYWwvYmluOiRQQVRIIgogIGlmIFsgISAtZCAiJFNSQy9Rd2VuMy1UVFMvLmdpdCIgXTsgdGhlbgogICAgZ2l0IGNsb25lIC0tZGVwdGggMSBodHRwczovL2dpdGh1Yi5jb20vUXdlbkxNL1F3ZW4zLVRUUy5naXQgIiRTUkMvUXdlbjMtVFRTIgogIGVsc2UKICAgIGdpdCAtQyAiJFNSQy9Rd2VuMy1UVFMiIGZldGNoIC0tZGVwdGggMSBvcmlnaW4gbWFpbgogICAgZ2l0IC1DICIkU1JDL1F3ZW4zLVRUUyIgcmVzZXQgLS1oYXJkIG9yaWdpbi9tYWluCiAgZmkKICB1diBweXRob24gaW5zdGFsbCAzLjEyCiAgaWYgWyAhIC14ICIkRU5WUy9xd2VuMy10dHMvYmluL3B5dGhvbiIgXTsgdGhlbgogICAgdXYgdmVudiAtLXB5dGhvbiAzLjEyICIkRU5WUy9xd2VuMy10dHMiCiAgZmkKICB1diBwaXAgaW5zdGFsbCAtLXB5dGhvbiAiJEVOVlMvcXdlbjMtdHRzL2Jpbi9weXRob24iIHRvcmNoIHRvcmNodmlzaW9uIHRvcmNoYXVkaW8gLS1pbmRleC11cmwgaHR0cHM6Ly9kb3dubG9hZC5weXRvcmNoLm9yZy93aGwvY3UxMjgKICB1diBwaXAgaW5zdGFsbCAtLXB5dGhvbiAiJEVOVlMvcXdlbjMtdHRzL2Jpbi9weXRob24iIC1lICIkU1JDL1F3ZW4zLVRUUyIKICB1diBwaXAgaW5zdGFsbCAtLXB5dGhvbiAiJEVOVlMvcXdlbjMtdHRzL2Jpbi9weXRob24iIGh1Z2dpbmdmYWNlLWh1YiBoZl94ZXQKCiAgUU1PREVMPSIkTU9ERUxTL3F3ZW4zLXR0cy8xLjdCLUJhc2UiCiAgbWtkaXIgLXAgIiRRTU9ERUwiCiAgaWYgISBmaW5kICIkUU1PREVMIiAtdHlwZSBmIFwoIC1uYW1lICcqLnNhZmV0ZW5zb3JzJyAtbyAtbmFtZSAnKi5iaW4nIFwpIC1wcmludCAtcXVpdCB8IGdyZXAgLXEgLjsgdGhlbgogICAgWyAiJChmcmVlX2diKSIgLWdlIDE4IF0gfHwgeyBtYXJrIHF3ZW4zX3R0cyBCTE9DS0VEX0xPV19ESVNLOyByZXR1cm4gMTE7IH0KICAgIEhGX0hVQl9FTkFCTEVfSEZfVFJBTlNGRVI9MCAiJEVOVlMvcXdlbjMtdHRzL2Jpbi9oZiIgZG93bmxvYWQgUXdlbi9Rd2VuMy1UVFMtMTJIei0xLjdCLUJhc2UgLS1sb2NhbC1kaXIgIiRRTU9ERUwiCiAgZmkKICBmaW5kICIkUU1PREVMIiAtdHlwZSBmIFwoIC1uYW1lICcqLnNhZmV0ZW5zb3JzJyAtbyAtbmFtZSAnKi5iaW4nIFwpIC1wcmludCAtcXVpdCB8IGdyZXAgLXEgLiB8fCB7IG1hcmsgcXdlbjNfdHRzIE1PREVMX01JU1NJTkc7IHJldHVybiAxMjsgfQogICIkRU5WUy9xd2VuMy10dHMvYmluL3B5dGhvbiIgLSA8PCdQWScKaW1wb3J0IHRvcmNoCnByaW50KCdxd2VuIHRvcmNoJywgdG9yY2guX192ZXJzaW9uX18sICdjdWRhJywgdG9yY2gudmVyc2lvbi5jdWRhLCAnYXZhaWxhYmxlJywgdG9yY2guY3VkYS5pc19hdmFpbGFibGUoKSkKaWYgbm90IHRvcmNoLmN1ZGEuaXNfYXZhaWxhYmxlKCk6IHJhaXNlIFN5c3RlbUV4aXQoMikKcHJpbnQodG9yY2guY3VkYS5nZXRfZGV2aWNlX25hbWUoMCksIHRvcmNoLmN1ZGEuZ2V0X2RldmljZV9jYXBhYmlsaXR5KDApKQpQWQogIG1hcmsgcXdlbjNfdHRzIFBBU1MKfQoKaW5zdGFsbF9sYXRlbnRzeW5jKCkgewogIHBoYXNlIExBVEVOVFNZTkNfMV82CiAgZXhwb3J0IFBBVEg9IiRIT01FLy5sb2NhbC9iaW46JFBBVEgiCiAgaWYgWyAhIC1kICIkU1JDL0xhdGVudFN5bmMvLmdpdCIgXTsgdGhlbgogICAgZ2l0IGNsb25lIC0tZGVwdGggMSBodHRwczovL2dpdGh1Yi5jb20vYnl0ZWRhbmNlL0xhdGVudFN5bmMuZ2l0ICIkU1JDL0xhdGVudFN5bmMiCiAgZWxzZQogICAgZ2l0IC1DICIkU1JDL0xhdGVudFN5bmMiIGZldGNoIC0tZGVwdGggMSBvcmlnaW4gbWFpbgogICAgZ2l0IC1DICIkU1JDL0xhdGVudFN5bmMiIHJlc2V0IC0taGFyZCBvcmlnaW4vbWFpbgogIGZpCiAgdXYgcHl0aG9uIGluc3RhbGwgMy4xMAogIGlmIFsgISAteCAiJEVOVlMvbGF0ZW50c3luYy9iaW4vcHl0aG9uIiBdOyB0aGVuCiAgICB1diB2ZW52IC0tcHl0aG9uIDMuMTAgIiRFTlZTL2xhdGVudHN5bmMiCiAgZmkKICB1diBwaXAgaW5zdGFsbCAtLXB5dGhvbiAiJEVOVlMvbGF0ZW50c3luYy9iaW4vcHl0aG9uIiB0b3JjaCB0b3JjaHZpc2lvbiAtLWluZGV4LXVybCBodHRwczovL2Rvd25sb2FkLnB5dG9yY2gub3JnL3dobC9jdTEyOAogIGF3ayAnIS9edG9yY2g9PS8gJiYgIS9edG9yY2h2aXNpb249PS8gJiYgIS9eLS1leHRyYS1pbmRleC11cmwvJyAiJFNSQy9MYXRlbnRTeW5jL3JlcXVpcmVtZW50cy50eHQiID4gIiRTVEFUVVMvbGF0ZW50c3luYy1yZXF1aXJlbWVudHMtYmxhY2t3ZWxsLnR4dCIKICB1diBwaXAgaW5zdGFsbCAtLXB5dGhvbiAiJEVOVlMvbGF0ZW50c3luYy9iaW4vcHl0aG9uIiAtciAiJFNUQVRVUy9sYXRlbnRzeW5jLXJlcXVpcmVtZW50cy1ibGFja3dlbGwudHh0IgogIHV2IHBpcCBpbnN0YWxsIC0tcHl0aG9uICIkRU5WUy9sYXRlbnRzeW5jL2Jpbi9weXRob24iIGh1Z2dpbmdmYWNlLWh1YiBoZl94ZXQKICBta2RpciAtcCAiJFNSQy9MYXRlbnRTeW5jL2NoZWNrcG9pbnRzIgogIEhGX0hVQl9FTkFCTEVfSEZfVFJBTlNGRVI9MCAiJEVOVlMvbGF0ZW50c3luYy9iaW4vaHVnZ2luZ2ZhY2UtY2xpIiBkb3dubG9hZCBCeXRlRGFuY2UvTGF0ZW50U3luYy0xLjYgd2hpc3Blci90aW55LnB0IC0tbG9jYWwtZGlyICIkU1JDL0xhdGVudFN5bmMvY2hlY2twb2ludHMiCiAgSEZfSFVCX0VOQUJMRV9IRl9UUkFOU0ZFUj0wICIkRU5WUy9sYXRlbnRzeW5jL2Jpbi9odWdnaW5nZmFjZS1jbGkiIGRvd25sb2FkIEJ5dGVEYW5jZS9MYXRlbnRTeW5jLTEuNiBsYXRlbnRzeW5jX3VuZXQucHQgLS1sb2NhbC1kaXIgIiRTUkMvTGF0ZW50U3luYy9jaGVja3BvaW50cyIKICB0ZXN0IC1zICIkU1JDL0xhdGVudFN5bmMvY2hlY2twb2ludHMvd2hpc3Blci90aW55LnB0IiB8fCB7IG1hcmsgbGF0ZW50c3luYyBDSEVDS1BPSU5UX01JU1NJTkdfV0hJU1BFUjsgcmV0dXJuIDIxOyB9CiAgdGVzdCAtcyAiJFNSQy9MYXRlbnRTeW5jL2NoZWNrcG9pbnRzL2xhdGVudHN5bmNfdW5ldC5wdCIgfHwgeyBtYXJrIGxhdGVudHN5bmMgQ0hFQ0tQT0lOVF9NSVNTSU5HX1VORVQ7IHJldHVybiAyMjsgfQogICIkRU5WUy9sYXRlbnRzeW5jL2Jpbi9weXRob24iIC0gPDwnUFknCmltcG9ydCB0b3JjaApwcmludCgnbGF0ZW50c3luYyB0b3JjaCcsIHRvcmNoLl9fdmVyc2lvbl9fLCAnY3VkYScsIHRvcmNoLnZlcnNpb24uY3VkYSwgJ2F2YWlsYWJsZScsIHRvcmNoLmN1ZGEuaXNfYXZhaWxhYmxlKCkpCmlmIG5vdCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpOiByYWlzZSBTeXN0ZW1FeGl0KDIpCnByaW50KHRvcmNoLmN1ZGEuZ2V0X2RldmljZV9uYW1lKDApLCB0b3JjaC5jdWRhLmdldF9kZXZpY2VfY2FwYWJpbGl0eSgwKSkKUFkKICBtYXJrIGxhdGVudHN5bmMgUEFTUwp9CgppbnN0YWxsX2x0eDI1KCkgewogIHBoYXNlIExUWF8yXzUKICBleHBvcnQgUEFUSD0iJEhPTUUvLmxvY2FsL2JpbjokUEFUSCIKICBpZiBbICEgLWQgIiRTUkMvTFRYLTIvLmdpdCIgXTsgdGhlbgogICAgZ2l0IGNsb25lIC0tZGVwdGggMSBodHRwczovL2dpdGh1Yi5jb20vTGlnaHRyaWNrcy9MVFgtMi5naXQgIiRTUkMvTFRYLTIiCiAgZWxzZQogICAgZ2l0IC1DICIkU1JDL0xUWC0yIiBmZXRjaCAtLWRlcHRoIDEgb3JpZ2luIG1haW4KICAgIGdpdCAtQyAiJFNSQy9MVFgtMiIgcmVzZXQgLS1oYXJkIG9yaWdpbi9tYWluCiAgZmkKICBjZCAiJFNSQy9MVFgtMiIKICB1diBzeW5jIC0tZXh0cmEgbmF0dGVuIHx8IHV2IHN5bmMKICBtYXJrIGx0eDI1X2NvZGUgUEFTUwoKICBbICIkKGZyZWVfZ2IpIiAtZ2UgOTAgXSB8fCB7IG1hcmsgbHR4MjVfbW9kZWxzIEJMT0NLRURfTE9XX0RJU0tfTkVFRF85MEdCX0ZSRUU7IHJldHVybiAzMTsgfQogIHV2IHBpcCBpbnN0YWxsIC0tcHl0aG9uIC52ZW52L2Jpbi9weXRob24gaHVnZ2luZ2ZhY2UtaHViIGhmX3hldAogIFsgLW4gIiR7SEZfVE9LRU46LX0iIF0gJiYgLnZlbnYvYmluL2hmIGF1dGggbG9naW4gLS10b2tlbiAiJEhGX1RPS0VOIiA+L2Rldi9udWxsIDI+JjEgfHwgdHJ1ZQogIEhGX0hVQl9FTkFCTEVfSEZfVFJBTlNGRVI9MCAudmVudi9iaW4vaGYgZG93bmxvYWQgTGlnaHRyaWNrcy9MVFgtMi41IFwKICAgIGRpZmZ1c2lvbl9tb2RlbHMvbHR4LTIuNS0yMmItZGlzdGlsbGVkLXRyYW5zZm9ybWVyLWJmMTYuc2FmZXRlbnNvcnMgXAogICAgdGV4dF9lbmNvZGVycy9nZW1tYTQtMTJiLXdpdGgtcHJvai1sdHgtMi41LWJmMTYuc2FmZXRlbnNvcnMgXAogICAgdmFlL2x0eC0yLjUtdmlkZW8tdmFlLWJmMTYuc2FmZXRlbnNvcnMgXAogICAgdmFlL2x0eC0yLjUtYXVkaW8tdmFlLWJmMTYuc2FmZXRlbnNvcnMgXAogICAgbW9kZWxfcGF0Y2hlcy9sdHgtMi41LWR1cmF0aW9uLWhlYWQtYmYxNi5zYWZldGVuc29ycyBcCiAgICBsYXRlbnRfdXBzY2FsZV9tb2RlbHMvbHR4LTIuNS1sYXRlbnQtc3BhdGlhbC11cHNjYWxlci14Mi1iZjE2LTEuMC5zYWZldGVuc29ycyBcCiAgICAtLWxvY2FsLWRpciAiJE1PREVMUy9sdHgtMi41IgogIHRlc3QgLXMgIiRNT0RFTFMvbHR4LTIuNS9kaWZmdXNpb25fbW9kZWxzL2x0eC0yLjUtMjJiLWRpc3RpbGxlZC10cmFuc2Zvcm1lci1iZjE2LnNhZmV0ZW5zb3JzIiB8fCB7IG1hcmsgbHR4MjVfbW9kZWxzIFRSQU5TRk9STUVSX01JU1NJTkc7IHJldHVybiAzMjsgfQogIHRlc3QgLXMgIiRNT0RFTFMvbHR4LTIuNS90ZXh0X2VuY29kZXJzL2dlbW1hNC0xMmItd2l0aC1wcm9qLWx0eC0yLjUtYmYxNi5zYWZldGVuc29ycyIgfHwgeyBtYXJrIGx0eDI1X21vZGVscyBURVhUX0VOQ09ERVJfTUlTU0lORzsgcmV0dXJuIDMzOyB9CiAgdGVzdCAtcyAiJE1PREVMUy9sdHgtMi41L3ZhZS9sdHgtMi41LXZpZGVvLXZhZS1iZjE2LnNhZmV0ZW5zb3JzIiB8fCB7IG1hcmsgbHR4MjVfbW9kZWxzIFZJREVPX1ZBRV9NSVNTSU5HOyByZXR1cm4gMzQ7IH0KICB0ZXN0IC1zICIkTU9ERUxTL2x0eC0yLjUvdmFlL2x0eC0yLjUtYXVkaW8tdmFlLWJmMTYuc2FmZXRlbnNvcnMiIHx8IHsgbWFyayBsdHgyNV9tb2RlbHMgQVVESU9fVkFFX01JU1NJTkc7IHJldHVybiAzNTsgfQogIG1hcmsgbHR4MjVfbW9kZWxzIFBBU1MKfQoKd3JpdGVfcnVudGltZSgpIHsKICBwaGFzZSBSVU5USU1FCiAgY2F0ID4gIiRST09UL1NUQUNLLmpzb24iIDw8RU9GCnsKICAicm9vdCI6ICIkUk9PVCIsCiAgImFwcHJvdmFsX2dhdGUiOiB0cnVlLAogICJwdWJsaXNoX2RlZmF1bHQiOiBmYWxzZSwKICAibmFycmF0aW9uX3ByaW1hcnkiOiAicXdlbjMtdHRzLTEuN2IiLAogICJsaXBfc3luY19wcmltYXJ5IjogImxhdGVudHN5bmMtMS42IiwKICAibGlwX3N5bmNfZXhwZXJpbWVudGFsIjogImx0eC0yLjMtZHViLWl0IiwKICAidmlkZW9fcHJpbWFyeSI6ICJsdHgtMi41IiwKICAiYXNzZW1ibHkiOiAiZmZtcGVnIiwKICAicWMiOiBbImZmcHJvYmUiLCAibG91ZG5lc3MiLCAic2lsZW5jZSIsICJibGFja2ZyYW1lIiwgImR1cmF0aW9uIiwgImFzcGVjdCIsICJhdWRpb19wcmVzZW50IiwgInN0YWdlX2NoZWNrc3VtcyJdLAogICJ3b3Jrc3BhY2UiOiAiL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwiLAogICJyZWFkeV9kaXIiOiAiL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvcmVhZHlfZm9yX2FwcHJvdmFsIgp9CkVPRgogIGNhdCA+ICIkQklOL2N0bi1saXBzeW5jLXRlc3QiIDw8J0VPRicKIyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLUVldW8gcGlwZWZhaWwKUk9PVD0vd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbApWSURFTz0kezE6P3VzYWdlOiBjdG4tbGlwc3luYy10ZXN0IGlucHV0X3ZpZGVvIGlucHV0X2F1ZGlvIFtvdXRwdXRdfQpBVURJTz0kezI6P3VzYWdlOiBjdG4tbGlwc3luYy10ZXN0IGlucHV0X3ZpZGVvIGlucHV0X2F1ZGlvIFtvdXRwdXRdfQpPVVQ9JHszOi0kUk9PVC9yZWFkeV9mb3JfYXBwcm92YWwvbGlwc3luYy10ZXN0Lm1wNH0KY2QgIiRST09UL3NyYy9MYXRlbnRTeW5jIgoiJFJPT1QvZW52cy9sYXRlbnRzeW5jL2Jpbi9weXRob24iIC1tIHNjcmlwdHMuaW5mZXJlbmNlIFwKICAtLXVuZXRfY29uZmlnX3BhdGggY29uZmlncy91bmV0L3N0YWdlMl81MTIueWFtbCBcCiAgLS1pbmZlcmVuY2VfY2twdF9wYXRoIGNoZWNrcG9pbnRzL2xhdGVudHN5bmNfdW5ldC5wdCBcCiAgLS1pbmZlcmVuY2Vfc3RlcHMgMjAgXAogIC0tZ3VpZGFuY2Vfc2NhbGUgMS41IFwKICAtLWVuYWJsZV9kZWVwY2FjaGUgXAogIC0tdmlkZW9fcGF0aCAiJFZJREVPIiBcCiAgLS1hdWRpb19wYXRoICIkQVVESU8iIFwKICAtLXZpZGVvX291dF9wYXRoICIkT1VUIgpmZnByb2JlIC12IGVycm9yIC1zaG93X2VudHJpZXMgZm9ybWF0PWR1cmF0aW9uIC1zaG93X3N0cmVhbXMgLW9mIGpzb24gIiRPVVQiID4gIiR7T1VUJS5tcDR9LmZmcHJvYmUuanNvbiIKZWNobyAiJE9VVCIKRU9GCiAgY2htb2QgK3ggIiRCSU4vY3RuLWxpcHN5bmMtdGVzdCIKICBtYXJrIHJ1bnRpbWUgUEFTUwp9Cgp2ZXJpZnkoKSB7CiAgcGhhc2UgVkVSSUZZCiAgbG9jYWwgYmFkPTAKICAiJEJJTi9jdG4taGVhbHRoIiB8fCB0cnVlCiAgdGVzdCAteCAiJEVOVlMvY29yZS9iaW4vcHl0aG9uIiAmJiBtYXJrIHZlcmlmeV9jb3JlIFBBU1MgfHwgeyBtYXJrIHZlcmlmeV9jb3JlIEZBSUw7IGJhZD0xOyB9CiAgdGVzdCAiJChjYXQgIiRTVEFUVVMvcXdlbjNfdHRzLnN0YXR1cyIgMj4vZGV2L251bGwgfHwgdHJ1ZSkiID0gUEFTUyAmJiBtYXJrIHZlcmlmeV9xd2VuIFBBU1MgfHwgeyBtYXJrIHZlcmlmeV9xd2VuIEZBSUw7IGJhZD0xOyB9CiAgdGVzdCAiJChjYXQgIiRTVEFUVVMvbGF0ZW50c3luYy5zdGF0dXMiIDI+L2Rldi9udWxsIHx8IHRydWUpIiA9IFBBU1MgJiYgbWFyayB2ZXJpZnlfbGF0ZW50c3luYyBQQVNTIHx8IHsgbWFyayB2ZXJpZnlfbGF0ZW50c3luYyBGQUlMOyBiYWQ9MTsgfQogIHRlc3QgIiQoY2F0ICIkU1RBVFVTL2x0eDI1X21vZGVscy5zdGF0dXMiIDI+L2Rldi9udWxsIHx8IHRydWUpIiA9IFBBU1MgJiYgbWFyayB2ZXJpZnlfbHR4MjUgUEFTUyB8fCB7IG1hcmsgdmVyaWZ5X2x0eDI1IEZBSUw7IGJhZD0xOyB9CiAgdGVzdCAteCAiJEJJTi9jdG4tbGlwc3luYy10ZXN0IiB8fCB7IG1hcmsgdmVyaWZ5X2xpcHN5bmNfd3JhcHBlciBGQUlMOyBiYWQ9MTsgfQogIGlmIFsgIiRiYWQiIC1uZSAwIF07IHRoZW4KICAgIGVjaG8gRkFJTCA+ICIkU1RBVFVTL2luc3RhbGwuc3RhdHVzIgogICAgcmV0dXJuIDQxCiAgZmkKICBlY2hvIFBBU1MgPiAiJFNUQVRVUy9pbnN0YWxsLnN0YXR1cyIKICBtYXJrIHZlcmlmeV9saXBzeW5jX3dyYXBwZXIgUEFTUwogIGVjaG8gIlskKHN0YW1wKV0gQ1RORVRXT1JLIGxvY2FsIHN0YWNrIHZlcmlmaWNhdGlvbiBjb21wbGV0ZSIKfQoKYXVkaXQKY2FzZSAiJEFDVElPTiIgaW4KICBhdWRpdHxwcmVmbGlnaHQpIGVjaG8gUEFTUyA+ICIkU1RBVFVTL2luc3RhbGwuc3RhdHVzIiA7OwogIGluc3RhbGwtY29yZSkgaW5zdGFsbF9zeXN0ZW07IGluc3RhbGxfY29yZTsgd3JpdGVfcnVudGltZTsgdmVyaWZ5IDs7CiAgaW5zdGFsbC1hbGx8aW5zdGFsbCkKICAgIGluc3RhbGxfc3lzdGVtCiAgICBpbnN0YWxsX2NvcmUKICAgIGluc3RhbGxfcXdlbl90dHMKICAgIGluc3RhbGxfbGF0ZW50c3luYwogICAgaW5zdGFsbF9sdHgyNQogICAgd3JpdGVfcnVudGltZQogICAgdmVyaWZ5CiAgICA7OwogIHJlc3VtZSkKICAgIGluc3RhbGxfcXdlbl90dHMKICAgIGluc3RhbGxfbGF0ZW50c3luYwogICAgaW5zdGFsbF9sdHgyNQogICAgd3JpdGVfcnVudGltZQogICAgdmVyaWZ5CiAgICA7OwogIHZlcmlmeSkgd3JpdGVfcnVudGltZTsgdmVyaWZ5IDs7CiAgKikgZWNobyAidW5zdXBwb3J0ZWQgYWN0aW9uOiAkQUNUSU9OIjsgZXhpdCA2NCA7Owplc2FjCg== | base64 -d >/tmp/ctnetwork-local-stack-install.sh && chmod +x /tmp/ctnetwork-local-stack-install.sh && export CTN_INSTALL_ACTION=resume; export HF_TOKEN=$(echo  | base64 -d); bash /tmp/ctnetwork-local-stack-install.sh; rc=$?; echo __CTN_INSTALL_DONE__:$rc
+[?2004l
+[2026-09-14T12:12:49Z] === PREFLIGHT ===
+action=resume
+workspace_free_gb=385323
+GPU:
+NVIDIA RTX PRO 4500 Blackwell, 32623 MiB, 32124 MiB, 580.126.20
+DISK:
+Filesystem                Size  Used Avail Use% Mounted on
+overlay                    40G   16M   40G   1% /
+mfs#euro.runpod.net:9421  2.3P  1.9P  377T  84% /workspace
+MEMORY:
+               total        used        free      shared  buff/cache   available
+Mem:           251Gi        24Gi        58Gi        65Mi       171Gi       226Gi
+Swap:             0B          0B          0B
+PYTHON:
+Python 3.12.3
+CUDA:
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2025 NVIDIA Corporation
+Built on Fri_Feb_21_20:23:50_PST_2025
+Cuda compilation tools, release 12.8, V12.8.93
+Build cuda_12.8.r12.8/compiler.35583870_0
+ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+
+[2026-09-14T12:12:49Z] === QWEN3_TTS ===
+From https://github.com/QwenLM/Qwen3-TTS
+ * branch            main       -> FETCH_HEAD
+HEAD is now at 022e286 fix finetuning bug
+Downloading cpython-3.12.11-linux-x86_64-gnu (download) (31.1MiB)
+ Downloading cpython-3.12.11-linux-x86_64-gnu (download)
+Installed Python 3.12.11 in 1.99s
+ + cpython-3.12.11-linux-x86_64-gnu (python3.12)
+Using Python 3.12.11 environment at: /workspace/ctnetwork-local/envs/qwen3-tts
+Audited 3 packages in 2.23s
+Using Python 3.12.11 environment at: /workspace/ctnetwork-local/envs/qwen3-tts
+Resolved 106 packages in 4.22s
+   Building qwen-tts @ file:///workspace/ctnetwork-local/src/Qwen3-TTS
+      Built qwen-tts @ file:///workspace/ctnetwork-local/src/Qwen3-TTS
+Prepared 1 package in 20.94s
+Uninstalled 1 package in 84ms
+Installed 1 package in 360ms
+ ~ qwen-tts==0.1.1 (from file:///workspace/ctnetwork-local/src/Qwen3-TTS)
+Using Python 3.12.11 environment at: /workspace/ctnetwork-local/envs/qwen3-tts
+Audited 2 packages in 901ms
+Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s]Downloading '.gitattributes' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/wPaCkH-WbT7GsmxMKKrNZTV4nSM=.a6344aac8c09253b3b630fb776ae94478aa0275b.incomplete'
+Downloading 'generation_config.json' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/3EVKVggOldJcKSsGjSdoUCN1AyQ=.1872b16d4535564abf2db5d6debe6cddd82b7f2e.incomplete'
+Downloading 'README.md' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/Xn7B-BWUGOee2Y6hCZtEhtFu4BE=.ec53071d0e37736a91918b25b201080ba7776be4.incomplete'
+Downloading 'merges.txt' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/PtHk0z_I45atnj23IIRhTExwT3w=.20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0.incomplete'
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.gitattributes
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/generation_config.json
+Downloading 'model.safetensors' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/xGOKKLRSlIhH692hSVvI1-gpoa8=.38fc7fc51c5e776e840414b6fd443962e9411b9654888fd7913e4da643cb857c.incomplete'
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/README.md
+Downloading 'preprocessor_config.json' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/PYH5dHjks7Ei0Yd3X0Z8xIwsCNQ=.0525dd953bb9241912f7147666f0d535165d5d4f.incomplete'
+Downloading 'speech_tokenizer/config.json' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/speech_tokenizer/8_PA_wEVGiVa2goH2H4KQOQpvVY=.06cc8dc4c5ec8a1929086b71b98c313020d9268b.incomplete'
+Downloading 'config.json' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/8_PA_wEVGiVa2goH2H4KQOQpvVY=.81b57e8e790c07e8fa7f82d8bdfd7574d485c396.incomplete'
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/merges.txt
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/preprocessor_config.json
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/speech_tokenizer/config.json
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/config.json
+Downloading 'speech_tokenizer/configuration.json' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/speech_tokenizer/pOL2LEBeNWU9Y3bTUNO_khibHs8=.ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd.incomplete'
+Downloading 'speech_tokenizer/model.safetensors' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/speech_tokenizer/xGOKKLRSlIhH692hSVvI1-gpoa8=.836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258.incomplete'
+Downloading 'speech_tokenizer/preprocessor_config.json' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/speech_tokenizer/PYH5dHjks7Ei0Yd3X0Z8xIwsCNQ=.ba40914f4f49ab98a8ca545d4892ef7291a39592.incomplete'
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/speech_tokenizer/configuration.json
+Downloading 'tokenizer_config.json' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/vzaExXFZNBay89bvlQv-ZcI6BTg=.6ff9fd60cc623bb54bbd603cbd418c97a11528d7.incomplete'
+Downloading 'vocab.json' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/j3m-Hy6QvBddw8RXA1uSWl1AJ0c=.4783fe10ac3adce15ac8f358ef5462739852c569.incomplete'
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/tokenizer_config.json
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/speech_tokenizer/preprocessor_config.json
+Fetching 13 files:  62%|██████▏   | 8/13 [00:01<00:00,  7.06it/s]Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/vocab.json
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/speech_tokenizer/model.safetensors
+Download complete. Moving file to /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/model.safetensors
+Fetching 13 files: 100%|██████████| 13/13 [00:08<00:00,  1.59it/s]
+/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base
+qwen torch 2.11.0+cu128 cuda 12.8 available True
+NVIDIA RTX PRO 4500 Blackwell (12, 0)
+
+[2026-09-14T12:14:18Z] === LATENTSYNC_1_6 ===
+From https://github.com/bytedance/LatentSync
+ * branch            main       -> FETCH_HEAD
+HEAD is now at a229c39 Update the demo in the README.md
+Downloading cpython-3.10.18-linux-x86_64-gnu (download) (27.5MiB)
+ Downloading cpython-3.10.18-linux-x86_64-gnu (download)
+Installed Python 3.10.18 in 2.31s
+ + cpython-3.10.18-linux-x86_64-gnu (python3.10)
+Using Python 3.10.18 environment at: /workspace/ctnetwork-local/envs/latentsync
+Audited 2 packages in 2.95s
+Using Python 3.10.18 environment at: /workspace/ctnetwork-local/envs/latentsync
+Resolved 156 packages in 1.47s
+Uninstalled 1 package in 372ms
+Installed 1 package in 452ms
+ ~ decord==0.6.0
+Using Python 3.10.18 environment at: /workspace/ctnetwork-local/envs/latentsync
+Resolved 13 packages in 233ms
+Installed 1 package in 174ms
+ + hf-xet==1.6.0
+Downloading 'whisper/tiny.pt' to '/workspace/ctnetwork-local/src/LatentSync/checkpoints/.cache/huggingface/download/whisper/2bXfceQet32ashONewwCNGFRC3E=.65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9.incomplete'
+Xet Storage is enabled for this repo. Downloading file from Xet Storage..
+Download complete. Moving file to /workspace/ctnetwork-local/src/LatentSync/checkpoints/whisper/tiny.pt
+/workspace/ctnetwork-local/src/LatentSync/checkpoints/whisper/tiny.pt
+Downloading 'latentsync_unet.pt' to '/workspace/ctnetwork-local/src/LatentSync/checkpoints/.cache/huggingface/download/HrGktaY_kGnyhqDrRVde02cPk68=.0a478e89eb660f82da4c35dbdde8a5adfb27f99d1b4e50edd03729e1e98316d3.incomplete'
+Xet Storage is enabled for this repo. Downloading file from Xet Storage..
+Download complete. Moving file to /workspace/ctnetwork-local/src/LatentSync/checkpoints/latentsync_unet.pt
+/workspace/ctnetwork-local/src/LatentSync/checkpoints/latentsync_unet.pt
+latentsync torch 2.11.0+cu128 cuda 12.8 available True
+NVIDIA RTX PRO 4500 Blackwell (12, 0)
+
+[2026-09-14T12:16:03Z] === LTX_2_5 ===
+Cloning into '/workspace/ctnetwork-local/src/LTX-2'...
+Updating files:  10% (42/416)Updating files:  11% (46/416)Updating files:  12% (50/416)Updating files:  13% (55/416)Updating files:  14% (59/416)Updating files:  15% (63/416)Updating files:  16% (67/416)Updating files:  17% (71/416)Updating files:  18% (75/416)Updating files:  19% (80/416)Updating files:  19% (82/416)Updating files:  20% (84/416)Updating files:  21% (88/416)Updating files:  22% (92/416)Updating files:  23% (96/416)Updating files:  24% (100/416)Updating files:  25% (104/416)Updating files:  26% (109/416)Updating files:  27% (113/416)Updating files:  28% (117/416)Updating files:  29% (121/416)Updating files:  30% (125/416)Updating files:  31% (129/416)Updating files:  32% (134/416)Updating files:  33% (138/416)Updating files:  34% (142/416)Updating files:  35% (146/416)Updating files:  36% (150/416)Updating files:  37% (154/416)Updating files:  38% (159/416)Updating files:  38% (161/416)Updating files:  39% (163/416)Updating files:  40% (167/416)Updating files:  41% (171/416)Updating files:  42% (175/416)Updating files:  43% (179/416)Updating files:  44% (184/416)Updating files:  45% (188/416)Updating files:  46% (192/416)Updating files:  47% (196/416)Updating files:  47% (199/416)Updating files:  48% (200/416)Updating files:  49% (204/416)Updating files:  50% (208/416)Updating files:  51% (213/416)Updating files:  52% (217/416)Updating files:  53% (221/416)Updating files:  54% (225/416)Updating files:  55% (229/416)Updating files:  56% (233/416)Updating files:  57% (238/416)Updating files:  57% (239/416)Updating files:  58% (242/416)Updating files:  59% (246/416)Updating files:  60% (250/416)Updating files:  61% (254/416)Updating files:  62% (258/416)Updating files:  63% (263/416)Updating files:  64% (267/416)Updating files:  65% (271/416)Updating files:  66% (275/416)Updating files:  67% (279/416)Updating files:  68% (283/416)Updating files:  69% (288/416)Updating files:  70% (292/416)Updating files:  71% (296/416)Updating files:  72% (300/416)Updating files:  73% (304/416)Updating files:  74% (308/416)Updating files:  75% (312/416)Updating files:  76% (317/416)Updating files:  77% (321/416)Updating files:  78% (325/416)Updating files:  79% (329/416)Updating files:  80% (333/416)Updating files:  81% (337/416)Updating files:  82% (342/416)Updating files:  83% (346/416)Updating files:  84% (350/416)Updating files:  85% (354/416)Updating files:  86% (358/416)Updating files:  86% (360/416)Updating files:  87% (362/416)Updating files:  88% (367/416)Updating files:  89% (371/416)Updating files:  90% (375/416)Updating files:  91% (379/416)Updating files:  92% (383/416)Updating files:  93% (387/416)Updating files:  94% (392/416)Updating files:  95% (396/416)Updating files:  95% (399/416)Updating files:  96% (400/416)Updating files:  97% (404/416)Updating files:  98% (408/416)Updating files:  99% (412/416)Updating files: 100% (416/416)Updating files: 100% (416/416), done.
+Using CPython 3.12.11
+Creating virtual environment at: .venv
+Resolved 186 packages in 11.17s
+   Building ltx-pipelines @ file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-pipelines
+   Building ltx-core @ file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-core
+   Building ltx-trainer @ file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-trainer
+Downloading torchcodec (9.2MiB)
+Downloading torchvision (7.5MiB)
+Downloading torch (505.8MiB)
+Downloading openai (1.9MiB)
+Downloading virtualenv (5.1MiB)
+Downloading sympy (6.0MiB)
+Downloading nvidia-nvshmem-cu13 (57.6MiB)
+Downloading nvidia-cusparselt-cu13 (162.3MiB)
+Downloading networkx (2.0MiB)
+Downloading transformers (11.1MiB)
+Downloading nvidia-cuda-runtime (2.2MiB)
+Downloading cryptography (4.5MiB)
+Downloading nvidia-nvjitlink (40.5MiB)
+Downloading nvidia-cudnn-cu13 (527.5MiB)
+Downloading nvidia-nccl-cu13 (196.4MiB)
+Downloading nvidia-cuda-cupti (11.4MiB)
+Downloading nvidia-cuda-nvrtc (44.8MiB)
+Downloading nvidia-cufile (1.3MiB)
+Downloading nvidia-cuda-cccl (3.4MiB)
+Downloading nvidia-cufft (208.1MiB)
+Downloading nvidia-curand (57.1MiB)
+Downloading nvidia-cublas (386.1MiB)
+Downloading nvidia-cuda-nvcc (42.0MiB)
+Downloading nvidia-nvvm (61.3MiB)
+Downloading openimageio (6.6MiB)
+Downloading cuda-bindings (6.8MiB)
+Downloading nvidia-cusparse (143.9MiB)
+Downloading sentencepiece (1.3MiB)
+Downloading wandb (24.9MiB)
+Downloading pillow-heif (5.4MiB)
+Downloading imageio-ffmpeg (28.1MiB)
+Downloading google-genai (1.0MiB)
+Downloading scikit-image (12.9MiB)
+Downloading nvidia-cusolver (216.9MiB)
+Downloading bitsandbytes (41.1MiB)
+Downloading triton (188.6MiB)
+Downloading torchaudio (1.7MiB)
+Downloading natten (194.2MiB)
+ Downloading torchaudio
+ Downloading nvidia-cufile
+ Downloading sentencepiece
+ Downloading torchcodec
+Downloading pydantic-core (2.0MiB)
+ Downloading torchvision
+Downloading tokenizers (3.1MiB)
+Downloading opencv-python (70.4MiB)
+Downloading scipy (33.7MiB)
+Downloading av (34.1MiB)
+Downloading numpy (15.9MiB)
+Downloading matplotlib (9.4MiB)
+Downloading fonttools (5.2MiB)
+Downloading pillow (6.6MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading pandas (10.5MiB)
+Downloading ruff (9.9MiB)
+Downloading hf-xet (4.3MiB)
+      Built ltx-core @ file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-core
+      Built ltx-pipelines @ file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-pipelines
+      Built ltx-trainer @ file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-trainer
+Downloading soundfile (1.3MiB)
+ Downloading natten
+ Downloading nvidia-cuda-runtime
+Downloading pygments (1.2MiB)
+ Downloading google-genai
+ Downloading networkx
+ Downloading kiwisolver
+ Downloading pydantic-core
+ Downloading soundfile
+ Downloading pygments
+ Downloading tokenizers
+ Downloading cryptography
+ Downloading virtualenv
+ Downloading pillow-heif
+ Downloading hf-xet
+ Downloading openimageio
+ Downloading fonttools
+ Downloading cuda-bindings
+ Downloading sympy
+ Downloading pillow
+ Downloading openai
+ Downloading nvidia-cuda-cccl
+ Downloading nvidia-cuda-cupti
+ Downloading ruff
+ Downloading matplotlib
+ Downloading scikit-image
+ Downloading numpy
+ Downloading imageio-ffmpeg
+ Downloading transformers
+ Downloading nvidia-nvjitlink
+ Downloading nvidia-cuda-nvcc
+ Downloading nvidia-cuda-nvrtc
+ Downloading bitsandbytes
+ Downloading av
+ Downloading pandas
+ Downloading scipy
+ Downloading nvidia-curand
+ Downloading nvidia-nvshmem-cu13
+ Downloading nvidia-nvvm
+ Downloading wandb
+ Downloading opencv-python
+ Downloading nvidia-cusparse
+ Downloading nvidia-cusparselt-cu13
+ Downloading nvidia-cufft
+ Downloading nvidia-nccl-cu13
+ Downloading nvidia-cusolver
+ Downloading nvidia-cublas
+ Downloading triton
+ Downloading nvidia-cudnn-cu13
+ Downloading torch
+Prepared 148 packages in 6m 30s
+Installed 148 packages in 52.80s
+ + accelerate==1.15.0
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + av==18.1.0
+ + bitsandbytes==0.50.2
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + cfgv==3.5.0
+ + charset-normalizer==3.5.1
+ + click==8.5.0
+ + cloudpickle==3.1.2
+ + contourpy==1.4.0
+ + cryptography==50.0.1
+ + cuda-bindings==13.4.1
+ + cuda-pathfinder==1.8.1
+ + cuda-toolkit==13.2.1
+ + cycler==0.12.1
+ + distlib==0.4.3
+ + distro==1.9.0
+ + einops==0.8.2
+ + execnet==2.1.2
+ + filelock==3.32.6
+ + fonttools==4.65.0
+ + fsspec==2026.7.0
+ + google-api-core==2.36.0
+ + google-auth==2.58.0
+ + google-cloud-core==2.7.0
+ + google-cloud-storage==3.14.1
+ + google-crc32c==1.8.0
+ + google-genai==2.23.0
+ + google-resumable-media==2.10.2
+ + googleapis-common-protos==1.75.3
+ + h11==0.16.0
+ + hf-xet==1.6.0
+ + httpcore==1.0.9
+ + httpcore2==2.12.0
+ + httpx==0.28.1
+ + httpx2==2.12.0
+ + huggingface-hub==1.31.0
+ + identify==2.6.19
+ + idna==3.19
+ + imageio==2.37.4
+ + imageio-ffmpeg==0.6.0
+ + iniconfig==2.3.0
+ + jinja2==3.1.6
+ + jiter==0.17.0
+ + kiwisolver==1.5.1
+ + lazy-loader==0.5
+ + ltx-core==1.3.0 (from file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-core)
+ + ltx-pipelines==1.3.0 (from file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-pipelines)
+ + ltx-trainer==1.3.0 (from file:///workspace/ctnetwork-local/src/LTX-2/packages/ltx-trainer)
+ + markdown-it-py==4.2.0
+ + markupsafe==3.0.3
+ + matplotlib==3.11.2
+ + mdurl==0.1.2
+ + mpmath==1.3.0
+ + natten==0.21.7+torch2130cu132
+ + networkx==3.6.1
+ + ninja==1.13.2
+ + nodeenv==1.10.0
+ + numpy==2.5.3
+ + nvidia-cublas==13.4.0.1
+ + nvidia-cuda-cccl==13.2.75
+ + nvidia-cuda-crt==13.2.78
+ + nvidia-cuda-cupti==13.2.75
+ + nvidia-cuda-nvcc==13.2.78
+ + nvidia-cuda-nvrtc==13.2.78
+ + nvidia-cuda-runtime==13.2.75
+ + nvidia-cudnn-cu13==9.24.0.43
+ + nvidia-cufft==12.2.0.46
+ + nvidia-cufile==1.17.1.22
+ + nvidia-curand==10.4.2.55
+ + nvidia-cusolver==12.2.0.1
+ + nvidia-cusparse==12.7.10.1
+ + nvidia-cusparselt-cu13==0.8.1
+ + nvidia-nccl-cu13==2.29.7
+ + nvidia-nvjitlink==13.4.52
+ + nvidia-nvshmem-cu13==3.4.5
+ + nvidia-nvtx==13.2.75
+ + nvidia-nvvm==13.2.78
+ + openai==3.13.0
+ + opencv-python==5.0.0.93
+ + openimageio==3.1.17.0
+ + opentelemetry-api==1.44.0
+ + opentelemetry-exporter-otlp-proto-common==1.44.0
+ + opentelemetry-exporter-otlp-proto-http==1.44.0
+ + opentelemetry-proto==1.44.0
+ + opentelemetry-sdk==1.44.0
+ + opentelemetry-semantic-conventions==0.65b0
+ + optimum-quanto==0.2.7
+ + packaging==26.3
+ + pandas==3.0.5
+ + peft==0.20.0
+ + pillow==12.3.0
+ + pillow-heif==1.7.0
+ + platformdirs==4.11.8
+ + pluggy==1.6.0
+ + pre-commit==4.6.2
+ + proto-plus==1.28.4
+ + protobuf==7.36.1
+ + psutil==7.2.2
+ + pyasn1==0.6.4
+ + pyasn1-modules==0.4.2
+ + pycparser==3.0
+ + pydantic==2.13.5
+ + pydantic-core==2.46.5
+ + pygments==2.21.0
+ + pyparsing==3.3.2
+ + pytest==9.1.1
+ + pytest-xdist==3.8.0
+ + python-dateutil==2.9.0.post0
+ + python-discovery==1.6.0
+ + pyyaml==6.0.3
+ + regex==2026.9.10
+ + requests==2.34.2
+ + rich==15.0.0
+ + ruff==0.16.7
+ + safetensors==0.8.0
+ + scenedetect==0.7.1
+ + scikit-image==0.26.0
+ + scipy==1.18.1
+ + sentencepiece==0.2.2
+ + setuptools==84.0.0
+ + shellingham==1.5.4
+ + six==1.17.0
+ + sniffio==1.3.1
+ + soundfile==0.14.0
+ + sympy==1.14.0
+ + tenacity==9.1.4
+ + tifffile==2026.9.9
+ + tokenizers==0.22.2
+ + torch==2.13.0+cu132
+ + torchaudio==2.11.0+cu132
+ + torchcodec==0.16.0+cu132
+ + torchvision==0.28.0+cu132
+ + tqdm==4.70.1
+ + transformers==5.14.1
+ + triton==3.7.1
+ + truststore==0.10.4
+ + typer==0.27.2
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + urllib3==2.7.0
+ + virtualenv==21.7.9
+ + wandb==0.30.0
+ + websockets==16.1.1
+ + xxhash==4.0.1
+Audited 2 packages in 2.20s
+[90mHint: The `hf-cli` skill is not installed. Run `hf skills add -g --claude` to teach your AI agents how to use the `hf` CLI.[0m
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Still waiting to acquire lock on /workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface/.gitignore.lock (elapsed: 0.1 seconds)
+Still waiting to acquire lock on /workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface/.gitignore.lock (elapsed: 0.1 seconds)
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]
+[1m[31mError: Access denied. This repository requires approval.[0m
+[90mHint: set HF_DEBUG=1 as environment variable for full traceback.[0m
+[2026-09-14T12:24:23Z] installer failed rc=1
+__CTN_INSTALL_DONE__:1
