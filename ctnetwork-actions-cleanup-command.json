@@ -1,5 +1,5 @@
 {
-  "action": "cancel",
+  "action": "force-cancel-and-verify",
   "run_id": 34845128013,
-  "reason": "stale pre-concurrency certification can stop shared factory pod"
+  "request_id": "ctnetwork-stale-cleanup-2026-09-14-02"
 }
