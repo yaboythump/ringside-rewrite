@@ -80,8 +80,10 @@ for s in lipsync_smoke qwen_smoke ltx25_smoke ltx25_dfr factory_acceptance; do
 done
 
 MAN="$ROOT/incoming/ctnetwork-production-manifest.json"
+rm -rf "$ROOT/incoming/jobs"
+set +e
 python3 - <<'PY'
-import json, pathlib, sys
+import json, pathlib
 p=pathlib.Path('/workspace/ctnetwork-local/incoming/ctnetwork-production-manifest.json')
 m=json.load(open(p))
 assert m.get('manual_gate_required') is True, 'manual gate flag missing'
@@ -95,15 +97,20 @@ out.mkdir(parents=True, exist_ok=True)
 for i,j in enumerate(jobs,1):
     if j.get('publish') is True:
         raise AssertionError('job requests publishing inside production gate')
-    jid=j.get('job_id') or f'job-{i:02d}'
+    jid=j.get('job_id')
+    if not jid:
+        raise AssertionError(f'job {i} missing stable job_id')
     (out/f'{i:02d}-{jid}.json').write_text(json.dumps(j, indent=2)+'\n')
 print('JOBS_DUE', len(jobs))
 PY
 split_rc=$?
+set -e
 if [ "$split_rc" -eq 20 ]; then
   echo NO_PRODUCTION_REQUIRED
+  echo PASS > "$ROOT/status/production_batch.status"
   exit 0
 fi
+test "$split_rc" -eq 0 || exit "$split_rc"
 
 mkdir -p "$BATCH"
 failed=0
@@ -123,11 +130,11 @@ root=pathlib.Path('/workspace/ctnetwork-local')
 manifest=json.load(open(root/'incoming/ctnetwork-production-manifest.json'))
 summary={'production_date':manifest.get('production_date'),'manual_gate_required':True,'publish_allowed':False,'jobs':[]}
 for j in manifest.get('jobs',[]):
-    jid=j.get('job_id')
-    sp=root/'jobs'/jid/'state.json' if jid else None
-    state=json.load(open(sp)) if sp and sp.exists() else {'job_id':jid,'state':'UNKNOWN'}
-    ap=root/'ready_for_approval'/jid/'approval.json' if jid else None
-    if ap and ap.exists():
+    jid=j['job_id']
+    sp=root/'jobs'/jid/'state.json'
+    state=json.load(open(sp)) if sp.exists() else {'job_id':jid,'state':'UNKNOWN'}
+    ap=root/'ready_for_approval'/jid/'approval.json'
+    if ap.exists():
         a=json.load(open(ap))
         assert a.get('publish_allowed') is False
         assert a.get('approved') is False
