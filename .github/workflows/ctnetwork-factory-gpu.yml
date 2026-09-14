@@ -1,0 +1,83 @@
+name: CTNETWORK Factory GPU
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-factory-gpu-command.json'
+      - '.github/workflows/ctnetwork-factory-gpu.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create or reuse CTNETWORK factory GPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME=$(jq -r '.name // "ctnetwork-factory-gpu"' ctnetwork-factory-gpu-command.json)
+          VOLUME_ID=$(jq -r '.network_volume_id' ctnetwork-factory-gpu-command.json)
+          DC=$(jq -r '.data_center_id // "EU-RO-1"' ctnetwork-factory-gpu-command.json)
+          GPU=$(jq -r '.gpu_type // "NVIDIA GeForce RTX 5090"' ctnetwork-factory-gpu-command.json)
+          IMAGE=$(jq -r '.image_name // "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"' ctnetwork-factory-gpu-command.json)
+          mkdir -p infra/status
+
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          EXISTING=$(printf '%s' "$PODS" | jq -c --arg n "$NAME" --arg v "$VOLUME_ID" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first // empty')
+
+          if [[ -n "$EXISTING" ]]; then
+            POD_ID=$(printf '%s' "$EXISTING" | jq -r '.id')
+            STATUS=$(printf '%s' "$EXISTING" | jq -r '.desiredStatus // "unknown"')
+            echo "Reusing factory pod $POD_ID status=$STATUS"
+            if [[ "$STATUS" != "RUNNING" ]]; then
+              curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+            fi
+          else
+            JUPYTER_PASSWORD=$(openssl rand -hex 24)
+            echo "::add-mask::$JUPYTER_PASSWORD"
+            BODY=$(jq -nc \
+              --arg name "$NAME" \
+              --arg image "$IMAGE" \
+              --arg gpu "$GPU" \
+              --arg dc "$DC" \
+              --arg vol "$VOLUME_ID" \
+              --arg jp "$JUPYTER_PASSWORD" \
+              '{name:$name,imageName:$image,computeType:"GPU",cloudType:"SECURE",gpuTypeIds:[$gpu],gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",gpuTypePriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeInGb:0,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],supportPublicIp:true,env:{JUPYTER_PASSWORD:$jp}}')
+            RESP=$(curl -fsS -X POST https://rest.runpod.io/v1/pods \
+              -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+              -H 'Content-Type: application/json' \
+              --data "$BODY")
+            POD_ID=$(printf '%s' "$RESP" | jq -r '.id')
+            [[ -n "$POD_ID" && "$POD_ID" != "null" ]] || { echo 'Pod creation did not return an id'; exit 3; }
+          fi
+
+          for i in $(seq 1 120); do
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+            if [[ "$STATUS" == "RUNNING" ]]; then break; fi
+            sleep 5
+          done
+          [[ "$STATUS" == "RUNNING" ]] || { echo "Factory pod failed to reach RUNNING: $STATUS"; exit 4; }
+
+          printf '%s' "$POD" | jq '{id,name,desiredStatus,imageName,networkVolumeId:(.networkVolumeId // .networkVolume.id),networkVolume:(.networkVolume // null),containerDiskInGb,volumeMountPath,ports,publicIp,portMappings,costPerHr,adjustedCostPerHr,machineId,gpu:(.gpu // null),machine:{dataCenterId:(.machine.dataCenterId // null),location:(.machine.location // null),gpuDisplayName:(.machine.gpuDisplayName // null)}}' \
+            | tee infra/status/ctnetwork-factory-gpu.json
+
+      - name: Save factory GPU state
+        shell: bash
+        run: |
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-factory-gpu.json
+          git commit -m 'CTNETWORK: record factory GPU state' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
