@@ -1,0 +1,111 @@
+name: CTNETWORK Factory Health Probe
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-factory-probe-command.json'
+      - '.github/workflows/ctnetwork-factory-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve pod credentials
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-factory-probe-command.json)
+          [[ -n "$POD_ID" && "$POD_ID" != "null" ]] || exit 2
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          [[ "$STATUS" == "RUNNING" ]] || { echo "Pod is not running: $STATUS"; exit 3; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Probe factory read-only
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY' | tee /tmp/ctnetwork-factory-probe.txt
+          import json, os, re, sys, time
+          import requests, websocket
+          pod_id=os.environ['POD_ID']; password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          base=f'https://{pod_id}-8888.proxy.runpod.net'; s=requests.Session()
+          for _ in range(60):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.ok: break
+              except Exception: pass
+              time.sleep(3)
+          else: raise SystemExit('Jupyter not reachable')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('No XSRF token')
+          xsrf=m.group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},timeout=30,allow_redirects=True); r.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
+          cmd=r'''bash -lc '
+          echo "=== CTNETWORK FACTORY PROBE ===";
+          date -u;
+          echo "--- GPU ---"; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader 2>/dev/null || true;
+          echo "--- STORAGE ---"; df -h /workspace 2>/dev/null || true;
+          echo "--- FACTORY SIZE ---"; du -sh /workspace/ctnetwork-local 2>/dev/null || true;
+          echo "--- DIRECTORIES ---"; find /workspace/ctnetwork-local -maxdepth 2 -type d 2>/dev/null | sort | head -120;
+          echo "--- STATUS FILES ---"; find /workspace/ctnetwork-local/status -maxdepth 2 -type f -print 2>/dev/null | sort;
+          echo "--- STATUS CONTENT ---"; for f in /workspace/ctnetwork-local/status/*; do [ -f "$f" ] || continue; echo "### $f"; tail -80 "$f"; done 2>/dev/null || true;
+          echo "--- REPOS ---"; for d in /workspace/ctnetwork-local/src/*; do [ -d "$d" ] || continue; echo "$(basename "$d")"; done 2>/dev/null || true;
+          echo "--- ENVS ---"; for d in /workspace/ctnetwork-local/envs/*; do [ -d "$d" ] || continue; echo "$(basename "$d")"; done 2>/dev/null || true;
+          echo "--- MODELS ---"; find /workspace/ctnetwork-local/models -maxdepth 3 -type d 2>/dev/null | sort | head -120;
+          echo "--- ACTIVE INSTALL PROCESSES ---"; pgrep -af "ctnetwork-local-stack-install|uv sync|pip install|huggingface|snapshot_download|git clone" 2>/dev/null | grep -v pgrep || true;
+          echo "=== PROBE DONE ===";
+          '
+          '''+"\n"
+          ws.send(json.dumps(['stdin',cmd])); deadline=time.time()+180; output=''
+          try:
+              while time.time()<deadline:
+                  msg=ws.recv()
+                  if not msg: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      text=data[1]; output+=text; sys.stdout.write(text); sys.stdout.flush()
+                      if '=== PROBE DONE ===' in output: break
+          finally:
+              ws.close()
+              try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception: pass
+          if '=== PROBE DONE ===' not in output: raise SystemExit('Probe did not finish')
+          PY
+
+      - name: Save probe report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/ctnetwork-factory-probe.txt infra/status/ctnetwork-factory-probe-latest.txt 2>/dev/null || echo 'probe output unavailable' > infra/status/ctnetwork-factory-probe-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-factory-probe-latest.txt
+          git commit -m 'CTNETWORK: update factory health probe' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
