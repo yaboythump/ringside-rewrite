@@ -1,9 +1,10 @@
 {
   "action": "provision",
-  "name": "ctnetwork-factory-gpu-v5",
+  "name": "ctnetwork-factory-gpu-v6",
   "network_volume_id": "9wjb3sa5zm",
   "data_center_id": "EU-RO-1",
   "gpu_types": [
+    "NVIDIA RTX PRO 4500 Blackwell",
     "NVIDIA GeForce RTX 5090",
     "NVIDIA RTX PRO 6000 Blackwell Server Edition",
     "NVIDIA RTX PRO 5000 Blackwell",
@@ -14,5 +15,5 @@
     "NVIDIA A40"
   ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "ctnetwork-factory-v5-provision-2026-09-14-01"
+  "request_id": "ctnetwork-factory-v6-provision-2026-09-14-01"
 }
