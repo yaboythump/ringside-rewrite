@@ -1,0 +1,89 @@
+name: CTNETWORK Qwen Narration Smoke Test
+
+on:
+  workflow_run:
+    workflows: ["CTNETWORK Lip Sync Smoke Test"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  narration-smoke:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve and start factory pod
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-lipsync-smoke-command.json)
+          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 2; }
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+            for i in $(seq 1 120); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+              STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 3; }
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run Qwen narration certification
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_qwen_smoke.py | tee /tmp/ctnetwork-qwen-smoke.txt
+
+      - name: Upload narration artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-qwen-smoke
+          path: /tmp/qwen-official-smoke.wav
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Save narration smoke report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/ctnetwork-qwen-smoke.txt infra/status/ctnetwork-qwen-smoke-latest.txt 2>/dev/null || echo 'qwen smoke output unavailable' > infra/status/ctnetwork-qwen-smoke-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-qwen-smoke-latest.txt
+          git commit -m 'CTNETWORK: record Qwen narration smoke test' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Stop exact narration-test pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          if [[ -n "${POD_ID:-}" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+          fi
