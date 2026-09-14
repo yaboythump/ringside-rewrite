@@ -8,7 +8,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": ""
+        "stockStatus": "Low"
       }
     ]
   },
@@ -70,7 +70,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-CZ-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-RO-1",
@@ -99,6 +99,12 @@
 ]
 === EXISTING NETWORK VOLUMES ===
 [
+  {
+    "dataCenterId": "EU-RO-1",
+    "id": "9wjb3sa5zm",
+    "name": "ctnetwork-factory",
+    "size": 300
+  },
   {
     "dataCenterId": "EUR-IS-1",
     "id": "xs4k4zrvn4",
