@@ -1,4 +1,3 @@
-groups: cannot find name for group ID 993
  _____                             _ 
 |  __ \                           | |
 | |__) |   _ _ __  _ __   ___   __| |
@@ -11,30 +10,18 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# echo c2V0ICtlCmVjaG8gIj09PSBDVE5FVFdPUksgRkFDVE9SWSBQUk9CRSBTVEFSVCA9PT0iCmRhdGUgLXUKZWNobyAiLS0tIEdQVSAtLS0iOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS51c2VkLHV0aWxpemF0aW9uLmdwdSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RPUkFHRSAtLS0iOyBkZiAtaCAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEZBQ1RPUlkgU0laRSAtLS0iOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gRkFDVE9SWSBGSUxFIENPVU5UIC0tLSI7IGZpbmQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgLXR5cGUgZiAyPi9kZXYvbnVsbCB8IHdjIC1sIHx8IHRydWUKZWNobyAiLS0tIFNUQVRVUyBGSUxFUyAtLS0iOyBmaW5kIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsL3N0YXR1cyAtbWF4ZGVwdGggMiAtdHlwZSBmIC1wcmludCAyPi9kZXYvbnVsbCB8IHNvcnQKZWNobyAiLS0tIEFDVElWRSBUUkFOU0ZFUi9GQUNUT1JZIFBST0NFU1NFUyAtLS0iOyBwZ3JlcCAtYWYgInJzeW5jfHNzaGR8Y3RuZXR3b3JrfHNjcmlwdHMuaW5mZXJlbmNlfExhdGVudFN5bmN8bGF0ZW50c3luY3x1diB8cGlwIGluc3RhbGx8c25hcHNob3RfZG93bmxvYWQiIDI+L2Rldi9udWxsIHwgZ3JlcCAtdiAicGdyZXAgLWFmIiB8fCB0cnVlCnByaW50ZiAnX19DVE5fUFJPQkVfRE9ORV9fXG4nCg== | base64 -d | bash
+[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# echo c2V0ICtlCmVjaG8gIj09PSBDVE5FVFdPUksgRkFDVE9SWSBQUk9CRSBTVEFSVCA9PT0iCmRhdGUgLXUKZWNobyAiLS0tIEdQVSAtLS0iOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS51c2VkLHV0aWxpemF0aW9uLmdwdSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RPUkFHRSAtLS0iOyBkZiAtaCAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEZBQ1RPUlkgU0laRSAtLS0iOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gRkFDVE9SWSBGSUxFIENPVU5UIC0tLSI7IGZpbmQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgLXR5cGUgZiAyPi9kZXYvbnVsbCB8IHdjIC1sIHx8IHRydWUKZWNobyAiLS0tIFNUQVRVUyBGSUxFUyAtLS0iOyBmaW5kIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsL3N0YXR1cyAtbWF4ZGVwdGggMiAtdHlwZSBmIC1wcmludCAyPi9kZXYvbnVsbCB8IHNvcnQKZWNobyAiLS0tIEFDVElWRSBUUkFOU0ZFUi9GQUNUT1JZIFBST0NFU1NFUyAtLS0iOyBwZ3JlcCAtYWYgInJzeW5jfHNzaGR8Y3RuZXR3b3JrfHNjcmlwdHMuaW5mZXJlbmNlfExhdGVudFN5bmN8bGF0ZW50c3luY3x1diB8cGlwIGluc3RhbGx8c25hcHNob3RfZG93bmxvYWQiIDI+L2Rldi9udWxsIHwgZ3JlcCAtdiAicGdyZXAgLWFmIiB8fCB0cnVlCnByaW50ZiAnX19DVE5fUFJPQkVfRE9ORV9fXG4nCg== | base64 -d | bash
 [?2004l=== CTNETWORK FACTORY PROBE START ===
-Mon Sep 14 15:53:43 UTC 2026
+Mon Sep 14 15:57:28 UTC 2026
 --- GPU ---
-NVIDIA RTX PRO 4000 Blackwell, 24467 MiB, 2 MiB, 0 %
+NVIDIA GeForce RTX 5090, 32607 MiB, 1 MiB, 0 %
 --- STORAGE ---
-Filesystem                Size  Used Avail Use% Mounted on
-mfs#euro.runpod.net:9421  2.3P  1.9P  369T  85% /workspace
+Filesystem                    Size  Used Avail Use% Mounted on
+mfs#eur-no-1.runpod.net:9421 1006T  221T  785T  22% /workspace
 --- FACTORY SIZE ---
-51G	/workspace/ctnetwork-local
 --- FACTORY FILE COUNT ---
-173079
+0
 --- STATUS FILES ---
-/workspace/ctnetwork-local/status/core.status
-/workspace/ctnetwork-local/status/install.status
-/workspace/ctnetwork-local/status/latentsync-requirements-blackwell.txt
-/workspace/ctnetwork-local/status/latentsync.status
-/workspace/ctnetwork-local/status/latentsync_runtime_persistent.status
-/workspace/ctnetwork-local/status/ltx25_code.status
-/workspace/ctnetwork-local/status/phase.txt
-/workspace/ctnetwork-local/status/qwen3_tts.status
-/workspace/ctnetwork-local/status/system.status
 --- ACTIVE TRANSFER/FACTORY PROCESSES ---
-105 sshd: /usr/sbin/sshd [listener] 0 of 10-100 startups
-139 runpodctl send ctnetwork-local --code ctn-factory-no-20260914
-277 du -sh /workspace/ctnetwork-local
+135 sshd: /usr/sbin/sshd [listener] 0 of 10-100 startups
 __CTN_PROBE_DONE__
