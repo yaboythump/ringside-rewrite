@@ -1,0 +1,136 @@
+name: CTNETWORK LTX Live Audit
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-ltx-live-audit-command.json'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Start exact audit pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-ltx-live-audit-command.json)
+          [[ -n "$POD_ID" && "$POD_ID" != null ]]
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")
+          STATUS=$(jq -r '.desiredStatus // "unknown"' <<<"$POD")
+          if [[ "$STATUS" != RUNNING ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null
+          fi
+          for i in $(seq 1 90); do
+            sleep 5
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")
+            STATUS=$(jq -r '.desiredStatus // "unknown"' <<<"$POD")
+            [[ "$STATUS" == RUNNING ]] && break
+          done
+          [[ "$STATUS" == RUNNING ]] || { echo "pod failed to start: $STATUS"; exit 4; }
+          JPASS=$(jq -r '.env.JUPYTER_PASSWORD // empty' <<<"$POD")
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 5; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jpass"
+      - name: Inspect persistent factory read-only
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JPASS_FILE: ${{ runner.temp }}/jpass
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY' | tee /tmp/ctn-ltx-live-audit.txt
+          import base64,json,os,re,sys,time,requests,websocket
+          pod=os.environ['POD_ID']; pw=open(os.environ['JPASS_FILE']).read().strip()
+          script=r'''set +e
+          ROOT=/workspace/ctnetwork-local
+          echo '=== CTNETWORK LTX LIVE AUDIT ==='; date -u
+          echo '--- GPU ---'; nvidia-smi --query-gpu=name,memory.total,memory.used,driver_version --format=csv,noheader
+          echo '--- WORKSPACE ---'; df -h /workspace; du -sh "$ROOT" 2>/dev/null
+          echo '--- STATUS ---'; find "$ROOT/status" -maxdepth 1 -type f -name '*.status' -print -exec sh -c 'printf " = "; cat "$1"' _ {} \; 2>/dev/null | sort
+          echo '--- PHASE ---'; cat "$ROOT/status/phase.txt" 2>/dev/null || true
+          echo '--- SOURCES ---'
+          for d in Qwen3-TTS LatentSync LTX-2; do p="$ROOT/src/$d"; echo "$d exists=$([ -d "$p" ] && echo yes || echo no)"; git -C "$p" rev-parse --short HEAD 2>/dev/null || true; done
+          echo '--- PYTHON ENVS ---'
+          for p in "$ROOT/envs/core/bin/python" "$ROOT/envs/qwen3-tts/bin/python" "$ROOT/envs/latentsync/bin/python" "$ROOT/src/LTX-2/.venv/bin/python"; do echo "$p"; ls -l "$p" 2>/dev/null; "$p" --version 2>/dev/null; done
+          echo '--- CUDA/TORCH ---'
+          for p in "$ROOT/envs/qwen3-tts/bin/python" "$ROOT/envs/latentsync/bin/python" "$ROOT/src/LTX-2/.venv/bin/python"; do if [ -x "$p" ]; then "$p" -c 'import torch; print("torch",torch.__version__,"cuda",torch.version.cuda,"available",torch.cuda.is_available(),"gpu",torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)' 2>&1; fi; done
+          echo '--- LTX IMPORTS ---'
+          if [ -x "$ROOT/src/LTX-2/.venv/bin/python" ]; then cd "$ROOT/src/LTX-2"; "$ROOT/src/LTX-2/.venv/bin/python" -c 'import ltx_pipelines; print("LTX_IMPORT_OK")' 2>&1; fi
+          echo '--- REQUIRED LTX MODELS ---'
+          for f in \
+            diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors \
+            text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors \
+            vae/ltx-2.5-video-vae-bf16.safetensors \
+            vae/ltx-2.5-audio-vae-bf16.safetensors \
+            model_patches/ltx-2.5-duration-head-bf16.safetensors \
+            latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors \
+            loras/ltx-2.5-22b-ic-lora-pixel-spatial-upscaler-x2-1.0.safetensors; do p="$ROOT/models/ltx-2.5/$f"; if [ -e "$p" ]; then stat -Lc '%n|%s bytes' "$p"; else echo "MISSING|$p"; fi; done
+          echo '--- PARTIAL/LOCK FILES ---'; find "$ROOT/models" "$ROOT/src/LTX-2" -type f \( -name '*.part' -o -name '*.incomplete' -o -name '*.lock' \) -print 2>/dev/null | head -100
+          echo '--- QWEN MODEL FILES ---'; find "$ROOT/models/qwen3-tts/1.7B-Base" -L -type f \( -name '*.safetensors' -o -name '*.bin' \) -printf '%p|%s\n' 2>/dev/null | head -50
+          echo '--- LATENTSYNC CHECKPOINTS ---'; stat -Lc '%n|%s bytes' "$ROOT/src/LatentSync/checkpoints/whisper/tiny.pt" "$ROOT/src/LatentSync/checkpoints/latentsync_unet.pt" 2>/dev/null
+          echo '--- RUNTIME FILES ---'; ls -l "$ROOT/bin" 2>/dev/null; test -f "$ROOT/STACK.json" && cat "$ROOT/STACK.json" || true
+          echo '--- FFMPEG ---'; ffmpeg -version 2>/dev/null | head -1
+          echo '__CTN_LTX_AUDIT_DONE__'
+          '''
+          enc=base64.b64encode(script.encode()).decode(); base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session()
+          for _ in range(75):
+            try:
+              r=s.get(base+'/login',timeout=10)
+              if r.ok: break
+            except Exception: pass
+            time.sleep(4)
+          else: raise SystemExit('Jupyter unavailable')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); xsrf=m.group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':pw,'next':'/'},timeout=20,allow_redirects=False)
+          if r.status_code not in (302,303): raise SystemExit(f'Jupyter login failed {r.status_code}')
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=20); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
+          ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d | bash\n']))
+          deadline=time.time()+600; done=False
+          while time.time()<deadline:
+            try: msg=ws.recv()
+            except Exception: continue
+            try: data=json.loads(msg)
+            except Exception: continue
+            if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+              text=data[1]; sys.stdout.write(text); sys.stdout.flush()
+              if '__CTN_LTX_AUDIT_DONE__' in text: done=True; break
+          ws.close()
+          if not done: raise SystemExit('Audit terminal timeout')
+          PY
+      - name: Save audit report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/ctn-ltx-live-audit.txt infra/status/ctnetwork-ltx-live-audit-latest.txt 2>/dev/null || echo 'audit output unavailable' > infra/status/ctnetwork-ltx-live-audit-latest.txt
+          git config user.name ctnetwork-bot
+          git config user.email ctnetwork-bot@users.noreply.github.com
+          git add infra/status/ctnetwork-ltx-live-audit-latest.txt
+          git commit -m 'CTNETWORK: update LTX live audit report' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+      - name: Stop exact audit pod
+        if: always() && steps.pod.outputs.pod_id != ''
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null
+          for i in $(seq 1 30); do sleep 2; S=$(curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" | jq -r '.desiredStatus // "unknown"'); [[ "$S" != RUNNING ]] && { echo "pod_status=$S"; exit 0; }; done
+          echo 'WARNING: pod still reported RUNNING after stop request'; exit 1
