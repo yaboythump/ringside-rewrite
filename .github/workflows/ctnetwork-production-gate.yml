@@ -1,0 +1,103 @@
+name: CTNETWORK Manual Production Gate
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-production-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctnetwork-daily-production
+  cancel-in-progress: false
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Read manual production gate
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTION=$(jq -r '.action // "hold"' ctnetwork-production-command.json | tr '[:upper:]' '[:lower:]')
+          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-production-command.json)
+          [[ "$ACTION" == hold || "$ACTION" == start ]] || { echo "Unsupported action $ACTION"; exit 2; }
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          if [[ "$ACTION" == hold ]]; then
+            echo 'PRODUCTION_GATE_HOLD: nothing will be produced or published.'
+          else
+            echo 'MANUAL_START_ACCEPTED: production only; publishing remains disabled.'
+          fi
+
+      - name: Resolve, start, and health-gate factory pod
+        if: steps.gate.outputs.action == 'start'
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.gate.outputs.pod_id }}'
+          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 3; }
+          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          pod_api="https://rest.runpod.io/v1/pods/${POD_ID}"
+          jupyter="https://${POD_ID}-8888.proxy.runpod.net/login"
+          refresh() { POD=$(curl -fsS "$pod_api" "${auth[@]}"); STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"'); }
+          wait_running() { for i in $(seq 1 120); do refresh; [[ "$STATUS" == RUNNING ]] && return 0; sleep 5; done; return 1; }
+          wait_jupyter() {
+            local hard404=0
+            for i in $(seq 1 18); do
+              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "$jupyter" || true)
+              echo "jupyter readiness attempt=$i http=$code"
+              [[ "$code" == 200 || "$code" == 302 ]] && return 0
+              if [[ "$code" == 404 ]]; then hard404=$((hard404+1)); else hard404=0; fi
+              [[ "$hard404" -ge 3 ]] && return 1
+              sleep 5
+            done
+            return 1
+          }
+          refresh
+          if [[ "$STATUS" != RUNNING ]]; then curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true; wait_running || exit 4; fi
+          if ! wait_jupyter; then
+            echo 'Jupyter unhealthy; controlled recycle.'
+            curl -fsS -X POST "$pod_api/stop" "${auth[@]}" >/dev/null || true
+            for i in $(seq 1 60); do sleep 3; refresh; [[ "$STATUS" != RUNNING ]] && break; done
+            curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true
+            wait_running || exit 5
+            wait_jupyter || { echo JUPYTER_READINESS_BLOCKED; exit 6; }
+          fi
+          refresh
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || exit 7
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run all jobs due today
+        if: steps.gate.outputs.action == 'start'
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_run_production.py
+
+      - name: Stop exact production pod
+        if: steps.gate.outputs.action == 'start' && always() && !cancelled()
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          if [[ -n "${POD_ID:-}" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+          fi
