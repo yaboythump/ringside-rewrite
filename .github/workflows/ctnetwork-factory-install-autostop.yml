@@ -20,37 +20,78 @@ jobs:
     timeout-minutes: 10
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      INSTALLER_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      INSTALLER_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      INSTALLER_RUN_ID: ${{ github.event.workflow_run.id }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 1
 
-      - name: Stop factory compute after installer
+      - name: Resolve exact pod used by completed installer
+        id: target
         shell: bash
         run: |
           set -euo pipefail
+          # Never infer a target from the currently-running factory. Read the command
+          # that belonged to the exact installer commit which just completed.
+          git fetch --no-tags --depth=1 origin "$INSTALLER_HEAD_SHA"
+          COMMAND=$(git show "$INSTALLER_HEAD_SHA:ctnetwork-local-stack-command.json" 2>/dev/null || true)
+          POD_ID=$(printf '%s' "$COMMAND" | jq -r '.pod_id // empty' 2>/dev/null || true)
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "Installer run=$INSTALLER_RUN_ID head=$INSTALLER_HEAD_SHA conclusion=$INSTALLER_CONCLUSION target_pod=${POD_ID:-none}"
+
+      - name: Stop only the exact installer pod
+        shell: bash
+        env:
+          TARGET_POD_ID: ${{ steps.target.outputs.pod_id }}
+        run: |
+          set -euo pipefail
           mkdir -p infra/status
-          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          POD=$(printf '%s' "$PODS" | jq -c --arg n "$FACTORY_NAME" --arg v "$FACTORY_VOLUME_ID" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first // empty')
-          if [[ -z "$POD" ]]; then
-            jq -nc --arg n "$FACTORY_NAME" --arg v "$FACTORY_VOLUME_ID" --arg conclusion '${{ github.event.workflow_run.conclusion }}' \
-              '{name:$n,networkVolumeId:$v,desiredStatus:"NOT_FOUND",installerConclusion:$conclusion}' \
+          if [[ -z "${TARGET_POD_ID:-}" ]]; then
+            jq -nc --arg run "$INSTALLER_RUN_ID" --arg head "$INSTALLER_HEAD_SHA" --arg conclusion "$INSTALLER_CONCLUSION" \
+              '{desiredStatus:"NO_TARGET_POD",installerRunId:$run,installerHeadSha:$head,installerConclusion:$conclusion}' \
               | tee infra/status/ctnetwork-factory-autostop.json
             exit 0
           fi
-          POD_ID=$(printf '%s' "$POD" | jq -r '.id')
-          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
-          if [[ "$STATUS" == "RUNNING" ]]; then
-            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+
+          HTTP=$(curl -sS -o /tmp/target-pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/${TARGET_POD_ID}?includeNetworkVolume=true" \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" || true)
+          if [[ "$HTTP" == "404" ]]; then
+            jq -nc --arg id "$TARGET_POD_ID" --arg run "$INSTALLER_RUN_ID" --arg conclusion "$INSTALLER_CONCLUSION" \
+              '{id:$id,desiredStatus:"TARGET_ALREADY_GONE",installerRunId:$run,installerConclusion:$conclusion}' \
+              | tee infra/status/ctnetwork-factory-autostop.json
+            exit 0
           fi
-          for i in $(seq 1 45); do
-            sleep 2
-            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
-            [[ "$STATUS" == "EXITED" || "$STATUS" == "STOPPED" ]] && break
-          done
-          printf '%s' "$POD" | jq --arg conclusion '${{ github.event.workflow_run.conclusion }}' \
-            '{id,name,desiredStatus,networkVolumeId:(.networkVolumeId // .networkVolume.id),costPerHr,installerConclusion:$conclusion,lastStatusChange}' \
+          [[ "$HTTP" =~ ^2 ]] || { echo "RunPod target lookup failed HTTP=$HTTP"; cat /tmp/target-pod.json; exit 3; }
+
+          POD=$(cat /tmp/target-pod.json)
+          NAME=$(printf '%s' "$POD" | jq -r '.name // ""')
+          VOLUME=$(printf '%s' "$POD" | jq -r '.networkVolumeId // .networkVolume.id // ""')
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+
+          # Strong guardrail: an old workflow is never allowed to stop unrelated compute.
+          if [[ "$NAME" != "$FACTORY_NAME" || "$VOLUME" != "$FACTORY_VOLUME_ID" ]]; then
+            printf '%s' "$POD" | jq --arg run "$INSTALLER_RUN_ID" --arg conclusion "$INSTALLER_CONCLUSION" \
+              '{id,name,desiredStatus,networkVolumeId:(.networkVolumeId // .networkVolume.id),installerRunId:$run,installerConclusion:$conclusion,autoStop:"REFUSED_IDENTITY_MISMATCH"}' \
+              | tee infra/status/ctnetwork-factory-autostop.json
+            exit 4
+          fi
+
+          if [[ "$STATUS" == "RUNNING" ]]; then
+            echo "Stopping exact installer pod $TARGET_POD_ID only."
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${TARGET_POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+            for i in $(seq 1 60); do
+              sleep 2
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${TARGET_POD_ID}?includeNetworkVolume=true" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "EXITED" || "$STATUS" == "STOPPED" ]] && break
+            done
+          fi
+
+          printf '%s' "$POD" | jq --arg run "$INSTALLER_RUN_ID" --arg head "$INSTALLER_HEAD_SHA" --arg conclusion "$INSTALLER_CONCLUSION" \
+            '{id,name,desiredStatus,networkVolumeId:(.networkVolumeId // .networkVolume.id),costPerHr,installerRunId:$run,installerHeadSha:$head,installerConclusion:$conclusion,lastStatusChange}' \
             | tee infra/status/ctnetwork-factory-autostop.json
           [[ "$STATUS" == "EXITED" || "$STATUS" == "STOPPED" ]] || exit 5
 
