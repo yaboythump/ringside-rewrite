@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Verified CTNETWORK factory migration between two RunPod network volumes.
+"""Verified CTNETWORK factory migration between RunPod network volumes.
 
-For the 50GB+ factory, use rsync over temporary SSH credentials rather than the
-small/medium-file runpodctl relay. The source volume is read-only from this
-script's perspective. Migration is only marked PASS after an rsync checksum
-comparison reports no differences.
+The source factory is never modified. Transfers are resumable with rsync and
+post-copy verification uses the same direct SSH channel as the transfer, so a
+RunPod Jupyter/8888 proxy outage cannot turn a completed copy into a false
+migration failure.
 """
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 import requests
 import websocket
 
 ROOT = "/workspace/ctnetwork-local"
+KEY = "/tmp/ctn_migrate_key"
 RUNPOD_API_KEY = os.environ["RUNPOD_API_KEY"]
 SOURCE_POD_ID = os.environ["SOURCE_POD_ID"]
 DEST_POD_ID = os.environ["DEST_POD_ID"]
@@ -169,121 +169,114 @@ def parse_marker(text: str, name: str) -> str:
     return m.group(1).strip()
 
 
-def stat_tuple(shell: JupyterShell) -> tuple[int, int, str]:
-    script = r'''ROOT=/workspace/ctnetwork-local
-count=$(find "$ROOT" -type f | wc -l)
-bytes=$(find "$ROOT" -type f -printf '%s\n' | awk '{s+=$1} END{printf "%.0f",s}')
-hash=$({ find "$ROOT" -type f -printf '%P\t%s\n'; find "$ROOT" -type l -printf '%P\t%l\n'; } | LC_ALL=C sort | sha256sum | awk '{print $1}')
-echo CTN_STATS:${count}:${bytes}:${hash}
-'''
-    out = shell.run(script, timeout=1800)
-    m = re.search(r"CTN_STATS:(\d+):(\d+):([0-9a-f]{64})", out)
-    if not m:
-        raise RuntimeError("Could not parse CTN_STATS")
-    return int(m.group(1)), int(m.group(2)), m.group(3)
+def direct_endpoint(pod: dict) -> tuple[str, str]:
+    ip = str(pod.get("publicIp") or "").strip()
+    mappings = pod.get("portMappings") or {}
+    port = str(mappings.get("22") or mappings.get(22) or "").strip()
+    return ip, port
+
+
+def ssh_opts(ip: str, port: str) -> str:
+    return (
+        f"ssh -p {port} -i {KEY} "
+        "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
+        "-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30"
+    )
 
 
 def main() -> None:
+    # Source Jupyter is needed only to launch one long-lived migration shell.
+    # Destination Jupyter is bootstrap-only; all copy + verification traffic
+    # after SSH is ready stays on direct SSH.
     src = JupyterShell(pod_auth(SOURCE_POD_ID))
-    dst = JupyterShell(pod_auth(DEST_POD_ID))
+    dest_pod = wait_running(DEST_POD_ID)
 
     src.run(f"test -d {ROOT}; du -sh {ROOT}; test -r {ROOT}", timeout=1800)
-
-    # Prepare reliable large-transfer tooling. These containers normally already
-    # include OpenSSH; install only if something is missing.
     src.run(
         "command -v rsync >/dev/null || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rsync openssh-client)",
         timeout=900,
     )
-    dst.run(
-        "command -v rsync >/dev/null && command -v sshd >/dev/null || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rsync openssh-server); mkdir -p /run/sshd /root/.ssh; chmod 700 /root/.ssh; pgrep -x sshd >/dev/null || /usr/sbin/sshd",
-        timeout=900,
-    )
 
-    # Discover destination's direct TCP SSH endpoint from RunPod-provided env;
-    # REST values are used as a fallback.
-    env_out = dst.run(
-        "echo CTN_IP:${RUNPOD_PUBLIC_IP:-}; echo CTN_SSH_PORT:${RUNPOD_TCP_PORT_22:-}",
-        timeout=60,
-    )
-    dest_ip = parse_marker(env_out, "CTN_IP")
-    dest_port = parse_marker(env_out, "CTN_SSH_PORT")
+    dest_ip, dest_port = direct_endpoint(dest_pod)
+    dst = None
     if not dest_ip or not dest_port:
-        p = get_pod(DEST_POD_ID)
-        dest_ip = dest_ip or str(p.get("publicIp") or "")
-        mappings = p.get("portMappings") or {}
-        dest_port = dest_port or str(mappings.get("22") or mappings.get(22) or "")
-    if not dest_ip or not dest_port:
-        raise RuntimeError("Destination has no direct TCP SSH endpoint")
-    if not dest_port.isdigit():
-        raise RuntimeError(f"Invalid SSH port: {dest_port!r}")
+        dst = JupyterShell(pod_auth(DEST_POD_ID))
+        env_out = dst.run(
+            "echo CTN_IP:${RUNPOD_PUBLIC_IP:-}; echo CTN_SSH_PORT:${RUNPOD_TCP_PORT_22:-}",
+            timeout=60,
+        )
+        dest_ip = parse_marker(env_out, "CTN_IP")
+        dest_port = parse_marker(env_out, "CTN_SSH_PORT")
+    if not dest_ip or not dest_port or not dest_port.isdigit():
+        raise RuntimeError(f"Destination has no valid direct SSH endpoint: {dest_ip}:{dest_port}")
     print(f"DEST_SSH_ENDPOINT={dest_ip}:{dest_port}")
 
-    # One-time migration key exists only inside the disposable source pod.
+    # Reuse the existing temporary key on retries so a transient Jupyter outage
+    # cannot prevent resuming a partial rsync copy.
     key_out = src.run(
-        "rm -f /tmp/ctn_migrate_key /tmp/ctn_migrate_key.pub; ssh-keygen -q -t ed25519 -N '' -f /tmp/ctn_migrate_key; chmod 600 /tmp/ctn_migrate_key; echo CTN_PUBKEY_B64:$(base64 -w0 /tmp/ctn_migrate_key.pub)",
+        f"if [ ! -s {KEY} ] || [ ! -s {KEY}.pub ]; then rm -f {KEY} {KEY}.pub; ssh-keygen -q -t ed25519 -N '' -f {KEY}; fi; chmod 600 {KEY}; echo CTN_PUBKEY_B64:$(base64 -w0 {KEY}.pub)",
         timeout=120,
     )
     pub_b64 = parse_marker(key_out, "CTN_PUBKEY_B64")
-    dst.run(
-        f"echo {pub_b64} | base64 -d >> /root/.ssh/authorized_keys; sort -u /root/.ssh/authorized_keys -o /root/.ssh/authorized_keys; chmod 600 /root/.ssh/authorized_keys; pgrep -x sshd >/dev/null || /usr/sbin/sshd",
-        timeout=120,
-    )
+    ssh = ssh_opts(dest_ip, dest_port)
 
-    ssh_opts = (
-        f"ssh -p {dest_port} -i /tmp/ctn_migrate_key "
-        "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
-        "-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30"
-    )
+    # First try the already-authorized key from the previous partial migration.
+    # Only touch destination Jupyter if SSH bootstrap is actually required.
+    try:
+        src.run(f"{ssh} -n root@{dest_ip} 'echo CTN_SSH_READY'", timeout=120)
+    except Exception:
+        if dst is None:
+            dst = JupyterShell(pod_auth(DEST_POD_ID))
+        dst.run(
+            "command -v rsync >/dev/null && command -v sshd >/dev/null || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rsync openssh-server); mkdir -p /run/sshd /root/.ssh; chmod 700 /root/.ssh; pgrep -x sshd >/dev/null || /usr/sbin/sshd",
+            timeout=900,
+        )
+        dst.run(
+            f"echo {pub_b64} | base64 -d >> /root/.ssh/authorized_keys; sort -u /root/.ssh/authorized_keys -o /root/.ssh/authorized_keys; chmod 600 /root/.ssh/authorized_keys; pgrep -x sshd >/dev/null || /usr/sbin/sshd",
+            timeout=120,
+        )
+        src.run(f"{ssh} -n root@{dest_ip} 'echo CTN_SSH_READY'", timeout=120)
+
+    # Resume into the existing Norway tree. Do NOT rename/delete the partial
+    # destination on retry: rsync --partial will reuse what is already there.
     src.run(
-        f"{ssh_opts} root@{dest_ip} 'echo CTN_SSH_READY'",
+        f"{ssh} -n root@{dest_ip} 'command -v rsync >/dev/null; mkdir -p {ROOT}'",
         timeout=120,
     )
 
-    # Never overwrite an existing destination factory in place. Preserve it as
-    # a rollback snapshot, then transfer into a fresh directory.
-    dst.run(
-        f"if [ -e {ROOT} ]; then mv {ROOT} {ROOT}.pre_migration_$(date +%s); fi; mkdir -p {ROOT}",
-        timeout=120,
-    )
+    # One long-lived source terminal performs COPY + STATS + CHECKSUM + PASS.
+    # This intentionally avoids creating any new destination Jupyter terminal
+    # after the copy, which was the exact failure mode of the previous run.
+    transfer = f'''ROOT={ROOT}
+SSH_CMD="{ssh}"
 
-    # Large verified copy. Archive mode preserves symlinks, modes and mtimes;
-    # partial files make retrying efficient if networking is interrupted.
-    src.run(
-        f"rsync -aH --numeric-ids --partial --info=stats2,progress2 -e \"{ssh_opts}\" {ROOT}/ root@{dest_ip}:{ROOT}/",
-        timeout=21600,
-    )
+echo "=== CTNETWORK RESUMABLE RSYNC START ==="
+rsync -aH --numeric-ids --partial --info=stats2,progress2 -e "$SSH_CMD" "$ROOT/" root@{dest_ip}:"$ROOT/"
 
-    sstats = stat_tuple(src)
-    dstats = stat_tuple(dst)
-    print(f"SOURCE_STATS={sstats}")
-    print(f"DEST_STATS={dstats}")
-    if sstats != dstats:
-        raise RuntimeError(f"Metadata verification mismatch source={sstats} dest={dstats}")
+echo "=== CTNETWORK SSH VERIFICATION START ==="
+SRC_COUNT=$(find "$ROOT" -type f | wc -l)
+SRC_BYTES=$(find "$ROOT" -type f -printf '%s\\n' | awk '{{s+=$1}} END{{printf "%.0f",s}}')
+DST_STATS=$($SSH_CMD -n root@{dest_ip} "ROOT={ROOT}; c=\\$(find \\"\\$ROOT\\" -type f | wc -l); b=\\$(find \\"\\$ROOT\\" -type f -printf '%s\\n' | awk '{{s+=\\$1}} END{{printf \\"%.0f\\",s}}'); printf '%s:%s' \\"\\$c\\" \\"\\$b\\"")
+DST_COUNT=${{DST_STATS%%:*}}
+DST_BYTES=${{DST_STATS#*:}}
+printf 'CTN_SOURCE_STATS:%s:%s\\n' "$SRC_COUNT" "$SRC_BYTES"
+printf 'CTN_DEST_STATS:%s:%s\\n' "$DST_COUNT" "$DST_BYTES"
+test "$SRC_COUNT" = "$DST_COUNT"
+test "$SRC_BYTES" = "$DST_BYTES"
 
-    # Content verification: rsync checksum dry-run must report ZERO changes.
-    verify_out = src.run(
-        f"CHANGES=$(rsync -aHnc --delete --numeric-ids --out-format='%i %n%L' -e \"{ssh_opts}\" {ROOT}/ root@{dest_ip}:{ROOT}/); printf 'CTN_CHECKSUM_CHANGES_BEGIN\\n%s\\nCTN_CHECKSUM_CHANGES_END\\n' \"$CHANGES\"; test -z \"$CHANGES\"",
-        timeout=21600,
-    )
-    if "CTN_CHECKSUM_CHANGES_BEGIN\n\nCTN_CHECKSUM_CHANGES_END" not in verify_out.replace("\r", ""):
-        raise RuntimeError("Checksum verification did not produce an empty change set")
+echo "=== CTNETWORK CHECKSUM DRY RUN START ==="
+CHANGES=$(rsync -aHnc --delete --numeric-ids --out-format='%i %n%L' -e "$SSH_CMD" "$ROOT/" root@{dest_ip}:"$ROOT/")
+printf 'CTN_CHECKSUM_CHANGES_BEGIN\\n%s\\nCTN_CHECKSUM_CHANGES_END\\n' "$CHANGES"
+test -z "$CHANGES"
 
-    marker = (
-        "PASS\n"
-        "method=rsync_ssh_checksum\n"
-        f"source_pod={SOURCE_POD_ID}\n"
-        f"destination_pod={DEST_POD_ID}\n"
-        f"verified_files={dstats[0]}\n"
-        f"verified_bytes={dstats[1]}\n"
-        f"metadata_sha256={dstats[2]}\n"
-    )
-    marker_b64 = base64.b64encode(marker.encode()).decode()
-    dst.run(
-        f"mkdir -p {ROOT}/status; echo {marker_b64} | base64 -d > {ROOT}/status/factory_migration.status; cat {ROOT}/status/factory_migration.status",
-        timeout=120,
-    )
-    print("CTNETWORK_FACTORY_MIGRATION_PASS")
+STATUS=$(printf 'PASS\\nmethod=rsync_ssh_checksum\\nsource_pod=%s\\ndestination_pod=%s\\nverified_files=%s\\nverified_bytes=%s\\n' '{SOURCE_POD_ID}' '{DEST_POD_ID}' "$DST_COUNT" "$DST_BYTES")
+STATUS_B64=$(printf '%s' "$STATUS" | base64 -w0)
+$SSH_CMD -n root@{dest_ip} "mkdir -p {ROOT}/status; printf '%s' '$STATUS_B64' | base64 -d > {ROOT}/status/factory_migration.status; cat {ROOT}/status/factory_migration.status"
+echo CTNETWORK_FACTORY_MIGRATION_PASS
+'''
+    out = src.run(transfer, timeout=21600)
+    if "CTNETWORK_FACTORY_MIGRATION_PASS" not in out:
+        raise RuntimeError("Migration command completed without PASS marker")
 
 
 if __name__ == "__main__":
