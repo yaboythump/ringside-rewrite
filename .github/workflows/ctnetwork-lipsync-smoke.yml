@@ -26,30 +26,65 @@ jobs:
         with:
           ref: main
 
-      - name: Resolve and start factory pod
+      - name: Resolve, start, and health-gate factory pod
         id: resolve
         shell: bash
         run: |
           set -euo pipefail
           POD_ID=$(jq -r '.pod_id // empty' ctnetwork-lipsync-smoke-command.json)
           [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 2; }
-          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
-          if [[ "$STATUS" != "RUNNING" ]]; then
-            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          pod_api="https://rest.runpod.io/v1/pods/${POD_ID}"
+          jupyter="https://${POD_ID}-8888.proxy.runpod.net/login"
+
+          refresh() {
+            POD=$(curl -fsS "$pod_api" "${auth[@]}")
+            STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+          }
+          wait_running() {
             for i in $(seq 1 120); do
+              refresh
+              [[ "$STATUS" == "RUNNING" ]] && return 0
               sleep 5
-              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-              STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
-              [[ "$STATUS" == "RUNNING" ]] && break
             done
+            return 1
+          }
+          wait_jupyter() {
+            for i in $(seq 1 60); do
+              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$jupyter" || true)
+              echo "jupyter readiness attempt=$i http=$code"
+              [[ "$code" == 200 || "$code" == 302 ]] && return 0
+              sleep 5
+            done
+            return 1
+          }
+
+          refresh
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true
+            wait_running || { echo "pod failed to start: $STATUS"; exit 3; }
           fi
-          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 3; }
+
+          if ! wait_jupyter; then
+            echo 'Jupyter unhealthy on RUNNING pod; performing one controlled pod recycle.'
+            curl -fsS -X POST "$pod_api/stop" "${auth[@]}" >/dev/null || true
+            for i in $(seq 1 60); do
+              sleep 3
+              refresh
+              [[ "$STATUS" != "RUNNING" ]] && break
+            done
+            curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true
+            wait_running || { echo 'pod failed controlled restart'; exit 4; }
+            wait_jupyter || { echo 'JUPYTER_READINESS_BLOCKED after controlled restart'; exit 5; }
+          fi
+
+          refresh
           JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
-          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 6; }
           echo "::add-mask::$JPASS"
           printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo 'FACTORY_CONTROL_PLANE_READY'
 
       - name: Run LatentSync certification
         env:
