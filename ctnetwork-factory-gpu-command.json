@@ -1,13 +1,18 @@
 {
   "action": "provision",
-  "name": "ctnetwork-factory-gpu-v4",
+  "name": "ctnetwork-factory-gpu-v5",
   "network_volume_id": "9wjb3sa5zm",
   "data_center_id": "EU-RO-1",
   "gpu_types": [
-    "NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 2g.48gb",
     "NVIDIA GeForce RTX 5090",
-    "NVIDIA RTX PRO 6000 Blackwell Server Edition"
+    "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "NVIDIA RTX PRO 5000 Blackwell",
+    "NVIDIA RTX 6000 Ada Generation",
+    "NVIDIA RTX A6000",
+    "NVIDIA L40S",
+    "NVIDIA L40",
+    "NVIDIA A40"
   ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "ctnetwork-factory-v4-provision-2026-09-14-01"
+  "request_id": "ctnetwork-factory-v5-provision-2026-09-14-01"
 }
