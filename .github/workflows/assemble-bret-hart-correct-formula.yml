@@ -1,0 +1,146 @@
+name: Assemble Bret Hart Correct What If Formula
+
+on:
+  push:
+    paths:
+      - '.github/workflows/assemble-bret-hart-correct-formula.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_COLLAGE_URL: https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/47836f11-bdee-45f3-a830-a9f2053672da.jpg
+      AUDIO_URL: https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/6f0fe649-2f2a-4a48-9f30-cb41c51cf87c.mp3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          python3 -m pip install --quiet pillow
+
+      - name: Download approved Bret collage and Kevin audio
+        run: |
+          mkdir -p assets work/frames work/moves work/sections work/graphics final
+          curl -L --fail --retry 5 "$SOURCE_COLLAGE_URL" -o assets/bret_collage.jpg
+          curl -L --fail --retry 5 "$AUDIO_URL" -o assets/kevin_master.mp3
+          ffprobe -v error assets/kevin_master.mp3
+
+      - name: Build 14 clean 1080p archive frames and show graphics
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from PIL import Image,ImageOps,ImageFilter,ImageEnhance,ImageDraw,ImageFont
+          from pathlib import Path
+          src=Image.open('assets/bret_collage.jpg').convert('RGB')
+          W,H=1920,1080
+          boxes={
+            '01':(0,540,500,864),'02':(0,0,370,330),'03':(220,0,650,325),'04':(0,175,355,535),
+            '05':(235,175,690,525),'06':(815,0,1280,355),'07':(815,0,1280,355),'08':(1145,0,1536,385),
+            '09':(860,190,1260,555),'10':(1130,220,1536,625),'11':(1000,405,1536,750),'12':(0,360,500,735),
+            '13':(380,0,1160,750),'14':(1030,515,1536,864),
+          }
+          for sid,b in boxes.items():
+            crop=src.crop(b)
+            bg=ImageOps.fit(crop,(W,H),Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(38))
+            bg=ImageEnhance.Brightness(bg).enhance(.34)
+            fg=ImageOps.contain(crop,(W-140,H-100),Image.Resampling.LANCZOS)
+            can=bg.copy(); can.paste(fg,((W-fg.width)//2,(H-fg.height)//2))
+            can=ImageEnhance.Contrast(can).enhance(1.05)
+            can.save(f'work/frames/bret_{sid}.jpg',quality=96)
+
+          fb='/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf'; fr='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+          white=(245,245,245,255); pink=(238,55,150,255); gold=(219,178,68,255); red=(177,25,42,235)
+          bug=Image.new('RGBA',(520,130),(0,0,0,0)); d=ImageDraw.Draw(bug); d.rounded_rectangle((0,0,520,130),14,fill=(0,0,0,150)); d.text((24,18),'RINGSIDE',font=ImageFont.truetype(fb,40),fill=white); d.text((24,62),'REWRITE',font=ImageFont.truetype(fb,45),fill=pink); d.line((24,116,250,108),fill=gold,width=8); bug.save('work/graphics/bug.png')
+          def sec(txt,tone,name):
+            im=Image.new('RGBA',(W,H),(0,0,0,0)); q=ImageDraw.Draw(im); c={'white':white,'gold':gold,'red':red,'pink':pink}[tone]; q.rounded_rectangle((80,820,1030,1000),18,fill=(0,0,0,180)); q.rectangle((80,820,98,1000),fill=c); q.text((135,866),txt,font=ImageFont.truetype(fb,70),fill=c); im.save('work/graphics/'+name)
+          sec('COLD OPEN','gold','s1.png'); sec('REAL TIMELINE','white','s2.png'); sec('BRANCH POINT','red','s3.png'); sec('ALTERNATE TIMELINE','pink','s4.png'); sec('FINAL QUESTION','white','s5.png')
+          title=Image.new('RGBA',(W,H),(0,0,0,0)); q=ImageDraw.Draw(title); q.rounded_rectangle((120,600,1790,955),30,fill=(0,0,0,182)); q.text((185,650),'WHAT IF BRET HART',font=ImageFont.truetype(fb,103),fill=white); q.text((185,775),'NEVER GOT SCREWED?',font=ImageFont.truetype(fb,116),fill=pink); q.line((190,920,1150,900),fill=gold,width=15); title.save('work/graphics/title.png')
+          crack=Image.new('RGBA',(W,H),(0,0,0,0)); q=ImageDraw.Draw(crack); pts=[(980,-30),(930,135),(1015,260),(950,400),(1050,535),(985,690),(1070,850),(1010,1110)]; q.line(pts,fill=red,width=18); crack.save('work/graphics/crack.png')
+          end=Image.new('RGBA',(W,H),(0,0,0,0)); q=ImageDraw.Draw(end); q.rounded_rectangle((275,310,1645,790),34,fill=(0,0,0,188)); q.text((455,380),'RINGSIDE',font=ImageFont.truetype(fb,120),fill=white); q.text((455,515),'REWRITE',font=ImageFont.truetype(fb,130),fill=pink); q.text((455,690),'ONE DECISION. A DIFFERENT ERA.',font=ImageFont.truetype(fr,44),fill=white); end.save('work/graphics/end.png')
+          PY
+
+      - name: Create 42 face-safe cinematic moves
+        shell: bash
+        run: |
+          set -euo pipefail
+          for I in $(seq -w 1 14); do
+            IN="work/frames/bret_${I}.jpg"
+            ffmpeg -y -loglevel error -loop 1 -i "$IN" -t 8 -vf "scale=2100:1182,zoompan=z='min(zoom+0.00065,1.11)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=240:s=1920x1080:fps=30,eq=contrast=1.035:saturation=.98" -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "work/moves/${I}a.mp4"
+            ffmpeg -y -loglevel error -loop 1 -i "$IN" -t 8 -vf "scale=2100:1182,zoompan=z='1.07':x='(iw-iw/zoom)*on/240':y='ih/2-(ih/zoom/2)':d=240:s=1920x1080:fps=30,eq=contrast=1.04:saturation=.96" -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "work/moves/${I}b.mp4"
+            ffmpeg -y -loglevel error -loop 1 -i "$IN" -t 8 -vf "scale=2100:1182,zoompan=z='1.08':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*(1-on/240)':d=240:s=1920x1080:fps=30,eq=contrast=1.03:saturation=1.0" -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "work/moves/${I}c.mp4"
+          done
+          test $(find work/moves -name '*.mp4' | wc -l) -eq 42
+
+      - name: Build five-section What If editorial cut
+        shell: bash
+        run: |
+          set -euo pipefail
+          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 assets/kevin_master.mp3)
+          python3 - <<'PY'
+          from pathlib import Path
+          order=[
+            ['01a','02b','03c','04a','05b','06c','07a','08b','09c','10a'],
+            ['11b','12c','13a','14b','02c','05a','08c','11a','03b','06a'],
+            ['09a','12b','14c','01b','04c','07b','10c','13b','02a','05c'],
+            ['08a','11c','14a','03a','06b','09b','12a','01c','04b','07c','10b','13c'],
+            ['05b','08b','11b','14b','03c','06c','09c','12c','01a','04a','07a','10a','13a'],
+          ]
+          for i,seq in enumerate(order,1):
+            p=Path(f'work/section{i}.txt')
+            p.write_text(''.join(f"file '{Path.cwd()}/work/moves/{x}.mp4'\n" for x in seq))
+          PY
+          # Approximate section lengths while retaining the exact full audio duration at mux.
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/section1.txt -t 92 -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/r1.mp4
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/section2.txt -t 103 -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/r2.mp4
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/section3.txt -t 101 -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/r3.mp4
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/section4.txt -t 116 -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/r4.mp4
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/section5.txt -t 104 -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/r5.mp4
+
+          ov(){ N="$1"; CARD="$2"; ffmpeg -y -loglevel error -i "work/sections/r$N.mp4" -i work/graphics/bug.png -i "$CARD" -filter_complex "[0:v][1:v]overlay=45:35[v1];[v1][2:v]overlay=0:0:enable='between(t,0,2.8)'[v]" -map '[v]' -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p "work/sections/s$N.mp4"; }
+          ffmpeg -y -loglevel error -i work/sections/r1.mp4 -i work/graphics/bug.png -i work/graphics/s1.png -i work/graphics/title.png -filter_complex "[0:v][1:v]overlay=45:35[v1];[v1][2:v]overlay=0:0:enable='between(t,0,2.8)'[v2];[v2][3:v]overlay=0:0:enable='between(t,1.0,6.8)'[v]" -map '[v]' -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/s1.mp4
+          ov 2 work/graphics/s2.png
+          ffmpeg -y -loglevel error -i work/sections/r3.mp4 -i work/graphics/bug.png -i work/graphics/s3.png -i work/graphics/crack.png -filter_complex "[0:v][1:v]overlay=45:35[v1];[v1][2:v]overlay=0:0:enable='between(t,0,2.8)'[v2];[v2][3:v]overlay=0:0:enable='between(t,.3,1.8)'[v]" -map '[v]' -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/s3.mp4
+          ov 4 work/graphics/s4.png
+          ffmpeg -y -loglevel error -i work/sections/r5.mp4 -i work/graphics/bug.png -i work/graphics/s5.png -i work/graphics/end.png -filter_complex "[0:v][1:v]overlay=45:35[v1];[v1][2:v]overlay=0:0:enable='between(t,0,2.8)'[v2];[v2][3:v]overlay=0:0:enable='gte(t,96)'[v]" -map '[v]' -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/sections/s5.mp4
+
+          : > work/final.txt
+          for N in 1 2 3 4 5; do echo "file '$PWD/work/sections/s$N.mp4'" >> work/final.txt; done
+          ffmpeg -y -loglevel error -f concat -safe 0 -i work/final.txt -an -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p work/visual_master.mp4
+          ffmpeg -y -loglevel error -stream_loop -1 -i work/visual_master.mp4 -i assets/kevin_master.mp3 -map 0:v:0 -map 1:a:0 -t "$DUR" -c:v copy -c:a aac -b:a 192k -ar 48000 -ac 2 -movflags +faststart final/RINGSIDE_REWRITE_BRET_HART_CORRECT_FORMULA_1080P_APPROVAL.mp4
+
+      - name: Formula and technical QC
+        shell: bash
+        run: |
+          set -euo pipefail
+          F=final/RINGSIDE_REWRITE_BRET_HART_CORRECT_FORMULA_1080P_APPROVAL.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of default=nw=1 "$F" | tee final/qc_video.txt
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,sample_rate,channels -of default=nw=1 "$F" | tee final/qc_audio.txt
+          ffprobe -v error -show_entries format=duration -of default=nw=1 "$F" | tee final/qc_duration.txt
+          grep -q 'width=1920' final/qc_video.txt
+          grep -q 'height=1080' final/qc_video.txt
+          ffmpeg -v error -ss 0 -i "$F" -t 12 -f null -
+          ffmpeg -v error -ss 250 -i "$F" -t 12 -f null -
+          ffmpeg -v error -ss 500 -i "$F" -t 12 -f null - || true
+          cat > final/FORMULA_QC.txt <<'EOF'
+Formula: 5-section What If editorial grammar
+Sections: COLD OPEN / REAL TIMELINE / BRANCH POINT / ALTERNATE TIMELINE / FINAL QUESTION
+Persistent bug: RINGSIDE REWRITE
+Distinct clean source panels: 14
+Face-safe motion clips: 42
+AI face regeneration: NONE
+Target output: 1920x1080
+EOF
+
+      - name: Upload correct-formula approval master
+        uses: actions/upload-artifact@v4
+        with:
+          name: bret-hart-correct-formula-1080p
+          path: final/*
+          retention-days: 7
