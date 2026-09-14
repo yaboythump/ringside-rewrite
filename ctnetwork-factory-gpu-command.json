@@ -1,9 +1,12 @@
 {
-  "action": "status",
+  "action": "recycle",
   "name": "ctnetwork-factory-gpu",
   "network_volume_id": "9wjb3sa5zm",
   "data_center_id": "EU-RO-1",
-  "gpu_type": "NVIDIA RTX PRO 4500 Blackwell",
+  "gpu_types": [
+    "NVIDIA GeForce RTX 5090",
+    "NVIDIA RTX PRO 4500 Blackwell"
+  ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "ctnetwork-factory-gpu-status-2026-09-14-04"
+  "request_id": "ctnetwork-factory-gpu-recycle-2026-09-14-01"
 }
