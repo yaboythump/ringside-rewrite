@@ -13,7 +13,7 @@ permissions:
 jobs:
   assemble:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,7 +30,6 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/bret-source
           gh run download 34793360319 -n ringside-bret-hart-ltx-collage-i2v -D /tmp/bret-source
-          find /tmp/bret-source -type f -path '*/mp4/*.mp4' -o -name '*.mp4' | sort | sed -n '1,40p'
 
       - name: Download Kevin + music audio master
         run: |
@@ -40,38 +39,32 @@ jobs:
             -o /tmp/bret_audio_master.mp3
           ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/bret_audio_master.mp3
 
-      - name: Build story-timed animated visual master
+      - name: Build fast story-timed animated visual master
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /tmp/bret-edit/sections final
+          mkdir -p /tmp/bret-edit final
           python3 - <<'PY'
           from pathlib import Path
-          import subprocess, math
+          import math
 
           root=Path('/tmp/bret-source')
           clips=sorted(root.rglob('RR_BRET_V2_*.mp4'))
           if len(clips) != 14:
               clips=sorted(root.rglob('*.mp4'))
           if len(clips) != 14:
-              raise SystemExit(f'Expected 14 corrected animated scene clips, found {len(clips)}')
+              raise SystemExit(f'Expected 14 corrected animated clips, found {len(clips)}')
 
           by_id={}
           for p in clips:
-              stem=p.stem
-              # RR_BRET_V2_01_...
-              parts=stem.split('_')
               sid=None
-              for token in parts:
+              for token in p.stem.split('_'):
                   if token.isdigit() and 1 <= int(token) <= 14:
                       sid=int(token); break
-              if sid is None:
-                  raise SystemExit(f'Could not parse scene id from {p}')
+              if sid is None: raise SystemExit(f'Cannot parse scene id: {p}')
               by_id[sid]=p
-          if len(by_id)!=14:
-              raise SystemExit(f'Scene map incomplete: {sorted(by_id)}')
+          if len(by_id)!=14: raise SystemExit(f'Incomplete scene map: {sorted(by_id)}')
 
-          # Exact narration segment durations already generated with locked Kevin.
           sections=[
               (106.316583,[13,2,3,6,1,4,8,6,2,13]),
               (101.431500,[6,7,12,10,9,11,10,13,7]),
@@ -79,65 +72,42 @@ jobs:
               (111.965958,[5,12,13,11,4,2,14,5,13]),
               (97.799083,[3,8,13,14,2,1,10,14,13]),
           ]
-          outdir=Path('/tmp/bret-edit/sections')
-          made=[]
-          for idx,(dur,order) in enumerate(sections,1):
-              seq=[]
-              # Each LTX clip is ~3.88s. Repeat story-matched animated beats to cover narration.
-              k=0
-              while len(seq)*3.80 < dur+5:
-                  seq.append(by_id[order[k%len(order)]])
-                  k+=1
-              lst=outdir/f's{idx}.txt'
-              lst.write_text(''.join(f"file '{p.as_posix()}'\n" for p in seq))
-              out=outdir/f'section_{idx}.mp4'
-              subprocess.run([
-                  'ffmpeg','-y','-loglevel','error','-f','concat','-safe','0','-i',str(lst),
-                  '-t',f'{dur:.6f}',
-                  '-vf','scale=1280:720:flags=lanczos,setsar=1',
-                  '-an','-c:v','libx264','-preset','fast','-crf','21','-pix_fmt','yuv420p',
-                  '-movflags','+faststart',str(out)
-              ],check=True)
-              made.append(out)
-
-          master_list=Path('/tmp/bret-edit/master.txt')
-          master_list.write_text(''.join(f"file '{p.as_posix()}'\n" for p in made))
-          subprocess.run([
-              'ffmpeg','-y','-loglevel','error','-f','concat','-safe','0','-i',str(master_list),
-              '-c','copy','/tmp/bret-edit/visual_master.mp4'
-          ],check=True)
+          seq=[]
+          for dur,order in sections:
+              need=math.ceil(dur/3.88)+2
+              for i in range(need): seq.append(by_id[order[i%len(order)]])
+          Path('/tmp/bret-edit/timeline.txt').write_text(''.join(f"file '{p.as_posix()}'\n" for p in seq))
           PY
+          AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/bret_audio_master.mp3)
+          ffmpeg -y -loglevel error -f concat -safe 0 -i /tmp/bret-edit/timeline.txt \
+            -t "$AUDIO_DUR" -an -c:v copy -movflags +faststart /tmp/bret-edit/visual_master.mp4
 
       - name: Mux Kevin narration and music into final episode
         run: |
           set -euo pipefail
           AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/bret_audio_master.mp3)
           ffmpeg -y -loglevel error \
-            -i /tmp/bret-edit/visual_master.mp4 \
-            -i /tmp/bret_audio_master.mp3 \
-            -map 0:v:0 -map 1:a:0 \
-            -t "$AUDIO_DUR" \
-            -c:v copy -c:a aac -b:a 192k -ar 48000 \
-            -movflags +faststart \
+            -i /tmp/bret-edit/visual_master.mp4 -i /tmp/bret_audio_master.mp3 \
+            -map 0:v:0 -map 1:a:0 -t "$AUDIO_DUR" \
+            -c:v copy -c:a aac -b:a 192k -ar 48000 -movflags +faststart \
             final/RINGSIDE_REWRITE_What_If_Bret_Hart_Never_Got_Screwed_APPROVAL.mp4
 
       - name: Technical QC
         run: |
           set -euo pipefail
-          ffprobe -v error -show_streams -show_format \
-            final/RINGSIDE_REWRITE_What_If_Bret_Hart_Never_Got_Screwed_APPROVAL.mp4 \
-            > final/qc_ffprobe.txt
-          ffmpeg -v error -i final/RINGSIDE_REWRITE_What_If_Bret_Hart_Never_Got_Screwed_APPROVAL.mp4 -f null -
-          DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 final/RINGSIDE_REWRITE_What_If_Bret_Hart_Never_Got_Screwed_APPROVAL.mp4)
-          V=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of csv=p=0 final/RINGSIDE_REWRITE_What_If_Bret_Hart_Never_Got_Screwed_APPROVAL.mp4)
-          A=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,sample_rate,channels -of csv=p=0 final/RINGSIDE_REWRITE_What_If_Bret_Hart_Never_Got_Screwed_APPROVAL.mp4)
+          FILE=final/RINGSIDE_REWRITE_What_If_Bret_Hart_Never_Got_Screwed_APPROVAL.mp4
+          ffprobe -v error -show_streams -show_format "$FILE" > final/qc_ffprobe.txt
+          ffmpeg -v error -i "$FILE" -f null -
+          DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$FILE")
+          V=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of csv=p=0 "$FILE")
+          A=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,sample_rate,channels -of csv=p=0 "$FILE")
           printf 'duration=%s\nvideo=%s\naudio=%s\nsource_run=34793360319\nsource_artifact=ringside-bret-hart-ltx-collage-i2v\n' "$DUR" "$V" "$A" > final/QC_SUMMARY.txt
           ls -lh final/
 
       - name: Upload approval master
         uses: actions/upload-artifact@v4
         with:
-          name: bret-hart-ringside-approval-master
+          name: bret-hart-ringside-approval-master-fast
           path: final/
           if-no-files-found: error
           retention-days: 7
