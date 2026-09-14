@@ -1,1 +1,24 @@
-{"name":"ctnetwork-factory-norway","networkVolumeId":"631b7gakhp","dataCenterId":"EUR-NO-1","gpuTypes":["NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 4500 Blackwell Server Edition","NVIDIA RTX PRO 5000 Blackwell","NVIDIA RTX PRO 6000 Blackwell Server Edition","NVIDIA RTX 6000 Ada Generation","NVIDIA RTX A6000","NVIDIA L40S","NVIDIA L40","NVIDIA A40"],"desiredStatus":"CREATE_FAILED"}
+{
+  "id": "8p2ytviv38olnv",
+  "name": "ctnetwork-factory-norway",
+  "desiredStatus": "RUNNING",
+  "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+  "networkVolumeId": "631b7gakhp",
+  "containerDiskInGb": 40,
+  "volumeMountPath": "/workspace",
+  "ports": [
+    "8888/http",
+    "22/tcp"
+  ],
+  "publicIp": "",
+  "portMappings": null,
+  "costPerHr": 0.99,
+  "adjustedCostPerHr": null,
+  "machineId": "3ox1p1mriozn",
+  "gpu": null,
+  "machine": {
+    "dataCenterId": null,
+    "location": null,
+    "gpuDisplayName": null
+  }
+}
