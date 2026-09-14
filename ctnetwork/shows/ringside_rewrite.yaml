@@ -1,0 +1,31 @@
+show: Ringside Rewrite
+show_id: ringside_rewrite
+formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
+narrator: ringside_locked_voice
+visuals:
+  archival_first: true
+  local_generation_engine: ltx-2.5
+  production_quality_tier: dfr_when_generated
+captions:
+  burned_in: false
+shorts:
+  count: 3
+  youtube_target_seconds: 50-58
+  hook_first_seconds: 1-2
+  no_slow_logo_intro: true
+  destinations: [youtube_shorts, facebook_reels, tiktok_ringsiderw]
+  tiktok_safe_encode_required: true
+audio:
+  normalize_lufs: -16
+  noise_cleanup: true
+  music_ducking: true
+thumbnail:
+  required: true
+qc:
+  auto_repair: true
+  verify_short_count: 3
+  verify_tiktok_encode: true
+  verify_thumbnail: true
+publish:
+  require_manual_approval: true
+  default_allowed: false
