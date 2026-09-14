@@ -1,0 +1,42 @@
+name: CTNETWORK Factory Pod Diagnostic
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-factory-pod-diagnostic-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Read RunPod lifecycle state
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-factory-pod-diagnostic-command.json)
+          curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}?includeMachine=true&includeNetworkVolume=true" \
+            -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+            | jq 'del(.env) | {id,name,desiredStatus,image,imageName,lastStartedAt,lastStatusChange,interruptible,locked,publicIp,portMappings,ports,costPerHr,adjustedCostPerHr,containerDiskInGb,volumeMountPath,networkVolume,memoryInGb,vcpuCount,gpu,machine,dockerEntrypoint,dockerStartCmd}' \
+            | tee /tmp/factory-pod-diagnostic.json
+      - name: Save diagnostic
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/factory-pod-diagnostic.json infra/status/ctnetwork-factory-pod-diagnostic.json 2>/dev/null || echo '{"diagnostic":"unavailable"}' > infra/status/ctnetwork-factory-pod-diagnostic.json
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-factory-pod-diagnostic.json
+          git commit -m 'CTNETWORK: update factory pod diagnostic' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
