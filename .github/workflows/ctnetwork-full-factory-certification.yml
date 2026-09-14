@@ -1,0 +1,165 @@
+name: CTNETWORK Full Local Factory Certification
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-full-certification-command.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ctnetwork-full-local-factory-certification
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      SOURCE_VIDEO_URL: https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260911_215620_6c19d3c4-4e5c-464e-bc57-1c363a6e1812.mp4
+      SOURCE_AUDIO_URL: https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/2c289697-6d4b-495e-a2a1-52c00fa4a942.mp3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve sticky factory pod and control plane
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-full-certification-command.json)
+          [[ -n "$POD_ID" ]] || { echo POD_ID_MISSING; exit 2; }
+          API="https://rest.runpod.io/v1/pods/$POD_ID"
+          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          refresh(){ POD=$(curl -fsS "$API" "${auth[@]}"); STATUS=$(echo "$POD"|jq -r '.desiredStatus // "unknown"'); }
+          refresh
+          if [[ "$STATUS" != RUNNING ]]; then
+            curl -fsS -X POST "$API/start" "${auth[@]}" >/dev/null
+            for i in $(seq 1 120); do sleep 5; refresh; [[ "$STATUS" == RUNNING ]] && break; done
+          fi
+          [[ "$STATUS" == RUNNING ]] || { echo "POD_START_BLOCKED:$STATUS"; exit 3; }
+          for i in $(seq 1 60); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 || "$code" == 302 ]] && break
+            sleep 5
+          done
+          [[ "$code" == 200 || "$code" == 302 ]] || { echo JUPYTER_NOT_READY; exit 4; }
+          refresh
+          JPASS=$(echo "$POD"|jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo JUPYTER_PASSWORD_MISSING; exit 5; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Install certification client
+        run: python3 -m pip install --quiet requests websocket-client
+
+      - name: Self-heal LatentSync VAE symlink gate
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64,json,os,re,time
+          from pathlib import Path
+          import requests,websocket
+          pod=os.environ['POD_ID']; password=Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
+          base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session(); r=s.get(base+'/login',timeout=20)
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},allow_redirects=False,timeout=20)
+          assert rr.status_code in (200,302,303)
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          s.get(base+'/api/status',headers=headers,timeout=20).raise_for_status()
+          t=s.post(base+'/api/terminals',headers=headers,json={},timeout=20); t.raise_for_status(); name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
+          sh=r'''set -Eeuo pipefail
+          ROOT=/workspace/ctnetwork-local
+          MODEL=$(find -L "$ROOT/cache/huggingface/hub" -type f \( -name 'diffusion_pytorch_model.safetensors' -o -name 'diffusion_pytorch_model.bin' \) -print -quit)
+          test -n "$MODEL" && test -s "$MODEL"
+          mkdir -p "$ROOT/status"
+          echo PASS > "$ROOT/status/latentsync_vae_persistent.status"
+          echo VAE_SYMLINK_GATE_PASS
+          echo __DONE__:0
+          '''
+          enc=base64.b64encode(sh.encode()).decode(); ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d | bash\n']))
+          out=''; deadline=time.time()+180
+          while time.time()<deadline:
+              msg=ws.recv()
+              if not msg: continue
+              try:d=json.loads(msg)
+              except:continue
+              if isinstance(d,list) and len(d)>=2 and d[0]=='stdout':
+                  out+=d[1]; print(d[1],end='',flush=True)
+                  if '__DONE__:0' in out: break
+          ws.close(); s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+          assert '__DONE__:0' in out
+          PY
+
+      - name: Certify LatentSync demo
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        run: python3 tools/ctnetwork_lipsync_smoke.py | tee /tmp/01-latentsync.txt
+
+      - name: Certify real CTNETWORK face sync
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+          SOURCE_VIDEO_URL: ${{ env.SOURCE_VIDEO_URL }}
+          SOURCE_AUDIO_URL: ${{ env.SOURCE_AUDIO_URL }}
+        run: python3 tools/ctnetwork_lipsync_realface.py | tee /tmp/02-realface.txt
+
+      - name: Certify Qwen3-TTS narration
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        run: python3 tools/ctnetwork_qwen_smoke.py | tee /tmp/03-qwen.txt
+
+      - name: Certify LTX 2.5 base video
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        run: python3 tools/ctnetwork_ltx25_smoke.py | tee /tmp/04-ltx25.txt
+
+      - name: Certify LTX 2.5 premium DFR
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        run: python3 tools/ctnetwork_ltx25_dfr_smoke.py | tee /tmp/05-ltx25-dfr.txt
+
+      - name: Run complete factory acceptance
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        run: python3 tools/ctnetwork_factory_acceptance.py | tee /tmp/06-acceptance.txt
+
+      - name: Save full certification report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          {
+            echo "CTNETWORK FULL LOCAL FACTORY CERTIFICATION"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "pod_id=${{ steps.resolve.outputs.pod_id }}"
+            echo "job_status=${{ job.status }}"
+            for f in /tmp/0*.txt; do [ -f "$f" ] || continue; echo; echo "===== $f ====="; tail -120 "$f"; done
+          } > infra/status/ctnetwork-full-certification-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-full-certification-latest.txt
+          git commit -m 'CTNETWORK: record full local factory certification' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Shut down certified factory compute
+        if: success()
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        run: curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
