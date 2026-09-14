@@ -1,0 +1,358 @@
+=== RTX 5090 DATACENTERS ===
+[
+  {
+    "id": "EU-CZ-1",
+    "name": "EU-CZ-1",
+    "location": "Europe",
+    "gpuAvailability": [
+      {
+        "displayName": "RTX 5090",
+        "gpuId": "NVIDIA GeForce RTX 5090",
+        "stockStatus": ""
+      }
+    ]
+  },
+  {
+    "id": "EU-RO-1",
+    "name": "EU-RO-1",
+    "location": "Europe",
+    "gpuAvailability": [
+      {
+        "displayName": "RTX 5090",
+        "gpuId": "NVIDIA GeForce RTX 5090",
+        "stockStatus": "Low"
+      }
+    ]
+  },
+  {
+    "id": "EUR-IS-1",
+    "name": "EUR-IS-1",
+    "location": "Europe",
+    "gpuAvailability": [
+      {
+        "displayName": "RTX 5090",
+        "gpuId": "NVIDIA GeForce RTX 5090",
+        "stockStatus": ""
+      }
+    ]
+  },
+  {
+    "id": "EUR-IS-2",
+    "name": "EUR-IS-2",
+    "location": "Europe",
+    "gpuAvailability": [
+      {
+        "displayName": "RTX 5090",
+        "gpuId": "NVIDIA GeForce RTX 5090",
+        "stockStatus": "Low"
+      }
+    ]
+  },
+  {
+    "id": "EUR-NO-1",
+    "name": "EUR-NO-1",
+    "location": "Europe",
+    "gpuAvailability": [
+      {
+        "displayName": "RTX 5090",
+        "gpuId": "NVIDIA GeForce RTX 5090",
+        "stockStatus": "Low"
+      }
+    ]
+  }
+]
+=== GLOBAL RTX 5090 ===
+[
+  {
+    "available": true,
+    "communityCloud": true,
+    "communityPricePerHr": 0.69,
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "EU-CZ-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-RO-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EUR-IS-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EUR-IS-2",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EUR-NO-1",
+        "stockStatus": "Low"
+      }
+    ],
+    "displayName": "RTX 5090",
+    "gpuId": "NVIDIA GeForce RTX 5090",
+    "memoryInGb": 32,
+    "secureCloud": true,
+    "securePricePerHr": 0.99,
+    "stockStatus": "Low"
+  }
+]
+=== EXISTING NETWORK VOLUMES ===
+[
+  {
+    "dataCenterId": "EUR-IS-1",
+    "id": "xs4k4zrvn4",
+    "name": "passive_rose_warbler_volume",
+    "size": 120
+  }
+]
+=== PODS ===
+[
+  {
+    "id": "csf211pj92tmil",
+    "name": "ringside-bret-hart-ltx-i2v",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "ohkxhsnz9mko",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "1obw0fkrcdc2gt",
+    "name": "ringside-bret-hart-ltx",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "vceoc2219bnh",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "ye17epu1z9affe",
+    "name": "ringside-bret-hart-ltx",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "oa3g39i4ut4k",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "ecwtew4sgdbfce",
+    "name": "ringside-bret-hart-ltx",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "nvbxqprc6xx5",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "yvj8bq57zferqr",
+    "name": "hhwi-eminem-dre-current",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "mm1lth3s2qd1",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "2og19tyxmd4kdj",
+    "name": "hhwi-eminem-dre-current",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "ch2xt4fbxwzu",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "4u4sdyafijtiow",
+    "name": "hhwi-eminem-dre-current",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "if8z63l4h59q",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "qpuiro9ymth2tk",
+    "name": "hhwi-memphis-bleek-rerender",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "rlmtdtsi6tsa",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "gdar1dt8jzqcon",
+    "name": "hhwi-memphis-bleek-cinematic",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "badpxxjheyfa",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "jghdsvm8um7j72",
+    "name": "hhwi-memphis-bleek-cinematic",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "vo8i0qlkuo4a",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "lvtm6zl2n7l2o5",
+    "name": "hhwi-memphis-bleek-cinematic",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "6w0h3oj8ayn6",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "j4s17rseovteax",
+    "name": "hhwi-memphis-bleek-full-episode",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "o39sexgmzwoa",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "ium1b4gx6eh3q9",
+    "name": "hhwi-memphis-bleek-full-episode",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "2hua2sdwuqgw",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "ear1z8nrkyaqiy",
+    "name": "hhwi-memphis-bleek-shot01",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "1pp8ujwg5qkn",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "k4nsy149tyh5gq",
+    "name": "hhwi-memphis-bleek-shot01",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/comfyui:1.4.7-cuda13.0",
+    "gpu": null,
+    "machineId": "oa3g39i4ut4k",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 160,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "w5sin5d1mz24km",
+    "name": "urban_silver_ape_v2",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/stable-diffusion:comfy-ui-6.0.0",
+    "gpu": null,
+    "machineId": "g3vyq5zm0jnh",
+    "networkVolumeId": null,
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "rij0jl9o3dl9py",
+    "name": "ct-lipsync-musetalk-v1",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:2.0.1-py3.10-cuda11.8.0-devel-ubuntu22.04",
+    "gpu": null,
+    "machineId": "m35p375itlz4",
+    "networkVolumeId": null,
+    "volumeInGb": 30,
+    "containerDiskInGb": 25,
+    "costPerHr": 0.49,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "5ziiyypuiq8pwq",
+    "name": "urban_silver_ape",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/stable-diffusion:comfy-ui-6.0.0",
+    "gpu": null,
+    "machineId": "fxpu92wh6clz",
+    "networkVolumeId": "xs4k4zrvn4",
+    "volumeInGb": 0,
+    "containerDiskInGb": 5,
+    "costPerHr": 0.99,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "utwfrr95vxzj65",
+    "name": "passive_rose_warbler",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/stable-diffusion:comfy-ui-6.0.0",
+    "gpu": null,
+    "machineId": "19ybg2obmd3f",
+    "networkVolumeId": "xs4k4zrvn4",
+    "volumeInGb": 0,
+    "containerDiskInGb": 5,
+    "costPerHr": 0.495,
+    "adjustedCostPerHr": null
+  }
+]
