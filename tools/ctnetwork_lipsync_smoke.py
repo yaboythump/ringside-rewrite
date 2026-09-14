@@ -69,16 +69,48 @@ ROOT=/workspace/ctnetwork-local
 STATUS="$ROOT/status"
 OUT="$ROOT/ready_for_approval/latentsync-official-smoke.mp4"
 WRAPPER="$ROOT/bin/ctn-lipsync-test"
+PY="$ROOT/envs/latentsync/bin/python"
+UV="$ROOT/bin/uv"
+export UV_INSTALL_DIR="$ROOT/bin"
+export UV_PYTHON_INSTALL_DIR="$ROOT/python"
+export UV_CACHE_DIR="$ROOT/cache/uv"
+export PATH="$ROOT/bin:$PATH"
 
 test "$(cat "$STATUS/latentsync.status" 2>/dev/null || true)" = PASS || { echo LATENTSYNC_NOT_READY; exit 21; }
 test -s "$ROOT/src/LatentSync/checkpoints/whisper/tiny.pt" || { echo WHISPER_CHECKPOINT_MISSING; exit 23; }
 test -s "$ROOT/src/LatentSync/checkpoints/latentsync_unet.pt" || { echo LATENTSYNC_UNET_MISSING; exit 24; }
 test -s "$ROOT/src/LatentSync/assets/demo1_video.mp4" || { echo DEMO_VIDEO_MISSING; exit 25; }
 test -s "$ROOT/src/LatentSync/assets/demo1_audio.wav" || { echo DEMO_AUDIO_MISSING; exit 26; }
+mkdir -p "$ROOT/bin" "$ROOT/python" "$ROOT/cache/uv" "$ROOT/envs" "$ROOT/ready_for_approval"
+
+# Cold-start repair: uv and its managed Python interpreter must live on the
+# persistent network volume, not in /root on the disposable pod filesystem.
+if [ ! -x "$UV" ]; then
+  echo REPAIR_PERSISTENT_UV
+  curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$ROOT/bin" sh
+fi
+
+if ! "$PY" -V >/dev/null 2>&1; then
+  echo REPAIR_PERSISTENT_LATENTSYNC_RUNTIME
+  rm -rf "$ROOT/envs/latentsync"
+  "$UV" python install 3.10
+  "$UV" venv --python 3.10 "$ROOT/envs/latentsync"
+  "$UV" pip install --python "$PY" torch torchvision --index-url https://download.pytorch.org/whl/cu128
+  awk '!/^torch==/ && !/^torchvision==/ && !/^--extra-index-url/' \
+    "$ROOT/src/LatentSync/requirements.txt" > "$STATUS/latentsync-requirements-blackwell.txt"
+  "$UV" pip install --python "$PY" -r "$STATUS/latentsync-requirements-blackwell.txt"
+  "$UV" pip install --python "$PY" huggingface-hub hf_xet
+  "$PY" - <<'PYCHK'
+import torch
+print('cold-start latentsync torch', torch.__version__, 'cuda', torch.version.cuda, 'available', torch.cuda.is_available())
+if not torch.cuda.is_available(): raise SystemExit(2)
+print(torch.cuda.get_device_name(0), torch.cuda.get_device_capability(0))
+PYCHK
+  echo PASS > "$STATUS/latentsync_runtime_persistent.status"
+fi
 
 # Self-heal the runtime wrapper if the full installer stopped later at gated LTX-2.5.
 if [ ! -x "$WRAPPER" ]; then
-  mkdir -p "$ROOT/bin" "$ROOT/ready_for_approval"
   cat > "$WRAPPER" <<'WRAP'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -104,6 +136,7 @@ WRAP
 fi
 
 test -x "$WRAPPER" || { echo LIPSYNC_WRAPPER_MISSING; exit 22; }
+test -x "$PY" || { echo LATENTSYNC_PYTHON_MISSING; exit 27; }
 rm -f "$OUT" "${OUT%.mp4}.ffprobe.json"
 "$WRAPPER" \
   "$ROOT/src/LatentSync/assets/demo1_video.mp4" \
