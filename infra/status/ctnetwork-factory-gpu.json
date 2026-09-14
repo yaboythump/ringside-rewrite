@@ -1,7 +1,7 @@
 {
-  "id": "m3ox46xea1u3vd",
+  "id": "v92zliqqi85bwj",
   "name": "ctnetwork-factory-gpu",
-  "desiredStatus": "EXITED",
+  "desiredStatus": "RUNNING",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
   "networkVolumeId": "9wjb3sa5zm",
   "containerDiskInGb": 40,
@@ -14,7 +14,7 @@
   "portMappings": null,
   "costPerHr": 0.72,
   "adjustedCostPerHr": null,
-  "machineId": "hy7y1eize5r8",
+  "machineId": "rfs5dg8hrjdz",
   "gpu": null,
   "machine": {
     "dataCenterId": null,
