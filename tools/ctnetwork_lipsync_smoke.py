@@ -74,6 +74,9 @@ UV="$ROOT/bin/uv"
 export UV_INSTALL_DIR="$ROOT/bin"
 export UV_PYTHON_INSTALL_DIR="$ROOT/python"
 export UV_CACHE_DIR="$ROOT/cache/uv"
+export HF_HOME="$ROOT/cache/huggingface"
+export HF_HUB_CACHE="$HF_HOME/hub"
+export TRANSFORMERS_CACHE="$HF_HOME/transformers"
 export PATH="$ROOT/bin:$PATH"
 
 test "$(cat "$STATUS/latentsync.status" 2>/dev/null || true)" = PASS || { echo LATENTSYNC_NOT_READY; exit 21; }
@@ -81,7 +84,7 @@ test -s "$ROOT/src/LatentSync/checkpoints/whisper/tiny.pt" || { echo WHISPER_CHE
 test -s "$ROOT/src/LatentSync/checkpoints/latentsync_unet.pt" || { echo LATENTSYNC_UNET_MISSING; exit 24; }
 test -s "$ROOT/src/LatentSync/assets/demo1_video.mp4" || { echo DEMO_VIDEO_MISSING; exit 25; }
 test -s "$ROOT/src/LatentSync/assets/demo1_audio.wav" || { echo DEMO_AUDIO_MISSING; exit 26; }
-mkdir -p "$ROOT/bin" "$ROOT/python" "$ROOT/cache/uv" "$ROOT/envs" "$ROOT/ready_for_approval"
+mkdir -p "$ROOT/bin" "$ROOT/python" "$ROOT/cache/uv" "$HF_HUB_CACHE" "$TRANSFORMERS_CACHE" "$ROOT/envs" "$ROOT/ready_for_approval"
 
 # Cold-start repair: uv and its managed Python interpreter must live on the
 # persistent network volume, not in /root on the disposable pod filesystem.
@@ -109,6 +112,23 @@ PYCHK
   echo PASS > "$STATUS/latentsync_runtime_persistent.status"
 fi
 
+# LatentSync loads stabilityai/sd-vae-ft-mse at inference time. Cache the full
+# VAE on the persistent volume before GPU work, then force the actual render
+# offline so a transient Hugging Face/network lookup cannot stall production.
+if [ "$(cat "$STATUS/latentsync_vae_persistent.status" 2>/dev/null || true)" != PASS ]; then
+  echo CACHE_PERSISTENT_LATENTSYNC_VAE
+  "$PY" - <<'PYVAE'
+from huggingface_hub import snapshot_download
+p = snapshot_download(
+    repo_id="stabilityai/sd-vae-ft-mse",
+    cache_dir="/workspace/ctnetwork-local/cache/huggingface/hub",
+)
+print("VAE_CACHE", p)
+PYVAE
+  find "$HF_HUB_CACHE" -type f \( -name 'diffusion_pytorch_model.safetensors' -o -name 'diffusion_pytorch_model.bin' \) -print -quit | grep -q . || { echo VAE_MODEL_FILE_MISSING; exit 28; }
+  echo PASS > "$STATUS/latentsync_vae_persistent.status"
+fi
+
 # Self-heal the runtime wrapper if the full installer stopped later at gated LTX-2.5.
 if [ ! -x "$WRAPPER" ]; then
   cat > "$WRAPPER" <<'WRAP'
@@ -118,6 +138,9 @@ ROOT=/workspace/ctnetwork-local
 VIDEO=${1:?usage: ctn-lipsync-test input_video input_audio [output]}
 AUDIO=${2:?usage: ctn-lipsync-test input_video input_audio [output]}
 OUT=${3:-$ROOT/ready_for_approval/lipsync-test.mp4}
+export HF_HOME="$ROOT/cache/huggingface"
+export HF_HUB_CACHE="$HF_HOME/hub"
+export TRANSFORMERS_CACHE="$HF_HOME/transformers"
 cd "$ROOT/src/LatentSync"
 "$ROOT/envs/latentsync/bin/python" -m scripts.inference \
   --unet_config_path configs/unet/stage2_512.yaml \
@@ -133,12 +156,42 @@ echo "$OUT"
 WRAP
   chmod +x "$WRAPPER"
   echo SELF_HEALED_LIPSYNC_WRAPPER
+else
+  # Refresh an older wrapper so every cold start inherits the persistent cache.
+  if ! grep -q 'HF_HUB_CACHE' "$WRAPPER"; then
+    rm -f "$WRAPPER"
+    cat > "$WRAPPER" <<'WRAP'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+ROOT=/workspace/ctnetwork-local
+VIDEO=${1:?usage: ctn-lipsync-test input_video input_audio [output]}
+AUDIO=${2:?usage: ctn-lipsync-test input_video input_audio [output]}
+OUT=${3:-$ROOT/ready_for_approval/lipsync-test.mp4}
+export HF_HOME="$ROOT/cache/huggingface"
+export HF_HUB_CACHE="$HF_HOME/hub"
+export TRANSFORMERS_CACHE="$HF_HOME/transformers"
+cd "$ROOT/src/LatentSync"
+"$ROOT/envs/latentsync/bin/python" -m scripts.inference \
+  --unet_config_path configs/unet/stage2_512.yaml \
+  --inference_ckpt_path checkpoints/latentsync_unet.pt \
+  --inference_steps 20 \
+  --guidance_scale 1.5 \
+  --enable_deepcache \
+  --video_path "$VIDEO" \
+  --audio_path "$AUDIO" \
+  --video_out_path "$OUT"
+ffprobe -v error -show_entries format=duration -show_streams -of json "$OUT" > "${OUT%.mp4}.ffprobe.json"
+echo "$OUT"
+WRAP
+    chmod +x "$WRAPPER"
+    echo REFRESHED_LIPSYNC_WRAPPER_CACHE
+  fi
 fi
 
 test -x "$WRAPPER" || { echo LIPSYNC_WRAPPER_MISSING; exit 22; }
 test -x "$PY" || { echo LATENTSYNC_PYTHON_MISSING; exit 27; }
 rm -f "$OUT" "${OUT%.mp4}.ffprobe.json"
-"$WRAPPER" \
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$WRAPPER" \
   "$ROOT/src/LatentSync/assets/demo1_video.mp4" \
   "$ROOT/src/LatentSync/assets/demo1_audio.wav" \
   "$OUT"
