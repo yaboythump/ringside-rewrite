@@ -1,6 +1,12 @@
 === ALL NETWORK VOLUMES AFTER PROVISION ===
 [
   {
+    "dataCenterId": "EUR-NO-1",
+    "id": "631b7gakhp",
+    "name": "ctnetwork-factory-no",
+    "size": 300
+  },
+  {
     "dataCenterId": "EU-RO-1",
     "id": "9wjb3sa5zm",
     "name": "ctnetwork-factory",
