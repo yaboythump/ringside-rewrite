@@ -1,3 +1,4 @@
+# CTNETWORK read-only factory health probe — Norway migration heartbeat
 name: CTNETWORK Factory Health Probe
 
 on:
@@ -62,7 +63,7 @@ jobs:
           r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/'},timeout=30,allow_redirects=False)
           if r.status_code not in (200,302,303): r.raise_for_status()
           xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
-          probe=s.get(base+'/api/status',headers=headers,timeout=30); probe.raise_for_status()
+          s.get(base+'/api/status',headers=headers,timeout=30).raise_for_status()
           r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
           cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
           ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
@@ -72,13 +73,9 @@ jobs:
           echo "--- GPU ---"; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader 2>/dev/null || true
           echo "--- STORAGE ---"; df -h /workspace 2>/dev/null || true
           echo "--- FACTORY SIZE ---"; du -sh /workspace/ctnetwork-local 2>/dev/null || true
-          echo "--- PYTHON LINKS ---"; ls -l /workspace/ctnetwork-local/envs/latentsync/bin/python* 2>/dev/null || true; readlink -f /workspace/ctnetwork-local/envs/latentsync/bin/python 2>/dev/null || true
+          echo "--- FACTORY FILE COUNT ---"; find /workspace/ctnetwork-local -type f 2>/dev/null | wc -l || true
           echo "--- STATUS FILES ---"; find /workspace/ctnetwork-local/status -maxdepth 2 -type f -print 2>/dev/null | sort
-          echo "--- STATUS CONTENT ---"; for f in /workspace/ctnetwork-local/status/*; do [ -f "$f" ] || continue; echo "### $f"; tail -80 "$f"; done 2>/dev/null || true
-          echo "--- REPOS ---"; for d in /workspace/ctnetwork-local/src/*; do [ -d "$d" ] || continue; basename "$d"; done 2>/dev/null || true
-          echo "--- ENVS ---"; for d in /workspace/ctnetwork-local/envs/*; do [ -d "$d" ] || continue; basename "$d"; done 2>/dev/null || true
-          echo "--- MODELS ---"; find /workspace/ctnetwork-local/models -maxdepth 3 -type d 2>/dev/null | sort | head -120
-          echo "--- ACTIVE FACTORY PROCESSES ---"; pgrep -af "scripts.inference|LatentSync|latentsync|ctn-lipsync|uv |uv$|pip install|huggingface|snapshot_download|git clone|python" 2>/dev/null | grep -v "pgrep -af" || true
+          echo "--- ACTIVE TRANSFER/FACTORY PROCESSES ---"; pgrep -af "rsync|sshd|ctnetwork|scripts.inference|LatentSync|latentsync|uv |pip install|snapshot_download" 2>/dev/null | grep -v "pgrep -af" || true
           printf '__CTN_PROBE_DONE__\n'
           '''
           enc=base64.b64encode(script.encode()).decode()
