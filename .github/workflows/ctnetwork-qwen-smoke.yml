@@ -2,12 +2,16 @@ name: CTNETWORK Qwen Narration Smoke Test
 
 on:
   workflow_run:
-    workflows: ["CTNETWORK Lip Sync Smoke Test"]
+    workflows: ["CTNETWORK Real-Face LatentSync Certification"]
     types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: ctnetwork-qwen-narration-certification
+  cancel-in-progress: true
 
 jobs:
   narration-smoke:
