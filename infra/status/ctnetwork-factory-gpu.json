@@ -1,1 +1,1 @@
-{"name":"ctnetwork-factory-gpu-v3","networkVolumeId":"9wjb3sa5zm","dataCenterId":"EU-RO-1","gpuTypes":["NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 6000 Blackwell Server Edition"],"desiredStatus":"CREATE_FAILED"}
+{"name":"ctnetwork-factory-gpu-v4","networkVolumeId":"9wjb3sa5zm","dataCenterId":"EU-RO-1","gpuTypes":["NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 2g.48gb","NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 6000 Blackwell Server Edition"],"desiredStatus":"CREATE_FAILED"}
