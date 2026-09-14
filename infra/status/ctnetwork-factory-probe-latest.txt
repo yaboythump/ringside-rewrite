@@ -1,1 +1,30 @@
-probe output unavailable
+ _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# echo c2V0ICtlCmVjaG8gIj09PSBDVE5FVFdPUksgRkFDVE9SWSBQUk9CRSBTVEFSVCA9PT0iCmRhdGUgLXUKZWNobyAiLS0tIEdQVSAtLS0iOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS51c2VkLHV0aWxpemF0aW9uLmdwdSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RPUkFHRSAtLS0iOyBkZiAtaCAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEZBQ1RPUlkgU0laRSAtLS0iOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gUFlUSE9OIExJTktTIC0tLSI7IGxzIC1sIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsL2VudnMvbGF0ZW50c3luYy9iaW4vcHl0aG9uKiAyPi9kZXYvbnVsbCB8fCB0cnVlOyByZWFkbGluayAtZiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9lbnZzL2xhdGVudHN5bmMvYmluL3B5dGhvbiAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gIi0tLSBTVEFUVVMgRklMRVMgLS0tIjsgZmluZCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9zdGF0dXMgLW1heGRlcHRoIDIgLXR5cGUgZiAtcHJpbnQgMj4vZGV2L251bGwgfCBzb3J0CmVjaG8gIi0tLSBTVEFUVVMgQ09OVEVOVCAtLS0iOyBmb3IgZiBpbiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9zdGF0dXMvKjsgZG8gWyAtZiAiJGYiIF0gfHwgY29udGludWU7IGVjaG8gIiMjIyAkZiI7IHRhaWwgLTgwICIkZiI7IGRvbmUgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gUkVQT1MgLS0tIjsgZm9yIGQgaW4gL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvc3JjLyo7IGRvIFsgLWQgIiRkIiBdIHx8IGNvbnRpbnVlOyBiYXNlbmFtZSAiJGQiOyBkb25lIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEVOVlMgLS0tIjsgZm9yIGQgaW4gL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwvZW52cy8qOyBkbyBbIC1kICIkZCIgXSB8fCBjb250aW51ZTsgYmFzZW5hbWUgIiRkIjsgZG9uZSAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gIi0tLSBNT0RFTFMgLS0tIjsgZmluZCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9tb2RlbHMgLW1heGRlcHRoIDMgLXR5cGUgZCAyPi9kZXYvbnVsbCB8IHNvcnQgfCBoZWFkIC0xMjAKZWNobyAiLS0tIEFDVElWRSBGQUNUT1JZIFBST0NFU1NFUyAtLS0iOyBwZ3JlcCAtYWYgInNjcmlwdHMuaW5mZXJlbmNlfExhdGVudFN5bmN8bGF0ZW50c3luY3xjdG4tbGlwc3luY3x1diB8dXYkfHBpcCBpbnN0YWxsfGh1Z2dpbmdmYWNlfHNuYXBzaG90X2Rvd25sb2FkfGdpdCBjbG9uZXxweXRob24iIDI+L2Rldi9udWxsIHwgZ3JlcCAtdiAicGdyZXAgLWFmIiB8fCB0cnVlCnByaW50ZiAnX19DVE5fUFJPQkVfRE9ORV9fXG4nCg== | base64 -d | bash
+[?2004l=== CTNETWORK FACTORY PROBE START ===
+Mon Sep 14 15:20:10 UTC 2026
+--- GPU ---
+NVIDIA GeForce RTX 5090, 32607 MiB, 1 MiB, 0 %
+--- STORAGE ---
+Filesystem                    Size  Used Avail Use% Mounted on
+mfs#eur-no-1.runpod.net:9421 1006T  221T  786T  22% /workspace
+--- FACTORY SIZE ---
+--- PYTHON LINKS ---
+--- STATUS FILES ---
+--- STATUS CONTENT ---
+--- REPOS ---
+--- ENVS ---
+--- MODELS ---
+--- ACTIVE FACTORY PROCESSES ---
+147 /usr/local/bin/python /usr/local/bin/jupyter-lab --allow-root --no-browser --port=8888 --ip=* --FileContentsManager.delete_to_trash=False --ServerApp.terminado_settings={"shell_command":["/bin/bash"]} --IdentityProvider.token=c96cd36717cbb77f8c6c25529541708c0234263cacaec787 --ServerApp.allow_origin=* --ServerApp.preferred_dir=/workspace
+__CTN_PROBE_DONE__
