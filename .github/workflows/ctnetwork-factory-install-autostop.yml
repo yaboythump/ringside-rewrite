@@ -1,0 +1,66 @@
+name: CTNETWORK Factory Install Auto-Stop
+
+on:
+  workflow_run:
+    workflows:
+      - CTNETWORK Local Production Stack Install
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+env:
+  FACTORY_NAME: ctnetwork-factory-gpu
+  FACTORY_VOLUME_ID: 9wjb3sa5zm
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Stop factory compute after installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p infra/status
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD=$(printf '%s' "$PODS" | jq -c --arg n "$FACTORY_NAME" --arg v "$FACTORY_VOLUME_ID" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first // empty')
+          if [[ -z "$POD" ]]; then
+            jq -nc --arg n "$FACTORY_NAME" --arg v "$FACTORY_VOLUME_ID" --arg conclusion '${{ github.event.workflow_run.conclusion }}' \
+              '{name:$n,networkVolumeId:$v,desiredStatus:"NOT_FOUND",installerConclusion:$conclusion}' \
+              | tee infra/status/ctnetwork-factory-autostop.json
+            exit 0
+          fi
+          POD_ID=$(printf '%s' "$POD" | jq -r '.id')
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" == "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          fi
+          for i in $(seq 1 45); do
+            sleep 2
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+            [[ "$STATUS" == "EXITED" || "$STATUS" == "STOPPED" ]] && break
+          done
+          printf '%s' "$POD" | jq --arg conclusion '${{ github.event.workflow_run.conclusion }}' \
+            '{id,name,desiredStatus,networkVolumeId:(.networkVolumeId // .networkVolume.id),costPerHr,installerConclusion:$conclusion,lastStatusChange}' \
+            | tee infra/status/ctnetwork-factory-autostop.json
+          [[ "$STATUS" == "EXITED" || "$STATUS" == "STOPPED" ]] || exit 5
+
+      - name: Save auto-stop state
+        if: always()
+        shell: bash
+        run: |
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-factory-autostop.json
+          git commit -m 'CTNETWORK: record factory install auto-stop' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
