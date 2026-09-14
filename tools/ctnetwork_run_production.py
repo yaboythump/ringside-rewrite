@@ -29,6 +29,11 @@ def build_payload() -> str:
         tf.add(REPO / 'runpod' / 'ctnetwork_qwen_narrate.py', arcname='controller/ctnetwork_qwen_narrate.py')
         tf.add(REPO / 'runpod' / 'ctnetwork_ltx_generate.py', arcname='controller/ctnetwork_ltx_generate.py')
         tf.add(MANIFEST, arcname='incoming/ctnetwork-production-manifest.json')
+        # Authorized CTNETWORK show reference used by the final local-factory proof job.
+        # It remains inside the production payload and is never published as a standalone asset.
+        malik_ref = REPO / 'published-assets' / 'the-case-against' / 'narrator-audition' / 'malik_am_onyx_raw.wav'
+        if malik_ref.exists():
+            tf.add(malik_ref, arcname='incoming/voice_refs/the_case_against_malik.wav')
         for p in sorted((REPO / 'ctnetwork' / 'shows').glob('*.yaml')):
             tf.add(p, arcname=f'recipes/{p.name}')
     return base64.b64encode(bio.getvalue()).decode()
