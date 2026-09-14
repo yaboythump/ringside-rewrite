@@ -1,0 +1,35 @@
+name: CTNETWORK Stop Old 5090 Pod
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-stop-old-pod-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stop and verify pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-stop-old-pod-command.json)
+          curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/tmp/stop.json
+          cat /tmp/stop.json
+          for i in $(seq 1 24); do
+            sleep 5
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+            echo "status=$STATUS"
+            if [[ "$STATUS" == "EXITED" || "$STATUS" == "STOPPED" ]]; then exit 0; fi
+          done
+          echo 'Pod did not confirm stopped state in time'
+          exit 1
