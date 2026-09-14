@@ -1,5 +1,5 @@
 CTNETWORK FACTORY MIGRATION
-run_id=34859838003
+run_id=34860139773
 source_pod=0xmrdq72ka4cxr
 destination_pod=8p2ytviv38olnv
 job_status=success
@@ -17,7 +17,7 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1vIHBpcGVmYWlsCnRlc3QgLWQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWw7IGNvbW1hbmQgLXYgcnVucG9kY3RsOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWw7IGZpbmQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgLW1heGRlcHRoIDIgLXR5cGUgZiB8IGhlYWQKcmM9JD8KZWNobyBfX0NUTl9ET05FXzE3ODkzOTgzMzM4NTJfXzokcmMK | base64 -d | bash
+[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1vIHBpcGVmYWlsCnRlc3QgLWQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWw7IGNvbW1hbmQgLXYgcnVucG9kY3RsOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWw7IGZpbmQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgLW1heGRlcHRoIDIgLXR5cGUgZiB8IGhlYWQKcmM9JD8KZWNobyBfX0NUTl9ET05FXzE3ODkzOTg1Mjg4NjdfXzokcmMK | base64 -d | bash
 [?2004l[0xmrdq72ka4cxr] /usr/bin/runpodctl
 [0xmrdq72ka4cxr] 51G	/workspace/ctnetwork-local
 [0xmrdq72ka4cxr] /workspace/ctnetwork-local/python/.lock
@@ -30,7 +30,7 @@ For detailed documentation and guides, please visit:
 /workspace/ctnetwork-local/status/latentsync_runtime_persistent.status
 /workspace/ctnetwork-local/status/ltx25_code.status
 /workspace/ctnetwork-local/status/latentsync.status
-[0xmrdq72ka4cxr] __CTN_DONE_1789398333852__:0
+[0xmrdq72ka4cxr] __CTN_DONE_1789398528867__:0
 [8p2ytviv38olnv]  _____                             _ 
 |  __ \                           | |
 | |__) |   _ _ __  _ __   ___   __| |
@@ -43,9 +43,9 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1vIHBpcGVmYWlsCmNvbW1hbmQgLXYgcnVucG9kY3RsOyBybSAtcmYgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwuaW5jb21pbmc7IHRlc3QgISAtZSAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbCB8fCBtdiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC5wcmVfbWlncmF0aW9uXyQoZGF0ZSArJXMpCnJjPSQ/CmVjaG8gX19DVE5fRE9ORV8xNzg5Mzk4NDU1Mzk0X186JHJjCg== | base64 -d | bash
+[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1vIHBpcGVmYWlsCmNvbW1hbmQgLXYgcnVucG9kY3RsOyBybSAtcmYgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwuaW5jb21pbmc7IHRlc3QgISAtZSAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbCB8fCBtdiAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC5wcmVfbWlncmF0aW9uXyQoZGF0ZSArJXMpCnJjPSQ/CmVjaG8gX19DVE5fRE9ORV8xNzg5Mzk4NjIwMzg5X186JHJjCg== | base64 -d | bash
 [?2004l[8p2ytviv38olnv] /usr/bin/runpodctl
-[8p2ytviv38olnv] __CTN_DONE_1789398455394__:0
+[8p2ytviv38olnv] __CTN_DONE_1789398620389__:0
 [0xmrdq72ka4cxr] groups: cannot find name for group ID 993
  _____                             _ 
 |  __ \                           | |
@@ -59,9 +59,9 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1vIHBpcGVmYWlsCmNkIC93b3Jrc3BhY2U7IG5vaHVwIHJ1bnBvZGN0bCBzZW5kIGN0bmV0d29yay1sb2NhbCAtLWNvZGUgY3RuLWZhY3Rvcnktbm8tMjAyNjA5MTQgPiAvdG1wL2N0bi1zZW5kLmxvZyAyPiYxICYgZWNobyBTRU5ERVJfUElEOiQhCnJjPSQ/CmVjaG8gX19DVE5fRE9ORV8xNzg5Mzk4NDU2NzE2X186JHJjCg== | base64 -d | bash
-[?2004l[0xmrdq72ka4cxr] SENDER_PID:139
-[0xmrdq72ka4cxr] __CTN_DONE_1789398456716__:0
+[?2004h]0;root@c09497c8fb4c: /root@c09497c8fb4c:/# [0xmrdq72ka4cxr] echo c2V0IC1vIHBpcGVmYWlsCmNkIC93b3Jrc3BhY2U7IG5vaHVwIHJ1bnBvZGN0bCBzZW5kIGN0bmV0d29yay1sb2NhbCAtLWNvZGUgY3RuLWZhY3Rvcnktbm8tMjAyNjA5MTRiID4gL3RtcC9jdG4tc2VuZC5sb2cgMj4mMSAmIGVjaG8gU0VOREVSX1BJRDokIQpyYz0kPwplY2hvIF9fQ1ROX0RPTkVfMTc4OTM5ODYyMTkwNV9fOiRyYwo= | base64 -d | bash
+[?2004l[0xmrdq72ka4cxr] SENDER_PID:196
+[0xmrdq72ka4cxr] __CTN_DONE_1789398621905__:0
 [8p2ytviv38olnv]  _____                             _ 
 |  __ \                           | |
 | |__) |   _ _ __  _ __   ___   __| |
@@ -74,7 +74,6 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1vIHBpcGVmYWlsCmNkIC93b3Jrc3BhY2U7IHJ1bnBvZGN0bCByZWNlaXZlIGN0bi1mYWN0b3J5LW5vLTIwMjYwOTE0ID4gL3RtcC9jdG4tcmVjZWl2ZS5sb2cgMj4mMTsgY2F0IC90bXAvY3RuLXJlY2VpdmUubG9nOyB0ZXN0IC1kIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsCnJjPSQ/CmVjaG8gX19DVE5fRE9ORV8xNzg5Mzk4NDYxMzEyX186JHJjCg== | base64 -d | bash
-[?2004l[8p2ytviv38olnv] Runpod config file not found, please run `runpodctl config` to create it
-runpodctl-receive: Relay index 20260914 not found; please retry 'runpodctl send' to generate a valid code.
-[8p2ytviv38olnv] __CTN_DONE_1789398461312__:1
+[?2004h]0;root@c936d0cfaf51: /root@c936d0cfaf51:/# [8p2ytviv38olnv] echo c2V0IC1vIHBpcGVmYWlsCmNkIC93b3Jrc3BhY2U7IHJ1bnBvZGN0bCByZWNlaXZlIGN0bi1mYWN0b3J5LW5vLTIwMjYwOTE0YiA+IC90bXAvY3RuLXJlY2VpdmUubG9nIDI+JjE7IGNhdCAvdG1wL2N0bi1yZWNlaXZlLmxvZzsgdGVzdCAtZCAvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbApyYz0kPwplY2hvIF9fQ1ROX0RPTkVfMTc4OTM5ODYyNjQ4NV9fOiRyYwo= | base64 -d | bash
+[?2004l[8p2ytviv38olnv] runpodctl-receive: Malformed relay, please retry 'runpodctl send' to generate a valid code.
+[8p2ytviv38olnv] __CTN_DONE_1789398626485__:1
