@@ -1,6 +1,6 @@
 {
   "action": "provision",
-  "name": "ctnetwork-factory-gpu-v2",
+  "name": "ctnetwork-factory-gpu-v3",
   "network_volume_id": "9wjb3sa5zm",
   "data_center_id": "EU-RO-1",
   "gpu_types": [
@@ -8,5 +8,5 @@
     "NVIDIA RTX PRO 6000 Blackwell Server Edition"
   ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "ctnetwork-factory-v2-provision-2026-09-14-01"
+  "request_id": "ctnetwork-factory-v3-provision-2026-09-14-01"
 }
