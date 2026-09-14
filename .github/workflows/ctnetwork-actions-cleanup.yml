@@ -1,0 +1,39 @@
+name: CTNETWORK Stale Actions Cleanup
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-actions-cleanup-command.json'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Cancel stale workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=$(jq -r '.run_id // empty' ctnetwork-actions-cleanup-command.json)
+          [[ -n "$RUN_ID" ]] || { echo 'run_id missing'; exit 2; }
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/cancel"
+          code=$(curl -sS -o /tmp/cancel.json -w '%{http_code}' -X POST "$API" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28')
+          cat /tmp/cancel.json || true
+          if [[ "$code" != 202 && "$code" != 409 ]]; then
+            echo "Unexpected cancel status: $code"
+            exit 3
+          fi
+          echo "stale run cleanup accepted status=$code run_id=$RUN_ID"
