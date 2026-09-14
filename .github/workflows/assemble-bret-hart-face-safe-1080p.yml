@@ -1,0 +1,165 @@
+name: Assemble Bret Hart Face-Safe 1080p Master
+
+on:
+  push:
+    paths:
+      - '.github/workflows/assemble-bret-hart-face-safe-1080p.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_COLLAGE_URL: https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/47836f11-bdee-45f3-a830-a9f2053672da.jpg
+      AUDIO_URL: https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/84055a13-b379-4e4d-a089-d9c52053e645.mp3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ffmpeg and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          python3 -m pip install --quiet pillow
+
+      - name: Download original Bret collage and Kevin audio master
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 5 --retry-delay 2 "$SOURCE_COLLAGE_URL" -o /tmp/bret_collage.jpg
+          curl -L --fail --retry 5 --retry-delay 2 "$AUDIO_URL" -o /tmp/bret_audio_master.mp3
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/bret_audio_master.mp3
+
+      - name: Build clean 1920x1080 face-safe scene frames from original collage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bret1080/frames /tmp/bret1080/motion final
+          python3 - <<'PY'
+          from PIL import Image, ImageOps, ImageFilter, ImageEnhance
+          from pathlib import Path
+
+          src=Image.open('/tmp/bret_collage.jpg').convert('RGB')
+          W,H=1920,1080
+          boxes={
+            1:(0,540,500,864),
+            2:(0,0,370,330),
+            3:(220,0,650,325),
+            4:(0,175,355,535),
+            5:(235,175,690,525),
+            6:(815,0,1280,355),
+            7:(815,0,1280,355),
+            8:(1145,0,1536,385),
+            9:(860,190,1260,555),
+            10:(1130,220,1536,625),
+            11:(1000,405,1536,750),
+            12:(0,360,500,735),
+            13:(380,0,1160,750),
+            14:(1030,515,1536,864),
+          }
+          out=Path('/tmp/bret1080/frames')
+          for sid,box in boxes.items():
+              crop=src.crop(box)
+              # cinematic blurred edge-fill background; foreground panel remains untouched in geometry
+              bg=ImageOps.fit(crop,(W,H),method=Image.Resampling.LANCZOS)
+              bg=bg.filter(ImageFilter.GaussianBlur(44))
+              bg=ImageEnhance.Brightness(bg).enhance(0.36)
+              bg=ImageEnhance.Color(bg).enhance(0.78)
+              fg=ImageOps.contain(crop,(W-150,H-96),method=Image.Resampling.LANCZOS)
+              canvas=bg.copy()
+              x=(W-fg.width)//2
+              y=(H-fg.height)//2
+              canvas.paste(fg,(x,y))
+              canvas=ImageEnhance.Contrast(canvas).enhance(1.035)
+              canvas=ImageEnhance.Sharpness(canvas).enhance(1.15)
+              canvas.save(out/f'scene_{sid:02d}.jpg',quality=96,subsampling=0)
+          PY
+          identify /tmp/bret1080/frames/scene_01.jpg || true
+
+      - name: Create two face-safe motion variants per scene
+        shell: bash
+        run: |
+          set -euo pipefail
+          for N in $(seq -w 1 14); do
+            IN="/tmp/bret1080/frames/scene_${N}.jpg"
+            # Variant A: very slow push-in. No generative redraw; every output frame derives from the source image.
+            ffmpeg -y -loglevel error -loop 1 -i "$IN" -t 5 \
+              -vf "scale=2000:1125,zoompan=z='min(zoom+0.00035,1.045)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=150:s=1920x1080:fps=30,format=yuv420p" \
+              -an -c:v libx264 -preset veryfast -crf 18 -profile:v high -level 4.1 -movflags +faststart \
+              "/tmp/bret1080/motion/scene_${N}_A.mp4"
+            # Variant B: restrained lateral drift with fixed facial geometry.
+            ffmpeg -y -loglevel error -loop 1 -i "$IN" -t 5 \
+              -vf "scale=2050:1153,crop=1920:1080:x='65+25*sin(t*0.55)':y='36+12*cos(t*0.45)',fps=30,format=yuv420p" \
+              -an -c:v libx264 -preset veryfast -crf 18 -profile:v high -level 4.1 -movflags +faststart \
+              "/tmp/bret1080/motion/scene_${N}_B.mp4"
+          done
+
+      - name: Build story-timed 1080p timeline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import math
+          sections=[
+              (106.316583,[13,2,3,6,1,4,8,6,2,13]),
+              (101.431500,[6,7,12,10,9,11,10,13,7]),
+              (98.212292,[9,5,3,5,8,6,12,10,9]),
+              (111.965958,[5,12,13,11,4,2,14,5,13]),
+              (97.799083,[3,8,13,14,2,1,10,14,13]),
+          ]
+          lines=[]
+          flip=0
+          for dur,order in sections:
+              need=math.ceil(dur/5.0)+2
+              for i in range(need):
+                  sid=order[i%len(order)]
+                  var='A' if flip%2==0 else 'B'
+                  flip+=1
+                  lines.append(f"file '/tmp/bret1080/motion/scene_{sid:02d}_{var}.mp4'\n")
+          Path('/tmp/bret1080/timeline.txt').write_text(''.join(lines))
+          PY
+          AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/bret_audio_master.mp3)
+          ffmpeg -y -loglevel error -f concat -safe 0 -i /tmp/bret1080/timeline.txt \
+            -t "$AUDIO_DUR" -an -c:v copy -movflags +faststart /tmp/bret1080/visual_master_1080p.mp4
+
+      - name: Mux Kevin narration and music into 1080p final
+        run: |
+          set -euo pipefail
+          AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/bret_audio_master.mp3)
+          ffmpeg -y -loglevel error \
+            -i /tmp/bret1080/visual_master_1080p.mp4 -i /tmp/bret_audio_master.mp3 \
+            -map 0:v:0 -map 1:a:0 -t "$AUDIO_DUR" \
+            -c:v copy -c:a aac -b:a 192k -ar 48000 -movflags +faststart \
+            final/RINGSIDE_REWRITE_BRET_HART_FACE_SAFE_1080P_APPROVAL.mp4
+
+      - name: Technical and resolution QC
+        run: |
+          set -euo pipefail
+          FILE=final/RINGSIDE_REWRITE_BRET_HART_FACE_SAFE_1080P_APPROVAL.mp4
+          ffmpeg -v error -i "$FILE" -f null -
+          DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$FILE")
+          V=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,pix_fmt,r_frame_rate -of csv=p=0 "$FILE")
+          A=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,sample_rate,channels -of csv=p=0 "$FILE")
+          W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$FILE")
+          H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$FILE")
+          test "$W" = "1920"
+          test "$H" = "1080"
+          printf 'FACE_SAFE=YES\nGENERATIVE_FACE_MOTION=NO\nduration=%s\nvideo=%s\naudio=%s\nsource=original_1536x864_collage\n' "$DUR" "$V" "$A" > final/QC_SUMMARY.txt
+          ffmpeg -y -loglevel error -ss 60 -i "$FILE" -frames:v 1 final/QC_FRAME_01.jpg
+          ffmpeg -y -loglevel error -ss 260 -i "$FILE" -frames:v 1 final/QC_FRAME_02.jpg
+          ffmpeg -y -loglevel error -ss 500 -i "$FILE" -frames:v 1 final/QC_FRAME_03.jpg
+          ls -lh final/
+
+      - name: Upload face-safe 1080p approval master
+        uses: actions/upload-artifact@v4
+        with:
+          name: bret-hart-ringside-face-safe-1080p
+          path: final/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
