@@ -8,7 +8,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": ""
+        "stockStatus": "Low"
       }
     ]
   },
@@ -32,7 +32,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": ""
+        "stockStatus": "Low"
       }
     ]
   },
@@ -44,7 +44,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": ""
+        "stockStatus": "Low"
       }
     ]
   },
@@ -76,12 +76,17 @@
       {
         "displayName": "RTX 4090",
         "gpuId": "NVIDIA GeForce RTX 4090",
-        "stockStatus": ""
+        "stockStatus": "Low"
       },
       {
         "displayName": "RTX PRO 4500",
         "gpuId": "NVIDIA RTX PRO 4500 Blackwell",
-        "stockStatus": ""
+        "stockStatus": "High"
+      },
+      {
+        "displayName": "A100 PCIe",
+        "gpuId": "NVIDIA A100 80GB PCIe",
+        "stockStatus": "Low"
       },
       {
         "displayName": "RTX PRO 6000",
@@ -111,7 +116,7 @@
       {
         "displayName": "RTX 2000 Ada",
         "gpuId": "NVIDIA RTX 2000 Ada Generation",
-        "stockStatus": ""
+        "stockStatus": "Low"
       },
       {
         "displayName": "B200",
@@ -122,11 +127,6 @@
         "displayName": "L4",
         "gpuId": "NVIDIA L4",
         "stockStatus": "Low"
-      },
-      {
-        "displayName": "A100 PCIe",
-        "gpuId": "NVIDIA A100 80GB PCIe",
-        "stockStatus": ""
       },
       {
         "displayName": "A100 SXM",
@@ -171,6 +171,18 @@
     ]
   },
   {
+    "gpuId": "AMD Instinct MI350 OAM",
+    "displayName": "AMD Instinct MI350 OAM",
+    "memoryInGb": 294,
+    "available": false,
+    "stockStatus": null,
+    "secureCloud": false,
+    "securePricePerHr": null,
+    "communityCloud": false,
+    "communityPricePerHr": null,
+    "dataCenterAvailability": null
+  },
+  {
     "gpuId": "NVIDIA A100 80GB PCIe",
     "displayName": "A100 PCIe",
     "memoryInGb": 80,
@@ -187,7 +199,7 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-KS-2",
@@ -195,7 +207,7 @@
       },
       {
         "dataCenterId": "US-MO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -236,7 +248,7 @@
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-MD-1",
@@ -257,7 +269,7 @@
     "displayName": "A40",
     "memoryInGb": 48,
     "available": true,
-    "stockStatus": "Low",
+    "stockStatus": "Medium",
     "secureCloud": true,
     "securePricePerHr": 0.49,
     "communityCloud": false,
@@ -269,7 +281,7 @@
       },
       {
         "dataCenterId": "EU-SE-1",
-        "stockStatus": "Low"
+        "stockStatus": "Medium"
       },
       {
         "dataCenterId": "US-MO-1",
@@ -281,8 +293,8 @@
     "gpuId": "NVIDIA B200",
     "displayName": "B200",
     "memoryInGb": 180,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 6.79,
     "communityCloud": true,
@@ -294,15 +306,15 @@
       },
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NE-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-TX-6",
@@ -331,7 +343,7 @@
       },
       {
         "dataCenterId": "US-WA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -389,11 +401,11 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -434,7 +446,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-CZ-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-RO-1",
@@ -442,11 +454,11 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-NO-1",
@@ -459,7 +471,7 @@
     "displayName": "H100 SXM",
     "memoryInGb": 80,
     "available": true,
-    "stockStatus": "Medium",
+    "stockStatus": "Low",
     "secureCloud": true,
     "securePricePerHr": 3.49,
     "communityCloud": true,
@@ -467,7 +479,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "AP-IN-1",
-        "stockStatus": "Medium"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "AP-IN-2",
@@ -487,11 +499,11 @@
       },
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-3",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-NO-2",
@@ -499,7 +511,7 @@
       },
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-GA-2",
@@ -532,11 +544,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-GA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-KS-2",
@@ -548,8 +560,8 @@
     "gpuId": "NVIDIA H100 PCIe",
     "displayName": "H100 PCIe",
     "memoryInGb": 80,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 2.89,
     "communityCloud": true,
@@ -557,7 +569,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -602,7 +614,7 @@
       },
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-CO-1",
@@ -656,7 +668,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -664,7 +676,7 @@
       },
       {
         "dataCenterId": "US-GA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-MO-2",
@@ -676,8 +688,8 @@
     "gpuId": "NVIDIA L40",
     "displayName": "L40",
     "memoryInGb": 48,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 0.82,
     "communityCloud": true,
@@ -689,7 +701,7 @@
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -706,15 +718,15 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "OC-AU-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-IL-1",
@@ -726,11 +738,11 @@
       },
       {
         "dataCenterId": "US-NC-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-TX-3",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-TX-4",
@@ -763,7 +775,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-IL-1",
@@ -841,7 +853,7 @@
       },
       {
         "dataCenterId": "US-TX-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -866,8 +878,8 @@
     "gpuId": "NVIDIA RTX PRO 4500 Blackwell",
     "displayName": "RTX PRO 4500",
     "memoryInGb": 32,
-    "available": false,
-    "stockStatus": null,
+    "available": true,
+    "stockStatus": "High",
     "secureCloud": true,
     "securePricePerHr": 0.72,
     "communityCloud": false,
@@ -875,7 +887,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "none"
+        "stockStatus": "High"
+      },
+      {
+        "dataCenterId": "EUR-IS-1",
+        "stockStatus": "Low"
       }
     ]
   },
@@ -933,7 +949,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "CA-MTL-3",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-CZ-1",
@@ -941,7 +957,7 @@
       },
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-RO-1",
@@ -949,7 +965,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -961,7 +977,7 @@
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-MO-2",
@@ -981,7 +997,7 @@
       },
       {
         "dataCenterId": "US-PA-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -1078,7 +1094,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-CZ-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-RO-1",
@@ -1086,11 +1102,11 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-NO-1",
@@ -1108,6 +1124,12 @@
 === EXISTING NETWORK VOLUMES ===
 [
   {
+    "dataCenterId": "EUR-NO-1",
+    "id": "631b7gakhp",
+    "name": "ctnetwork-factory-no",
+    "size": 300
+  },
+  {
     "dataCenterId": "EU-RO-1",
     "id": "9wjb3sa5zm",
     "name": "ctnetwork-factory",
@@ -1122,6 +1144,19 @@
 ]
 === PODS ===
 [
+  {
+    "id": "g1zf15egp0w2i3",
+    "name": "ctnetwork-factory-gpu-v2",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "16cea7fr21s3",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.99,
+    "adjustedCostPerHr": null
+  },
   {
     "id": "v92zliqqi85bwj",
     "name": "ctnetwork-factory-gpu",
