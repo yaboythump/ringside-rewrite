@@ -1,0 +1,115 @@
+name: CTNETWORK Repair LatentSync VAE Gate
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-repair-latentsync-vae-command.json'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Start V2 and verify persistent VAE through symlinks
+        id: repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-repair-latentsync-vae-command.json)
+          [[ -n "$POD_ID" && "$POD_ID" != null ]] || exit 2
+          API="https://rest.runpod.io/v1/pods/$POD_ID"
+          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD=$(curl -fsS "$API" "${auth[@]}")
+          STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != RUNNING ]]; then
+            curl -fsS -X POST "$API/start" "${auth[@]}" >/dev/null
+            for i in $(seq 1 120); do
+              sleep 5
+              POD=$(curl -fsS "$API" "${auth[@]}")
+              STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == RUNNING ]] && break
+            done
+          fi
+          [[ "$STATUS" == RUNNING ]] || { echo "pod start failed: $STATUS"; exit 3; }
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || exit 4
+          echo "::add-mask::$JPASS"
+          export POD_ID JPASS
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64,json,os,re,time
+          import requests,websocket
+          pod=os.environ['POD_ID']; password=os.environ['JPASS']
+          base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session(); r=None
+          for _ in range(60):
+              try:
+                  r=s.get(base+'/login',timeout=10)
+                  if r.ok: break
+              except Exception: pass
+              time.sleep(3)
+          if r is None or not r.ok: raise SystemExit('Jupyter not ready')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('XSRF missing')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},allow_redirects=False,timeout=20)
+          if rr.status_code not in (200,302,303): rr.raise_for_status()
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          s.get(base+'/api/status',headers=headers,timeout=20).raise_for_status()
+          t=s.post(base+'/api/terminals',headers=headers,json={},timeout=20); t.raise_for_status(); name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
+          shell=r'''set -Eeuo pipefail
+          ROOT=/workspace/ctnetwork-local
+          CACHE="$ROOT/cache/huggingface/hub"
+          STATUS="$ROOT/status"
+          mkdir -p "$STATUS"
+          MODEL=$(find -L "$CACHE" -type f \( -name 'diffusion_pytorch_model.safetensors' -o -name 'diffusion_pytorch_model.bin' \) -print -quit)
+          test -n "$MODEL" || { echo VAE_MODEL_FILE_MISSING_AFTER_SYMLINK_RESOLVE; exit 28; }
+          test -s "$MODEL" || { echo VAE_MODEL_EMPTY; exit 29; }
+          echo "VAE_MODEL_VERIFIED=$MODEL"
+          echo PASS > "$STATUS/latentsync_vae_persistent.status"
+          echo __CTN_VAE_REPAIR_DONE__:0
+          '''
+          enc=base64.b64encode(shell.encode()).decode()
+          ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d | bash\n']))
+          deadline=time.time()+180; out=''
+          try:
+              while time.time()<deadline:
+                  msg=ws.recv()
+                  if not msg: continue
+                  try: d=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(d,list) and len(d)>=2 and d[0]=='stdout':
+                      out+=d[1]; print(d[1],end='',flush=True)
+                      if '__CTN_VAE_REPAIR_DONE__:0' in out: break
+              else: raise SystemExit('repair timeout')
+          finally:
+              ws.close()
+              try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception: pass
+          if '__CTN_VAE_REPAIR_DONE__:0' not in out: raise SystemExit('repair did not pass')
+          PY
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Retrigger LatentSync certification on V2
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.repair.outputs.pod_id }}'
+          tmp=$(mktemp)
+          jq --arg p "$POD_ID" --arg r "ctnetwork-lipsync-certification-v2-after-vae-repair-${GITHUB_RUN_ID}" '.action="certify" | .pod_id=$p | .request_id=$r' ctnetwork-lipsync-smoke-command.json > "$tmp"
+          mv "$tmp" ctnetwork-lipsync-smoke-command.json
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add ctnetwork-lipsync-smoke-command.json
+          git commit -m 'CTNETWORK: rerun LatentSync after VAE symlink repair'
+          git pull --rebase origin main
+          git push origin HEAD:main
