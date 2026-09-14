@@ -71,9 +71,10 @@ chmod +x "$ROOT/controller/ctnetwork_factory.py"
 test "$(cat "$ROOT/status/qwen_smoke.status" 2>/dev/null || true)" = PASS || {{ echo QWEN_SMOKE_NOT_CERTIFIED; exit 61; }}
 test "$(cat "$ROOT/status/ltx25_smoke.status" 2>/dev/null || true)" = PASS || {{ echo LTX25_SMOKE_NOT_CERTIFIED; exit 62; }}
 test "$(cat "$ROOT/status/lipsync_smoke.status" 2>/dev/null || true)" = PASS || {{ echo LATENTSYNC_SMOKE_NOT_CERTIFIED; exit 63; }}
+test "$(cat "$ROOT/status/ltx25_dfr.status" 2>/dev/null || true)" = PASS || {{ echo LTX25_DFR_NOT_CERTIFIED; exit 64; }}
 "$ROOT/envs/core/bin/python" "$ROOT/controller/ctnetwork_factory.py" acceptance --job-id factory-acceptance
 
-test "$(cat "$ROOT/status/factory_acceptance.status" 2>/dev/null || true)" = PASS || {{ echo FACTORY_ACCEPTANCE_STATUS_MISSING; exit 64; }}
+test "$(cat "$ROOT/status/factory_acceptance.status" 2>/dev/null || true)" = PASS || {{ echo FACTORY_ACCEPTANCE_STATUS_MISSING; exit 65; }}
 test -s "$ROOT/ready_for_approval/factory-acceptance/master.mp4"
 test -s "$ROOT/ready_for_approval/factory-acceptance/short_01_9x16.mp4"
 test -s "$ROOT/ready_for_approval/factory-acceptance/thumbnail.jpg"
