@@ -2,7 +2,7 @@ name: CTNETWORK Local Factory Acceptance
 
 on:
   workflow_run:
-    workflows: ["CTNETWORK LTX 2.5 Video Smoke Test"]
+    workflows: ["CTNETWORK LTX 2.5 DFR Smoke Test"]
     types: [completed]
   workflow_dispatch:
 
