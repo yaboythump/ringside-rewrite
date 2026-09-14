@@ -1,0 +1,37 @@
+name: CTNETWORK LTX Bridge CI
+
+on:
+  pull_request:
+    paths:
+      - "ltx_bridge/**"
+      - ".github/workflows/ctnetwork-ltx-bridge-ci.yml"
+  push:
+    branches:
+      - ctnetwork-ltx-bridge
+    paths:
+      - "ltx_bridge/**"
+      - ".github/workflows/ctnetwork-ltx-bridge-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ltx_bridge/requirements-dev.txt
+      - name: Install dependencies
+        working-directory: ltx_bridge
+        run: pip install -r requirements-dev.txt
+      - name: Compile bridge
+        working-directory: ltx_bridge
+        run: python -m py_compile app.py fake_controller.py test_bridge.py
+      - name: Run bridge tests
+        working-directory: ltx_bridge
+        run: pytest -q
