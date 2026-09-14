@@ -1,0 +1,75 @@
+name: CTNETWORK Migrate Factory To Norway
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-migrate-factory-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ctnetwork-factory-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve migration endpoints
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_POD_ID=$(jq -r '.source_pod_id' ctnetwork-migrate-factory-command.json)
+          DEST_NAME=$(jq -r '.destination_name' ctnetwork-migrate-factory-command.json)
+          DEST_VOLUME=$(jq -r '.destination_volume_id' ctnetwork-migrate-factory-command.json)
+          CODE=$(jq -r '.transfer_code' ctnetwork-migrate-factory-command.json)
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          DEST_POD_ID=$(printf '%s' "$PODS" | jq -r --arg n "$DEST_NAME" --arg v "$DEST_VOLUME" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first | .id // empty')
+          test -n "$SOURCE_POD_ID"
+          test -n "$DEST_POD_ID"
+          test -n "$CODE"
+          echo "source_pod_id=$SOURCE_POD_ID" >> "$GITHUB_OUTPUT"
+          echo "dest_pod_id=$DEST_POD_ID" >> "$GITHUB_OUTPUT"
+          echo "transfer_code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "Resolved source=$SOURCE_POD_ID destination=$DEST_POD_ID"
+
+      - name: Install migration client
+        run: python3 -m pip install --quiet requests websocket-client
+
+      - name: Migrate and verify persistent factory
+        env:
+          SOURCE_POD_ID: ${{ steps.resolve.outputs.source_pod_id }}
+          DEST_POD_ID: ${{ steps.resolve.outputs.dest_pod_id }}
+          CTN_TRANSFER_CODE: ${{ steps.resolve.outputs.transfer_code }}
+        run: python3 tools/ctnetwork_migrate_factory.py | tee /tmp/ctnetwork-migration.log
+
+      - name: Save migration report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          {
+            echo "CTNETWORK FACTORY MIGRATION"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "source_pod=${{ steps.resolve.outputs.source_pod_id }}"
+            echo "destination_pod=${{ steps.resolve.outputs.dest_pod_id }}"
+            echo "job_status=${{ job.status }}"
+            echo
+            tail -200 /tmp/ctnetwork-migration.log 2>/dev/null || true
+          } > infra/status/ctnetwork-factory-migration-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-factory-migration-latest.txt
+          git commit -m 'CTNETWORK: record factory migration result' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
