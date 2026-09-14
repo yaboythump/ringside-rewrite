@@ -34,26 +34,26 @@ jobs:
           SOURCE_POD_ID=$(jq -r '.source_pod_id' ctnetwork-migrate-factory-command.json)
           DEST_NAME=$(jq -r '.destination_name' ctnetwork-migrate-factory-command.json)
           DEST_VOLUME=$(jq -r '.destination_volume_id' ctnetwork-migrate-factory-command.json)
-          CODE=$(jq -r '.transfer_code' ctnetwork-migrate-factory-command.json)
           PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           DEST_POD_ID=$(printf '%s' "$PODS" | jq -r --arg n "$DEST_NAME" --arg v "$DEST_VOLUME" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first | .id // empty')
           test -n "$SOURCE_POD_ID"
           test -n "$DEST_POD_ID"
-          test -n "$CODE"
           echo "source_pod_id=$SOURCE_POD_ID" >> "$GITHUB_OUTPUT"
           echo "dest_pod_id=$DEST_POD_ID" >> "$GITHUB_OUTPUT"
-          echo "transfer_code=$CODE" >> "$GITHUB_OUTPUT"
           echo "Resolved source=$SOURCE_POD_ID destination=$DEST_POD_ID"
 
       - name: Install migration client
         run: python3 -m pip install --quiet requests websocket-client
 
       - name: Migrate and verify persistent factory
+        id: migration
+        shell: bash
         env:
           SOURCE_POD_ID: ${{ steps.resolve.outputs.source_pod_id }}
           DEST_POD_ID: ${{ steps.resolve.outputs.dest_pod_id }}
-          CTN_TRANSFER_CODE: ${{ steps.resolve.outputs.transfer_code }}
-        run: python3 tools/ctnetwork_migrate_factory.py | tee /tmp/ctnetwork-migration.log
+        run: |
+          set -o pipefail
+          python3 tools/ctnetwork_migrate_factory.py 2>&1 | tee /tmp/ctnetwork-migration.log
 
       - name: Save migration report
         if: always()
@@ -65,9 +65,9 @@ jobs:
             echo "run_id=$GITHUB_RUN_ID"
             echo "source_pod=${{ steps.resolve.outputs.source_pod_id }}"
             echo "destination_pod=${{ steps.resolve.outputs.dest_pod_id }}"
-            echo "job_status=${{ job.status }}"
+            echo "migration_outcome=${{ steps.migration.outcome }}"
             echo
-            tail -200 /tmp/ctnetwork-migration.log 2>/dev/null || true
+            tail -300 /tmp/ctnetwork-migration.log 2>/dev/null || true
           } > infra/status/ctnetwork-factory-migration-latest.txt
           git config user.name 'ctnetwork-bot'
           git config user.email 'ctnetwork-bot@users.noreply.github.com'
