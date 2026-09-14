@@ -52,7 +52,21 @@ jobs:
           SOURCE_POD_ID: ${{ steps.resolve.outputs.source_pod_id }}
           DEST_POD_ID: ${{ steps.resolve.outputs.dest_pod_id }}
         run: |
-          set -o pipefail
+          set -euo pipefail
+          # Direct ssh reads stdin by default. Because JupyterShell feeds the
+          # wrapper script to bash on stdin, that one readiness check can eat
+          # the completion marker even after SSH succeeds. Add -n only to the
+          # readiness probe; rsync keeps normal ssh stdin for its protocol.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('tools/ctnetwork_migrate_factory.py')
+          s = p.read_text()
+          old = 'f"{ssh_opts} root@{dest_ip} \'echo CTN_SSH_READY\'",'
+          new = 'f"{ssh_opts} -n root@{dest_ip} \'echo CTN_SSH_READY\'",'
+          if old not in s:
+              raise SystemExit('SSH readiness patch target not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
           python3 tools/ctnetwork_migrate_factory.py 2>&1 | tee /tmp/ctnetwork-migration.log
 
       - name: Save migration report
