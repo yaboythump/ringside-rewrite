@@ -1,1 +1,1147 @@
-no remote output captured
+ _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@e9a363ffa272: /root@e9a363ffa272:/# echo IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLUVldW8gcGlwZWZhaWwKClJPT1Q9L3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwKU1JDPSIkUk9PVC9zcmMiCkVOVlM9IiRST09UL2VudnMiCk1PREVMUz0iJFJPT1QvbW9kZWxzIgpTVEFUVVM9IiRST09UL3N0YXR1cyIKTE9HUz0iJFJPT1QvbG9ncyIKQklOPSIkUk9PVC9iaW4iCkFDVElPTj0iJHtDVE5fSU5TVEFMTF9BQ1RJT046LWluc3RhbGwtYWxsfSIKbWtkaXIgLXAgIiRTUkMiICIkRU5WUyIgIiRNT0RFTFMiICIkU1RBVFVTIiAiJExPR1MiICIkQklOIiAiJFJPT1Qvam9icyIgIiRST09UL2NhY2hlIiAiJFJPT1Qvdm9pY2VzIiAiJFJPT1QvcmVhZHlfZm9yX2FwcHJvdmFsIgpMT0c9IiRMT0dTL2luc3RhbGwubG9nIgpleGVjID4gPih0ZWUgLWEgIiRMT0ciKSAyPiYxCgpzdGFtcCgpIHsgZGF0ZSAtdSArJyVZLSVtLSVkVCVIOiVNOiVTWic7IH0KcGhhc2UoKSB7IGVjaG8gIiQxIiA+ICIkU1RBVFVTL3BoYXNlLnR4dCI7IHByaW50ZiAnXG5bJXNdID09PSAlcyA9PT1cbicgIiQoc3RhbXApIiAiJDEiOyB9Cm1hcmsoKSB7IHByaW50ZiAnJXNcbicgIiQyIiA+ICIkU1RBVFVTLyQxLnN0YXR1cyI7IH0KZnJlZV9nYigpIHsgZGYgLVBCMSAvd29ya3NwYWNlIHwgYXdrICdOUj09MiB7cHJpbnRmICIlLjBmIiwgJDQvMTAyNC8xMDI0LzEwMjR9JzsgfQoKb25fZXJyb3IoKSB7CiAgcmM9JD8KICBlY2hvICJGQUlMRUQgcmM9JHJjIHBoYXNlPSQoY2F0ICIkU1RBVFVTL3BoYXNlLnR4dCIgMj4vZGV2L251bGwgfHwgZWNobyB1bmtub3duKSIgPiAiJFNUQVRVUy9pbnN0YWxsLnN0YXR1cyIKICBlY2hvICJbJChzdGFtcCldIGluc3RhbGxlciBmYWlsZWQgcmM9JHJjIgogIGV4aXQgIiRyYyIKfQp0cmFwIG9uX2Vycm9yIEVSUgoKYXVkaXQoKSB7CiAgcGhhc2UgUFJFRkxJR0hUCiAgZWNobyAiYWN0aW9uPSRBQ1RJT04iCiAgZWNobyAid29ya3NwYWNlX2ZyZWVfZ2I9JChmcmVlX2diKSIKICBlY2hvICdHUFU6JwogIG52aWRpYS1zbWkgLS1xdWVyeS1ncHU9bmFtZSxtZW1vcnkudG90YWwsbWVtb3J5LmZyZWUsZHJpdmVyX3ZlcnNpb24gLS1mb3JtYXQ9Y3N2LG5vaGVhZGVyIHx8IHRydWUKICBlY2hvICdESVNLOic7IGRmIC1oIC8gL3dvcmtzcGFjZSB8fCB0cnVlCiAgZWNobyAnTUVNT1JZOic7IGZyZWUgLWggfHwgdHJ1ZQogIGVjaG8gJ1BZVEhPTjonOyBweXRob24zIC0tdmVyc2lvbiB8fCB0cnVlCiAgZWNobyAnQ1VEQTonOyBudmNjIC0tdmVyc2lvbiAyPi9kZXYvbnVsbCB8fCB0cnVlCiAgY29tbWFuZCAtdiBmZm1wZWcgPi9kZXYvbnVsbCAmJiBmZm1wZWcgLXZlcnNpb24gfCBoZWFkIC1uMSB8fCB0cnVlCn0KCmluc3RhbGxfc3lzdGVtKCkgewogIHBoYXNlIFNZU1RFTV9QQUNLQUdFUwogIGFwdC1nZXQgdXBkYXRlIC15CiAgREVCSUFOX0ZST05URU5EPW5vbmludGVyYWN0aXZlIGFwdC1nZXQgaW5zdGFsbCAteSAtLW5vLWluc3RhbGwtcmVjb21tZW5kcyBcCiAgICBnaXQgZ2l0LWxmcyBjdXJsIHdnZXQgYXJpYTIganEgY2EtY2VydGlmaWNhdGVzIGJ1aWxkLWVzc2VudGlhbCBwa2ctY29uZmlnIFwKICAgIGZmbXBlZyBzb3ggbGlic294LWZtdC1hbGwgbGlic25kZmlsZTEgbGliZ2wxIGxpYmdsaWIyLjAtMCBsaWJzbTYgbGlieGV4dDYgXAogICAgbGlieHJlbmRlcjEgbGliZ29tcDEgcHl0aG9uMy1kZXYgdG11eCByc3luYyB1bnppcAogIGdpdCBsZnMgaW5zdGFsbCAtLXN5c3RlbSB8fCB0cnVlCiAgaWYgISBjb21tYW5kIC12IHV2ID4vZGV2L251bGwgMj4mMTsgdGhlbgogICAgY3VybCAtTHNTZiBodHRwczovL2FzdHJhbC5zaC91di9pbnN0YWxsLnNoIHwgc2gKICAgIGV4cG9ydCBQQVRIPSIkSE9NRS8ubG9jYWwvYmluOiRQQVRIIgogIGZpCiAgY29tbWFuZCAtdiB1diA+L2Rldi9udWxsIDI+JjEgfHwgZXhwb3J0IFBBVEg9IiRIT01FLy5sb2NhbC9iaW46JFBBVEgiCiAgdXYgLS12ZXJzaW9uCiAgbWFyayBzeXN0ZW0gUEFTUwp9CgppbnN0YWxsX2NvcmUoKSB7CiAgcGhhc2UgQ09SRV9FTlYKICBleHBvcnQgUEFUSD0iJEhPTUUvLmxvY2FsL2JpbjokUEFUSCIKICB1diBweXRob24gaW5zdGFsbCAzLjEyCiAgdXYgdmVudiAtLXB5dGhvbiAzLjEyICIkRU5WUy9jb3JlIgogIHV2IHBpcCBpbnN0YWxsIC0tcHl0aG9uICIkRU5WUy9jb3JlL2Jpbi9weXRob24iIFwKICAgIGZhc3RhcGkgJ3V2aWNvcm5bc3RhbmRhcmRdJyBweWRhbnRpYyBweXlhbWwgdHlwZXIgcmljaCB0ZW5hY2l0eSBmaWxlbG9jayBwc3V0aWwgd2F0Y2hkb2cgXAogICAgaHR0cHggb3Jqc29uIHNxbGFsY2hlbXkgYWlvc3FsaXRlIG51bXB5IHNjaXB5IHNvdW5kZmlsZSBsaWJyb3NhIHB5bG91ZG5vcm0gcGVkYWxib2FyZCBcCiAgICBub2lzZXJlZHVjZSBmZm1wZWctcHl0aG9uIHNjZW5lZGV0ZWN0IG9wZW5jdi1weXRob24taGVhZGxlc3MgZmFzdGVyLXdoaXNwZXIgcGlsbG93CiAgdXYgcGlwIGluc3RhbGwgLS1weXRob24gIiRFTlZTL2NvcmUvYmluL3B5dGhvbiIgZGVlcGZpbHRlcm5ldCB8fCB0cnVlCiAgY2F0ID4gIiRCSU4vY3RuLWhlYWx0aCIgPDwnRU9GJwojIS91c3IvYmluL2VudiBiYXNoCnNldCAtZQpST09UPS93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsCnByaW50ZiAnQ1RORVRXT1JLIExPQ0FMIFNUQUNLXG4nCnByaW50ZiAnR1BVOiAnOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS5mcmVlIC0tZm9ybWF0PWNzdixub2hlYWRlciAyPi9kZXYvbnVsbCB8fCB0cnVlCnByaW50ZiAnRGlzazogJzsgZGYgLWggL3dvcmtzcGFjZSB8IGF3ayAnTlI9PTIge3ByaW50ICQ0IiBmcmVlIG9mICIkMn0nCmZvciBmIGluICIkUk9PVCIvc3RhdHVzLyouc3RhdHVzOyBkbyBbIC1lICIkZiIgXSB8fCBjb250aW51ZTsgcHJpbnRmICclLTI4cyAlc1xuJyAiJChiYXNlbmFtZSAiJGYiKSIgIiQoY2F0ICIkZiIpIjsgZG9uZQpFT0YKICBjaG1vZCAreCAiJEJJTi9jdG4taGVhbHRoIgogIG1hcmsgY29yZSBQQVNTCn0KCmluc3RhbGxfcXdlbl90dHMoKSB7CiAgcGhhc2UgUVdFTjNfVFRTCiAgZXhwb3J0IFBBVEg9IiRIT01FLy5sb2NhbC9iaW46JFBBVEgiCiAgaWYgWyAhIC1kICIkU1JDL1F3ZW4zLVRUUy8uZ2l0IiBdOyB0aGVuCiAgICBnaXQgY2xvbmUgLS1kZXB0aCAxIGh0dHBzOi8vZ2l0aHViLmNvbS9Rd2VuTE0vUXdlbjMtVFRTLmdpdCAiJFNSQy9Rd2VuMy1UVFMiCiAgZWxzZQogICAgZ2l0IC1DICIkU1JDL1F3ZW4zLVRUUyIgZmV0Y2ggLS1kZXB0aCAxIG9yaWdpbiBtYWluCiAgICBnaXQgLUMgIiRTUkMvUXdlbjMtVFRTIiByZXNldCAtLWhhcmQgb3JpZ2luL21haW4KICBmaQogIHV2IHB5dGhvbiBpbnN0YWxsIDMuMTIKICB1diB2ZW52IC0tcHl0aG9uIDMuMTIgIiRFTlZTL3F3ZW4zLXR0cyIKICAjIEJsYWNrd2VsbC1zYWZlIENVREEgd2hlZWxzIGZpcnN0OyBxd2VuLXR0cyBpdHNlbGYgZG9lcyBub3QgcGluIHRvcmNoLgogIHV2IHBpcCBpbnN0YWxsIC0tcHl0aG9uICIkRU5WUy9xd2VuMy10dHMvYmluL3B5dGhvbiIgdG9yY2ggdG9yY2h2aXNpb24gdG9yY2hhdWRpbyAtLWluZGV4LXVybCBodHRwczovL2Rvd25sb2FkLnB5dG9yY2gub3JnL3dobC9jdTEyOAogIHV2IHBpcCBpbnN0YWxsIC0tcHl0aG9uICIkRU5WUy9xd2VuMy10dHMvYmluL3B5dGhvbiIgLWUgIiRTUkMvUXdlbjMtVFRTIgogIHV2IHBpcCBpbnN0YWxsIC0tcHl0aG9uICIkRU5WUy9xd2VuMy10dHMvYmluL3B5dGhvbiIgaHVnZ2luZ2ZhY2UtaHViCgogIG1rZGlyIC1wICIkTU9ERUxTL3F3ZW4zLXR0cyIKICBpZiBbICIkKGZyZWVfZ2IpIiAtZ2UgMTggXTsgdGhlbgogICAgIiRFTlZTL3F3ZW4zLXR0cy9iaW4vaGYiIGRvd25sb2FkIFF3ZW4vUXdlbjMtVFRTLTEySHotMS43Qi1CYXNlIC0tbG9jYWwtZGlyICIkTU9ERUxTL3F3ZW4zLXR0cy8xLjdCLUJhc2UiIHx8IFwKICAgICAgIiRFTlZTL3F3ZW4zLXR0cy9iaW4vaHVnZ2luZ2ZhY2UtY2xpIiBkb3dubG9hZCBRd2VuL1F3ZW4zLVRUUy0xMkh6LTEuN0ItQmFzZSAtLWxvY2FsLWRpciAiJE1PREVMUy9xd2VuMy10dHMvMS43Qi1CYXNlIiB8fCB0cnVlCiAgZmkKICAiJEVOVlMvcXdlbjMtdHRzL2Jpbi9weXRob24iIC0gPDwnUFknCmltcG9ydCB0b3JjaApwcmludCgncXdlbiB0b3JjaCcsIHRvcmNoLl9fdmVyc2lvbl9fLCAnY3VkYScsIHRvcmNoLnZlcnNpb24uY3VkYSwgJ2F2YWlsYWJsZScsIHRvcmNoLmN1ZGEuaXNfYXZhaWxhYmxlKCkpCmlmIG5vdCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpOiByYWlzZSBTeXN0ZW1FeGl0KDIpCnByaW50KHRvcmNoLmN1ZGEuZ2V0X2RldmljZV9uYW1lKDApLCB0b3JjaC5jdWRhLmdldF9kZXZpY2VfY2FwYWJpbGl0eSgwKSkKUFkKICBtYXJrIHF3ZW4zX3R0cyBQQVNTCn0KCmluc3RhbGxfbGF0ZW50c3luYygpIHsKICBwaGFzZSBMQVRFTlRTWU5DXzFfNgogIGV4cG9ydCBQQVRIPSIkSE9NRS8ubG9jYWwvYmluOiRQQVRIIgogIGlmIFsgISAtZCAiJFNSQy9MYXRlbnRTeW5jLy5naXQiIF07IHRoZW4KICAgIGdpdCBjbG9uZSAtLWRlcHRoIDEgaHR0cHM6Ly9naXRodWIuY29tL2J5dGVkYW5jZS9MYXRlbnRTeW5jLmdpdCAiJFNSQy9MYXRlbnRTeW5jIgogIGVsc2UKICAgIGdpdCAtQyAiJFNSQy9MYXRlbnRTeW5jIiBmZXRjaCAtLWRlcHRoIDEgb3JpZ2luIG1haW4KICAgIGdpdCAtQyAiJFNSQy9MYXRlbnRTeW5jIiByZXNldCAtLWhhcmQgb3JpZ2luL21haW4KICBmaQogIHV2IHB5dGhvbiBpbnN0YWxsIDMuMTAKICB1diB2ZW52IC0tcHl0aG9uIDMuMTAgIiRFTlZTL2xhdGVudHN5bmMiCiAgdXYgcGlwIGluc3RhbGwgLS1weXRob24gIiRFTlZTL2xhdGVudHN5bmMvYmluL3B5dGhvbiIgdG9yY2ggdG9yY2h2aXNpb24gLS1pbmRleC11cmwgaHR0cHM6Ly9kb3dubG9hZC5weXRvcmNoLm9yZy93aGwvY3UxMjgKICBhd2sgJyEvXnRvcmNoPT0vICYmICEvXnRvcmNodmlzaW9uPT0vICYmICEvXi0tZXh0cmEtaW5kZXgtdXJsLycgIiRTUkMvTGF0ZW50U3luYy9yZXF1aXJlbWVudHMudHh0IiA+ICIkU1RBVFVTL2xhdGVudHN5bmMtcmVxdWlyZW1lbnRzLWJsYWNrd2VsbC50eHQiCiAgdXYgcGlwIGluc3RhbGwgLS1weXRob24gIiRFTlZTL2xhdGVudHN5bmMvYmluL3B5dGhvbiIgLXIgIiRTVEFUVVMvbGF0ZW50c3luYy1yZXF1aXJlbWVudHMtYmxhY2t3ZWxsLnR4dCIKICBta2RpciAtcCAiJFNSQy9MYXRlbnRTeW5jL2NoZWNrcG9pbnRzIgogICIkRU5WUy9sYXRlbnRzeW5jL2Jpbi9odWdnaW5nZmFjZS1jbGkiIGRvd25sb2FkIEJ5dGVEYW5jZS9MYXRlbnRTeW5jLTEuNiB3aGlzcGVyL3RpbnkucHQgLS1sb2NhbC1kaXIgIiRTUkMvTGF0ZW50U3luYy9jaGVja3BvaW50cyIgfHwgXAogICAgIiRFTlZTL2xhdGVudHN5bmMvYmluL2hmIiBkb3dubG9hZCBCeXRlRGFuY2UvTGF0ZW50U3luYy0xLjYgd2hpc3Blci90aW55LnB0IC0tbG9jYWwtZGlyICIkU1JDL0xhdGVudFN5bmMvY2hlY2twb2ludHMiCiAgIiRFTlZTL2xhdGVudHN5bmMvYmluL2h1Z2dpbmdmYWNlLWNsaSIgZG93bmxvYWQgQnl0ZURhbmNlL0xhdGVudFN5bmMtMS42IGxhdGVudHN5bmNfdW5ldC5wdCAtLWxvY2FsLWRpciAiJFNSQy9MYXRlbnRTeW5jL2NoZWNrcG9pbnRzIiB8fCBcCiAgICAiJEVOVlMvbGF0ZW50c3luYy9iaW4vaGYiIGRvd25sb2FkIEJ5dGVEYW5jZS9MYXRlbnRTeW5jLTEuNiBsYXRlbnRzeW5jX3VuZXQucHQgLS1sb2NhbC1kaXIgIiRTUkMvTGF0ZW50U3luYy9jaGVja3BvaW50cyIKICAiJEVOVlMvbGF0ZW50c3luYy9iaW4vcHl0aG9uIiAtIDw8J1BZJwppbXBvcnQgdG9yY2gKcHJpbnQoJ2xhdGVudHN5bmMgdG9yY2gnLCB0b3JjaC5fX3ZlcnNpb25fXywgJ2N1ZGEnLCB0b3JjaC52ZXJzaW9uLmN1ZGEsICdhdmFpbGFibGUnLCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpKQppZiBub3QgdG9yY2guY3VkYS5pc19hdmFpbGFibGUoKTogcmFpc2UgU3lzdGVtRXhpdCgyKQpwcmludCh0b3JjaC5jdWRhLmdldF9kZXZpY2VfbmFtZSgwKSwgdG9yY2guY3VkYS5nZXRfZGV2aWNlX2NhcGFiaWxpdHkoMCkpClBZCiAgbWFyayBsYXRlbnRzeW5jIFBBU1MKfQoKaW5zdGFsbF9sdHgyNSgpIHsKICBwaGFzZSBMVFhfMl81CiAgZXhwb3J0IFBBVEg9IiRIT01FLy5sb2NhbC9iaW46JFBBVEgiCiAgaWYgWyAhIC1kICIkU1JDL0xUWC0yLy5naXQiIF07IHRoZW4KICAgIGdpdCBjbG9uZSAtLWRlcHRoIDEgaHR0cHM6Ly9naXRodWIuY29tL0xpZ2h0cmlja3MvTFRYLTIuZ2l0ICIkU1JDL0xUWC0yIgogIGVsc2UKICAgIGdpdCAtQyAiJFNSQy9MVFgtMiIgZmV0Y2ggLS1kZXB0aCAxIG9yaWdpbiBtYWluCiAgICBnaXQgLUMgIiRTUkMvTFRYLTIiIHJlc2V0IC0taGFyZCBvcmlnaW4vbWFpbgogIGZpCiAgY2QgIiRTUkMvTFRYLTIiCiAgdXYgc3luYyAtLWV4dHJhIG5hdHRlbiB8fCB1diBzeW5jCiAgbWFyayBsdHgyNV9jb2RlIFBBU1MKCiAgIyBPZmZpY2lhbCBxdWljay1zdGFydCBhc3NldHMgYXJlIH42NiBHaUIuIFJlcXVpcmUgc2FmZSBoZWFkcm9vbSBiZWZvcmUgZG93bmxvYWQuCiAgaWYgWyAiJChmcmVlX2diKSIgLWx0IDkwIF07IHRoZW4KICAgIG1hcmsgbHR4MjVfbW9kZWxzICdCTE9DS0VEX0xPV19ESVNLX05FRURfOTBHQl9GUkVFJwogICAgZWNobyAnU2tpcHBpbmcgTFRYLTIuNSB3ZWlnaHRzOiBpbnN1ZmZpY2llbnQgc2FmZSB3b3Jrc3BhY2UgaGVhZHJvb20uJwogICAgcmV0dXJuIDAKICBmaQogIGlmIFsgLXogIiR7SEZfVE9LRU46LX0iIF07IHRoZW4KICAgIG1hcmsgbHR4MjVfbW9kZWxzICdCTE9DS0VEX0hGX1RPS0VOX09SX1RFUk1TJwogICAgZWNobyAnU2tpcHBpbmcgZ2F0ZWQgTFRYLTIuNSB3ZWlnaHRzOiBIRl9UT0tFTiBub3Qgc3VwcGxpZWQgdG8gaW5zdGFsbGVyLicKICAgIHJldHVybiAwCiAgZmkKICBleHBvcnQgSEZfVE9LRU4KICB1diBydW4gaGYgYXV0aCBsb2dpbiAtLXRva2VuICIkSEZfVE9LRU4iID4vZGV2L251bGwgMj4mMSB8fCB0cnVlCiAgdXYgcnVuIGhmIGRvd25sb2FkIExpZ2h0cmlja3MvTFRYLTIuNSBcCiAgICBkaWZmdXNpb25fbW9kZWxzL2x0eC0yLjUtMjJiLWRpc3RpbGxlZC10cmFuc2Zvcm1lci1iZjE2LnNhZmV0ZW5zb3JzIFwKICAgIHRleHRfZW5jb2RlcnMvZ2VtbWE0LTEyYi13aXRoLXByb2otbHR4LTIuNS1iZjE2LnNhZmV0ZW5zb3JzIFwKICAgIHZhZS9sdHgtMi41LXZpZGVvLXZhZS1iZjE2LnNhZmV0ZW5zb3JzIFwKICAgIHZhZS9sdHgtMi41LWF1ZGlvLXZhZS1iZjE2LnNhZmV0ZW5zb3JzIFwKICAgIGxhdGVudF91cHNjYWxlX21vZGVscy9sdHgtMi41LWxhdGVudC1zcGF0aWFsLXVwc2NhbGVyLXgyLWJmMTYtMS4wLnNhZmV0ZW5zb3JzIFwKICAgIC0tbG9jYWwtZGlyICIkTU9ERUxTL2x0eC0yLjUiCiAgaWYgWyAiJChmcmVlX2diKSIgLWdlIDEyIF07IHRoZW4KICAgIHV2IHJ1biBoZiBkb3dubG9hZCBMaWdodHJpY2tzL0xUWC0yLjUtMjJiLUlDLUxvUkEtUGl4ZWwtU3BhdGlhbC1VcHNjYWxlciBcCiAgICAgIGx0eC0yLjUtMjJiLWljLWxvcmEtcGl4ZWwtc3BhdGlhbC11cHNjYWxlci14Mi0xLjAuc2FmZXRlbnNvcnMgXAogICAgICAtLWxvY2FsLWRpciAiJE1PREVMUy9sdHgtMi41L2xvcmFzIiB8fCB0cnVlCiAgZmkKICBtYXJrIGx0eDI1X21vZGVscyBQQVNTCn0KCndyaXRlX3J1bnRpbWUoKSB7CiAgcGhhc2UgUlVOVElNRQogIGNhdCA+ICIkUk9PVC9TVEFDSy5qc29uIiA8PEVPRgp7CiAgInJvb3QiOiAiJFJPT1QiLAogICJhcHByb3ZhbF9nYXRlIjogdHJ1ZSwKICAicHVibGlzaF9kZWZhdWx0IjogZmFsc2UsCiAgIm5hcnJhdGlvbl9wcmltYXJ5IjogInF3ZW4zLXR0cy0xLjdiIiwKICAibGlwX3N5bmNfcHJpbWFyeSI6ICJsdHgtMi41LWR1Yml0IiwKICAibGlwX3N5bmNfZmFsbGJhY2siOiAibGF0ZW50c3luYy0xLjYiLAogICJ2aWRlb19wcmltYXJ5IjogImx0eC0yLjUiLAogICJhc3NlbWJseSI6ICJmZm1wZWciLAogICJxYyI6IFsiZmZwcm9iZSIsICJsb3VkbmVzcyIsICJzaWxlbmNlIiwgImJsYWNrZnJhbWUiLCAiZHVyYXRpb24iLCAiYXNwZWN0IiwgImF1ZGlvX3ByZXNlbnQiLCAic3RhZ2VfY2hlY2tzdW1zIl0sCiAgIndvcmtzcGFjZSI6ICIvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbCIsCiAgInJlYWR5X2RpciI6ICIvd29ya3NwYWNlL2N0bmV0d29yay1sb2NhbC9yZWFkeV9mb3JfYXBwcm92YWwiCn0KRU9GCiAgbWFyayBydW50aW1lIFBBU1MKfQoKdmVyaWZ5KCkgewogIHBoYXNlIFZFUklGWQogICIkQklOL2N0bi1oZWFsdGgiIHx8IHRydWUKICB0ZXN0IC14ICIkRU5WUy9jb3JlL2Jpbi9weXRob24iICYmIG1hcmsgdmVyaWZ5X2NvcmUgUEFTUyB8fCBtYXJrIHZlcmlmeV9jb3JlIEZBSUwKICB0ZXN0IC14ICIkRU5WUy9xd2VuMy10dHMvYmluL3B5dGhvbiIgJiYgbWFyayB2ZXJpZnlfcXdlbiBQQVNTIHx8IG1hcmsgdmVyaWZ5X3F3ZW4gTUlTU0lORwogIHRlc3QgLXggIiRFTlZTL2xhdGVudHN5bmMvYmluL3B5dGhvbiIgJiYgbWFyayB2ZXJpZnlfbGF0ZW50c3luYyBQQVNTIHx8IG1hcmsgdmVyaWZ5X2xhdGVudHN5bmMgTUlTU0lORwogIHRlc3QgLWQgIiRTUkMvTFRYLTIvLmdpdCIgJiYgbWFyayB2ZXJpZnlfbHR4MjVfY29kZSBQQVNTIHx8IG1hcmsgdmVyaWZ5X2x0eDI1X2NvZGUgTUlTU0lORwogIGVjaG8gUEFTUyA+ICIkU1RBVFVTL2luc3RhbGwuc3RhdHVzIgogIGVjaG8gIlskKHN0YW1wKV0gQ1RORVRXT1JLIGxvY2FsIHN0YWNrIHZlcmlmaWNhdGlvbiBjb21wbGV0ZSIKfQoKYXVkaXQKY2FzZSAiJEFDVElPTiIgaW4KICBhdWRpdHxwcmVmbGlnaHQpIGVjaG8gUEFTUyA+ICIkU1RBVFVTL2luc3RhbGwuc3RhdHVzIiA7OwogIGluc3RhbGwtY29yZSkgaW5zdGFsbF9zeXN0ZW07IGluc3RhbGxfY29yZTsgd3JpdGVfcnVudGltZTsgdmVyaWZ5IDs7CiAgaW5zdGFsbC1hbGx8aW5zdGFsbCkKICAgIGluc3RhbGxfc3lzdGVtCiAgICBpbnN0YWxsX2NvcmUKICAgIGluc3RhbGxfcXdlbl90dHMKICAgIGluc3RhbGxfbGF0ZW50c3luYwogICAgaW5zdGFsbF9sdHgyNQogICAgd3JpdGVfcnVudGltZQogICAgdmVyaWZ5CiAgICA7OwogIHZlcmlmeSkgd3JpdGVfcnVudGltZTsgdmVyaWZ5IDs7CiAgKikgZWNobyAidW5zdXBwb3J0ZWQgYWN0aW9uOiAkQUNUSU9OIjsgZXhpdCA2NCA7Owplc2FjCg== | base64 -d >/tmp/ctnetwork-local-stack-install.sh && chmod +x /tmp/ctnetwork-local-stack-install.sh && export CTN_INSTALL_ACTION=install-all; export HF_TOKEN=$(echo  | base64 -d); bash /tmp/ctnetwork-local-stack-install.sh; rc=$?; echo __CTN_INSTALL_DONE__:$rc
+[?2004l
+[2026-09-14T11:27:55Z] === PREFLIGHT ===
+action=install-all
+workspace_free_gb=387108
+GPU:
+NVIDIA GeForce RTX 5090, 32607 MiB, 32109 MiB, 580.126.20
+DISK:
+Filesystem                Size  Used Avail Use% Mounted on
+overlay                    40G   16M   40G   1% /
+mfs#euro.runpod.net:9421  2.3P  1.9P  379T  84% /workspace
+MEMORY:
+               total        used        free      shared  buff/cache   available
+Mem:           186Gi        70Gi       3.8Gi        31Mi       115Gi       116Gi
+Swap:             0B          0B          0B
+PYTHON:
+Python 3.12.3
+CUDA:
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2025 NVIDIA Corporation
+Built on Fri_Feb_21_20:23:50_PST_2025
+Cuda compilation tools, release 12.8, V12.8.93
+Build cuda_12.8.r12.8/compiler.35583870_0
+ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+
+[2026-09-14T11:27:56Z] === SYSTEM_PACKAGES ===
+Get:1 http://archive.ubuntu.com/ubuntu noble InRelease [256 kB]
+Get:2 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64  InRelease [1578 B]
+Get:3 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+Get:4 https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu noble InRelease [17.8 kB]
+Get:5 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+Get:6 http://archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+Get:7 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64  Packages [1847 kB]
+Get:8 http://archive.ubuntu.com/ubuntu noble/main amd64 Packages [1808 kB]
+Get:9 https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu noble/main amd64 Packages [46.2 kB]
+Get:10 http://archive.ubuntu.com/ubuntu noble/restricted amd64 Packages [117 kB]
+Get:11 http://archive.ubuntu.com/ubuntu noble/multiverse amd64 Packages [331 kB]
+Get:12 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages [19.3 MB]
+Get:13 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1565 kB]
+Get:14 http://archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1913 kB]
+Get:15 http://archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [55.8 kB]
+Get:16 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [2152 kB]
+Get:17 http://archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Packages [671 B]
+Get:18 http://archive.ubuntu.com/ubuntu noble-backports/universe amd64 Packages [35.9 kB]
+Get:19 http://archive.ubuntu.com/ubuntu noble-backports/main amd64 Packages [48.9 kB]
+Get:20 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1531 kB]
+Get:21 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1796 kB]
+Get:22 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Packages [50.0 kB]
+Get:23 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages [1242 kB]
+Fetched 34.5 MB in 2s (18.9 MB/s)
+Reading package lists...
+W: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/InRelease: Key is stored in legacy trusted.gpg keyring (/etc/apt/trusted.gpg), see the DEPRECATION section in apt-key(8) for details.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+git is already the newest version (1:2.43.0-1ubuntu7.3).
+build-essential is already the newest version (12.10ubuntu1).
+ffmpeg is already the newest version (7:6.1.1-3ubuntu5).
+libsndfile1 is already the newest version (1.2.2-1ubuntu5.24.04.1).
+libsndfile1 set to manually installed.
+libgl1 is already the newest version (1.7.0-1build1).
+libsm6 is already the newest version (2:1.2.3-1build3).
+libxext6 is already the newest version (2:1.3.4-1build2).
+libxext6 set to manually installed.
+libxrender1 is already the newest version (1:0.9.10-1.1build1).
+libxrender1 set to manually installed.
+tmux is already the newest version (3.4-1ubuntu0.1).
+unzip is already the newest version (6.0-28ubuntu4.1).
+The following additional packages will be installed:
+  gcc-14-base gir1.2-glib-2.0 libao-common libao4 libaria2-0 libasan8
+  libatomic1 libcares2 libcc1-0 libcurl3t64-gnutls libcurl4-openssl-dev
+  libcurl4t64 libgcc-s1 libgfortran5 libglib2.0-bin libglib2.0-data libhwasan0
+  libid3tag0 libitm1 libjq1 libjs-jquery libjs-sphinxdoc libjs-underscore
+  liblsan0 libltdl7 libmad0 libopencore-amrnb0 libopencore-amrwb0 libpkgconf3
+  libpython3-dev libpython3-stdlib libquadmath0 libsox-fmt-alsa libsox-fmt-ao
+  libsox-fmt-base libsox-fmt-mp3 libsox-fmt-oss libsox-fmt-pulse libsox3
+  libssh2-1t64 libstdc++6 libtsan2 libubsan1 libwavpack1 pkgconf pkgconf-bin
+  python3 python3-minimal
+Suggested packages:
+  libaudio2 libsndio6.1 libcurl4-doc libidn-dev libkrb5-dev libldap2-dev
+  librtmp-dev libssh2-1-dev low-memory-monitor python3-doc python3-tk
+  python3-venv python3-braceexpand
+Recommended packages:
+  xdg-user-dirs javascript-common
+The following NEW packages will be installed:
+  aria2 git-lfs libao-common libao4 libaria2-0 libcares2 libid3tag0
+  libjs-jquery libjs-sphinxdoc libjs-underscore libltdl7 libmad0
+  libopencore-amrnb0 libopencore-amrwb0 libpkgconf3 libpython3-dev
+  libsox-fmt-all libsox-fmt-alsa libsox-fmt-ao libsox-fmt-base libsox-fmt-mp3
+  libsox-fmt-oss libsox-fmt-pulse libsox3 libssh2-1t64 libwavpack1 pkg-config
+  pkgconf pkgconf-bin python3-dev sox
+The following packages will be upgraded:
+  ca-certificates curl gcc-14-base gir1.2-glib-2.0 jq libasan8 libatomic1
+  libcc1-0 libcurl3t64-gnutls libcurl4-openssl-dev libcurl4t64 libgcc-s1
+  libgfortran5 libglib2.0-0t64 libglib2.0-bin libglib2.0-data libgomp1
+  libhwasan0 libitm1 libjq1 liblsan0 libpython3-stdlib libquadmath0 libstdc++6
+  libtsan2 libubsan1 python3 python3-minimal rsync wget
+30 upgraded, 31 newly installed, 0 to remove and 235 not upgraded.
+Need to get 23.7 MB of archives.
+After this operation, 22.4 MB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3-minimal amd64 3.12.3-0ubuntu2.1 [27.4 kB]
+Get:2 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3 amd64 3.12.3-0ubuntu2.1 [23.0 kB]
+Get:3 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3-stdlib amd64 3.12.3-0ubuntu2.1 [10.1 kB]
+Get:4 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 rsync amd64 3.2.7-1ubuntu1.5 [443 kB]
+Get:5 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libasan8 amd64 14.2.0-4ubuntu2~24.04.1 [3027 kB]
+Get:6 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libubsan1 amd64 14.2.0-4ubuntu2~24.04.1 [1184 kB]
+Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libtsan2 amd64 14.2.0-4ubuntu2~24.04.1 [2772 kB]
+Get:8 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-14-base amd64 14.2.0-4ubuntu2~24.04.1 [51.0 kB]
+Get:9 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libstdc++6 amd64 14.2.0-4ubuntu2~24.04.1 [792 kB]
+Get:10 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libquadmath0 amd64 14.2.0-4ubuntu2~24.04.1 [153 kB]
+Get:11 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 liblsan0 amd64 14.2.0-4ubuntu2~24.04.1 [1322 kB]
+Get:12 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libitm1 amd64 14.2.0-4ubuntu2~24.04.1 [29.7 kB]
+Get:13 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libhwasan0 amd64 14.2.0-4ubuntu2~24.04.1 [1641 kB]
+Get:14 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgomp1 amd64 14.2.0-4ubuntu2~24.04.1 [148 kB]
+Get:15 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgfortran5 amd64 14.2.0-4ubuntu2~24.04.1 [916 kB]
+Get:16 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcc1-0 amd64 14.2.0-4ubuntu2~24.04.1 [48.0 kB]
+Get:17 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libatomic1 amd64 14.2.0-4ubuntu2~24.04.1 [10.5 kB]
+Get:18 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-s1 amd64 14.2.0-4ubuntu2~24.04.1 [78.4 kB]
+Get:19 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 ca-certificates all 20260601~24.04.1 [139 kB]
+Get:20 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libglib2.0-data all 2.80.0-6ubuntu3.8 [49.6 kB]
+Get:21 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libglib2.0-bin amd64 2.80.0-6ubuntu3.8 [97.9 kB]
+Get:22 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 gir1.2-glib-2.0 amd64 2.80.0-6ubuntu3.8 [183 kB]
+Get:23 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libglib2.0-0t64 amd64 2.80.0-6ubuntu3.8 [1545 kB]
+Get:24 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 wget amd64 1.21.4-1ubuntu4.5 [334 kB]
+Get:25 http://archive.ubuntu.com/ubuntu noble/main amd64 libcares2 amd64 1.27.0-1.0ubuntu1 [73.7 kB]
+Get:26 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libssh2-1t64 amd64 1.11.0-4.1ubuntu0.24.04.4 [121 kB]
+Get:27 http://archive.ubuntu.com/ubuntu noble/universe amd64 libaria2-0 amd64 1.37.0+debian-1build3 [1105 kB]
+Get:28 http://archive.ubuntu.com/ubuntu noble/universe amd64 aria2 amd64 1.37.0+debian-1build3 [387 kB]
+Get:29 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl4-openssl-dev amd64 8.5.0-2ubuntu10.13 [446 kB]
+Get:30 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 curl amd64 8.5.0-2ubuntu10.13 [226 kB]
+Get:31 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl4t64 amd64 8.5.0-2ubuntu10.13 [343 kB]
+Get:32 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 git-lfs amd64 3.4.1-1ubuntu0.4 [3908 kB]
+Get:33 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 jq amd64 1.7.1-3ubuntu0.24.04.2 [65.7 kB]
+Get:34 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libjq1 amd64 1.7.1-3ubuntu0.24.04.2 [142 kB]
+Get:35 http://archive.ubuntu.com/ubuntu noble/main amd64 libao-common all 1.2.2+20180113-1.1ubuntu4 [5534 B]
+Get:36 http://archive.ubuntu.com/ubuntu noble/main amd64 libao4 amd64 1.2.2+20180113-1.1ubuntu4 [34.4 kB]
+Get:37 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl3t64-gnutls amd64 8.5.0-2ubuntu10.13 [335 kB]
+Get:38 http://archive.ubuntu.com/ubuntu noble/universe amd64 libid3tag0 amd64 0.15.1b-14build1 [33.6 kB]
+Get:39 http://archive.ubuntu.com/ubuntu noble/main amd64 libjs-jquery all 3.6.1+dfsg+~3.5.14-1 [328 kB]
+Get:40 http://archive.ubuntu.com/ubuntu noble/main amd64 libjs-underscore all 1.13.4~dfsg+~1.11.4-3 [118 kB]
+Get:41 http://archive.ubuntu.com/ubuntu noble/main amd64 libjs-sphinxdoc all 7.2.6-6 [149 kB]
+Get:42 http://archive.ubuntu.com/ubuntu noble/main amd64 libltdl7 amd64 2.4.7-7build1 [40.3 kB]
+Get:43 http://archive.ubuntu.com/ubuntu noble/universe amd64 libmad0 amd64 0.15.1b-10.2ubuntu1 [65.5 kB]
+Get:44 http://archive.ubuntu.com/ubuntu noble/universe amd64 libopencore-amrnb0 amd64 0.1.6-1build1 [98.2 kB]
+Get:45 http://archive.ubuntu.com/ubuntu noble/universe amd64 libopencore-amrwb0 amd64 0.1.6-1build1 [53.2 kB]
+Get:46 http://archive.ubuntu.com/ubuntu noble/main amd64 libpkgconf3 amd64 1.8.1-2build1 [30.7 kB]
+Get:47 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3-dev amd64 3.12.3-0ubuntu2.1 [10.3 kB]
+Get:48 http://archive.ubuntu.com/ubuntu noble/universe amd64 libsox3 amd64 14.4.2+git20190427-4build4 [240 kB]
+Get:49 http://archive.ubuntu.com/ubuntu noble/universe amd64 libsox-fmt-alsa amd64 14.4.2+git20190427-4build4 [11.1 kB]
+Get:50 http://archive.ubuntu.com/ubuntu noble/universe amd64 libsox-fmt-ao amd64 14.4.2+git20190427-4build4 [7750 B]
+Get:51 http://archive.ubuntu.com/ubuntu noble/main amd64 libwavpack1 amd64 5.6.0-1build1 [84.6 kB]
+Get:52 http://archive.ubuntu.com/ubuntu noble/universe amd64 libsox-fmt-base amd64 14.4.2+git20190427-4build4 [33.6 kB]
+Get:53 http://archive.ubuntu.com/ubuntu noble/universe amd64 libsox-fmt-mp3 amd64 14.4.2+git20190427-4build4 [16.7 kB]
+Get:54 http://archive.ubuntu.com/ubuntu noble/universe amd64 libsox-fmt-oss amd64 14.4.2+git20190427-4build4 [9344 B]
+Get:55 http://archive.ubuntu.com/ubuntu noble/universe amd64 libsox-fmt-pulse amd64 14.4.2+git20190427-4build4 [7698 B]
+Get:56 http://archive.ubuntu.com/ubuntu noble/universe amd64 libsox-fmt-all amd64 14.4.2+git20190427-4build4 [5006 B]
+Get:57 http://archive.ubuntu.com/ubuntu noble/main amd64 pkgconf-bin amd64 1.8.1-2build1 [20.7 kB]
+Get:58 http://archive.ubuntu.com/ubuntu noble/main amd64 pkgconf amd64 1.8.1-2build1 [16.8 kB]
+Get:59 http://archive.ubuntu.com/ubuntu noble/main amd64 pkg-config amd64 1.8.1-2build1 [7264 B]
+Get:60 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3-dev amd64 3.12.3-0ubuntu2.1 [26.7 kB]
+Get:61 http://archive.ubuntu.com/ubuntu noble/universe amd64 sox amd64 14.4.2+git20190427-4build4 [103 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 23.7 MB in 1s (25.2 MB/s)
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 49062 files and directories currently installed.)
+Preparing to unpack .../python3-minimal_3.12.3-0ubuntu2.1_amd64.deb ...
+Unpacking python3-minimal (3.12.3-0ubuntu2.1) over (3.12.3-0ubuntu2) ...
+Setting up python3-minimal (3.12.3-0ubuntu2.1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 49062 files and directories currently installed.)
+Preparing to unpack .../0-python3_3.12.3-0ubuntu2.1_amd64.deb ...
+Unpacking python3 (3.12.3-0ubuntu2.1) over (3.12.3-0ubuntu2) ...
+Preparing to unpack .../1-libpython3-stdlib_3.12.3-0ubuntu2.1_amd64.deb ...
+Unpacking libpython3-stdlib:amd64 (3.12.3-0ubuntu2.1) over (3.12.3-0ubuntu2) ...
+Preparing to unpack .../2-rsync_3.2.7-1ubuntu1.5_amd64.deb ...
+Unpacking rsync (3.2.7-1ubuntu1.5) over (3.2.7-1ubuntu1.2) ...
+Preparing to unpack .../3-libasan8_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libasan8:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../4-libubsan1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libubsan1:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../5-libtsan2_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libtsan2:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../6-gcc-14-base_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking gcc-14-base:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Setting up gcc-14-base:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 49062 files and directories currently installed.)
+Preparing to unpack .../libstdc++6_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libstdc++6:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Setting up libstdc++6:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 49062 files and directories currently installed.)
+Preparing to unpack .../0-libquadmath0_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libquadmath0:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../1-liblsan0_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking liblsan0:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../2-libitm1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libitm1:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../3-libhwasan0_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libhwasan0:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../4-libgomp1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libgomp1:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../5-libgfortran5_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libgfortran5:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../6-libcc1-0_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libcc1-0:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../7-libatomic1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libatomic1:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Preparing to unpack .../8-libgcc-s1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+Unpacking libgcc-s1:amd64 (14.2.0-4ubuntu2~24.04.1) over (14.2.0-4ubuntu2~24.04) ...
+Setting up libgcc-s1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 49062 files and directories currently installed.)
+Preparing to unpack .../00-ca-certificates_20260601~24.04.1_all.deb ...
+Unpacking ca-certificates (20260601~24.04.1) over (20240203) ...
+Preparing to unpack .../01-libglib2.0-data_2.80.0-6ubuntu3.8_all.deb ...
+Unpacking libglib2.0-data (2.80.0-6ubuntu3.8) over (2.80.0-6ubuntu3.4) ...
+Preparing to unpack .../02-libglib2.0-bin_2.80.0-6ubuntu3.8_amd64.deb ...
+Unpacking libglib2.0-bin (2.80.0-6ubuntu3.8) over (2.80.0-6ubuntu3.4) ...
+Preparing to unpack .../03-gir1.2-glib-2.0_2.80.0-6ubuntu3.8_amd64.deb ...
+Unpacking gir1.2-glib-2.0:amd64 (2.80.0-6ubuntu3.8) over (2.80.0-6ubuntu3.4) ...
+Preparing to unpack .../04-libglib2.0-0t64_2.80.0-6ubuntu3.8_amd64.deb ...
+Unpacking libglib2.0-0t64:amd64 (2.80.0-6ubuntu3.8) over (2.80.0-6ubuntu3.4) ...
+Preparing to unpack .../05-wget_1.21.4-1ubuntu4.5_amd64.deb ...
+Unpacking wget (1.21.4-1ubuntu4.5) over (1.21.4-1ubuntu4.1) ...
+Selecting previously unselected package libcares2:amd64.
+Preparing to unpack .../06-libcares2_1.27.0-1.0ubuntu1_amd64.deb ...
+Unpacking libcares2:amd64 (1.27.0-1.0ubuntu1) ...
+Selecting previously unselected package libssh2-1t64:amd64.
+Preparing to unpack .../07-libssh2-1t64_1.11.0-4.1ubuntu0.24.04.4_amd64.deb ...
+Unpacking libssh2-1t64:amd64 (1.11.0-4.1ubuntu0.24.04.4) ...
+Selecting previously unselected package libaria2-0:amd64.
+Preparing to unpack .../08-libaria2-0_1.37.0+debian-1build3_amd64.deb ...
+Unpacking libaria2-0:amd64 (1.37.0+debian-1build3) ...
+Selecting previously unselected package aria2.
+Preparing to unpack .../09-aria2_1.37.0+debian-1build3_amd64.deb ...
+Unpacking aria2 (1.37.0+debian-1build3) ...
+Preparing to unpack .../10-libcurl4-openssl-dev_8.5.0-2ubuntu10.13_amd64.deb ...
+Unpacking libcurl4-openssl-dev:amd64 (8.5.0-2ubuntu10.13) over (8.5.0-2ubuntu10.6) ...
+Preparing to unpack .../11-curl_8.5.0-2ubuntu10.13_amd64.deb ...
+Unpacking curl (8.5.0-2ubuntu10.13) over (8.5.0-2ubuntu10.6) ...
+Preparing to unpack .../12-libcurl4t64_8.5.0-2ubuntu10.13_amd64.deb ...
+Unpacking libcurl4t64:amd64 (8.5.0-2ubuntu10.13) over (8.5.0-2ubuntu10.6) ...
+Selecting previously unselected package git-lfs.
+Preparing to unpack .../13-git-lfs_3.4.1-1ubuntu0.4_amd64.deb ...
+Unpacking git-lfs (3.4.1-1ubuntu0.4) ...
+Preparing to unpack .../14-jq_1.7.1-3ubuntu0.24.04.2_amd64.deb ...
+Unpacking jq (1.7.1-3ubuntu0.24.04.2) over (1.7.1-3ubuntu0.24.04.1) ...
+Preparing to unpack .../15-libjq1_1.7.1-3ubuntu0.24.04.2_amd64.deb ...
+Unpacking libjq1:amd64 (1.7.1-3ubuntu0.24.04.2) over (1.7.1-3ubuntu0.24.04.1) ...
+Selecting previously unselected package libao-common.
+Preparing to unpack .../16-libao-common_1.2.2+20180113-1.1ubuntu4_all.deb ...
+Unpacking libao-common (1.2.2+20180113-1.1ubuntu4) ...
+Selecting previously unselected package libao4:amd64.
+Preparing to unpack .../17-libao4_1.2.2+20180113-1.1ubuntu4_amd64.deb ...
+Unpacking libao4:amd64 (1.2.2+20180113-1.1ubuntu4) ...
+Preparing to unpack .../18-libcurl3t64-gnutls_8.5.0-2ubuntu10.13_amd64.deb ...
+Unpacking libcurl3t64-gnutls:amd64 (8.5.0-2ubuntu10.13) over (8.5.0-2ubuntu10.6) ...
+Selecting previously unselected package libid3tag0:amd64.
+Preparing to unpack .../19-libid3tag0_0.15.1b-14build1_amd64.deb ...
+Unpacking libid3tag0:amd64 (0.15.1b-14build1) ...
+Selecting previously unselected package libjs-jquery.
+Preparing to unpack .../20-libjs-jquery_3.6.1+dfsg+~3.5.14-1_all.deb ...
+Unpacking libjs-jquery (3.6.1+dfsg+~3.5.14-1) ...
+Selecting previously unselected package libjs-underscore.
+Preparing to unpack .../21-libjs-underscore_1.13.4~dfsg+~1.11.4-3_all.deb ...
+Unpacking libjs-underscore (1.13.4~dfsg+~1.11.4-3) ...
+Selecting previously unselected package libjs-sphinxdoc.
+Preparing to unpack .../22-libjs-sphinxdoc_7.2.6-6_all.deb ...
+Unpacking libjs-sphinxdoc (7.2.6-6) ...
+Selecting previously unselected package libltdl7:amd64.
+Preparing to unpack .../23-libltdl7_2.4.7-7build1_amd64.deb ...
+Unpacking libltdl7:amd64 (2.4.7-7build1) ...
+Selecting previously unselected package libmad0:amd64.
+Preparing to unpack .../24-libmad0_0.15.1b-10.2ubuntu1_amd64.deb ...
+Unpacking libmad0:amd64 (0.15.1b-10.2ubuntu1) ...
+Selecting previously unselected package libopencore-amrnb0:amd64.
+Preparing to unpack .../25-libopencore-amrnb0_0.1.6-1build1_amd64.deb ...
+Unpacking libopencore-amrnb0:amd64 (0.1.6-1build1) ...
+Selecting previously unselected package libopencore-amrwb0:amd64.
+Preparing to unpack .../26-libopencore-amrwb0_0.1.6-1build1_amd64.deb ...
+Unpacking libopencore-amrwb0:amd64 (0.1.6-1build1) ...
+Selecting previously unselected package libpkgconf3:amd64.
+Preparing to unpack .../27-libpkgconf3_1.8.1-2build1_amd64.deb ...
+Unpacking libpkgconf3:amd64 (1.8.1-2build1) ...
+Selecting previously unselected package libpython3-dev:amd64.
+Preparing to unpack .../28-libpython3-dev_3.12.3-0ubuntu2.1_amd64.deb ...
+Unpacking libpython3-dev:amd64 (3.12.3-0ubuntu2.1) ...
+Selecting previously unselected package libsox3:amd64.
+Preparing to unpack .../29-libsox3_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking libsox3:amd64 (14.4.2+git20190427-4build4) ...
+Selecting previously unselected package libsox-fmt-alsa:amd64.
+Preparing to unpack .../30-libsox-fmt-alsa_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking libsox-fmt-alsa:amd64 (14.4.2+git20190427-4build4) ...
+Selecting previously unselected package libsox-fmt-ao:amd64.
+Preparing to unpack .../31-libsox-fmt-ao_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking libsox-fmt-ao:amd64 (14.4.2+git20190427-4build4) ...
+Selecting previously unselected package libwavpack1:amd64.
+Preparing to unpack .../32-libwavpack1_5.6.0-1build1_amd64.deb ...
+Unpacking libwavpack1:amd64 (5.6.0-1build1) ...
+Selecting previously unselected package libsox-fmt-base:amd64.
+Preparing to unpack .../33-libsox-fmt-base_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking libsox-fmt-base:amd64 (14.4.2+git20190427-4build4) ...
+Selecting previously unselected package libsox-fmt-mp3:amd64.
+Preparing to unpack .../34-libsox-fmt-mp3_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking libsox-fmt-mp3:amd64 (14.4.2+git20190427-4build4) ...
+Selecting previously unselected package libsox-fmt-oss:amd64.
+Preparing to unpack .../35-libsox-fmt-oss_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking libsox-fmt-oss:amd64 (14.4.2+git20190427-4build4) ...
+Selecting previously unselected package libsox-fmt-pulse:amd64.
+Preparing to unpack .../36-libsox-fmt-pulse_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking libsox-fmt-pulse:amd64 (14.4.2+git20190427-4build4) ...
+Selecting previously unselected package libsox-fmt-all:amd64.
+Preparing to unpack .../37-libsox-fmt-all_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking libsox-fmt-all:amd64 (14.4.2+git20190427-4build4) ...
+Selecting previously unselected package pkgconf-bin.
+Preparing to unpack .../38-pkgconf-bin_1.8.1-2build1_amd64.deb ...
+Unpacking pkgconf-bin (1.8.1-2build1) ...
+Selecting previously unselected package pkgconf:amd64.
+Preparing to unpack .../39-pkgconf_1.8.1-2build1_amd64.deb ...
+Unpacking pkgconf:amd64 (1.8.1-2build1) ...
+Selecting previously unselected package pkg-config:amd64.
+Preparing to unpack .../40-pkg-config_1.8.1-2build1_amd64.deb ...
+Unpacking pkg-config:amd64 (1.8.1-2build1) ...
+Selecting previously unselected package python3-dev.
+Preparing to unpack .../41-python3-dev_3.12.3-0ubuntu2.1_amd64.deb ...
+Unpacking python3-dev (3.12.3-0ubuntu2.1) ...
+Selecting previously unselected package sox.
+Preparing to unpack .../42-sox_14.4.2+git20190427-4build4_amd64.deb ...
+Unpacking sox (14.4.2+git20190427-4build4) ...
+Setting up libpython3-dev:amd64 (3.12.3-0ubuntu2.1) ...
+Setting up wget (1.21.4-1ubuntu4.5) ...
+Setting up libcurl4t64:amd64 (8.5.0-2ubuntu10.13) ...
+Setting up libjq1:amd64 (1.7.1-3ubuntu0.24.04.2) ...
+Setting up libcurl3t64-gnutls:amd64 (8.5.0-2ubuntu10.13) ...
+Setting up libgomp1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libao-common (1.2.2+20180113-1.1ubuntu4) ...
+Setting up libid3tag0:amd64 (0.15.1b-14build1) ...
+Setting up ca-certificates (20260601~24.04.1) ...
+Updating certificates in /etc/ssl/certs...
+rehash: warning: skipping ca-certificates.crt,it does not contain exactly one certificate or CRL
+14 added, 39 removed; done.
+Setting up libopencore-amrwb0:amd64 (0.1.6-1build1) ...
+Setting up libglib2.0-0t64:amd64 (2.80.0-6ubuntu3.8) ...
+Setting up libglib2.0-data (2.80.0-6ubuntu3.8) ...
+Setting up libpkgconf3:amd64 (1.8.1-2build1) ...
+Setting up libcurl4-openssl-dev:amd64 (8.5.0-2ubuntu10.13) ...
+Setting up libquadmath0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libcares2:amd64 (1.27.0-1.0ubuntu1) ...
+Setting up libatomic1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up pkgconf-bin (1.8.1-2build1) ...
+Setting up gir1.2-glib-2.0:amd64 (2.80.0-6ubuntu3.8) ...
+Setting up libltdl7:amd64 (2.4.7-7build1) ...
+Setting up libgfortran5:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libubsan1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libao4:amd64 (1.2.2+20180113-1.1ubuntu4) ...
+Setting up libmad0:amd64 (0.15.1b-10.2ubuntu1) ...
+Setting up libhwasan0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libwavpack1:amd64 (5.6.0-1build1) ...
+Setting up libasan8:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up jq (1.7.1-3ubuntu0.24.04.2) ...
+Setting up libopencore-amrnb0:amd64 (0.1.6-1build1) ...
+Setting up curl (8.5.0-2ubuntu10.13) ...
+Setting up libssh2-1t64:amd64 (1.11.0-4.1ubuntu0.24.04.4) ...
+Setting up libtsan2:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libjs-jquery (3.6.1+dfsg+~3.5.14-1) ...
+Setting up git-lfs (3.4.1-1ubuntu0.4) ...
+Setting up libcc1-0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up liblsan0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up libitm1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+Setting up rsync (3.2.7-1ubuntu1.5) ...
+invoke-rc.d: could not determine current runlevel
+invoke-rc.d: policy-rc.d denied execution of restart.
+Setting up libpython3-stdlib:amd64 (3.12.3-0ubuntu2.1) ...
+Setting up libjs-underscore (1.13.4~dfsg+~1.11.4-3) ...
+Setting up libaria2-0:amd64 (1.37.0+debian-1build3) ...
+Setting up libsox3:amd64 (14.4.2+git20190427-4build4) ...
+Setting up aria2 (1.37.0+debian-1build3) ...
+Setting up libsox-fmt-oss:amd64 (14.4.2+git20190427-4build4) ...
+Setting up libglib2.0-bin (2.80.0-6ubuntu3.8) ...
+Setting up python3 (3.12.3-0ubuntu2.1) ...
+Setting up pkgconf:amd64 (1.8.1-2build1) ...
+Setting up pkg-config:amd64 (1.8.1-2build1) ...
+Setting up libsox-fmt-alsa:amd64 (14.4.2+git20190427-4build4) ...
+Setting up libjs-sphinxdoc (7.2.6-6) ...
+Setting up libsox-fmt-base:amd64 (14.4.2+git20190427-4build4) ...
+Setting up libsox-fmt-ao:amd64 (14.4.2+git20190427-4build4) ...
+Setting up libsox-fmt-mp3:amd64 (14.4.2+git20190427-4build4) ...
+Setting up libsox-fmt-pulse:amd64 (14.4.2+git20190427-4build4) ...
+Setting up python3-dev (3.12.3-0ubuntu2.1) ...
+Setting up sox (14.4.2+git20190427-4build4) ...
+Setting up libsox-fmt-all:amd64 (14.4.2+git20190427-4build4) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.6) ...
+Processing triggers for ca-certificates (20260601~24.04.1) ...
+Updating certificates in /etc/ssl/certs...
+0 added, 0 removed; done.
+Running hooks in /etc/ca-certificates/update.d...
+done.
+Git LFS initialized.
+uv 0.9.0
+
+[2026-09-14T11:28:13Z] === CORE_ENV ===
+Downloading cpython-3.12.11-linux-x86_64-gnu (download) (31.1MiB)
+ Downloading cpython-3.12.11-linux-x86_64-gnu (download)
+Installed Python 3.12.11 in 1.96s
+ + cpython-3.12.11-linux-x86_64-gnu (python3.12)
+Using CPython 3.12.11
+Creating virtual environment at: /workspace/ctnetwork-local/envs/core
+Activate with: source workspace/ctnetwork-local/envs/core/bin/activate
+Using Python 3.12.11 environment at: /workspace/ctnetwork-local/envs/core
+Resolved 87 packages in 2.31s
+Downloading scikit-learn (8.7MiB)
+Downloading fonttools (5.2MiB)
+Downloading faster-whisper (1.1MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading opencv-python-headless (58.4MiB)
+Downloading matplotlib (9.4MiB)
+Downloading pygments (1.2MiB)
+Downloading pillow (6.6MiB)
+Downloading onnxruntime (22.5MiB)
+Downloading tokenizers (3.2MiB)
+Downloading numpy (15.9MiB)
+Downloading scipy (33.7MiB)
+Downloading hf-xet (4.3MiB)
+Downloading sqlalchemy (3.2MiB)
+Downloading pedalboard (4.9MiB)
+Downloading uvloop (4.2MiB)
+Downloading ctranslate2 (37.7MiB)
+Downloading opencv-python (70.4MiB)
+Downloading soundfile (1.3MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading llvmlite (57.1MiB)
+Downloading av (34.1MiB)
+Downloading numba (3.7MiB)
+ Downloading faster-whisper
+ Downloading soundfile
+ Downloading kiwisolver
+ Downloading pydantic-core
+ Downloading tokenizers
+ Downloading pygments
+ Downloading sqlalchemy
+ Downloading hf-xet
+ Downloading uvloop
+ Downloading pedalboard
+ Downloading fonttools
+ Downloading pillow
+ Downloading numba
+ Downloading matplotlib
+ Downloading scikit-learn
+ Downloading numpy
+ Downloading ctranslate2
+ Downloading opencv-python-headless
+ Downloading llvmlite
+ Downloading av
+ Downloading opencv-python
+ Downloading onnxruntime
+ Downloading scipy
+Prepared 87 packages in 1m 12s
+Installed 87 packages in 12.04s
+ + aiosqlite==0.22.1
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + av==18.1.0
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + charset-normalizer==3.5.1
+ + click==8.5.0
+ + cloudpickle==3.1.2
+ + contourpy==1.4.0
+ + ctranslate2==4.8.2
+ + cycler==0.12.1
+ + decorator==5.3.1
+ + fastapi==0.141.1
+ + faster-whisper==1.2.1
+ + ffmpeg-python==0.2.0
+ + filelock==3.32.6
+ + flatbuffers==25.12.19
+ + fonttools==4.65.0
+ + fsspec==2026.7.0
+ + future==1.0.0
+ + greenlet==3.5.5
+ + h11==0.16.0
+ + hf-xet==1.6.0
+ + httpcore==1.0.9
+ + httptools==0.8.0
+ + httpx==0.28.1
+ + huggingface-hub==1.31.0
+ + idna==3.19
+ + joblib==1.6.0
+ + kiwisolver==1.5.1
+ + lazy-loader==0.5
+ + librosa==1.0.0
+ + llvmlite==0.49.0
+ + markdown-it-py==4.2.0
+ + matplotlib==3.11.2
+ + mdurl==0.1.2
+ + msgpack==1.2.2
+ + narwhals==2.26.0
+ + noisereduce==3.0.3
+ + numba==0.67.0
+ + numpy==2.5.3
+ + onnxruntime==1.30.0
+ + opencv-python==5.0.0.93
+ + opencv-python-headless==5.0.0.93
+ + orjson==3.12.0
+ + packaging==26.3
+ + pedalboard==0.9.25
+ + pillow==12.3.0
+ + platformdirs==4.11.8
+ + pooch==1.9.0
+ + protobuf==7.36.1
+ + psutil==7.2.2
+ + pycparser==3.0
+ + pydantic==2.13.5
+ + pydantic-core==2.46.5
+ + pygments==2.21.0
+ + pyloudnorm==0.2.0
+ + pyparsing==3.3.2
+ + python-dateutil==2.9.0.post0
+ + python-dotenv==1.2.3
+ + pyyaml==6.0.3
+ + requests==2.34.2
+ + rich==15.0.0
+ + scenedetect==0.7.1
+ + scikit-learn==1.9.1
+ + scipy==1.18.1
+ + shellingham==1.5.4
+ + six==1.17.0
+ + soundfile==0.14.0
+ + soxr==1.1.0
+ + sqlalchemy==2.0.52
+ + starlette==1.6.0
+ + tenacity==9.1.4
+ + threadpoolctl==3.6.0
+ + tokenizers==0.23.2
+ + tqdm==4.70.1
+ + typer==0.27.2
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + urllib3==2.7.0
+ + uvicorn==0.53.0
+ + uvloop==0.22.1
+ + watchdog==6.0.0
+ + watchfiles==1.2.0
+ + websockets==17.1
+Using Python 3.12.11 environment at: /workspace/ctnetwork-local/envs/core
+Resolved 13 packages in 896ms
+Downloading numpy (17.1MiB)
+Downloading sympy (6.0MiB)
+   Building deepfilterlib==0.5.6
+  × Failed to build `deepfilterlib==0.5.6`
+  ├─▶ The build backend returned an error
+  ╰─▶ Call to `maturin.build_wheel` failed (exit status: 1)
+
+      [stdout]
+      Running `maturin pep517 build-wheel -i
+      /workspace/.cache/uv/builds-v0/.tmpVuzFlL/bin/python`
+
+      [stderr]
+      💥 maturin failed
+        Caused by: Cargo metadata failed. Do you have cargo in your PATH?
+        Caused by: No such file or directory (os error 2)
+      Error: command ['maturin', 'pep517', 'build-wheel', '-i',
+      '/workspace/.cache/uv/builds-v0/.tmpVuzFlL/bin/python'] returned
+      non-zero exit status 1
+
+      hint: This usually indicates a problem with the package or the build
+      environment.
+  help: `deepfilterlib` (v0.5.6) was included because `deepfilternet` (v0.5.6)
+        depends on `deepfilterlib`
+
+[2026-09-14T11:29:54Z] === QWEN3_TTS ===
+Cloning into '/workspace/ctnetwork-local/src/Qwen3-TTS'...
+Updating files:  86% (32/37)Updating files:  89% (33/37)Updating files:  91% (34/37)Updating files:  94% (35/37)Updating files:  97% (36/37)Updating files: 100% (37/37)Updating files: 100% (37/37), done.
+Python 3.12 is already installed
+Using CPython 3.12.11
+Creating virtual environment at: /workspace/ctnetwork-local/envs/qwen3-tts
+Activate with: source workspace/ctnetwork-local/envs/qwen3-tts/bin/activate
+Using Python 3.12.11 environment at: /workspace/ctnetwork-local/envs/qwen3-tts
+Resolved 33 packages in 1.86s
+Downloading setuptools (1.2MiB)
+Downloading sympy (6.0MiB)
+Downloading numpy (15.9MiB)
+Downloading pillow (6.6MiB)
+Downloading cuda-bindings (7.3MiB)
+Downloading networkx (2.0MiB)
+Downloading torchaudio (1.6MiB)
+Downloading torchvision (7.7MiB)
+Downloading triton (179.6MiB)
+Downloading torch (782.3MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (84.0MiB)
+Downloading nvidia-nccl-cu12 (283.0MiB)
+Downloading nvidia-cusparse-cu12 (274.9MiB)
+Downloading nvidia-cufile-cu12 (1.1MiB)
+Downloading nvidia-cublas-cu12 (566.8MiB)
+Downloading nvidia-cusparselt-cu12 (273.9MiB)
+Downloading nvidia-nvjitlink-cu12 (37.4MiB)
+Downloading nvidia-cudnn-cu12 (627.4MiB)
+Downloading nvidia-nvshmem-cu12 (132.7MiB)
+Downloading nvidia-cuda-cupti-cu12 (9.8MiB)
+Downloading nvidia-cusolver-cu12 (255.1MiB)
+Downloading nvidia-cufft-cu12 (184.2MiB)
+Downloading nvidia-curand-cu12 (60.7MiB)
+ Downloading nvidia-cufile-cu12
+ Downloading torchaudio
+ Downloading nvidia-cuda-cupti-cu12
+ Downloading torchvision
+ Downloading pillow
+ Downloading nvidia-cuda-nvrtc-cu12
+ Downloading cuda-bindings
+ Downloading setuptools
+ Downloading networkx
+ Downloading nvidia-nvjitlink-cu12
+ Downloading triton
+ Downloading nvidia-curand-cu12
+ Downloading numpy
+ Downloading nvidia-nccl-cu12
+ Downloading nvidia-cusparse-cu12
+ Downloading nvidia-nvshmem-cu12
+ Downloading sympy
+ Downloading nvidia-cusparselt-cu12
+ Downloading nvidia-cufft-cu12
+ Downloading nvidia-cusolver-cu12
+ Downloading nvidia-cublas-cu12
+ Downloading nvidia-cudnn-cu12
+ Downloading torch
+Prepared 33 packages in 5m 04s
+Installed 33 packages in 38.94s
+ + cuda-bindings==12.9.7
+ + cuda-pathfinder==1.6.0
+ + cuda-toolkit==12.8.1
+ + filelock==3.32.3
+ + fsspec==2026.7.0
+ + jinja2==3.1.6
+ + markupsafe==3.0.3
+ + mpmath==1.3.0
+ + networkx==3.6.1
+ + numpy==2.5.2
+ + nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-nvrtc-cu12==12.8.93
+ + nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cudnn-cu12==9.19.0.56
+ + nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufile-cu12==1.13.1.3
+ + nvidia-curand-cu12==10.3.9.90
+ + nvidia-cusolver-cu12==11.7.3.90
+ + nvidia-cusparse-cu12==12.5.8.93
+ + nvidia-cusparselt-cu12==0.7.1
+ + nvidia-nccl-cu12==2.28.9
+ + nvidia-nvjitlink-cu12==12.8.93
+ + nvidia-nvshmem-cu12==3.4.5
+ + nvidia-nvtx-cu12==12.8.90
+ + pillow==12.3.0
+ + setuptools==78.1.0
+ + sympy==1.14.0
+ + torch==2.11.0+cu128
+ + torchaudio==2.11.0+cu128
+ + torchvision==0.26.0+cu128
+ + triton==3.6.0
+ + typing-extensions==4.16.0
+Using Python 3.12.11 environment at: /workspace/ctnetwork-local/envs/qwen3-tts
+Resolved 106 packages in 22.29s
+   Building sox==1.5.0
+   Building qwen-tts @ file:///workspace/ctnetwork-local/src/Qwen3-TTS
+Downloading tokenizers (3.1MiB)
+Downloading pandas (10.5MiB)
+Downloading brotli (1.4MiB)
+Downloading gradio (30.8MiB)
+Downloading transformers (11.4MiB)
+ Downloading brotli
+ Downloading tokenizers
+      Built sox==1.5.0
+      Built qwen-tts @ file:///workspace/ctnetwork-local/src/Qwen3-TTS
+ Downloading pandas
+ Downloading gradio
+ Downloading transformers
+Prepared 21 packages in 1m 27s
+Installed 74 packages in 10.70s
+ + accelerate==1.12.0
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + brotli==1.2.0
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + charset-normalizer==3.5.1
+ + click==8.5.0
+ + cloudpickle==3.1.2
+ + decorator==5.3.1
+ + einops==0.8.2
+ + fastapi==0.141.1
+ + flatbuffers==25.12.19
+ + gradio==6.17.3
+ + gradio-client==2.5.0
+ + groovy==0.1.2
+ + h11==0.16.0
+ + hf-gradio==0.4.1
+ + hf-xet==1.6.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + huggingface-hub==0.36.2
+ + idna==3.19
+ + joblib==1.6.0
+ + lazy-loader==0.5
+ + librosa==1.0.0
+ + llvmlite==0.49.0
+ + markdown-it-py==4.2.0
+ + mdurl==0.1.2
+ + msgpack==1.2.2
+ + narwhals==2.26.0
+ + numba==0.67.0
+ + onnxruntime==1.30.0
+ + orjson==3.12.0
+ + packaging==26.3
+ + pandas==3.0.5
+ + platformdirs==4.11.8
+ + pooch==1.9.0
+ + protobuf==7.36.1
+ + psutil==7.2.2
+ + pycparser==3.0
+ + pydantic==2.13.5
+ + pydantic-core==2.46.5
+ + pydub==0.25.1
+ + pygments==2.21.0
+ + python-dateutil==2.9.0.post0
+ + python-multipart==0.0.32
+ + pytz==2026.3.post1
+ + pyyaml==6.0.3
+ + qwen-tts==0.1.1 (from file:///workspace/ctnetwork-local/src/Qwen3-TTS)
+ + regex==2026.9.10
+ + requests==2.34.2
+ + rich==15.0.0
+ + safehttpx==0.1.7
+ + safetensors==0.8.0
+ + scikit-learn==1.9.1
+ + scipy==1.18.1
+ + semantic-version==2.10.0
+ + shellingham==1.5.4
+ + six==1.17.0
+ + soundfile==0.14.0
+ + sox==1.5.0
+ + soxr==1.1.0
+ + starlette==1.6.0
+ + threadpoolctl==3.6.0
+ + tokenizers==0.22.2
+ + tomlkit==0.14.0
+ + tqdm==4.70.1
+ + transformers==4.57.3
+ + typer==0.27.2
+ + typing-inspection==0.4.4
+ + urllib3==2.7.0
+ + uvicorn==0.53.0
+Using Python 3.12.11 environment at: /workspace/ctnetwork-local/envs/qwen3-tts
+Audited 1 package in 875ms
+Downloading '.gitattributes' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/wPaCkH-WbT7GsmxMKKrNZTV4nSM=.a6344aac8c09253b3b630fb776ae94478aa0275b.incomplete'
+Traceback (most recent call last):
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 399, in http_get
+    import hf_transfer  # type: ignore[no-redef]
+    ^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'hf_transfer'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/bin/hf", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/cli/hf.py", line 59, in main
+    service.run()
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/cli/download.py", line 136, in run
+    print(self._download())  # Print path to downloaded files
+          ^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/cli/download.py", line 169, in _download
+    return snapshot_download(
+           ^^^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/_snapshot_download.py", line 330, in snapshot_download
+    _inner_hf_hub_download(file)
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/_snapshot_download.py", line 306, in _inner_hf_hub_download
+    return hf_hub_download(
+           ^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 994, in hf_hub_download
+    return _hf_hub_download_to_local_dir(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1304, in _hf_hub_download_to_local_dir
+    _download_to_tmp_and_move(
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1742, in _download_to_tmp_and_move
+    http_get(
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 401, in http_get
+    raise ValueError(
+ValueError: Fast download using 'hf_transfer' is enabled (HF_HUB_ENABLE_HF_TRANSFER=1) but 'hf_transfer' package is not available in your environment. Try `pip install hf_transfer`.
+[33m⚠️  Warning: 'huggingface-cli download' is deprecated. Use 'hf download' instead.[0m
+Removing incomplete file '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/wPaCkH-WbT7GsmxMKKrNZTV4nSM=.a6344aac8c09253b3b630fb776ae94478aa0275b.incomplete' (hf_transfer=True)
+Downloading '.gitattributes' to '/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/wPaCkH-WbT7GsmxMKKrNZTV4nSM=.a6344aac8c09253b3b630fb776ae94478aa0275b.incomplete'
+Traceback (most recent call last):
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 399, in http_get
+    import hf_transfer  # type: ignore[no-redef]
+    ^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'hf_transfer'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/bin/huggingface-cli", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/commands/huggingface_cli.py", line 61, in main
+    service.run()
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/commands/download.py", line 157, in run
+    print(self._download())  # Print path to downloaded files
+          ^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/commands/download.py", line 191, in _download
+    return snapshot_download(
+           ^^^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/_snapshot_download.py", line 330, in snapshot_download
+    _inner_hf_hub_download(file)
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/_snapshot_download.py", line 306, in _inner_hf_hub_download
+    return hf_hub_download(
+           ^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 994, in hf_hub_download
+    return _hf_hub_download_to_local_dir(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1304, in _hf_hub_download_to_local_dir
+    _download_to_tmp_and_move(
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 1742, in _download_to_tmp_and_move
+    http_get(
+  File "/workspace/ctnetwork-local/envs/qwen3-tts/lib/python3.12/site-packages/huggingface_hub/file_download.py", line 401, in http_get
+    raise ValueError(
+ValueError: Fast download using 'hf_transfer' is enabled (HF_HUB_ENABLE_HF_TRANSFER=1) but 'hf_transfer' package is not available in your environment. Try `pip install hf_transfer`.
+qwen torch 2.11.0+cu128 cuda 12.8 available True
+NVIDIA GeForce RTX 5090 (12, 0)
+
+[2026-09-14T11:39:05Z] === LATENTSYNC_1_6 ===
+Cloning into '/workspace/ctnetwork-local/src/LatentSync'...
+Updating files:  33% (42/124)Updating files:  34% (43/124)Updating files:  35% (44/124)Updating files:  36% (45/124)Updating files:  37% (46/124)Updating files:  38% (48/124)Updating files:  39% (49/124)Updating files:  40% (50/124)Updating files:  41% (51/124)Updating files:  42% (53/124)Updating files:  43% (54/124)Updating files:  44% (55/124)Updating files:  45% (56/124)Updating files:  46% (58/124)Updating files:  47% (59/124)Updating files:  48% (60/124)Updating files:  49% (61/124)Updating files:  50% (62/124)Updating files:  51% (64/124)Updating files:  52% (65/124)Updating files:  53% (66/124)Updating files:  54% (67/124)Updating files:  55% (69/124)Updating files:  56% (70/124)Updating files:  57% (71/124)Updating files:  58% (72/124)Updating files:  59% (74/124)Updating files:  60% (75/124)Updating files:  61% (76/124)Updating files:  62% (77/124)Updating files:  63% (79/124)Updating files:  64% (80/124)Updating files:  65% (81/124)Updating files:  66% (82/124)Updating files:  67% (84/124)Updating files:  68% (85/124)Updating files:  69% (86/124)Updating files:  70% (87/124)Updating files:  71% (89/124)Updating files:  72% (90/124)Updating files:  73% (91/124)Updating files:  74% (92/124)Updating files:  75% (93/124)Updating files:  76% (95/124)Updating files:  77% (96/124)Updating files:  78% (97/124)Updating files:  79% (98/124)Updating files:  80% (100/124)Updating files:  81% (101/124)Updating files:  82% (102/124)Updating files:  83% (103/124)Updating files:  84% (105/124)Updating files:  85% (106/124)Updating files:  86% (107/124)Updating files:  87% (108/124)Updating files:  88% (110/124)Updating files:  89% (111/124)Updating files:  90% (112/124)Updating files:  91% (113/124)Updating files:  92% (115/124)Updating files:  93% (116/124)Updating files:  94% (117/124)Updating files:  95% (118/124)Updating files:  96% (120/124)Updating files:  97% (121/124)Updating files:  98% (122/124)Updating files:  99% (123/124)Updating files: 100% (124/124)Updating files: 100% (124/124), done.
+Downloading cpython-3.10.18-linux-x86_64-gnu (download) (27.5MiB)
+ Downloading cpython-3.10.18-linux-x86_64-gnu (download)
+Installed Python 3.10.18 in 1.30s
+ + cpython-3.10.18-linux-x86_64-gnu (python3.10)
+Using CPython 3.10.18
+Creating virtual environment at: /workspace/ctnetwork-local/envs/latentsync
+Activate with: source workspace/ctnetwork-local/envs/latentsync/bin/activate
+Using Python 3.10.18 environment at: /workspace/ctnetwork-local/envs/latentsync
+Resolved 32 packages in 1.50s
+Downloading numpy (16.0MiB)
+Downloading torch (782.2MiB)
+Downloading networkx (1.6MiB)
+Downloading cuda-bindings (7.3MiB)
+Downloading pillow (6.6MiB)
+Downloading torchvision (7.7MiB)
+Downloading triton (179.4MiB)
+ Downloading pillow
+ Downloading torchvision
+ Downloading cuda-bindings
+ Downloading networkx
+ Downloading triton
+ Downloading numpy
+ Downloading torch
+Prepared 8 packages in 4m 38s
+Installed 32 packages in 40.77s
+ + cuda-bindings==12.9.7
+ + cuda-pathfinder==1.6.0
+ + cuda-toolkit==12.8.1
+ + filelock==3.32.3
+ + fsspec==2026.7.0
+ + jinja2==3.1.6
+ + markupsafe==3.0.3
+ + mpmath==1.3.0
+ + networkx==3.4.2
+ + numpy==2.2.6
+ + nvidia-cublas-cu12==12.8.4.1
+ + nvidia-cuda-cupti-cu12==12.8.90
+ + nvidia-cuda-nvrtc-cu12==12.8.93
+ + nvidia-cuda-runtime-cu12==12.8.90
+ + nvidia-cudnn-cu12==9.19.0.56
+ + nvidia-cufft-cu12==11.3.3.83
+ + nvidia-cufile-cu12==1.13.1.3
+ + nvidia-curand-cu12==10.3.9.90
+ + nvidia-cusolver-cu12==11.7.3.90
+ + nvidia-cusparse-cu12==12.5.8.93
+ + nvidia-cusparselt-cu12==0.7.1
+ + nvidia-nccl-cu12==2.28.9
+ + nvidia-nvjitlink-cu12==12.8.93
+ + nvidia-nvshmem-cu12==3.4.5
+ + nvidia-nvtx-cu12==12.8.90
+ + pillow==12.3.0
+ + setuptools==78.1.0
+ + sympy==1.14.0
+ + torch==2.11.0+cu128
+ + torchvision==0.26.0+cu128
+ + triton==3.6.0
+ + typing-extensions==4.16.0
+Using Python 3.10.18 environment at: /workspace/ctnetwork-local/envs/latentsync
+Resolved 156 packages in 1m 03s
+Downloading pillow (6.3MiB)
+Downloading pandas (12.2MiB)
+Downloading protobuf (1.0MiB)
+Downloading numpy (17.4MiB)
+Downloading ruff (9.9MiB)
+Downloading transformers (9.2MiB)
+Downloading opencv-contrib-python (65.9MiB)
+Downloading ml-dtypes (4.8MiB)
+Downloading kornia (1.0MiB)
+Downloading stringzilla (4.1MiB)
+Downloading mediapipe (34.0MiB)
+Downloading onnxruntime-gpu (267.8MiB)
+Downloading opencv-python (59.3MiB)
+Downloading gradio (44.7MiB)
+Downloading fonttools (5.0MiB)
+Downloading diffusers (3.1MiB)
+Downloading kiwisolver (1.6MiB)
+Downloading matplotlib (8.4MiB)
+Downloading kornia-rs (3.5MiB)
+Downloading jax (2.6MiB)
+Downloading scikit-image (14.0MiB)
+Downloading llvmlite (57.1MiB)
+Downloading imageio-ffmpeg (25.7MiB)
+Downloading numba (3.6MiB)
+Downloading tokenizers (3.0MiB)
+Downloading onnx (15.3MiB)
+Downloading scikit-learn (9.2MiB)
+Downloading pydantic-core (1.9MiB)
+Downloading jaxlib (85.8MiB)
+Downloading opencv-python-headless (47.7MiB)
+Downloading scipy (35.9MiB)
+Downloading decord (13.0MiB)
+ Downloading protobuf
+   Building antlr4-python3-runtime==4.9.3
+   Building insightface==0.7.3
+   Building python-speech-features==0.6
+      Built python-speech-features==0.6
+ Downloading kiwisolver
+ Downloading pydantic-core
+      Built antlr4-python3-runtime==4.9.3
+ Downloading kornia
+      Built insightface==0.7.3
+ Downloading tokenizers
+ Downloading jax
+ Downloading diffusers
+ Downloading kornia-rs
+ Downloading stringzilla
+ Downloading ml-dtypes
+ Downloading numba
+ Downloading fonttools
+ Downloading pillow
+ Downloading ruff
+ Downloading matplotlib
+ Downloading scikit-learn
+ Downloading decord
+ Downloading transformers
+ Downloading scikit-image
+ Downloading numpy
+ Downloading pandas
+ Downloading imageio-ffmpeg
+ Downloading mediapipe
+ Downloading scipy
+ Downloading opencv-python-headless
+ Downloading llvmlite
+ Downloading opencv-python
+ Downloading opencv-contrib-python
+ Downloading jaxlib
+ Downloading gradio
+ Downloading onnxruntime-gpu
+ Downloading onnx
+Prepared 78 packages in 3m 58s
+Uninstalled 2 packages in 4.23s
+Installed 126 packages in 40.71s
+ + absl-py==2.5.0
+ + accelerate==0.26.1
+ + aiofiles==24.1.0
+ + albucore==0.0.24
+ + albumentations==2.0.8
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + antlr4-python3-runtime==4.9.3
+ + anyio==4.15.1
+ + appdirs==1.4.4
+ + attrs==26.1.0
+ + audioread==3.1.0
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + charset-normalizer==3.5.1
+ + click==8.5.0
+ + cloudpickle==3.1.2
+ + coloredlogs==15.0.1
+ + contourpy==1.3.2
+ + cycler==0.12.1
+ + cython==3.3.0
+ + decorator==5.3.1
+ + decord==0.6.0
+ + deepcache==0.1.1
+ + diffusers==0.32.2
+ + easydict==1.13
+ + einops==0.7.0
+ + exceptiongroup==1.3.1
+ + face-alignment==1.4.1
+ + fastapi==0.141.1
+ + ffmpeg-python==0.2.0
+ + ffmpy==1.0.0
+ + flatbuffers==25.12.19
+ + fonttools==4.65.0
+ + future==1.0.0
+ + gradio==5.24.0
+ + gradio-client==1.8.0
+ + groovy==0.1.2
+ + h11==0.16.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + huggingface-hub==0.30.2
+ + humanfriendly==10.0
+ + idna==3.19
+ + imageio==2.31.1
+ + imageio-ffmpeg==0.5.1
+ + importlib-metadata==9.0.1
+ + insightface==0.7.3
+ + jax==0.6.2
+ + jaxlib==0.6.2
+ + joblib==1.6.0
+ + kiwisolver==1.5.1
+ + kornia==0.8.0
+ + kornia-rs==0.1.14
+ + lazy-loader==0.5
+ + librosa==0.10.1
+ + llvmlite==0.49.0
+ + lpips==0.1.4
+ + markdown-it-py==4.2.0
+ + matplotlib==3.10.9
+ + mdurl==0.1.2
+ + mediapipe==0.10.11
+ + ml-dtypes==0.5.4
+ + msgpack==1.2.2
+ + numba==0.67.0
+ - numpy==2.2.6
+ + numpy==1.26.4
+ + omegaconf==2.3.0
+ + onnx==1.17.0
+ + onnxruntime-gpu==1.21.0
+ + opencv-contrib-python==4.11.0.86
+ + opencv-python==4.9.0.80
+ + opencv-python-headless==4.11.0.86
+ + opt-einsum==3.4.0
+ + orjson==3.12.0
+ + packaging==26.3
+ + pandas==2.3.3
+ - pillow==12.3.0
+ + pillow==11.3.0
+ + platformdirs==4.11.8
+ + pooch==1.9.0
+ + prettytable==3.18.0
+ + protobuf==3.20.3
+ + psutil==7.2.2
+ + pycparser==3.0
+ + pydantic==2.11.10
+ + pydantic-core==2.33.2
+ + pydub==0.25.1
+ + pygments==2.21.0
+ + pyparsing==3.3.2
+ + python-dateutil==2.9.0.post0
+ + python-multipart==0.0.32
+ + python-speech-features==0.6
+ + pytz==2026.3.post1
+ + pyyaml==6.0.3
+ + regex==2026.9.10
+ + requests==2.34.2
+ + rich==15.0.0
+ + ruff==0.16.7
+ + safehttpx==0.1.7
+ + safetensors==0.8.0
+ + scenedetect==0.6.1
+ + scikit-image==0.22.0
+ + scikit-learn==1.7.2
+ + scipy==1.15.3
+ + semantic-version==2.10.0
+ + shellingham==1.5.4
+ + simsimd==6.5.16
+ + six==1.17.0
+ + sounddevice==0.5.6
+ + soundfile==0.14.0
+ + soxr==1.1.0
+ + starlette==0.52.1
+ + stringzilla==5.1.2
+ + threadpoolctl==3.6.0
+ + tifffile==2025.5.10
+ + tokenizers==0.21.4
+ + tomlkit==0.13.3
+ + tqdm==4.70.1
+ + transformers==4.48.0
+ + typer==0.27.2
+ + typing-inspection==0.4.4
+ + tzdata==2026.4
+ + urllib3==2.7.0
+ + uvicorn==0.53.0
+ + wcwidth==0.8.3
+ + websockets==15.0.1
+ + zipp==4.1.0
+Downloading 'whisper/tiny.pt' to '/workspace/ctnetwork-local/src/LatentSync/checkpoints/.cache/huggingface/download/whisper/2bXfceQet32ashONewwCNGFRC3E=.65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9.incomplete'
+Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+Traceback (most recent call last):
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 363, in http_get
+    import hf_transfer  # type: ignore[no-redef]
+ModuleNotFoundError: No module named 'hf_transfer'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/ctnetwork-local/envs/latentsync/bin/huggingface-cli", line 10, in <module>
+    sys.exit(main())
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/commands/huggingface_cli.py", line 57, in main
+    service.run()
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/commands/download.py", line 153, in run
+    print(self._download())  # Print path to downloaded files
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/commands/download.py", line 166, in _download
+    return hf_hub_download(
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 941, in hf_hub_download
+    return _hf_hub_download_to_local_dir(
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1241, in _hf_hub_download_to_local_dir
+    _download_to_tmp_and_move(
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 1675, in _download_to_tmp_and_move
+    http_get(
+  File "/workspace/ctnetwork-local/envs/latentsync/lib/python3.10/site-packages/huggingface_hub/file_download.py", line 365, in http_get
+    raise ValueError(
+ValueError: Fast download using 'hf_transfer' is enabled (HF_HUB_ENABLE_HF_TRANSFER=1) but 'hf_transfer' package is not available in your environment. Try `pip install hf_transfer`.
+/tmp/ctnetwork-local-stack-install.sh: line 128: /workspace/ctnetwork-local/envs/latentsync/bin/hf: No such file or directory
+[2026-09-14T11:50:42Z] installer failed rc=127
+__CTN_INSTALL_DONE__:127
