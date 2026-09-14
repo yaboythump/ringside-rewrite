@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           ACTION=$(jq -r '.action // "audit"' ctnetwork-local-stack-command.json | tr '[:upper:]' '[:lower:]')
           POD_ID=$(jq -r '.pod_id // empty' ctnetwork-local-stack-command.json)
-          case "$ACTION" in audit|preflight|install-core|install-all|install|verify) ;; *) echo "Unsupported action: $ACTION"; exit 2;; esac
+          case "$ACTION" in audit|preflight|install-core|install-all|install|resume|verify) ;; *) echo "Unsupported action: $ACTION"; exit 2;; esac
           [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 3; }
           POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
