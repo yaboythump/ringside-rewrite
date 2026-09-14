@@ -1,0 +1,9 @@
+{
+  "id": "bhqb1b90qkl2oq",
+  "name": "ctnetwork-factory-gpu",
+  "desiredStatus": "EXITED",
+  "networkVolumeId": "9wjb3sa5zm",
+  "costPerHr": 0.99,
+  "installerConclusion": "failure",
+  "lastStatusChange": "Exited by user: Mon Sep 14 2026 11:50:57 GMT+0000 (Coordinated Universal Time)"
+}
