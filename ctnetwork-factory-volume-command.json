@@ -1,7 +1,7 @@
 {
   "action": "provision",
-  "name": "ctnetwork-factory",
+  "name": "ctnetwork-factory-cz",
   "size": 300,
-  "data_center_id": "EU-RO-1",
-  "request_id": "ctnetwork-factory-volume-2026-09-14-01"
+  "data_center_id": "EU-CZ-1",
+  "request_id": "ctnetwork-factory-volume-cz-migration-2026-09-14-01"
 }
