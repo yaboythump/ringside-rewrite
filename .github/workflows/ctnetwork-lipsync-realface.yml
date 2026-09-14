@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ctnetwork-realface-latentsync-certification
+  cancel-in-progress: true
+
 jobs:
   realface:
     runs-on: ubuntu-latest
@@ -41,7 +45,7 @@ jobs:
             echo 'Real-face certification is staged but held behind demo certification.'
           fi
 
-      - name: Resolve and start factory pod
+      - name: Resolve, start, and health-gate factory pod
         if: steps.gate.outputs.action == 'certify'
         id: resolve
         shell: bash
@@ -49,23 +53,29 @@ jobs:
           set -euo pipefail
           POD_ID='${{ steps.gate.outputs.pod_id }}'
           [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 3; }
-          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
-          if [[ "$STATUS" != "RUNNING" ]]; then
-            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
-            for i in $(seq 1 120); do
-              sleep 5
-              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-              STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
-              [[ "$STATUS" == "RUNNING" ]] && break
-            done
+          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          pod_api="https://rest.runpod.io/v1/pods/${POD_ID}"
+          jupyter="https://${POD_ID}-8888.proxy.runpod.net/login"
+          refresh() { POD=$(curl -fsS "$pod_api" "${auth[@]}"); STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"'); }
+          wait_running() { for i in $(seq 1 120); do refresh; [[ "$STATUS" == "RUNNING" ]] && return 0; sleep 5; done; return 1; }
+          wait_jupyter() { for i in $(seq 1 60); do code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$jupyter" || true); echo "jupyter readiness attempt=$i http=$code"; [[ "$code" == 200 || "$code" == 302 ]] && return 0; sleep 5; done; return 1; }
+          refresh
+          if [[ "$STATUS" != "RUNNING" ]]; then curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true; wait_running || { echo "pod failed to start: $STATUS"; exit 4; }; fi
+          if ! wait_jupyter; then
+            echo 'Jupyter unhealthy on RUNNING pod; performing one controlled pod recycle.'
+            curl -fsS -X POST "$pod_api/stop" "${auth[@]}" >/dev/null || true
+            for i in $(seq 1 60); do sleep 3; refresh; [[ "$STATUS" != "RUNNING" ]] && break; done
+            curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true
+            wait_running || { echo 'pod failed controlled restart'; exit 5; }
+            wait_jupyter || { echo 'JUPYTER_READINESS_BLOCKED after controlled restart'; exit 6; }
           fi
-          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 4; }
+          refresh
           JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
-          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 5; }
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 7; }
           echo "::add-mask::$JPASS"
           printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo 'FACTORY_CONTROL_PLANE_READY'
 
       - name: Run CTNETWORK real-face certification
         if: steps.gate.outputs.action == 'certify'
@@ -87,7 +97,7 @@ jobs:
           retention-days: 7
 
       - name: Save real-face report
-        if: steps.gate.outputs.action == 'certify' && always()
+        if: steps.gate.outputs.action == 'certify' && always() && !cancelled()
         shell: bash
         run: |
           mkdir -p infra/status
@@ -100,7 +110,7 @@ jobs:
           git push origin HEAD:main
 
       - name: Stop exact real-face test pod
-        if: steps.gate.outputs.action == 'certify' && always()
+        if: steps.gate.outputs.action == 'certify' && always() && !cancelled()
         env:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
         shell: bash
