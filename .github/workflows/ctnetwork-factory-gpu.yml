@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  provision:
+  control:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -21,10 +21,11 @@ jobs:
         with:
           ref: main
 
-      - name: Create or reuse CTNETWORK factory GPU
+      - name: Control CTNETWORK factory GPU
         shell: bash
         run: |
           set -euo pipefail
+          ACTION=$(jq -r '.action // "provision"' ctnetwork-factory-gpu-command.json | tr '[:upper:]' '[:lower:]')
           NAME=$(jq -r '.name // "ctnetwork-factory-gpu"' ctnetwork-factory-gpu-command.json)
           VOLUME_ID=$(jq -r '.network_volume_id' ctnetwork-factory-gpu-command.json)
           DC=$(jq -r '.data_center_id // "EU-RO-1"' ctnetwork-factory-gpu-command.json)
@@ -32,49 +33,113 @@ jobs:
           IMAGE=$(jq -r '.image_name // "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"' ctnetwork-factory-gpu-command.json)
           mkdir -p infra/status
 
-          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          EXISTING=$(printf '%s' "$PODS" | jq -c --arg n "$NAME" --arg v "$VOLUME_ID" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first // empty')
+          case "$ACTION" in provision|start|status|stop) ;; *) echo "Unsupported action: $ACTION"; exit 2;; esac
+
+          find_factory() {
+            curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
+              | jq -c --arg n "$NAME" --arg v "$VOLUME_ID" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first // empty'
+          }
+
+          save_pod() {
+            printf '%s' "$1" | jq '{id,name,desiredStatus,imageName,networkVolumeId:(.networkVolumeId // .networkVolume.id),containerDiskInGb,volumeMountPath,ports,publicIp,portMappings,costPerHr,adjustedCostPerHr,machineId,gpu:(.gpu // null),machine:{dataCenterId:(.machine.dataCenterId // null),location:(.machine.location // null),gpuDisplayName:(.machine.gpuDisplayName // null)}}' \
+              | tee infra/status/ctnetwork-factory-gpu.json
+          }
+
+          EXISTING=$(find_factory)
+
+          if [[ "$ACTION" == "stop" ]]; then
+            if [[ -z "$EXISTING" ]]; then
+              jq -nc --arg n "$NAME" --arg v "$VOLUME_ID" '{name:$n,networkVolumeId:$v,desiredStatus:"NOT_FOUND"}' | tee infra/status/ctnetwork-factory-gpu.json
+              exit 0
+            fi
+            POD_ID=$(printf '%s' "$EXISTING" | jq -r '.id')
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+            for i in $(seq 1 30); do
+              sleep 2
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "EXITED" || "$STATUS" == "STOPPED" ]] && break
+            done
+            save_pod "$POD"
+            exit 0
+          fi
+
+          if [[ "$ACTION" == "status" ]]; then
+            if [[ -n "$EXISTING" ]]; then save_pod "$EXISTING"; else jq -nc --arg n "$NAME" --arg v "$VOLUME_ID" '{name:$n,networkVolumeId:$v,desiredStatus:"NOT_FOUND"}' | tee infra/status/ctnetwork-factory-gpu.json; fi
+            exit 0
+          fi
 
           if [[ -n "$EXISTING" ]]; then
             POD_ID=$(printf '%s' "$EXISTING" | jq -r '.id')
             STATUS=$(printf '%s' "$EXISTING" | jq -r '.desiredStatus // "unknown"')
             echo "Reusing factory pod $POD_ID status=$STATUS"
             if [[ "$STATUS" != "RUNNING" ]]; then
-              curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+              curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
             fi
           else
             JUPYTER_PASSWORD=$(openssl rand -hex 24)
             echo "::add-mask::$JUPYTER_PASSWORD"
-            BODY=$(jq -nc \
-              --arg name "$NAME" \
-              --arg image "$IMAGE" \
-              --arg gpu "$GPU" \
-              --arg dc "$DC" \
-              --arg vol "$VOLUME_ID" \
-              --arg jp "$JUPYTER_PASSWORD" \
-              '{name:$name,imageName:$image,computeType:"GPU",cloudType:"SECURE",gpuTypeIds:[$gpu],gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",gpuTypePriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeInGb:0,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],supportPublicIp:true,env:{JUPYTER_PASSWORD:$jp}}')
-            RESP=$(curl -fsS -X POST https://rest.runpod.io/v1/pods \
-              -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
-              -H 'Content-Type: application/json' \
-              --data "$BODY")
-            POD_ID=$(printf '%s' "$RESP" | jq -r '.id')
-            [[ -n "$POD_ID" && "$POD_ID" != "null" ]] || { echo 'Pod creation did not return an id'; exit 3; }
+
+            create_body() {
+              local cloud="$1"
+              jq -nc \
+                --arg name "$NAME" --arg image "$IMAGE" --arg gpu "$GPU" --arg dc "$DC" --arg vol "$VOLUME_ID" --arg jp "$JUPYTER_PASSWORD" --arg cloud "$cloud" \
+                '{name:$name,imageName:$image,cloudType:$cloud,gpuTypeIds:[$gpu],gpuCount:1,dataCenterIds:[$dc],containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}'
+            }
+
+            try_create() {
+              local cloud="$1"
+              local body http
+              body=$(create_body "$cloud")
+              http=$(curl -sS -o /tmp/ctn-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods \
+                -H "Authorization: Bearer ${RUNPOD_API_KEY}" -H 'Content-Type: application/json' --data "$body" || true)
+              echo "RunPod create cloud=$cloud HTTP=$http"
+              if [[ "$http" =~ ^2 ]]; then
+                jq 'del(.env)' /tmp/ctn-create.json 2>/dev/null || true
+                return 0
+              fi
+              jq '{error,message,errors,statusCode}' /tmp/ctn-create.json 2>/dev/null || echo "RunPod returned non-JSON error"
+              return 1
+            }
+
+            if try_create SECURE; then
+              POD_ID=$(jq -r '.id // empty' /tmp/ctn-create.json)
+            else
+              # Guard against a server-side 500 that created a pod anyway.
+              sleep 2
+              EXISTING=$(find_factory)
+              if [[ -n "$EXISTING" ]]; then
+                POD_ID=$(printf '%s' "$EXISTING" | jq -r '.id')
+              else
+                echo "Secure launch failed; trying Community in the same datacenter."
+                if try_create COMMUNITY; then POD_ID=$(jq -r '.id // empty' /tmp/ctn-create.json); else POD_ID=""; fi
+              fi
+            fi
+
+            if [[ -z "${POD_ID:-}" || "$POD_ID" == "null" ]]; then
+              jq -nc --arg n "$NAME" --arg v "$VOLUME_ID" --arg dc "$DC" '{name:$n,networkVolumeId:$v,dataCenterId:$dc,desiredStatus:"CREATE_FAILED"}' | tee infra/status/ctnetwork-factory-gpu.json
+              exit 3
+            fi
           fi
 
+          STATUS=unknown
           for i in $(seq 1 120); do
             POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
             STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
-            if [[ "$STATUS" == "RUNNING" ]]; then break; fi
+            [[ "$STATUS" == "RUNNING" ]] && break
+            [[ "$STATUS" == "EXITED" ]] && break
             sleep 5
           done
+          save_pod "$POD"
           [[ "$STATUS" == "RUNNING" ]] || { echo "Factory pod failed to reach RUNNING: $STATUS"; exit 4; }
 
-          printf '%s' "$POD" | jq '{id,name,desiredStatus,imageName,networkVolumeId:(.networkVolumeId // .networkVolume.id),networkVolume:(.networkVolume // null),containerDiskInGb,volumeMountPath,ports,publicIp,portMappings,costPerHr,adjustedCostPerHr,machineId,gpu:(.gpu // null),machine:{dataCenterId:(.machine.dataCenterId // null),location:(.machine.location // null),gpuDisplayName:(.machine.gpuDisplayName // null)}}' \
-            | tee infra/status/ctnetwork-factory-gpu.json
-
       - name: Save factory GPU state
+        if: always()
         shell: bash
         run: |
+          if [[ ! -f infra/status/ctnetwork-factory-gpu.json ]]; then
+            echo '{"desiredStatus":"WORKFLOW_FAILED_BEFORE_STATUS"}' > infra/status/ctnetwork-factory-gpu.json
+          fi
           git config user.name 'ctnetwork-bot'
           git config user.email 'ctnetwork-bot@users.noreply.github.com'
           git add infra/status/ctnetwork-factory-gpu.json
