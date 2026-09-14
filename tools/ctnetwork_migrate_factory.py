@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Verified CTNETWORK factory migration between two RunPod pods via runpodctl.
+"""Verified CTNETWORK factory migration between two RunPod network volumes.
 
-The source and destination pods each mount their own network volume at /workspace.
-The transfer uses RunPod's peer-to-peer runpodctl send/receive transport and then
-compares deterministic manifests before declaring PASS.
+For the 50GB+ factory, use rsync over temporary SSH credentials rather than the
+small/medium-file runpodctl relay. The source volume is read-only from this
+script's perspective. Migration is only marked PASS after an rsync checksum
+comparison reports no differences.
 """
 from __future__ import annotations
 
@@ -11,7 +12,6 @@ import base64
 import json
 import os
 import re
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,7 +20,6 @@ import requests
 import websocket
 
 ROOT = "/workspace/ctnetwork-local"
-TRANSFER_CODE = os.environ.get("CTN_TRANSFER_CODE", "ctn-factory-no-20260914")
 RUNPOD_API_KEY = os.environ["RUNPOD_API_KEY"]
 SOURCE_POD_ID = os.environ["SOURCE_POD_ID"]
 DEST_POD_ID = os.environ["DEST_POD_ID"]
@@ -56,9 +55,10 @@ def wait_running(pod_id: str, timeout: int = 600) -> dict:
                 headers={"Authorization": f"Bearer {RUNPOD_API_KEY}"},
                 timeout=30,
             )
-            # A capacity failure should be explicit rather than silently looping.
             if r.status_code >= 400 and r.status_code != 409:
-                raise RuntimeError(f"Pod {pod_id} start failed HTTP={r.status_code}: {r.text[:500]}")
+                raise RuntimeError(
+                    f"Pod {pod_id} start failed HTTP={r.status_code}: {r.text[:500]}"
+                )
         time.sleep(5)
     raise TimeoutError(f"Pod {pod_id} did not reach RUNNING; last={last}")
 
@@ -115,7 +115,7 @@ class JupyterShell:
             timeout=30,
         )
         marker = f"__CTN_DONE_{int(time.time()*1000)}__"
-        wrapped = f"set -o pipefail\n{script}\nrc=$?\necho {marker}:$rc\n"
+        wrapped = f"set -Eeuo pipefail\n{script}\nrc=$?\necho {marker}:$rc\n"
         enc = base64.b64encode(wrapped.encode()).decode()
         ws.send(json.dumps(["stdin", f"echo {enc} | base64 -d | bash\n"]))
         out = ""
@@ -146,18 +146,38 @@ class JupyterShell:
                 ws.close()
             finally:
                 try:
-                    self.s.delete(self.base + f"/api/terminals/{name}", headers=self.headers, timeout=10)
+                    self.s.delete(
+                        self.base + f"/api/terminals/{name}",
+                        headers=self.headers,
+                        timeout=10,
+                    )
                 except Exception:
                     pass
         if rc is None:
             raise TimeoutError(f"Remote command timed out on {self.pod.pod_id}")
         if rc != 0:
-            raise RuntimeError(f"Remote command failed on {self.pod.pod_id} rc={rc}\n{out[-5000:]}")
+            raise RuntimeError(
+                f"Remote command failed on {self.pod.pod_id} rc={rc}\n{out[-8000:]}"
+            )
         return out
 
 
-def parse_stats(text: str) -> tuple[int, int, str]:
-    m = re.search(r"CTN_STATS:(\d+):(\d+):([0-9a-f]{64})", text)
+def parse_marker(text: str, name: str) -> str:
+    m = re.search(rf"{re.escape(name)}:([^\r\n]+)", text)
+    if not m:
+        raise RuntimeError(f"Missing {name} marker")
+    return m.group(1).strip()
+
+
+def stat_tuple(shell: JupyterShell) -> tuple[int, int, str]:
+    script = r'''ROOT=/workspace/ctnetwork-local
+count=$(find "$ROOT" -type f | wc -l)
+bytes=$(find "$ROOT" -type f -printf '%s\n' | awk '{s+=$1} END{printf "%.0f",s}')
+hash=$({ find "$ROOT" -type f -printf '%P\t%s\n'; find "$ROOT" -type l -printf '%P\t%l\n'; } | LC_ALL=C sort | sha256sum | awk '{print $1}')
+echo CTN_STATS:${count}:${bytes}:${hash}
+'''
+    out = shell.run(script, timeout=1800)
+    m = re.search(r"CTN_STATS:(\d+):(\d+):([0-9a-f]{64})", out)
     if not m:
         raise RuntimeError("Could not parse CTN_STATS")
     return int(m.group(1)), int(m.group(2)), m.group(3)
@@ -167,59 +187,102 @@ def main() -> None:
     src = JupyterShell(pod_auth(SOURCE_POD_ID))
     dst = JupyterShell(pod_auth(DEST_POD_ID))
 
-    # Ensure source is real and destination starts clean. Never alter source.
-    src.run(f"test -d {ROOT}; command -v runpodctl; du -sh {ROOT}; find {ROOT} -maxdepth 2 -type f | head")
-    dst.run(f"command -v runpodctl; rm -rf {ROOT}.incoming; test ! -e {ROOT} || mv {ROOT} {ROOT}.pre_migration_$(date +%s)")
+    src.run(f"test -d {ROOT}; du -sh {ROOT}; test -r {ROOT}", timeout=1800)
 
-    # Start sender in the background, then receiver in the foreground.
+    # Prepare reliable large-transfer tooling. These containers normally already
+    # include OpenSSH; install only if something is missing.
     src.run(
-        f"cd /workspace; nohup runpodctl send ctnetwork-local --code {TRANSFER_CODE} > /tmp/ctn-send.log 2>&1 & echo SENDER_PID:$!",
+        "command -v rsync >/dev/null || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rsync openssh-client)",
+        timeout=900,
+    )
+    dst.run(
+        "command -v rsync >/dev/null && command -v sshd >/dev/null || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rsync openssh-server); mkdir -p /run/sshd /root/.ssh; chmod 700 /root/.ssh; pgrep -x sshd >/dev/null || /usr/sbin/sshd",
+        timeout=900,
+    )
+
+    # Discover destination's direct TCP SSH endpoint from RunPod-provided env;
+    # REST values are used as a fallback.
+    env_out = dst.run(
+        "echo CTN_IP:${RUNPOD_PUBLIC_IP:-}; echo CTN_SSH_PORT:${RUNPOD_TCP_PORT_22:-}",
         timeout=60,
     )
-    time.sleep(3)
+    dest_ip = parse_marker(env_out, "CTN_IP")
+    dest_port = parse_marker(env_out, "CTN_SSH_PORT")
+    if not dest_ip or not dest_port:
+        p = get_pod(DEST_POD_ID)
+        dest_ip = dest_ip or str(p.get("publicIp") or "")
+        mappings = p.get("portMappings") or {}
+        dest_port = dest_port or str(mappings.get("22") or mappings.get(22) or "")
+    if not dest_ip or not dest_port:
+        raise RuntimeError("Destination has no direct TCP SSH endpoint")
+    if not dest_port.isdigit():
+        raise RuntimeError(f"Invalid SSH port: {dest_port!r}")
+    print(f"DEST_SSH_ENDPOINT={dest_ip}:{dest_port}")
+
+    # One-time migration key exists only inside the disposable source pod.
+    key_out = src.run(
+        "rm -f /tmp/ctn_migrate_key /tmp/ctn_migrate_key.pub; ssh-keygen -q -t ed25519 -N '' -f /tmp/ctn_migrate_key; chmod 600 /tmp/ctn_migrate_key; echo CTN_PUBKEY_B64:$(base64 -w0 /tmp/ctn_migrate_key.pub)",
+        timeout=120,
+    )
+    pub_b64 = parse_marker(key_out, "CTN_PUBKEY_B64")
     dst.run(
-        f"cd /workspace; runpodctl receive {TRANSFER_CODE} > /tmp/ctn-receive.log 2>&1; cat /tmp/ctn-receive.log; test -d {ROOT}",
-        timeout=14400,
+        f"echo {pub_b64} | base64 -d >> /root/.ssh/authorized_keys; sort -u /root/.ssh/authorized_keys -o /root/.ssh/authorized_keys; chmod 600 /root/.ssh/authorized_keys; pgrep -x sshd >/dev/null || /usr/sbin/sshd",
+        timeout=120,
     )
 
-    # Deterministic verification: regular-file count, total regular-file bytes,
-    # and a hash of sorted path+size+symlink-target metadata.
-    stat_script = r'''ROOT=/workspace/ctnetwork-local
-count=$(find "$ROOT" -type f | wc -l)
-bytes=$(find "$ROOT" -type f -printf '%s\n' | awk '{s+=$1} END{printf "%.0f",s}')
-hash=$({ find "$ROOT" -type f -printf '%P\t%s\n'; find "$ROOT" -type l -printf '%P\t%l\n'; } | LC_ALL=C sort | sha256sum | awk '{print $1}')
-echo CTN_STATS:${count}:${bytes}:${hash}
-'''
-    sstats = parse_stats(src.run(stat_script, timeout=1800))
-    dstats = parse_stats(dst.run(stat_script, timeout=1800))
+    ssh_opts = (
+        f"ssh -p {dest_port} -i /tmp/ctn_migrate_key "
+        "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
+        "-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30"
+    )
+    src.run(
+        f"{ssh_opts} root@{dest_ip} 'echo CTN_SSH_READY'",
+        timeout=120,
+    )
+
+    # Never overwrite an existing destination factory in place. Preserve it as
+    # a rollback snapshot, then transfer into a fresh directory.
+    dst.run(
+        f"if [ -e {ROOT} ]; then mv {ROOT} {ROOT}.pre_migration_$(date +%s); fi; mkdir -p {ROOT}",
+        timeout=120,
+    )
+
+    # Large verified copy. Archive mode preserves symlinks, modes and mtimes;
+    # partial files make retrying efficient if networking is interrupted.
+    src.run(
+        f"rsync -aH --numeric-ids --partial --info=stats2,progress2 -e \"{ssh_opts}\" {ROOT}/ root@{dest_ip}:{ROOT}/",
+        timeout=21600,
+    )
+
+    sstats = stat_tuple(src)
+    dstats = stat_tuple(dst)
     print(f"SOURCE_STATS={sstats}")
     print(f"DEST_STATS={dstats}")
     if sstats != dstats:
-        raise RuntimeError(f"Migration verification mismatch source={sstats} dest={dstats}")
+        raise RuntimeError(f"Metadata verification mismatch source={sstats} dest={dstats}")
 
-    # Key health markers must survive the copy.
-    dst.run(
-        r'''ROOT=/workspace/ctnetwork-local
-for f in status/qwen.status status/latentsync.status; do
-  if [ -f "$ROOT/$f" ]; then echo "$f=$(cat "$ROOT/$f")"; fi
-done
-mkdir -p "$ROOT/status"
-printf 'PASS\nsource_pod=%s\ndestination_pod=%s\nverified_files=%s\nverified_bytes=%s\nmanifest_sha256=%s\n' \
-  "$SOURCE_POD_ID" "$DEST_POD_ID" "''' + str(0) + r'''" "''' + str(0) + r'''" "pending" > /tmp/migration-placeholder
-'''.replace("$SOURCE_POD_ID", SOURCE_POD_ID).replace("$DEST_POD_ID", DEST_POD_ID),
-        timeout=120,
+    # Content verification: rsync checksum dry-run must report ZERO changes.
+    verify_out = src.run(
+        f"CHANGES=$(rsync -aHnc --delete --numeric-ids --out-format='%i %n%L' -e \"{ssh_opts}\" {ROOT}/ root@{dest_ip}:{ROOT}/); printf 'CTN_CHECKSUM_CHANGES_BEGIN\\n%s\\nCTN_CHECKSUM_CHANGES_END\\n' \"$CHANGES\"; test -z \"$CHANGES\"",
+        timeout=21600,
     )
-    # Write definitive marker with verified values.
+    if "CTN_CHECKSUM_CHANGES_BEGIN\n\nCTN_CHECKSUM_CHANGES_END" not in verify_out.replace("\r", ""):
+        raise RuntimeError("Checksum verification did not produce an empty change set")
+
     marker = (
         "PASS\n"
+        "method=rsync_ssh_checksum\n"
         f"source_pod={SOURCE_POD_ID}\n"
         f"destination_pod={DEST_POD_ID}\n"
         f"verified_files={dstats[0]}\n"
         f"verified_bytes={dstats[1]}\n"
-        f"manifest_sha256={dstats[2]}\n"
+        f"metadata_sha256={dstats[2]}\n"
     )
-    encoded = base64.b64encode(marker.encode()).decode()
-    dst.run(f"echo {encoded} | base64 -d > {ROOT}/status/factory_migration.status; cat {ROOT}/status/factory_migration.status")
+    marker_b64 = base64.b64encode(marker.encode()).decode()
+    dst.run(
+        f"mkdir -p {ROOT}/status; echo {marker_b64} | base64 -d > {ROOT}/status/factory_migration.status; cat {ROOT}/status/factory_migration.status",
+        timeout=120,
+    )
     print("CTNETWORK_FACTORY_MIGRATION_PASS")
 
 
