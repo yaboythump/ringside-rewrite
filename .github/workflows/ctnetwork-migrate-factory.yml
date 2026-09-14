@@ -1,9 +1,11 @@
+# CTNETWORK verified cross-datacenter factory migration
 name: CTNETWORK Migrate Factory To Norway
 
 on:
   push:
     paths:
       - 'ctnetwork-migrate-factory-command.json'
+      - '.github/workflows/ctnetwork-migrate-factory.yml'
   workflow_dispatch:
 
 permissions:
