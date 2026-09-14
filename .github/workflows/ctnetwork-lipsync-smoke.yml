@@ -31,7 +31,7 @@ jobs:
           STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
           if [[ "$STATUS" != "RUNNING" ]]; then
             curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
-            for i in $(seq 1 90); do
+            for i in $(seq 1 120); do
               sleep 5
               POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
               STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
@@ -45,86 +45,14 @@ jobs:
           printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Run LatentSync official-fixture test
+      - name: Run LatentSync certification
         env:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
           JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
         shell: bash
         run: |
           python3 -m pip install --quiet requests websocket-client
-          python3 - <<'PY' | tee /tmp/ctnetwork-lipsync-smoke.txt
-          import json, os, re, sys, time
-          import requests, websocket
-          pod_id=os.environ['POD_ID']; password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
-          base=f'https://{pod_id}-8888.proxy.runpod.net'; s=requests.Session()
-          for _ in range(90):
-              try:
-                  r=s.get(base+'/login',timeout=15)
-                  if r.ok: break
-              except Exception: pass
-              time.sleep(5)
-          else: raise SystemExit('Jupyter not reachable')
-          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
-          if not m: raise SystemExit('No XSRF token')
-          xsrf=m.group(1)
-          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},timeout=30,allow_redirects=True); r.raise_for_status()
-          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
-          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
-          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
-          ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
-          cmd=r'''set -Eeuo pipefail
-ROOT=/workspace/ctnetwork-local
-STATUS="$ROOT/status"
-OUT="$ROOT/ready_for_approval/latentsync-official-smoke.mp4"
-test "$(cat "$STATUS/install.status" 2>/dev/null || true)" = PASS || { echo "STACK_NOT_READY"; exit 20; }
-test "$(cat "$STATUS/latentsync.status" 2>/dev/null || true)" = PASS || { echo "LATENTSYNC_NOT_READY"; exit 21; }
-test -x "$ROOT/bin/ctn-lipsync-test"
-rm -f "$OUT" "${OUT%.mp4}.ffprobe.json"
-"$ROOT/bin/ctn-lipsync-test" "$ROOT/src/LatentSync/assets/demo1_video.mp4" "$ROOT/src/LatentSync/assets/demo1_audio.wav" "$OUT"
-test -s "$OUT"
-VIDEO_STREAMS=$(ffprobe -v error -select_streams v -show_entries stream=index -of csv=p=0 "$OUT" | wc -l)
-AUDIO_STREAMS=$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$OUT" | wc -l)
-DURATION=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$OUT")
-python3 - <<PY2
-v=int("$VIDEO_STREAMS"); a=int("$AUDIO_STREAMS"); d=float("$DURATION")
-assert v >= 1, 'missing video stream'
-assert a >= 1, 'missing audio stream'
-assert d > 0.5, 'output too short'
-print(f'QC PASS video_streams={v} audio_streams={a} duration={d:.2f}s')
-PY2
-echo PASS > "$STATUS/lipsync_smoke.status"
-echo "OUTPUT=$OUT"
-echo __CTN_LIPSYNC_SMOKE_DONE__:0
-'''
-          ws.send(json.dumps(['stdin',cmd+'\n'])); rc=None; output=''; deadline=time.time()+3300
-          try:
-              while time.time()<deadline:
-                  msg=ws.recv()
-                  if not msg: continue
-                  try: data=json.loads(msg)
-                  except Exception: continue
-                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
-                      text=data[1]; output+=text; sys.stdout.write(text); sys.stdout.flush()
-                      mm=re.search(r'__CTN_LIPSYNC_SMOKE_DONE__:(\d+)',output)
-                      if mm: rc=int(mm.group(1)); break
-          finally:
-              ws.close()
-              try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
-              except Exception: pass
-          if rc is None: raise SystemExit('Lip sync smoke test timed out or failed before completion marker')
-          if rc != 0: raise SystemExit(rc)
-          # Download result through Jupyter file endpoint for artifact retention.
-          path='/workspace/ctnetwork-local/ready_for_approval/latentsync-official-smoke.mp4'
-          candidates=[base+'/files'+path, base+'/files/'+path.lstrip('/')]
-          for u in candidates:
-              rr=s.get(u,timeout=180)
-              if rr.ok and len(rr.content)>1024:
-                  open('/tmp/latentsync-official-smoke.mp4','wb').write(rr.content)
-                  print('downloaded smoke output bytes=',len(rr.content))
-                  break
-          else:
-              print('warning: could not download smoke mp4 to runner; persistent server copy still exists')
-          PY
+          python3 tools/ctnetwork_lipsync_smoke.py | tee /tmp/ctnetwork-lipsync-smoke.txt
 
       - name: Upload smoke video artifact
         if: success()
@@ -148,7 +76,7 @@ echo __CTN_LIPSYNC_SMOKE_DONE__:0
           git pull --rebase origin main || true
           git push origin HEAD:main
 
-      - name: Stop factory GPU after smoke test
+      - name: Stop exact smoke-test pod
         if: always()
         env:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
