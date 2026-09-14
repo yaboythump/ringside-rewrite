@@ -45,7 +45,7 @@ jobs:
         run: |
           python3 -m pip install --quiet requests websocket-client
           python3 - <<'PY' | tee /tmp/ctnetwork-factory-probe.txt
-          import json, os, re, sys, time
+          import base64, json, os, re, sys, time
           import requests, websocket
           pod_id=os.environ['POD_ID']; password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
           base=f'https://{pod_id}-8888.proxy.runpod.net'; s=requests.Session()
@@ -64,37 +64,40 @@ jobs:
           r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
           cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
           ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
-          cmd=r'''bash -lc '
-          echo "=== CTNETWORK FACTORY PROBE ===";
-          date -u;
-          echo "--- GPU ---"; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader 2>/dev/null || true;
-          echo "--- STORAGE ---"; df -h /workspace 2>/dev/null || true;
-          echo "--- FACTORY SIZE ---"; du -sh /workspace/ctnetwork-local 2>/dev/null || true;
-          echo "--- DIRECTORIES ---"; find /workspace/ctnetwork-local -maxdepth 2 -type d 2>/dev/null | sort | head -120;
-          echo "--- STATUS FILES ---"; find /workspace/ctnetwork-local/status -maxdepth 2 -type f -print 2>/dev/null | sort;
-          echo "--- STATUS CONTENT ---"; for f in /workspace/ctnetwork-local/status/*; do [ -f "$f" ] || continue; echo "### $f"; tail -80 "$f"; done 2>/dev/null || true;
-          echo "--- REPOS ---"; for d in /workspace/ctnetwork-local/src/*; do [ -d "$d" ] || continue; echo "$(basename "$d")"; done 2>/dev/null || true;
-          echo "--- ENVS ---"; for d in /workspace/ctnetwork-local/envs/*; do [ -d "$d" ] || continue; echo "$(basename "$d")"; done 2>/dev/null || true;
-          echo "--- MODELS ---"; find /workspace/ctnetwork-local/models -maxdepth 3 -type d 2>/dev/null | sort | head -120;
-          echo "--- ACTIVE INSTALL PROCESSES ---"; pgrep -af "ctnetwork-local-stack-install|uv sync|pip install|huggingface|snapshot_download|git clone" 2>/dev/null | grep -v pgrep || true;
-          echo "=== PROBE DONE ===";
-          '
-          '''+"\n"
-          ws.send(json.dumps(['stdin',cmd])); deadline=time.time()+180; output=''
+          script=r'''set +e
+          echo "=== CTNETWORK FACTORY PROBE START ==="
+          date -u
+          echo "--- GPU ---"; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader 2>/dev/null || true
+          echo "--- STORAGE ---"; df -h /workspace 2>/dev/null || true
+          echo "--- FACTORY SIZE ---"; du -sh /workspace/ctnetwork-local 2>/dev/null || true
+          echo "--- STATUS FILES ---"; find /workspace/ctnetwork-local/status -maxdepth 2 -type f -print 2>/dev/null | sort
+          echo "--- STATUS CONTENT ---"; for f in /workspace/ctnetwork-local/status/*; do [ -f "$f" ] || continue; echo "### $f"; tail -80 "$f"; done 2>/dev/null || true
+          echo "--- REPOS ---"; for d in /workspace/ctnetwork-local/src/*; do [ -d "$d" ] || continue; basename "$d"; done 2>/dev/null || true
+          echo "--- ENVS ---"; for d in /workspace/ctnetwork-local/envs/*; do [ -d "$d" ] || continue; basename "$d"; done 2>/dev/null || true
+          echo "--- MODELS ---"; find /workspace/ctnetwork-local/models -maxdepth 3 -type d 2>/dev/null | sort | head -120
+          echo "--- ACTIVE INSTALL PROCESSES ---"; pgrep -af "ctnetwork-local-stack-install|uv sync|pip install|huggingface|snapshot_download|git clone" 2>/dev/null | grep -v pgrep || true
+          printf '__CTN_PROBE_DONE__\n'
+          '''
+          enc=base64.b64encode(script.encode()).decode()
+          ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d | bash\n"]))
+          deadline=time.time()+180; output=''; done=False
           try:
               while time.time()<deadline:
-                  msg=ws.recv()
+                  try: msg=ws.recv()
+                  except Exception: continue
                   if not msg: continue
                   try: data=json.loads(msg)
                   except Exception: continue
                   if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
                       text=data[1]; output+=text; sys.stdout.write(text); sys.stdout.flush()
-                      if '=== PROBE DONE ===' in output: break
+                      # Marker only counts after actual START output, not terminal echo.
+                      if '=== CTNETWORK FACTORY PROBE START ===' in output and '__CTN_PROBE_DONE__' in output:
+                          done=True; break
           finally:
               ws.close()
               try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
               except Exception: pass
-          if '=== PROBE DONE ===' not in output: raise SystemExit('Probe did not finish')
+          if not done: raise SystemExit('Probe did not finish')
           PY
 
       - name: Save probe report
