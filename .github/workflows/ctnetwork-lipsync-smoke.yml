@@ -4,10 +4,16 @@ on:
   push:
     paths:
       - 'ctnetwork-lipsync-smoke-command.json'
+      - 'tools/ctnetwork_lipsync_smoke.py'
+      - '.github/workflows/ctnetwork-lipsync-smoke.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: ctnetwork-lipsync-smoke
+  cancel-in-progress: true
 
 jobs:
   smoke:
@@ -64,7 +70,7 @@ jobs:
           retention-days: 7
 
       - name: Save smoke report
-        if: always()
+        if: always() && !cancelled()
         shell: bash
         run: |
           mkdir -p infra/status
@@ -77,7 +83,7 @@ jobs:
           git push origin HEAD:main
 
       - name: Stop exact smoke-test pod
-        if: always()
+        if: always() && !cancelled()
         env:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
         shell: bash
