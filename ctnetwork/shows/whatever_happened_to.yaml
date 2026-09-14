@@ -1,0 +1,29 @@
+show: Whatever Happened To...?
+show_id: whatever_happened_to
+formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
+narrator: registry_current
+narrator_rules:
+  retired_voice_aliases_forbidden: [marcus, fenrir]
+  exact_current_registry_required: true
+visuals:
+  archival_first: true
+  local_generation_engine: ltx-2.5
+  production_quality_tier: dfr_when_generated
+captions:
+  burned_in: false
+shorts:
+  count_policy: preserve_locked_show_cadence
+audio:
+  normalize_lufs: -16
+  noise_cleanup: true
+  music_ducking: true
+thumbnail:
+  required: true
+qc:
+  auto_repair: true
+  narrator_registry_check_required: true
+publish:
+  require_manual_approval: true
+  default_allowed: false
+higgsfield:
+  allowed: false
