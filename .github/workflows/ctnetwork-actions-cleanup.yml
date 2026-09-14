@@ -26,14 +26,40 @@ jobs:
           set -euo pipefail
           RUN_ID=$(jq -r '.run_id // empty' ctnetwork-actions-cleanup-command.json)
           [[ -n "$RUN_ID" ]] || { echo 'run_id missing'; exit 2; }
-          API="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/cancel"
-          code=$(curl -sS -o /tmp/cancel.json -w '%{http_code}' -X POST "$API" \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28')
+          BASE="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}"
+          auth=(-H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28')
+
+          code=$(curl -sS -o /tmp/cancel.json -w '%{http_code}' -X POST "$BASE/cancel" "${auth[@]}")
           cat /tmp/cancel.json || true
           if [[ "$code" != 202 && "$code" != 409 ]]; then
-            echo "Unexpected cancel status: $code"
+            echo "Unexpected graceful cancel status: $code"
             exit 3
           fi
-          echo "stale run cleanup accepted status=$code run_id=$RUN_ID"
+
+          for i in $(seq 1 6); do
+            state=$(curl -fsS "$BASE" "${auth[@]}" | jq -r '.status // "unknown"')
+            echo "graceful cancel check $i status=$state"
+            [[ "$state" == "completed" ]] && exit 0
+            sleep 5
+          done
+
+          echo 'Graceful cancellation did not settle; force-cancelling stale run.'
+          fcode=$(curl -sS -o /tmp/force.json -w '%{http_code}' -X POST "$BASE/force-cancel" "${auth[@]}")
+          cat /tmp/force.json || true
+          if [[ "$fcode" != 202 && "$fcode" != 409 ]]; then
+            echo "Unexpected force-cancel status: $fcode"
+            exit 4
+          fi
+
+          for i in $(seq 1 12); do
+            state=$(curl -fsS "$BASE" "${auth[@]}" | jq -r '.status // "unknown"')
+            conclusion=$(curl -fsS "$BASE" "${auth[@]}" | jq -r '.conclusion // ""')
+            echo "force cancel check $i status=$state conclusion=$conclusion"
+            if [[ "$state" == "completed" ]]; then
+              echo "stale run cleanup verified run_id=$RUN_ID conclusion=$conclusion"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Stale run still did not settle after force-cancel.'
+          exit 5
