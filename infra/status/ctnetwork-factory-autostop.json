@@ -1,9 +1,11 @@
 {
-  "id": "m3ox46xea1u3vd",
+  "id": "v92zliqqi85bwj",
   "name": "ctnetwork-factory-gpu",
   "desiredStatus": "EXITED",
   "networkVolumeId": "9wjb3sa5zm",
   "costPerHr": 0.72,
+  "installerRunId": "34842169853",
+  "installerHeadSha": "3305dfa4bf1d8bd637a034e9c833d5eb6eaef919",
   "installerConclusion": "failure",
-  "lastStatusChange": "Exited by user: Mon Sep 14 2026 12:03:44 GMT+0000 (Coordinated Universal Time)"
+  "lastStatusChange": "Exited by user: Mon Sep 14 2026 12:24:39 GMT+0000 (Coordinated Universal Time)"
 }
