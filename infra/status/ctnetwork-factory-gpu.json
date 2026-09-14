@@ -1,7 +1,7 @@
 {
   "id": "bhqb1b90qkl2oq",
   "name": "ctnetwork-factory-gpu",
-  "desiredStatus": "RUNNING",
+  "desiredStatus": "EXITED",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
   "networkVolumeId": "9wjb3sa5zm",
   "containerDiskInGb": 40,
@@ -10,10 +10,8 @@
     "8888/http",
     "22/tcp"
   ],
-  "publicIp": "213.173.103.50",
-  "portMappings": {
-    "22": 10275
-  },
+  "publicIp": "",
+  "portMappings": null,
   "costPerHr": 0.99,
   "adjustedCostPerHr": null,
   "machineId": "ph0j5wl6fv0q",
