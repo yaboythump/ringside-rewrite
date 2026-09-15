@@ -1,9 +1,9 @@
 {
-  "id": "fh41n2aa1kf0b7",
-  "name": "ctnetwork-factory-final-install",
+  "id": "mf6zerw7icgnr3",
+  "name": "ctnetwork-factory-norway",
   "desiredStatus": "RUNNING",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "networkVolumeId": "9wjb3sa5zm",
+  "networkVolumeId": "631b7gakhp",
   "containerDiskInGb": 40,
   "volumeMountPath": "/workspace",
   "ports": [
@@ -12,9 +12,9 @@
   ],
   "publicIp": "",
   "portMappings": null,
-  "costPerHr": 0.72,
+  "costPerHr": 0.99,
   "adjustedCostPerHr": null,
-  "machineId": "8i6z0gnwumwf",
+  "machineId": "vwuta4nnlzj8",
   "gpu": null,
   "machine": {
     "dataCenterId": null,
