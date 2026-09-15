@@ -68,7 +68,7 @@ jobs:
           for p in "$ROOT/envs/qwen3-tts/bin/python" "$ROOT/envs/latentsync/bin/python" "$ROOT/src/LTX-2/.venv/bin/python"; do if [ -x "$p" ]; then "$p" -c 'import torch; print("torch",torch.__version__,"cuda",torch.version.cuda,"available",torch.cuda.is_available(),"gpu",torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)' 2>&1; fi; done
           echo '--- LTX IMPORTS ---'
           if [ -x "$ROOT/src/LTX-2/.venv/bin/python" ]; then cd "$ROOT/src/LTX-2"; "$ROOT/src/LTX-2/.venv/bin/python" -c 'import ltx_pipelines; print("LTX_IMPORT_OK")' 2>&1; fi
-          echo '--- REQUIRED LTX MODELS ---'
+          echo '--- REQUIRED LTX MODELS (CANONICAL) ---'
           for f in \
             diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors \
             text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors \
@@ -76,7 +76,23 @@ jobs:
             vae/ltx-2.5-audio-vae-bf16.safetensors \
             model_patches/ltx-2.5-duration-head-bf16.safetensors \
             latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors \
+            latent_upscale_models/ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors \
             loras/ltx-2.5-22b-ic-lora-pixel-spatial-upscaler-x2-1.0.safetensors; do p="$ROOT/models/ltx-2.5/$f"; if [ -e "$p" ]; then stat -Lc '%n|%s bytes' "$p"; else echo "MISSING|$p"; fi; done
+          echo '--- GLOBAL PERSISTENT LTX-2.5 WEIGHT SEARCH ---'
+          for name in \
+            ltx-2.5-22b-distilled-transformer-bf16.safetensors \
+            gemma4-12b-with-proj-ltx-2.5-bf16.safetensors \
+            ltx-2.5-video-vae-bf16.safetensors \
+            ltx-2.5-audio-vae-bf16.safetensors \
+            ltx-2.5-duration-head-bf16.safetensors \
+            ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors \
+            ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors \
+            ltx-2.5-22b-ic-lora-pixel-spatial-upscaler-x2-1.0.safetensors; do
+              echo "SEARCH:$name"
+              find /workspace -xdev -type f -name "$name" -printf '%p|%s bytes\n' 2>/dev/null | head -20
+          done
+          echo '--- OTHER LTX WEIGHTS ---'
+          find /workspace -xdev -type f \( -iname '*ltx*.safetensors' -o -iname '*ltx*.ckpt' \) -printf '%p|%s bytes\n' 2>/dev/null | sort | head -200
           echo '--- PARTIAL/LOCK FILES ---'; find "$ROOT/models" "$ROOT/src/LTX-2" -type f \( -name '*.part' -o -name '*.incomplete' -o -name '*.lock' \) -print 2>/dev/null | head -100
           echo '--- QWEN MODEL FILES ---'; find "$ROOT/models/qwen3-tts/1.7B-Base" -L -type f \( -name '*.safetensors' -o -name '*.bin' \) -printf '%p|%s\n' 2>/dev/null | head -50
           echo '--- LATENTSYNC CHECKPOINTS ---'; stat -Lc '%n|%s bytes' "$ROOT/src/LatentSync/checkpoints/whisper/tiny.pt" "$ROOT/src/LatentSync/checkpoints/latentsync_unet.pt" 2>/dev/null
