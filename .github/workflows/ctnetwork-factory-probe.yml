@@ -1,4 +1,4 @@
-# CTNETWORK read-only factory health probe — Norway migration heartbeat
+# CTNETWORK read-only factory health probe
 name: CTNETWORK Factory Health Probe
 
 on:
@@ -10,6 +10,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: ctnetwork-factory-health-probe
+  cancel-in-progress: true
 
 jobs:
   probe:
@@ -64,23 +68,37 @@ jobs:
           if r.status_code not in (200,302,303): r.raise_for_status()
           xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
           s.get(base+'/api/status',headers=headers,timeout=30).raise_for_status()
-          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
-          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
-          ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
+
+          ws=None; name=None; last=None
+          for attempt in range(1,41):
+              try:
+                  rr=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); rr.raise_for_status(); name=rr.json()['name']
+                  cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+                  ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
+                  print(f'TERMINAL_READY attempt={attempt}',flush=True); break
+              except Exception as exc:
+                  last=exc; print(f'terminal attempt={attempt} {exc!r}',flush=True)
+                  if name:
+                      try:s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+                      except Exception:pass
+                  name=None; time.sleep(3)
+          if ws is None: raise SystemExit(f'Terminal unavailable: {last!r}')
+
           script=r'''set +e
-          echo "=== CTNETWORK FACTORY PROBE START ==="
-          date -u
+          ROOT=/workspace/ctnetwork-local
+          echo "=== CTNETWORK FACTORY PROBE START ==="; date -u
           echo "--- GPU ---"; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader 2>/dev/null || true
           echo "--- STORAGE ---"; df -h /workspace 2>/dev/null || true
-          echo "--- FACTORY SIZE ---"; du -sh /workspace/ctnetwork-local 2>/dev/null || true
-          echo "--- FACTORY FILE COUNT ---"; find /workspace/ctnetwork-local -type f 2>/dev/null | wc -l || true
-          echo "--- STATUS FILES ---"; find /workspace/ctnetwork-local/status -maxdepth 2 -type f -print 2>/dev/null | sort
-          echo "--- ACTIVE TRANSFER/FACTORY PROCESSES ---"; pgrep -af "rsync|sshd|ctnetwork|scripts.inference|LatentSync|latentsync|uv |pip install|snapshot_download" 2>/dev/null | grep -v "pgrep -af" || true
+          echo "--- FACTORY SIZE ---"; du -sh "$ROOT" 2>/dev/null || true
+          echo "--- MODEL SIZES ---"; du -sh "$ROOT/models/qwen3-tts" "$ROOT/models/ltx-2.5" 2>/dev/null || true
+          echo "--- LTX MODEL FILES ---"; find -L "$ROOT/models/ltx-2.5" -type f -name '*.safetensors' -printf '%p|%s\n' 2>/dev/null | sort
+          echo "--- STATUS VALUES ---"; for f in "$ROOT"/status/*.status; do [ -f "$f" ] || continue; printf '%s=' "$(basename "$f")"; cat "$f"; done | sort
+          echo "--- ACTIVE FACTORY PROCESSES ---"; pgrep -af "ctnetwork|uv sync|uv pip|hf download|huggingface|python.*LTX|ltx_pipelines|Qwen|qwen|LatentSync|latentsync" 2>/dev/null | grep -v "pgrep -af" || true
           printf '__CTN_PROBE_DONE__\n'
           '''
           enc=base64.b64encode(script.encode()).decode()
           ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d | bash\n"]))
-          deadline=time.time()+180; output=''; done=False
+          deadline=time.time()+240; output=''; done=False
           try:
               while time.time()<deadline:
                   try: msg=ws.recv()
@@ -90,7 +108,7 @@ jobs:
                   except Exception: continue
                   if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
                       text=data[1]; output+=text; sys.stdout.write(text); sys.stdout.flush()
-                      if '=== CTNETWORK FACTORY PROBE START ===' in output and '__CTN_PROBE_DONE__' in output:
+                      if '__CTN_PROBE_DONE__' in output:
                           done=True; break
           finally:
               ws.close()
