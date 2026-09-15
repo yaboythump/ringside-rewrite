@@ -1,6 +1,6 @@
 {
-  "action": "start",
+  "action": "stop",
   "target": "ctnetwork-factory",
-  "pod_id": "v92zliqqi85bwj",
-  "request_id": "ctnetwork-start-repair-2026-09-14-02"
+  "pod_id": "fh41n2aa1kf0b7",
+  "request_id": "ctnetwork-stop-stuck-recovery-2026-09-14-01"
 }
