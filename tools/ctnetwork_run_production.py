@@ -195,8 +195,8 @@ for i,j in enumerate(jobs,1):
         if not v.get('prompt'): raise AssertionError(f'{{jid}}: approved visual input or explicit visual prompt required')
         needs_ltx=True
         if str(v.get('quality','dfr')).lower()=='dfr': needs_dfr=True
-    (out/f'{{i:02d}}-{{jid}}.json').write_text(json.dumps(j,indent=2)+'\n')
-(root/'incoming/engine-requirements.env').write_text(f'NEEDS_QWEN={{int(needs_qwen)}}\nNEEDS_LTX={{int(needs_ltx)}}\nNEEDS_DFR={{int(needs_dfr)}}\n')
+    (out/f'{{i:02d}}-{{jid}}.json').write_text(json.dumps(j,indent=2)+'\\n')
+(root/'incoming/engine-requirements.env').write_text(f'NEEDS_QWEN={{int(needs_qwen)}}\\nNEEDS_LTX={{int(needs_ltx)}}\\nNEEDS_DFR={{int(needs_dfr)}}\\n')
 print('JOBS_DUE',len(jobs),'needs_qwen',needs_qwen,'needs_ltx',needs_ltx,'needs_dfr',needs_dfr,flush=True)
 PY
 split_rc=$?
@@ -228,7 +228,7 @@ for j in manifest.get('jobs',[]):
         qp=root/'ready_for_approval'/jid/'qc.json'
         if qp.exists(): state['qc']=json.load(open(qp))
     summary['jobs'].append(state)
-path=root/'status'/'production_batch_latest.json'; path.write_text(json.dumps(summary,indent=2)+'\n'); print(json.dumps(summary,indent=2))
+path=root/'status'/'production_batch_latest.json'; path.write_text(json.dumps(summary,indent=2)+'\\n'); print(json.dumps(summary,indent=2))
 PY
 
 test "$failed" -eq 0 || {{ echo BATCH_HAS_BLOCKED_JOBS; exit 72; }}
