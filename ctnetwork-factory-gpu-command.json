@@ -1,15 +1,9 @@
 {
-  "action": "provision",
-  "name": "ctnetwork-factory-migration-source",
+  "action": "delete",
+  "name": "ctnetwork-factory-final-install",
   "network_volume_id": "9wjb3sa5zm",
   "data_center_id": "EU-RO-1",
-  "gpu_types": [
-    "NVIDIA RTX PRO 4500 Blackwell",
-    "NVIDIA GeForce RTX 5090",
-    "NVIDIA GeForce RTX 4090",
-    "NVIDIA A100 80GB PCIe",
-    "NVIDIA RTX PRO 6000 Blackwell Server Edition"
-  ],
+  "gpu_types": ["NVIDIA RTX PRO 4500 Blackwell"],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "ctnetwork-migration-source-helper-2026-09-15-01"
+  "request_id": "ctnetwork-delete-dead-source-compute-preserve-volume-2026-09-15-01"
 }
