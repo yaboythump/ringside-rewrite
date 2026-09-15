@@ -1,0 +1,185 @@
+name: CTNETWORK Final LTX Install
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-final-install-command.json'
+      - '.github/workflows/ctnetwork-final-install.yml'
+      - 'runpod/ctnetwork-final-ltx-repair.sh'
+      - 'runpod/ctnetwork-final-certify.sh'
+      - 'runpod/ctnetwork_ltx_runtime.py'
+      - 'runpod/ctnetwork_production_control.py'
+      - 'runpod/ctnetwork_factory_v2.py'
+      - 'runpod/ctnetwork_ltx_generate.py'
+      - 'runpod/ctnetwork_qwen_narrate.py'
+      - 'tools/ctnetwork_final_remote.py'
+      - 'ltx_bridge/app.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: ctnetwork-final-ltx-install
+  cancel-in-progress: false
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve or attach exact factory compute
+        id: resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          CMD=ctnetwork-final-install-command.json
+          ACTION=$(jq -r '.action // "finish"' "$CMD")
+          [[ "$ACTION" == finish ]] || { echo "Unsupported action=$ACTION"; exit 2; }
+          PREFERRED=$(jq -r '.preferred_pod_id // empty' "$CMD")
+          VOLUME=$(jq -r '.network_volume_id' "$CMD")
+          DC=$(jq -r '.data_center_id // "EU-RO-1"' "$CMD")
+          NAME=$(jq -r '.compute_name // "ctnetwork-final-install"' "$CMD")
+          IMAGE=$(jq -r '.image_name // "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"' "$CMD")
+          GPU_TYPES=$(jq -c '.gpu_types // ["NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090"]' "$CMD")
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          : > /tmp/ctn-final-pod-id
+          : > /tmp/ctn-final-jupyter-password
+
+          getpod(){ curl -fsS "https://rest.runpod.io/v1/pods/$1" "${AUTH[@]}"; }
+          wait_running(){
+            local id="$1" pod status
+            for i in $(seq 1 60); do
+              pod=$(getpod "$id" 2>/dev/null || true)
+              status=$(printf '%s' "$pod" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown)
+              echo "pod=$id start attempt=$i status=$status"
+              [[ "$status" == RUNNING ]] && { printf '%s' "$pod" > /tmp/ctn-final-pod.json; return 0; }
+              [[ "$status" == EXITED && "$i" -gt 5 ]] && return 1
+              sleep 5
+            done
+            return 1
+          }
+
+          POD_ID=""
+          if [[ -n "$PREFERRED" ]]; then
+            POD=$(getpod "$PREFERRED" 2>/dev/null || true)
+            PV=$(printf '%s' "$POD" | jq -r '.networkVolumeId // .networkVolume.id // empty' 2>/dev/null || true)
+            if [[ -n "$POD" && "$PV" == "$VOLUME" ]]; then
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              echo "preferred pod=$PREFERRED status=$STATUS volume=$PV"
+              if [[ "$STATUS" != RUNNING ]]; then
+                code=$(curl -sS -o /tmp/ctn-start.txt -w '%{http_code}' -X POST "https://rest.runpod.io/v1/pods/$PREFERRED/start" "${AUTH[@]}" || true)
+                echo "preferred start HTTP=$code"
+              fi
+              if wait_running "$PREFERRED"; then POD_ID="$PREFERRED"; fi
+            fi
+          fi
+
+          if [[ -z "$POD_ID" ]]; then
+            JUPYTER_PASSWORD=$(openssl rand -hex 24)
+            echo "::add-mask::$JUPYTER_PASSWORD"
+            BODY=$(jq -nc --arg name "$NAME-$(date +%s)" --arg image "$IMAGE" --arg dc "$DC" --arg vol "$VOLUME" --arg jp "$JUPYTER_PASSWORD" --argjson gpus "$GPU_TYPES" \
+              '{name:$name,imageName:$image,cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+            HTTP=$(curl -sS -o /tmp/ctn-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods "${AUTH[@]}" -H 'Content-Type: application/json' --data "$BODY" || true)
+            echo "fresh compute create HTTP=$HTTP gpuTypes=$GPU_TYPES"
+            [[ "$HTTP" =~ ^2 ]] || { cat /tmp/ctn-create.json; exit 3; }
+            POD_ID=$(jq -r '.id // empty' /tmp/ctn-create.json)
+            [[ -n "$POD_ID" ]] || { cat /tmp/ctn-create.json; exit 4; }
+            printf '%s' "$POD_ID" > /tmp/ctn-final-pod-id
+            printf '%s' "$JUPYTER_PASSWORD" > /tmp/ctn-final-jupyter-password
+            wait_running "$POD_ID" || { echo "fresh compute did not reach RUNNING"; exit 5; }
+          else
+            printf '%s' "$POD_ID" > /tmp/ctn-final-pod-id
+            POD=$(cat /tmp/ctn-final-pod.json)
+            JUPYTER_PASSWORD=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+            [[ -n "$JUPYTER_PASSWORD" ]] || { echo 'preferred pod has no JUPYTER_PASSWORD'; exit 6; }
+            echo "::add-mask::$JUPYTER_PASSWORD"
+            printf '%s' "$JUPYTER_PASSWORD" > /tmp/ctn-final-jupyter-password
+          fi
+
+          POD=$(getpod "$POD_ID")
+          ACTUAL_VOLUME=$(printf '%s' "$POD" | jq -r '.networkVolumeId // .networkVolume.id // empty')
+          [[ "$ACTUAL_VOLUME" == "$VOLUME" ]] || { echo "VOLUME_MISMATCH expected=$VOLUME actual=$ACTUAL_VOLUME"; exit 7; }
+          COST=$(printf '%s' "$POD" | jq -r '.costPerHr // .adjustedCostPerHr // "unknown"')
+          echo "FINAL_COMPUTE_READY pod=$POD_ID volume=$ACTUAL_VOLUME cost_per_hr=$COST"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "volume_id=$VOLUME" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Jupyter control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.resolve.outputs.pod_id }}'
+          for i in $(seq 1 120); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 5
+          done
+          echo JUPYTER_NOT_READY
+          exit 8
+
+      - name: Run repair, LTX runtime, bridge, and end-to-end certification
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: /tmp/ctn-final-jupyter-password
+          REMOTE_HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_final_remote.py 2>&1 | tee /tmp/ctnetwork-final-install.txt
+
+      - name: Stop exact paid GPU
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          POD_ID=$(cat /tmp/ctn-final-pod-id 2>/dev/null)
+          [[ -n "$POD_ID" ]] || { echo 'No final pod id was allocated'; exit 0; }
+          echo "Stopping exact commissioning pod $POD_ID"
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/tmp/ctn-stop.json
+          for i in $(seq 1 60); do
+            sleep 2
+            POD=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+            echo "stop attempt=$i status=$STATUS"
+            [[ "$STATUS" == EXITED || "$STATUS" == STOPPED ]] && exit 0
+          done
+          echo 'WARNING: exact pod did not report EXITED inside stop window'
+          exit 1
+
+      - name: Save final install report
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mkdir -p infra/status
+          REPORT=infra/status/ctnetwork-final-install-latest.txt
+          {
+            echo 'CTNETWORK FINAL LTX INSTALL'
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "pod_id=$(cat /tmp/ctn-final-pod-id 2>/dev/null)"
+            echo "network_volume_id=${{ steps.resolve.outputs.volume_id }}"
+            echo "job_status=${{ job.status }}"
+            echo
+            if [ -f /tmp/ctnetwork-final-install.txt ]; then
+              tail -600 /tmp/ctnetwork-final-install.txt
+            else
+              echo 'final_remote_output_missing=true'
+            fi
+          } > "$REPORT"
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add "$REPORT"
+          git commit -m 'CTNETWORK: record final LTX install result' || true
+          git pull --rebase origin main || true
+          git push origin HEAD:main || true
