@@ -22,9 +22,6 @@ VVIDEO="$MODELS/vae/ltx-2.5-video-vae-bf16.safetensors"
 VAUDIO="$MODELS/vae/ltx-2.5-audio-vae-bf16.safetensors"
 UPSCALE="$MODELS/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
 TEMPUP="$MODELS/latent_upscale_models/ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors"
-DETAIL="$MODELS/ltx-2.5/loras/unused"
-DETAIL="$MODELS/loras/ltx-2.5-22b-ic-lora-pixel-spatial-upscaler-x2-1.0.safetensors"
-# Repair script stores the separate-repo detailer in models/ltx-2.5/loras.
 DETAIL="$MODELS/loras/ltx-2.5-22b-ic-lora-pixel-spatial-upscaler-x2-1.0.safetensors"
 for f in "$TRANS" "$TEXT" "$VVIDEO" "$VAUDIO" "$UPSCALE" "$TEMPUP" "$DETAIL"; do test -s "$f" || fail "model missing $f"; done
 
@@ -129,7 +126,7 @@ if [ ! -s "$TOKEN_FILE" ]; then openssl rand -hex 32 > "$TOKEN_FILE"; chmod 600 
 TOKEN=$(cat "$TOKEN_FILE")
 pkill -f 'uvicorn app:app' 2>/dev/null || true
 cd "$ROOT/bridge"
-LTX_BRIDGE_TOKEN="$TOKEN" LTX_CONTROL_CMD="$CONTROL" LTX_BRIDGE_STATE_DIR="$ROOT/bridge-state" \
+LTX_BRIDGE_TOKEN="$TOKEN" LTX_CONTROL_CMD="$CONTROL" LTX_BRIDGE_STATE_DIR="$ROOT/bridge-state" LTX_CONTROL_TIMEOUT_SECONDS=7200 \
   PYTHONPATH="$ROOT/bridge" nohup "$CORE" -m uvicorn app:app --host 127.0.0.1 --port 8080 \
   > "$ROOT/runtime-logs/bridge.log" 2>&1 &
 echo $! > "$ROOT/runtime-logs/bridge.pid"
@@ -137,7 +134,7 @@ for i in $(seq 1 30); do sleep 1; curl -fsS http://127.0.0.1:8080/health > /tmp/
 "$CORE" - <<'PY'
 import json
 x=json.load(open('/tmp/bridge-health.json'))
-assert x['ok'] is True and x['controller_configured'] is True and x['token_configured'] is True and x['publishing_locked'] is True, x
+assert x['ok'] is True and x['controller_configured'] is True and x['token_configured'] is True and x['publishing_locked'] is True and x.get('mock_controller') is False, x
 print('BRIDGE_HEALTH_PASS',x)
 PY
 
@@ -184,7 +181,20 @@ import json,sys
 x=json.load(open(sys.argv[1])); assert x['state']=='READY_FOR_APPROVAL'; assert x['publish_allowed'] is False; assert x['requires_manual_approval'] is True
 print('APPROVAL_GATE_PASS',x['job_id'])
 PY
+
+# Retrieve the real MP4 through the authenticated bridge, then verify it matches the source artifact.
+RETRIEVED="$READY/bridge-retrieved-master.mp4"
+curl -fsS -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:8080/v1/production/$BJOB/artifact/master" -o "$RETRIEVED"
+test -s "$RETRIEVED" || fail "bridge artifact download missing"
+ffprobe -v error -show_streams -show_format -of json "$RETRIEVED" > "$READY/bridge-retrieved-master.ffprobe.json"
+SRC_SHA=$(sha256sum "$MASTER" | awk '{print $1}')
+GET_SHA=$(sha256sum "$RETRIEVED" | awk '{print $1}')
+[[ "$SRC_SHA" == "$GET_SHA" ]] || fail "retrieved bridge artifact checksum mismatch"
+echo "BRIDGE_ARTIFACT_RETRIEVAL_PASS sha256=$GET_SHA"
+
 echo PASS > "$STATUS/ctnetwork_bridge.status"
+echo PASS > "$STATUS/bridge_artifact_retrieval.status"
 echo PASS > "$STATUS/end_to_end.status"
 echo PASS > "$STATUS/final_certification.status"
 printf '%s\n' "$BJOB" > "$STATUS/final_e2e_job_id.txt"
