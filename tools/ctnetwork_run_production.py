@@ -29,8 +29,6 @@ def build_payload() -> str:
         tf.add(REPO / 'runpod' / 'ctnetwork_qwen_narrate.py', arcname='controller/ctnetwork_qwen_narrate.py')
         tf.add(REPO / 'runpod' / 'ctnetwork_ltx_generate.py', arcname='controller/ctnetwork_ltx_generate.py')
         tf.add(MANIFEST, arcname='incoming/ctnetwork-production-manifest.json')
-        # Authorized CTNETWORK show reference used by the final local-factory proof job.
-        # It remains inside the production payload and is never published as a standalone asset.
         malik_ref = REPO / 'published-assets' / 'the-case-against' / 'narrator-audition' / 'malik_am_onyx_raw.wav'
         if malik_ref.exists():
             tf.add(malik_ref, arcname='incoming/voice_refs/the_case_against_malik.wav')
@@ -55,7 +53,12 @@ def login():
     if not m:
         raise RuntimeError('Could not find Jupyter XSRF token')
     xsrf = m.group(1)
-    rr = SESSION.post(BASE + '/login', data={'_xsrf': xsrf, 'password': PASSWORD, 'next': '/'}, timeout=30, allow_redirects=False)
+    rr = SESSION.post(
+        BASE + '/login',
+        data={'_xsrf': xsrf, 'password': PASSWORD, 'next': '/'},
+        timeout=30,
+        allow_redirects=False,
+    )
     if rr.status_code not in (200, 302, 303):
         rr.raise_for_status()
     cx = SESSION.cookies.get('_xsrf')
@@ -69,7 +72,12 @@ def run_remote(headers):
     r.raise_for_status()
     term = r.json()['name']
     cookie = '; '.join(f'{c.name}={c.value}' for c in SESSION.cookies)
-    ws = websocket.create_connection(f'wss://{POD_ID}-8888.proxy.runpod.net/terminals/websocket/{term}', cookie=cookie, origin=BASE, timeout=60)
+    ws = websocket.create_connection(
+        f'wss://{POD_ID}-8888.proxy.runpod.net/terminals/websocket/{term}',
+        cookie=cookie,
+        origin=BASE,
+        timeout=60,
+    )
     payload = build_payload()
     shell = f'''set -Eeuo pipefail
 ROOT=/workspace/ctnetwork-local
@@ -78,18 +86,19 @@ mkdir -p "$ROOT/controller" "$ROOT/recipes" "$ROOT/incoming" "$ROOT/batches" "$R
 echo {payload} | base64 -d >/tmp/ctnetwork-production-payload.tar.gz
 tar -xzf /tmp/ctnetwork-production-payload.tar.gz -C "$ROOT"
 chmod +x "$ROOT/controller/ctnetwork_factory_v2.py" "$ROOT/controller/ctnetwork_qwen_narrate.py" "$ROOT/controller/ctnetwork_ltx_generate.py"
-
-# Hard safety gate: a production batch cannot run before the local engine factory has passed.
-for s in lipsync_smoke qwen_smoke ltx25_smoke ltx25_dfr factory_acceptance; do
-  test "$(cat "$ROOT/status/${{s}}.status" 2>/dev/null || true)" = PASS || {{ echo "FACTORY_GATE_BLOCKED:${{s}}"; exit 71; }}
-done
+command -v ffmpeg >/dev/null || {{ echo FFMPEG_MISSING; exit 70; }}
+test "$(cat "$ROOT/status/core.status" 2>/dev/null || true)" = PASS || {{ echo FACTORY_CORE_BLOCKED; exit 71; }}
 
 MAN="$ROOT/incoming/ctnetwork-production-manifest.json"
-rm -rf "$ROOT/incoming/jobs"
+rm -rf "$ROOT/incoming/jobs" "$ROOT/incoming/remote-assets"
+
+# Split the batch, localize approved remote assets, and calculate exactly which engines are required.
 set +e
 python3 - <<'PY'
-import json, pathlib
-p=pathlib.Path('/workspace/ctnetwork-local/incoming/ctnetwork-production-manifest.json')
+import json, pathlib, subprocess, urllib.parse, urllib.request
+
+root=pathlib.Path('/workspace/ctnetwork-local')
+p=root/'incoming/ctnetwork-production-manifest.json'
 m=json.load(open(p))
 assert m.get('manual_gate_required') is True, 'manual gate flag missing'
 assert m.get('publish_allowed') is False, 'publish must default false'
@@ -97,16 +106,94 @@ jobs=m.get('jobs') or []
 if not jobs:
     print('NO_JOBS_DUE')
     raise SystemExit(20)
-out=pathlib.Path('/workspace/ctnetwork-local/incoming/jobs')
-out.mkdir(parents=True, exist_ok=True)
+
+out=root/'incoming/jobs'; out.mkdir(parents=True, exist_ok=True)
+assets=root/'incoming/remote-assets'; assets.mkdir(parents=True, exist_ok=True)
+needs_qwen=False; needs_ltx=False; needs_dfr=False
+
+def suffix(url, fallback):
+    s=pathlib.Path(urllib.parse.urlparse(url).path).suffix.lower()
+    return s if s and len(s) <= 8 else fallback
+
+def download(url, dest):
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    req=urllib.request.Request(url, headers={'User-Agent':'CTNETWORK-Production/1.0'})
+    with urllib.request.urlopen(req, timeout=120) as r, open(dest,'wb') as f:
+        while True:
+            b=r.read(1024*1024)
+            if not b: break
+            f.write(b)
+    if dest.stat().st_size < 1024:
+        raise RuntimeError(f'downloaded asset is empty: {url}')
+    print('ASSET_DOWNLOADED', dest, dest.stat().st_size)
+
+def duration(path):
+    x=subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=nw=1:nk=1',str(path)], text=True).strip()
+    return max(1.0,float(x))
+
+def slideshow(images, narration, dest):
+    total=duration(narration)
+    each=max(1.5,total/max(1,len(images)))
+    clips=[]
+    clipdir=dest.parent/'clips'; clipdir.mkdir(parents=True,exist_ok=True)
+    for n,img in enumerate(images,1):
+        clip=clipdir/f'{n:03d}.mp4'
+        vf="scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,zoompan=z='min(zoom+0.0008,1.07)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080:fps=30,format=yuv420p"
+        subprocess.run(['ffmpeg','-y','-loop','1','-t',f'{each:.3f}','-i',str(img),'-vf',vf,'-an','-c:v','libx264','-preset','fast','-crf','18','-movflags','+faststart',str(clip)],check=True)
+        clips.append(clip)
+    concat=clipdir/'concat.txt'
+    concat.write_text(''.join("file '%s'\n" % str(c).replace("'", "'\\''") for c in clips))
+    subprocess.run(['ffmpeg','-y','-f','concat','-safe','0','-i',str(concat),'-c','copy',str(dest)],check=True)
+    print('SLIDESHOW_READY',dest,dest.stat().st_size)
+
 for i,j in enumerate(jobs,1):
     if j.get('publish') is True:
         raise AssertionError('job requests publishing inside production gate')
     jid=j.get('job_id')
     if not jid:
         raise AssertionError(f'job {i} missing stable job_id')
-    (out/f'{i:02d}-{jid}.json').write_text(json.dumps(j, indent=2)+'\n')
-print('JOBS_DUE', len(jobs))
+    a=assets/jid; a.mkdir(parents=True,exist_ok=True)
+    inputs=j.setdefault('inputs',{})
+
+    for kind,fallback in [('narration','.wav'),('visual','.mp4'),('thumbnail','.jpg')]:
+        url=inputs.pop(kind+'_url',None)
+        if url:
+            dest=a/(kind+suffix(url,fallback))
+            download(url,dest)
+            inputs[kind]=str(dest)
+
+    urls=inputs.pop('visual_urls',None) or []
+    if urls:
+        imgs=[]
+        for k,url in enumerate(urls,1):
+            dest=a/f'image_{k:03d}{suffix(url,".jpg")}'
+            download(url,dest); imgs.append(dest)
+        narration=inputs.get('narration')
+        if not narration:
+            raise AssertionError(f'{jid}: visual_urls requires approved supplied narration/narration_url')
+        visual=a/'visual-slideshow.mp4'
+        slideshow(imgs,pathlib.Path(narration),visual)
+        inputs['visual']=str(visual)
+
+    if not inputs.get('narration'):
+        n=j.get('narration') or {}
+        engine=str(n.get('engine') or '').lower()
+        if engine not in {'qwen','qwen3-tts','local_qwen'}:
+            raise AssertionError(f'{jid}: approved narrator input required; no automatic narrator substitution is allowed')
+        needs_qwen=True
+
+    if not inputs.get('visual'):
+        v=j.get('visuals') or {}
+        if not v.get('prompt'):
+            raise AssertionError(f'{jid}: approved visual input or visual generation prompt required')
+        needs_ltx=True
+        if str(v.get('quality','dfr')).lower() == 'dfr': needs_dfr=True
+
+    (out/f'{i:02d}-{jid}.json').write_text(json.dumps(j,indent=2)+'\n')
+
+req=root/'incoming/engine-requirements.env'
+req.write_text(f'NEEDS_QWEN={int(needs_qwen)}\nNEEDS_LTX={int(needs_ltx)}\nNEEDS_DFR={int(needs_dfr)}\n')
+print('JOBS_DUE',len(jobs),'needs_qwen',needs_qwen,'needs_ltx',needs_ltx,'needs_dfr',needs_dfr)
 PY
 split_rc=$?
 set -e
@@ -117,6 +204,18 @@ if [ "$split_rc" -eq 20 ]; then
 fi
 test "$split_rc" -eq 0 || exit "$split_rc"
 
+source "$ROOT/incoming/engine-requirements.env"
+if [ "$NEEDS_QWEN" = 1 ]; then
+  test "$(cat "$ROOT/status/qwen_smoke.status" 2>/dev/null || true)" = PASS || {{ echo QWEN_REQUIRED_BUT_NOT_CERTIFIED; exit 73; }}
+fi
+if [ "$NEEDS_LTX" = 1 ]; then
+  test "$(cat "$ROOT/status/ltx25_smoke.status" 2>/dev/null || true)" = PASS || {{ echo LTX_REQUIRED_BUT_NOT_CERTIFIED; exit 74; }}
+fi
+if [ "$NEEDS_DFR" = 1 ]; then
+  test "$(cat "$ROOT/status/ltx25_dfr.status" 2>/dev/null || true)" = PASS || {{ echo LTX_DFR_REQUIRED_BUT_NOT_CERTIFIED; exit 75; }}
+fi
+
+echo "ENGINE_GATE_PASS qwen=$NEEDS_QWEN ltx=$NEEDS_LTX dfr=$NEEDS_DFR"
 mkdir -p "$BATCH"
 failed=0
 for job in "$ROOT"/incoming/jobs/*.json; do
