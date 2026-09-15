@@ -48,13 +48,31 @@ HEADERS = login()
 
 
 def terminal():
-    r = S.post(BASE + "/api/terminals", headers=HEADERS, json={}, timeout=30)
-    r.raise_for_status()
-    name = r.json()["name"]
-    cookie = "; ".join(f"{c.name}={c.value}" for c in S.cookies)
-    ws = websocket.create_connection(f"wss://{POD_ID}-8888.proxy.runpod.net/terminals/websocket/{name}",
-                                     cookie=cookie, origin=BASE, timeout=60)
-    return name, ws
+    """Create a Jupyter terminal and tolerate RunPod's short HTTP/WebSocket readiness race."""
+    last_exc = None
+    for attempt in range(1, 41):
+        name = None
+        try:
+            r = S.post(BASE + "/api/terminals", headers=HEADERS, json={}, timeout=30)
+            r.raise_for_status()
+            name = r.json()["name"]
+            cookie = "; ".join(f"{c.name}={c.value}" for c in S.cookies)
+            ws = websocket.create_connection(
+                f"wss://{POD_ID}-8888.proxy.runpod.net/terminals/websocket/{name}",
+                cookie=cookie,
+                origin=BASE,
+                timeout=30,
+            )
+            print(f"TERMINAL_READY attempt={attempt} name={name}", flush=True)
+            return name, ws
+        except Exception as exc:
+            last_exc = exc
+            print(f"terminal handshake attempt={attempt} failed: {exc!r}", flush=True)
+            if name:
+                try: S.delete(BASE + f"/api/terminals/{name}", headers=HEADERS, timeout=10)
+                except Exception: pass
+            time.sleep(3)
+    raise RuntimeError(f"Jupyter terminal websocket never became ready: {last_exc!r}")
 
 
 def run(command: str, timeout: int = 600, label: str = "remote") -> str:
