@@ -9,25 +9,43 @@ POD_ID=os.environ['POD_ID']; PASSWORD=Path(os.environ['JUPYTER_PASSWORD_FILE']).
 BASE=f'https://{POD_ID}-8888.proxy.runpod.net'; S=requests.Session(); REPO=Path(__file__).resolve().parents[1]
 
 def login():
-    r=None
-    for i in range(120):
+    last='not-started'
+    for attempt in range(1,121):
         try:
-            r=S.get(BASE+'/login',timeout=12)
-            if r.ok: print(f'JUPYTER_READY attempt={i+1}',flush=True); break
+            # RunPod's HTTP proxy can briefly return 200 for /login before the
+            # authenticated Jupyter routes are fully ready. Treat the complete
+            # GET -> POST -> /api/status sequence as the readiness check.
+            S.cookies.clear()
+            r=S.get(BASE+'/login',timeout=15)
+            last=f'GET {r.status_code}'
+            if r.status_code != 200:
+                if attempt % 10 == 0: print(f'jupyter login wait attempt={attempt} {last}',flush=True)
+                time.sleep(4); continue
+            m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+            if not m:
+                last='GET 200 without xsrf'; time.sleep(4); continue
+            rr=S.post(BASE+'/login',data={'_xsrf':m.group(1),'password':PASSWORD,'next':'/'},timeout=20,allow_redirects=False)
+            last=f'POST {rr.status_code}'
+            if rr.status_code not in (200,302,303):
+                if attempt % 5 == 0 or rr.status_code != 404: print(f'jupyter auth wait attempt={attempt} {last}',flush=True)
+                time.sleep(4); continue
+            xs=S.cookies.get('_xsrf'); h={'X-XSRFToken':xs} if xs else {}
+            sr=S.get(BASE+'/api/status',headers=h,timeout=20)
+            last=f'STATUS {sr.status_code}'
+            if sr.status_code != 200:
+                if attempt % 5 == 0: print(f'jupyter api wait attempt={attempt} {last}',flush=True)
+                time.sleep(4); continue
+            print(f'JUPYTER_AUTH_READY attempt={attempt}',flush=True)
+            return h
         except Exception as e:
-            if i%10==0: print('jupyter wait',repr(e),flush=True)
-        time.sleep(5)
-    else: raise RuntimeError('Jupyter unavailable')
-    m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
-    if not m: raise RuntimeError('XSRF missing')
-    rr=S.post(BASE+'/login',data={'_xsrf':m.group(1),'password':PASSWORD,'next':'/'},timeout=30,allow_redirects=False)
-    if rr.status_code not in (200,302,303): rr.raise_for_status()
-    xs=S.cookies.get('_xsrf'); h={'X-XSRFToken':xs} if xs else {}
-    S.get(BASE+'/api/status',headers=h,timeout=30).raise_for_status(); return h
+            last=repr(e)
+            if attempt % 10 == 0: print(f'jupyter auth wait attempt={attempt} {last}',flush=True)
+            time.sleep(4)
+    raise RuntimeError(f'Jupyter authentication unavailable after retries: {last}')
 
 def terminal(h):
     last=None
-    for attempt in range(1,41):
+    for attempt in range(1,61):
         name=None
         try:
             r=S.post(BASE+'/api/terminals',headers=h,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
@@ -39,6 +57,7 @@ def terminal(h):
             if name:
                 try:S.delete(BASE+f'/api/terminals/{name}',headers=h,timeout=10)
                 except Exception:pass
+            if attempt % 10 == 0: print(f'terminal wait attempt={attempt} {last!r}',flush=True)
             time.sleep(3)
     raise RuntimeError(f'terminal unavailable {last!r}')
 
@@ -60,7 +79,7 @@ def run(h,cmd,timeout=3600):
         try:S.delete(BASE+f'/api/terminals/{name}',headers=h,timeout=10)
         except Exception:pass
     if rc is None: raise RuntimeError('certification timeout')
-    if rc: raise RuntimeError(f'certification failed rc={rc}\n{out[-8000:]}')
+    if rc: raise RuntimeError(f'certification failed rc={rc}\n{out[-12000:]}')
     return out
 
 def main():
@@ -86,7 +105,7 @@ root=pathlib.Path('/workspace/ctnetwork-local'); out=root/'ready_for_approval/ct
 qc=json.load(open(out/'qc.json')); ap=json.load(open(out/'approval.json')); st=json.load(open(root/'jobs/ctn-asset-pipeline-cert/state.json'))
 assert qc.get('pass') is True,qc; assert ap.get('requires_manual_approval') is True,ap; assert ap.get('approved') is False,ap; assert ap.get('publish_allowed') is False,ap; assert st.get('state')=='READY_FOR_APPROVAL',st
 for name in ['master.mp4','short_01_9x16.mp4','short_02_9x16.mp4']:
- d=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(out/name)],text=True)); s=d.get('streams',[]); assert any(x.get('codec_type')=='video' for x in s); assert any(x.get('codec_type')=='audio' for x in s)
+ d=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(out/name)],text=True)); s=d.get('streams',[]); assert any(x.get('codec_type')=='video' for x in s),name; assert any(x.get('codec_type')=='audio' for x in s),name
 report={'mode':'supplied_assets','status':'PASS','job_id':'ctn-asset-pipeline-cert','master':str(out/'master.mp4'),'shorts':2,'qc_pass':True,'manual_approval_verified':True,'publish_locked':True,'ltx_generation_required':False,'narrator_generation_required':False}
 (root/'status/asset_pipeline.json').write_text(json.dumps(report,indent=2)+'\n'); (root/'status/asset_pipeline.status').write_text('PASS\n'); (root/'status/production_ready.status').write_text('PASS\n'); print(json.dumps(report,indent=2))
 PY
