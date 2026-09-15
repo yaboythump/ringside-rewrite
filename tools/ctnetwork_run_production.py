@@ -112,7 +112,7 @@ ROOT=/workspace/ctnetwork-local
 BATCH="$ROOT/batches/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$ROOT/controller" "$ROOT/recipes" "$ROOT/incoming" "$ROOT/batches" "$ROOT/ready_for_approval" "$ROOT/status"
 echo {cookie_payload} | base64 -d >/tmp/ctnetwork-production-payload.tar.gz
-tar -xzf /tmp/ctnetwork-production-payload.tar.gz -C "$ROOT"
+tar --no-same-owner -xzf /tmp/ctnetwork-production-payload.tar.gz -C "$ROOT"
 chmod +x "$ROOT/controller/ctnetwork_factory_v2.py" "$ROOT/controller/ctnetwork_qwen_narrate.py" "$ROOT/controller/ctnetwork_ltx_generate.py"
 command -v ffmpeg >/dev/null || {{ echo FFMPEG_MISSING; exit 70; }}
 command -v ffprobe >/dev/null || {{ echo FFPROBE_MISSING; exit 70; }}
