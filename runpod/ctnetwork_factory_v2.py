@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Generation-capable CTNETWORK local production controller.
+"""CTNETWORK local production controller.
 
-A manifest can provide already-approved media or ask the local factory to create
-narration with Qwen3-TTS and visuals with LTX-2.5 DFR. All paths converge on the
-same deterministic assembly/QC/approval gate. This module intentionally has no
-publisher implementation.
+Approved supplied media and optional local generation converge on one deterministic
+assembly/QC/manual-approval pipeline. This module never publishes externally.
 """
 from __future__ import annotations
 
@@ -27,7 +25,6 @@ READY = ROOT / 'ready_for_approval'
 JOBS = ROOT / 'jobs'
 STATUS = ROOT / 'status'
 CONTROLLER = ROOT / 'controller'
-RECIPES = ROOT / 'recipes'
 
 
 def utcnow() -> str:
@@ -64,9 +61,11 @@ def media_summary(path: Path) -> dict:
     v = [s for s in streams if s.get('codec_type') == 'video']
     a = [s for s in streams if s.get('codec_type') == 'audio']
     out = {
-        'path': str(path), 'bytes': path.stat().st_size if path.exists() else 0,
+        'path': str(path),
+        'bytes': path.stat().st_size if path.exists() else 0,
         'duration': float(fmt.get('duration') or 0),
-        'video_streams': len(v), 'audio_streams': len(a),
+        'video_streams': len(v),
+        'audio_streams': len(a),
     }
     if v:
         out.update(width=int(v[0].get('width') or 0), height=int(v[0].get('height') or 0), video_codec=v[0].get('codec_name'))
@@ -86,10 +85,15 @@ class Job:
         self.work.mkdir(parents=True, exist_ok=True)
         self.out.mkdir(parents=True, exist_ok=True)
         self.state = {
-            'job_id': job_id, 'show': show, 'title': title, 'state': 'PLANNED',
+            'job_id': job_id,
+            'show': show,
+            'title': title,
+            'state': 'PLANNED',
             'history': [{'state': 'PLANNED', 'at': utcnow()}],
-            'retryable_failures': [], 'blocked_failures': [],
-            'approved': False, 'publish_allowed': False,
+            'retryable_failures': [],
+            'blocked_failures': [],
+            'approved': False,
+            'publish_allowed': False,
         }
         if self.state_path.exists():
             try:
@@ -137,12 +141,17 @@ def stage_text(job: Job, name: str, text: str) -> Path:
     return p
 
 
+def status_pass(name: str) -> bool:
+    p = STATUS / name
+    return p.exists() and p.read_text().strip() == 'PASS'
+
+
 def resolve_narration(m: dict, job: Job) -> Path:
     inputs = m.get('inputs', {})
     if inputs.get('narration'):
         p = Path(inputs['narration'])
         require_file(p, 'NARRATION', job)
-        job.stage('NARRATION', f'use supplied narration {p}')
+        job.stage('NARRATION', f'use supplied approved narration {p}')
         return p
 
     n = m.get('narration', {})
@@ -150,24 +159,24 @@ def resolve_narration(m: dict, job: Job) -> Path:
     ref_audio = n.get('voice_reference')
     ref_text = n.get('voice_reference_text')
     if not script or not ref_audio or not ref_text:
-        job.block('NARRATION', 'local Qwen generation requires script, voice_reference, and voice_reference_text')
-    if (STATUS / 'qwen_smoke.status').read_text().strip() != 'PASS':
-        job.block('NARRATION', 'Qwen engine is not certified PASS')
+        job.block('NARRATION', 'approved supplied narration is required unless an explicitly authorized local narrator is configured')
+    if not status_pass('qwen_smoke.status'):
+        job.block('NARRATION', 'local narrator engine is not certified PASS')
     ref = Path(ref_audio)
     require_file(ref, 'NARRATION', job)
     script_file = stage_text(job, 'script.txt', script)
     ref_text_file = stage_text(job, 'voice_reference.txt', ref_text)
     out = job.work / 'narration.raw.wav'
-    job.stage('NARRATION', 'generate authorized show narration locally with Qwen3-TTS')
     qwen_py = ROOT / 'envs/qwen3-tts/bin/python'
     helper = CONTROLLER / 'ctnetwork_qwen_narrate.py'
     require_file(helper, 'NARRATION', job, 100)
+    job.stage('NARRATION', 'generate explicitly authorized local narration')
+    cmd = [str(qwen_py), str(helper), '--text-file', str(script_file), '--ref-audio', str(ref), '--ref-text-file', str(ref_text_file), '--output', str(out), '--language', n.get('language', 'English')]
     try:
-        sh([str(qwen_py), str(helper), '--text-file', str(script_file), '--ref-audio', str(ref), '--ref-text-file', str(ref_text_file), '--output', str(out), '--language', n.get('language', 'English')])
+        sh(cmd)
     except Exception as exc:
         job.retryable('NARRATION', repr(exc))
-        # one targeted retry; model/reference assets are unchanged
-        sh([str(qwen_py), str(helper), '--text-file', str(script_file), '--ref-audio', str(ref), '--ref-text-file', str(ref_text_file), '--output', str(out), '--language', n.get('language', 'English')])
+        sh(cmd)
     require_file(out, 'NARRATION', job)
     return out
 
@@ -177,23 +186,22 @@ def resolve_visual(m: dict, job: Job) -> Path:
     if inputs.get('visual'):
         p = Path(inputs['visual'])
         require_file(p, 'VISUALS', job)
-        job.stage('VISUALS', f'use supplied visual master {p}')
+        job.stage('VISUALS', f'use supplied approved visual master {p}')
         return p
 
     v = m.get('visuals', {})
     prompt = v.get('prompt') or m.get('visual_prompt')
     if not prompt:
-        job.block('VISUALS', 'local LTX generation requires visuals.prompt')
-    quality = v.get('quality', 'dfr')
+        job.block('VISUALS', 'approved supplied visual or explicit generation prompt required')
+    quality = str(v.get('quality', 'dfr')).lower()
     status_name = 'ltx25_dfr.status' if quality == 'dfr' else 'ltx25_smoke.status'
-    status_path = STATUS / status_name
-    if not status_path.exists() or status_path.read_text().strip() != 'PASS':
+    if not status_pass(status_name):
         job.block('VISUALS', f'LTX engine is not certified PASS: {status_name}')
     prompt_file = stage_text(job, 'visual_prompt.txt', prompt)
     out = job.work / 'visual.raw.mp4'
     helper = CONTROLLER / 'ctnetwork_ltx_generate.py'
     require_file(helper, 'VISUALS', job, 100)
-    job.stage('VISUALS', f'generate local LTX-2.5 {quality} visual')
+    job.stage('VISUALS', f'generate local LTX visual quality={quality}')
     cmd = [
         str(ROOT / 'envs/core/bin/python'), str(helper), '--prompt-file', str(prompt_file),
         '--output', str(out), '--quality', quality,
@@ -210,7 +218,7 @@ def resolve_visual(m: dict, job: Job) -> Path:
 
 
 def assemble(video: Path, audio: Path, out: Path, job: Job):
-    job.stage('ASSEMBLY', 'assemble generated/supplied visuals with narration')
+    job.stage('ASSEMBLY', 'assemble approved/generated visuals with narration')
     cmd = [
         'ffmpeg', '-y', '-stream_loop', '-1', '-i', str(video), '-i', str(audio),
         '-map', '0:v:0', '-map', '1:a:0', '-vf', 'format=yuv420p',
@@ -229,17 +237,50 @@ def assemble(video: Path, audio: Path, out: Path, job: Job):
     job.stage('AUDIO', 'normalized narration master; AAC 48 kHz')
 
 
-def make_short(master: Path, out: Path, seconds: float):
+def make_short(master: Path, out: Path, seconds: float, start: float = 0.0):
     sh([
-        'ffmpeg', '-y', '-i', str(master), '-t', f'{seconds:.2f}',
+        'ffmpeg', '-y', '-ss', f'{max(0.0, start):.3f}', '-i', str(master), '-t', f'{max(1.0, seconds):.3f}',
         '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,format=yuv420p',
-        '-c:v', 'libx264', '-preset', 'fast', '-crf', '19', '-c:a', 'aac', '-b:a', '160k', '-ar', '48000',
-        '-movflags', '+faststart', str(out),
+        '-c:v', 'libx264', '-preset', 'fast', '-crf', '19',
+        '-c:a', 'aac', '-b:a', '160k', '-ar', '48000', '-movflags', '+faststart', str(out),
     ])
+
+
+def short_plan(master: Path, cfg: dict) -> list[dict]:
+    duration = media_summary(master)['duration']
+    clips = cfg.get('clips') or []
+    if clips:
+        plan = []
+        for item in clips:
+            start = max(0.0, float(item.get('start', 0)))
+            seconds = max(1.0, float(item.get('seconds', cfg.get('seconds', 50))))
+            if duration > 0:
+                start = min(start, max(0.0, duration - 1.0))
+                seconds = min(seconds, max(1.0, duration - start))
+            plan.append({'start': start, 'seconds': seconds, 'title': item.get('title', '')})
+        return plan
+
+    count = max(0, int(cfg.get('count', 1)))
+    seconds = max(1.0, float(cfg.get('seconds', 12)))
+    if count == 0:
+        return []
+    if duration > 0:
+        seconds = min(seconds, duration)
+    if count == 1 or duration <= seconds:
+        return [{'start': 0.0, 'seconds': seconds, 'title': ''} for _ in range(count)]
+    last_start = max(0.0, duration - seconds)
+    return [
+        {'start': last_start * i / (count - 1), 'seconds': seconds, 'title': ''}
+        for i in range(count)
+    ]
 
 
 def make_thumbnail(master: Path, out: Path):
     sh(['ffmpeg', '-y', '-ss', '0.5', '-i', str(master), '-frames:v', '1', '-vf', 'scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720', '-q:v', '2', str(out)])
+
+
+def normalize_thumbnail(src: Path, out: Path):
+    sh(['ffmpeg', '-y', '-i', str(src), '-frames:v', '1', '-vf', 'scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720', '-q:v', '2', str(out)])
 
 
 def black_ratio(path: Path) -> float:
@@ -268,15 +309,22 @@ def package_manifest(m: dict, job: Job, narration: Path, visual: Path) -> Path:
     master = job.out / 'master.mp4'
     assemble(visual, narration, master, job)
 
-    shorts_cfg = m.get('shorts', {})
-    count = int(shorts_cfg.get('count', 1))
-    seconds = float(shorts_cfg.get('seconds', 12))
-    job.stage('SHORTS', f'count={count}')
+    plan = short_plan(master, m.get('shorts', {}))
+    job.stage('SHORTS', f'count={len(plan)} distinct_timeline_clips=true')
     shorts = []
-    for i in range(count):
-        p = job.out / f'short_{i+1:02d}_9x16.mp4'
-        make_short(master, p, seconds)
+    short_meta = []
+    for i, item in enumerate(plan, 1):
+        p = job.out / f'short_{i:02d}_9x16.mp4'
+        make_short(master, p, item['seconds'], item['start'])
+        require_file(p, 'SHORTS', job, 4096)
         shorts.append(p)
+        short_meta.append({'file': p.name, **item})
+    write_json(job.out / 'shorts_manifest.json', {'clips': short_meta})
+
+    if len(shorts) > 1:
+        hashes = [sha256(p) for p in shorts]
+        if len(set(hashes)) != len(hashes):
+            job.block('SHORTS', 'duplicate Short outputs detected')
 
     job.stage('THUMBNAIL', 'prepare custom-thumbnail review asset')
     supplied_thumb = m.get('inputs', {}).get('thumbnail')
@@ -284,9 +332,10 @@ def package_manifest(m: dict, job: Job, narration: Path, visual: Path) -> Path:
     if supplied_thumb:
         src = Path(supplied_thumb)
         require_file(src, 'THUMBNAIL', job)
-        shutil.copy2(src, thumb)
+        normalize_thumbnail(src, thumb)
     else:
         make_thumbnail(master, thumb)
+    require_file(thumb, 'THUMBNAIL', job, 4096)
 
     metadata = {
         'show': job.show,
@@ -295,28 +344,33 @@ def package_manifest(m: dict, job: Job, narration: Path, visual: Path) -> Path:
         'tags': m.get('tags', []),
         'burned_in_captions': False,
         'thumbnail': thumb.name,
-        'shorts': [p.name for p in shorts],
+        'shorts': short_meta,
         'publish': False,
     }
     write_json(job.out / 'metadata.json', metadata)
 
-    job.stage('QC', 'media integrity, streams, aspect, black-frame ratio, checksums')
+    job.stage('QC', 'media integrity, streams, aspect, uniqueness, black-frame ratio, checksums')
     qc = {'master': qc_media(master)}
     for i, p in enumerate(shorts, 1):
         qc[f'short_{i:02d}'] = qc_media(p, vertical=True)
-    qc['thumbnail'] = {'bytes': thumb.stat().st_size if thumb.exists() else 0, 'pass': thumb.exists() and thumb.stat().st_size > 4096}
+    qc['thumbnail'] = {'bytes': thumb.stat().st_size, 'pass': thumb.stat().st_size > 4096}
+    qc['shorts_unique'] = {'count': len(shorts), 'unique_hashes': len(set(sha256(p) for p in shorts)), 'pass': len(shorts) <= 1 or len(set(sha256(p) for p in shorts)) == len(shorts)}
     qc['pass'] = all(v.get('pass', False) for v in qc.values() if isinstance(v, dict))
     write_json(job.out / 'qc.json', qc)
     if not qc['pass']:
         job.block('QC', 'one or more package QC checks failed')
 
-    files = [master, *shorts, thumb, job.out / 'metadata.json', job.out / 'qc.json']
+    files = [master, *shorts, thumb, job.out / 'metadata.json', job.out / 'qc.json', job.out / 'shorts_manifest.json']
     write_json(job.out / 'checksums.json', {p.name: sha256(p) for p in files})
     write_json(job.out / 'approval.json', {
-        'job_id': job.job_id, 'state': 'READY_FOR_APPROVAL',
-        'requires_manual_approval': True, 'approved': False,
-        'publish_allowed': False, 'publishing_implemented': False,
-        'created_at': utcnow(), 'note': 'Factory production complete. No external publishing is permitted without a separate explicit approval/publisher action.'
+        'job_id': job.job_id,
+        'state': 'READY_FOR_APPROVAL',
+        'requires_manual_approval': True,
+        'approved': False,
+        'publish_allowed': False,
+        'publishing_implemented': False,
+        'created_at': utcnow(),
+        'note': 'Factory production complete. No external publishing is permitted without a separate explicit approval/publisher action.',
     })
     job.state['approved'] = False
     job.state['publish_allowed'] = False
@@ -340,19 +394,25 @@ def status(job_id: str | None):
         return
     data = []
     for p in sorted(JOBS.glob('*/state.json')):
-        try: data.append(json.loads(p.read_text()))
-        except Exception: pass
+        try:
+            data.append(json.loads(p.read_text()))
+        except Exception:
+            pass
     print(json.dumps(data, indent=2))
 
 
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest='cmd', required=True)
-    r = sub.add_parser('run-manifest'); r.add_argument('manifest', type=Path)
-    s = sub.add_parser('status'); s.add_argument('--job-id')
+    r = sub.add_parser('run-manifest')
+    r.add_argument('manifest', type=Path)
+    s = sub.add_parser('status')
+    s.add_argument('--job-id')
     args = ap.parse_args()
-    if args.cmd == 'run-manifest': run_manifest(args.manifest)
-    elif args.cmd == 'status': status(args.job_id)
+    if args.cmd == 'run-manifest':
+        run_manifest(args.manifest)
+    elif args.cmd == 'status':
+        status(args.job_id)
 
 
 if __name__ == '__main__':
