@@ -11,17 +11,19 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@0b577405783c: /root@0b577405783c:/# echo c2V0ICtlClJPT1Q9L3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwKZWNobyAnPT09IENUTkVUV09SSyBMVFggTElWRSBBVURJVCA9PT0nOyBkYXRlIC11CmVjaG8gJy0tLSBHUFUgLS0tJzsgbnZpZGlhLXNtaSAtLXF1ZXJ5LWdwdT1uYW1lLG1lbW9yeS50b3RhbCxtZW1vcnkudXNlZCxkcml2ZXJfdmVyc2lvbiAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIKZWNobyAnLS0tIFdPUktTUEFDRSAtLS0nOyBkZiAtaCAvd29ya3NwYWNlOyBkdSAtc2ggIiRST09UIiAyPi9kZXYvbnVsbAplY2hvICctLS0gU1RBVFVTIC0tLSc7IGZpbmQgIiRST09UL3N0YXR1cyIgLW1heGRlcHRoIDEgLXR5cGUgZiAtbmFtZSAnKi5zdGF0dXMnIC1wcmludCAtZXhlYyBzaCAtYyAncHJpbnRmICIgPSAiOyBjYXQgIiQxIicgXyB7fSBcOyAyPi9kZXYvbnVsbCB8IHNvcnQKZWNobyAnLS0tIFBIQVNFIC0tLSc7IGNhdCAiJFJPT1Qvc3RhdHVzL3BoYXNlLnR4dCIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICctLS0gU09VUkNFUyAtLS0nCmZvciBkIGluIFF3ZW4zLVRUUyBMYXRlbnRTeW5jIExUWC0yOyBkbyBwPSIkUk9PVC9zcmMvJGQiOyBlY2hvICIkZCBleGlzdHM9JChbIC1kICIkcCIgXSAmJiBlY2hvIHllcyB8fCBlY2hvIG5vKSI7IGdpdCAtQyAiJHAiIHJldi1wYXJzZSAtLXNob3J0IEhFQUQgMj4vZGV2L251bGwgfHwgdHJ1ZTsgZG9uZQplY2hvICctLS0gUFlUSE9OIEVOVlMgLS0tJwpmb3IgcCBpbiAiJFJPT1QvZW52cy9jb3JlL2Jpbi9weXRob24iICIkUk9PVC9lbnZzL3F3ZW4zLXR0cy9iaW4vcHl0aG9uIiAiJFJPT1QvZW52cy9sYXRlbnRzeW5jL2Jpbi9weXRob24iICIkUk9PVC9zcmMvTFRYLTIvLnZlbnYvYmluL3B5dGhvbiI7IGRvIGVjaG8gIiRwIjsgbHMgLWwgIiRwIiAyPi9kZXYvbnVsbDsgIiRwIiAtLXZlcnNpb24gMj4vZGV2L251bGw7IGRvbmUKZWNobyAnLS0tIENVREEvVE9SQ0ggLS0tJwpmb3IgcCBpbiAiJFJPT1QvZW52cy9xd2VuMy10dHMvYmluL3B5dGhvbiIgIiRST09UL2VudnMvbGF0ZW50c3luYy9iaW4vcHl0aG9uIiAiJFJPT1Qvc3JjL0xUWC0yLy52ZW52L2Jpbi9weXRob24iOyBkbyBpZiBbIC14ICIkcCIgXTsgdGhlbiAiJHAiIC1jICdpbXBvcnQgdG9yY2g7IHByaW50KCJ0b3JjaCIsdG9yY2guX192ZXJzaW9uX18sImN1ZGEiLHRvcmNoLnZlcnNpb24uY3VkYSwiYXZhaWxhYmxlIix0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpLCJncHUiLHRvcmNoLmN1ZGEuZ2V0X2RldmljZV9uYW1lKDApIGlmIHRvcmNoLmN1ZGEuaXNfYXZhaWxhYmxlKCkgZWxzZSBOb25lKScgMj4mMTsgZmk7IGRvbmUKZWNobyAnLS0tIExUWCBJTVBPUlRTIC0tLScKaWYgWyAteCAiJFJPT1Qvc3JjL0xUWC0yLy52ZW52L2Jpbi9weXRob24iIF07IHRoZW4gY2QgIiRST09UL3NyYy9MVFgtMiI7ICIkUk9PVC9zcmMvTFRYLTIvLnZlbnYvYmluL3B5dGhvbiIgLWMgJ2ltcG9ydCBsdHhfcGlwZWxpbmVzOyBwcmludCgiTFRYX0lNUE9SVF9PSyIpJyAyPiYxOyBmaQplY2hvICctLS0gUkVRVUlSRUQgTFRYIE1PREVMUyAtLS0nCmZvciBmIGluIFwKICBkaWZmdXNpb25fbW9kZWxzL2x0eC0yLjUtMjJiLWRpc3RpbGxlZC10cmFuc2Zvcm1lci1iZjE2LnNhZmV0ZW5zb3JzIFwKICB0ZXh0X2VuY29kZXJzL2dlbW1hNC0xMmItd2l0aC1wcm9qLWx0eC0yLjUtYmYxNi5zYWZldGVuc29ycyBcCiAgdmFlL2x0eC0yLjUtdmlkZW8tdmFlLWJmMTYuc2FmZXRlbnNvcnMgXAogIHZhZS9sdHgtMi41LWF1ZGlvLXZhZS1iZjE2LnNhZmV0ZW5zb3JzIFwKICBtb2RlbF9wYXRjaGVzL2x0eC0yLjUtZHVyYXRpb24taGVhZC1iZjE2LnNhZmV0ZW5zb3JzIFwKICBsYXRlbnRfdXBzY2FsZV9tb2RlbHMvbHR4LTIuNS1sYXRlbnQtc3BhdGlhbC11cHNjYWxlci14Mi1iZjE2LTEuMC5zYWZldGVuc29ycyBcCiAgbG9yYXMvbHR4LTIuNS0yMmItaWMtbG9yYS1waXhlbC1zcGF0aWFsLXVwc2NhbGVyLXgyLTEuMC5zYWZldGVuc29yczsgZG8gcD0iJFJPT1QvbW9kZWxzL2x0eC0yLjUvJGYiOyBpZiBbIC1lICIkcCIgXTsgdGhlbiBzdGF0IC1MYyAnJW58JXMgYnl0ZXMnICIkcCI7IGVsc2UgZWNobyAiTUlTU0lOR3wkcCI7IGZpOyBkb25lCmVjaG8gJy0tLSBQQVJUSUFML0xPQ0sgRklMRVMgLS0tJzsgZmluZCAiJFJPT1QvbW9kZWxzIiAiJFJPT1Qvc3JjL0xUWC0yIiAtdHlwZSBmIFwoIC1uYW1lICcqLnBhcnQnIC1vIC1uYW1lICcqLmluY29tcGxldGUnIC1vIC1uYW1lICcqLmxvY2snIFwpIC1wcmludCAyPi9kZXYvbnVsbCB8IGhlYWQgLTEwMAplY2hvICctLS0gUVdFTiBNT0RFTCBGSUxFUyAtLS0nOyBmaW5kICIkUk9PVC9tb2RlbHMvcXdlbjMtdHRzLzEuN0ItQmFzZSIgLUwgLXR5cGUgZiBcKCAtbmFtZSAnKi5zYWZldGVuc29ycycgLW8gLW5hbWUgJyouYmluJyBcKSAtcHJpbnRmICclcHwlc1xuJyAyPi9kZXYvbnVsbCB8IGhlYWQgLTUwCmVjaG8gJy0tLSBMQVRFTlRTWU5DIENIRUNLUE9JTlRTIC0tLSc7IHN0YXQgLUxjICclbnwlcyBieXRlcycgIiRST09UL3NyYy9MYXRlbnRTeW5jL2NoZWNrcG9pbnRzL3doaXNwZXIvdGlueS5wdCIgIiRST09UL3NyYy9MYXRlbnRTeW5jL2NoZWNrcG9pbnRzL2xhdGVudHN5bmNfdW5ldC5wdCIgMj4vZGV2L251bGwKZWNobyAnLS0tIFJVTlRJTUUgRklMRVMgLS0tJzsgbHMgLWwgIiRST09UL2JpbiIgMj4vZGV2L251bGw7IHRlc3QgLWYgIiRST09UL1NUQUNLLmpzb24iICYmIGNhdCAiJFJPT1QvU1RBQ0suanNvbiIgfHwgdHJ1ZQplY2hvICctLS0gRkZNUEVHIC0tLSc7IGZmbXBlZyAtdmVyc2lvbiAyPi9kZXYvbnVsbCB8IGhlYWQgLTEKZWNobyAnX19DVE5fTFRYX0FVRElUX0RPTkVfXycK | base64 -d | bash
+[?2004h]0;root@7a30c9d031fe: /root@7a30c9d031fe:/# echo c2V0ICtlClJPT1Q9L3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwKZWNobyAnPT09IENUTkVUV09SSyBMVFggTElWRSBBVURJVCA9PT0nOyBkYXRlIC11CmVjaG8gJy0tLSBHUFUgLS0tJzsgbnZpZGlhLXNtaSAtLXF1ZXJ5LWdwdT1uYW1lLG1lbW9yeS50b3RhbCxtZW1vcnkudXNlZCxkcml2ZXJfdmVyc2lvbiAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIKZWNobyAnLS0tIFdPUktTUEFDRSAtLS0nOyBkZiAtaCAvd29ya3NwYWNlOyBkdSAtc2ggIiRST09UIiAyPi9kZXYvbnVsbAplY2hvICctLS0gU1RBVFVTIC0tLSc7IGZpbmQgIiRST09UL3N0YXR1cyIgLW1heGRlcHRoIDEgLXR5cGUgZiAtbmFtZSAnKi5zdGF0dXMnIC1wcmludCAtZXhlYyBzaCAtYyAncHJpbnRmICIgPSAiOyBjYXQgIiQxIicgXyB7fSBcOyAyPi9kZXYvbnVsbCB8IHNvcnQKZWNobyAnLS0tIFBIQVNFIC0tLSc7IGNhdCAiJFJPT1Qvc3RhdHVzL3BoYXNlLnR4dCIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICctLS0gU09VUkNFUyAtLS0nCmZvciBkIGluIFF3ZW4zLVRUUyBMYXRlbnRTeW5jIExUWC0yOyBkbyBwPSIkUk9PVC9zcmMvJGQiOyBlY2hvICIkZCBleGlzdHM9JChbIC1kICIkcCIgXSAmJiBlY2hvIHllcyB8fCBlY2hvIG5vKSI7IGdpdCAtQyAiJHAiIHJldi1wYXJzZSAtLXNob3J0IEhFQUQgMj4vZGV2L251bGwgfHwgdHJ1ZTsgZG9uZQplY2hvICctLS0gUFlUSE9OIEVOVlMgLS0tJwpmb3IgcCBpbiAiJFJPT1QvZW52cy9jb3JlL2Jpbi9weXRob24iICIkUk9PVC9lbnZzL3F3ZW4zLXR0cy9iaW4vcHl0aG9uIiAiJFJPT1QvZW52cy9sYXRlbnRzeW5jL2Jpbi9weXRob24iICIkUk9PVC9zcmMvTFRYLTIvLnZlbnYvYmluL3B5dGhvbiI7IGRvIGVjaG8gIiRwIjsgbHMgLWwgIiRwIiAyPi9kZXYvbnVsbDsgIiRwIiAtLXZlcnNpb24gMj4vZGV2L251bGw7IGRvbmUKZWNobyAnLS0tIENVREEvVE9SQ0ggLS0tJwpmb3IgcCBpbiAiJFJPT1QvZW52cy9xd2VuMy10dHMvYmluL3B5dGhvbiIgIiRST09UL2VudnMvbGF0ZW50c3luYy9iaW4vcHl0aG9uIiAiJFJPT1Qvc3JjL0xUWC0yLy52ZW52L2Jpbi9weXRob24iOyBkbyBpZiBbIC14ICIkcCIgXTsgdGhlbiAiJHAiIC1jICdpbXBvcnQgdG9yY2g7IHByaW50KCJ0b3JjaCIsdG9yY2guX192ZXJzaW9uX18sImN1ZGEiLHRvcmNoLnZlcnNpb24uY3VkYSwiYXZhaWxhYmxlIix0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpLCJncHUiLHRvcmNoLmN1ZGEuZ2V0X2RldmljZV9uYW1lKDApIGlmIHRvcmNoLmN1ZGEuaXNfYXZhaWxhYmxlKCkgZWxzZSBOb25lKScgMj4mMTsgZmk7IGRvbmUKZWNobyAnLS0tIExUWCBJTVBPUlRTIC0tLScKaWYgWyAteCAiJFJPT1Qvc3JjL0xUWC0yLy52ZW52L2Jpbi9weXRob24iIF07IHRoZW4gY2QgIiRST09UL3NyYy9MVFgtMiI7ICIkUk9PVC9zcmMvTFRYLTIvLnZlbnYvYmluL3B5dGhvbiIgLWMgJ2ltcG9ydCBsdHhfcGlwZWxpbmVzOyBwcmludCgiTFRYX0lNUE9SVF9PSyIpJyAyPiYxOyBmaQplY2hvICctLS0gUkVRVUlSRUQgTFRYIE1PREVMUyAoQ0FOT05JQ0FMKSAtLS0nCmZvciBmIGluIFwKICBkaWZmdXNpb25fbW9kZWxzL2x0eC0yLjUtMjJiLWRpc3RpbGxlZC10cmFuc2Zvcm1lci1iZjE2LnNhZmV0ZW5zb3JzIFwKICB0ZXh0X2VuY29kZXJzL2dlbW1hNC0xMmItd2l0aC1wcm9qLWx0eC0yLjUtYmYxNi5zYWZldGVuc29ycyBcCiAgdmFlL2x0eC0yLjUtdmlkZW8tdmFlLWJmMTYuc2FmZXRlbnNvcnMgXAogIHZhZS9sdHgtMi41LWF1ZGlvLXZhZS1iZjE2LnNhZmV0ZW5zb3JzIFwKICBtb2RlbF9wYXRjaGVzL2x0eC0yLjUtZHVyYXRpb24taGVhZC1iZjE2LnNhZmV0ZW5zb3JzIFwKICBsYXRlbnRfdXBzY2FsZV9tb2RlbHMvbHR4LTIuNS1sYXRlbnQtc3BhdGlhbC11cHNjYWxlci14Mi1iZjE2LTEuMC5zYWZldGVuc29ycyBcCiAgbGF0ZW50X3Vwc2NhbGVfbW9kZWxzL2x0eC0yLjUtbGF0ZW50LXRlbXBvcmFsLXVwc2NhbGVyLXgyLWJmMTYtMS4wLnNhZmV0ZW5zb3JzIFwKICBsb3Jhcy9sdHgtMi41LTIyYi1pYy1sb3JhLXBpeGVsLXNwYXRpYWwtdXBzY2FsZXIteDItMS4wLnNhZmV0ZW5zb3JzOyBkbyBwPSIkUk9PVC9tb2RlbHMvbHR4LTIuNS8kZiI7IGlmIFsgLWUgIiRwIiBdOyB0aGVuIHN0YXQgLUxjICclbnwlcyBieXRlcycgIiRwIjsgZWxzZSBlY2hvICJNSVNTSU5HfCRwIjsgZmk7IGRvbmUKZWNobyAnLS0tIEdMT0JBTCBQRVJTSVNURU5UIExUWC0yLjUgV0VJR0hUIFNFQVJDSCAtLS0nCmZvciBuYW1lIGluIFwKICBsdHgtMi41LTIyYi1kaXN0aWxsZWQtdHJhbnNmb3JtZXItYmYxNi5zYWZldGVuc29ycyBcCiAgZ2VtbWE0LTEyYi13aXRoLXByb2otbHR4LTIuNS1iZjE2LnNhZmV0ZW5zb3JzIFwKICBsdHgtMi41LXZpZGVvLXZhZS1iZjE2LnNhZmV0ZW5zb3JzIFwKICBsdHgtMi41LWF1ZGlvLXZhZS1iZjE2LnNhZmV0ZW5zb3JzIFwKICBsdHgtMi41LWR1cmF0aW9uLWhlYWQtYmYxNi5zYWZldGVuc29ycyBcCiAgbHR4LTIuNS1sYXRlbnQtc3BhdGlhbC11cHNjYWxlci14Mi1iZjE2LTEuMC5zYWZldGVuc29ycyBcCiAgbHR4LTIuNS1sYXRlbnQtdGVtcG9yYWwtdXBzY2FsZXIteDItYmYxNi0xLjAuc2FmZXRlbnNvcnMgXAogIGx0eC0yLjUtMjJiLWljLWxvcmEtcGl4ZWwtc3BhdGlhbC11cHNjYWxlci14Mi0xLjAuc2FmZXRlbnNvcnM7IGRvCiAgICBlY2hvICJTRUFSQ0g6JG5hbWUiCiAgICBmaW5kIC93b3Jrc3BhY2UgLXhkZXYgLXR5cGUgZiAtbmFtZSAiJG5hbWUiIC1wcmludGYgJyVwfCVzIGJ5dGVzXG4nIDI+L2Rldi9udWxsIHwgaGVhZCAtMjAKZG9uZQplY2hvICctLS0gT1RIRVIgTFRYIFdFSUdIVFMgLS0tJwpmaW5kIC93b3Jrc3BhY2UgLXhkZXYgLXR5cGUgZiBcKCAtaW5hbWUgJypsdHgqLnNhZmV0ZW5zb3JzJyAtbyAtaW5hbWUgJypsdHgqLmNrcHQnIFwpIC1wcmludGYgJyVwfCVzIGJ5dGVzXG4nIDI+L2Rldi9udWxsIHwgc29ydCB8IGhlYWQgLTIwMAplY2hvICctLS0gUEFSVElBTC9MT0NLIEZJTEVTIC0tLSc7IGZpbmQgIiRST09UL21vZGVscyIgIiRST09UL3NyYy9MVFgtMiIgLXR5cGUgZiBcKCAtbmFtZSAnKi5wYXJ0JyAtbyAtbmFtZSAnKi5pbmNvbXBsZXRlJyAtbyAtbmFtZSAnKi5sb2NrJyBcKSAtcHJpbnQgMj4vZGV2L251bGwgfCBoZWFkIC0xMDAKZWNobyAnLS0tIFFXRU4gTU9ERUwgRklMRVMgLS0tJzsgZmluZCAiJFJPT1QvbW9kZWxzL3F3ZW4zLXR0cy8xLjdCLUJhc2UiIC1MIC10eXBlIGYgXCggLW5hbWUgJyouc2FmZXRlbnNvcnMnIC1vIC1uYW1lICcqLmJpbicgXCkgLXByaW50ZiAnJXB8JXNcbicgMj4vZGV2L251bGwgfCBoZWFkIC01MAplY2hvICctLS0gTEFURU5UU1lOQyBDSEVDS1BPSU5UUyAtLS0nOyBzdGF0IC1MYyAnJW58JXMgYnl0ZXMnICIkUk9PVC9zcmMvTGF0ZW50U3luYy9jaGVja3BvaW50cy93aGlzcGVyL3RpbnkucHQiICIkUk9PVC9zcmMvTGF0ZW50U3luYy9jaGVja3BvaW50cy9sYXRlbnRzeW5jX3VuZXQucHQiIDI+L2Rldi9udWxsCmVjaG8gJy0tLSBSVU5USU1FIEZJTEVTIC0tLSc7IGxzIC1sICIkUk9PVC9iaW4iIDI+L2Rldi9udWxsOyB0ZXN0IC1mICIkUk9PVC9TVEFDSy5qc29uIiAmJiBjYXQgIiRST09UL1NUQUNLLmpzb24iIHx8IHRydWUKZWNobyAnLS0tIEZGTVBFRyAtLS0nOyBmZm1wZWcgLXZlcnNpb24gMj4vZGV2L251bGwgfCBoZWFkIC0xCmVjaG8gJ19fQ1ROX0xUWF9BVURJVF9ET05FX18nCg== | base64 -d | bash
 [?2004l=== CTNETWORK LTX LIVE AUDIT ===
-Tue Sep 15 00:13:29 UTC 2026
+Tue Sep 15 03:01:02 UTC 2026
 --- GPU ---
 NVIDIA RTX PRO 4500 Blackwell, 32623 MiB, 2 MiB, 580.167.08
 --- WORKSPACE ---
 Filesystem                Size  Used Avail Use% Mounted on
-mfs#euro.runpod.net:9421  2.3P  1.9P  377T  84% /workspace
-51G	/workspace/ctnetwork-local
+mfs#euro.runpod.net:9421  2.3P  1.9P  378T  84% /workspace
+53G	/workspace/ctnetwork-local
 --- STATUS ---
+ = BLOCKED_HF_ACCESS
  = FAILED rc=1 phase=LTX_2_5
+ = FAILED:LTX-2.5 gated model download failed; HF token/access required
  = PASS
  = PASS
  = PASS
@@ -29,10 +31,12 @@ mfs#euro.runpod.net:9421  2.3P  1.9P  377T  84% /workspace
  = PASS
  = PASS
 /workspace/ctnetwork-local/status/core.status
+/workspace/ctnetwork-local/status/final_repair.status
 /workspace/ctnetwork-local/status/install.status
 /workspace/ctnetwork-local/status/latentsync.status
 /workspace/ctnetwork-local/status/latentsync_runtime_persistent.status
 /workspace/ctnetwork-local/status/ltx25_code.status
+/workspace/ctnetwork-local/status/ltx25_models.status
 /workspace/ctnetwork-local/status/qwen3_tts.status
 /workspace/ctnetwork-local/status/system.status
 --- PHASE ---
@@ -46,59 +50,33 @@ LTX-2 exists=yes
 a95ab85
 --- PYTHON ENVS ---
 /workspace/ctnetwork-local/envs/core/bin/python
-lrwxrwxrwx 1 root root 76 Sep 14 11:28 /workspace/ctnetwork-local/envs/core/bin/python -> /root/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/bin/python3.12
+lrwxrwxrwx 1 root root 78 Sep 15 00:28 /workspace/ctnetwork-local/envs/core/bin/python -> /workspace/ctnetwork-local/python/cpython-3.12-linux-x86_64-gnu/bin/python3.12
+Python 3.12.14
 /workspace/ctnetwork-local/envs/qwen3-tts/bin/python
-lrwxrwxrwx 1 root root 76 Sep 14 11:30 /workspace/ctnetwork-local/envs/qwen3-tts/bin/python -> /root/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/bin/python3.12
+lrwxrwxrwx 1 root root 78 Sep 15 00:34 /workspace/ctnetwork-local/envs/qwen3-tts/bin/python -> /workspace/ctnetwork-local/python/cpython-3.12-linux-x86_64-gnu/bin/python3.12
+Python 3.12.14
 /workspace/ctnetwork-local/envs/latentsync/bin/python
 lrwxrwxrwx 1 root root 78 Sep 14 12:49 /workspace/ctnetwork-local/envs/latentsync/bin/python -> /workspace/ctnetwork-local/python/cpython-3.10-linux-x86_64-gnu/bin/python3.10
 Python 3.10.21
 /workspace/ctnetwork-local/src/LTX-2/.venv/bin/python
-lrwxrwxrwx 1 root root 76 Sep 14 12:16 /workspace/ctnetwork-local/src/LTX-2/.venv/bin/python -> /root/.local/share/uv/python/cpython-3.12.11-linux-x86_64-gnu/bin/python3.12
+lrwxrwxrwx 1 root root 78 Sep 15 00:39 /workspace/ctnetwork-local/src/LTX-2/.venv/bin/python -> /workspace/ctnetwork-local/python/cpython-3.12-linux-x86_64-gnu/bin/python3.12
+Python 3.12.14
 --- CUDA/TORCH ---
 torch 2.11.0+cu128 cuda 12.8 available True gpu NVIDIA RTX PRO 4500 Blackwell
+torch 2.11.0+cu128 cuda 12.8 available True gpu NVIDIA RTX PRO 4500 Blackwell
+torch 2.13.0+cu132 cuda 13.2 available True gpu NVIDIA RTX PRO 4500 Blackwell
 --- LTX IMPORTS ---
---- REQUIRED LTX MODELS ---
+LTX_IMPORT_OK
+--- REQUIRED LTX MODELS (CANONICAL) ---
 MISSING|/workspace/ctnetwork-local/models/ltx-2.5/diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors
 MISSING|/workspace/ctnetwork-local/models/ltx-2.5/text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors
 MISSING|/workspace/ctnetwork-local/models/ltx-2.5/vae/ltx-2.5-video-vae-bf16.safetensors
 MISSING|/workspace/ctnetwork-local/models/ltx-2.5/vae/ltx-2.5-audio-vae-bf16.safetensors
 MISSING|/workspace/ctnetwork-local/models/ltx-2.5/model_patches/ltx-2.5-duration-head-bf16.safetensors
 MISSING|/workspace/ctnetwork-local/models/ltx-2.5/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors
+MISSING|/workspace/ctnetwork-local/models/ltx-2.5/latent_upscale_models/ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors
 MISSING|/workspace/ctnetwork-local/models/ltx-2.5/loras/ltx-2.5-22b-ic-lora-pixel-spatial-upscaler-x2-1.0.safetensors
---- PARTIAL/LOCK FILES ---
-/workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface/download/diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors.lock
-/workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface/download/text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors.lock
-/workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface/download/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors.lock
-/workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface/download/model_patches/ltx-2.5-duration-head-bf16.safetensors.lock
-/workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface/download/vae/ltx-2.5-video-vae-bf16.safetensors.lock
-/workspace/ctnetwork-local/models/ltx-2.5/.cache/huggingface/download/vae/ltx-2.5-audio-vae-bf16.safetensors.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/vocab.json.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/tokenizer_config.json.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/model.safetensors.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/preprocessor_config.json.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/config.json.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/README.md.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/merges.txt.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/generation_config.json.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/speech_tokenizer/preprocessor_config.json.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/speech_tokenizer/model.safetensors.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/speech_tokenizer/configuration.json.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/speech_tokenizer/config.json.lock
-/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base/.cache/huggingface/download/.gitattributes.lock
-/workspace/ctnetwork-local/src/LTX-2/uv.lock
-/workspace/ctnetwork-local/src/LTX-2/.venv/.lock
-/workspace/ctnetwork-local/src/LTX-2/.venv/lib/python3.12/site-packages/setuptools/_vendor/.lock
-/workspace/ctnetwork-local/src/LTX-2/.venv/lib/python3.12/site-packages/pre_commit/resources/empty_template_renv.lock
---- QWEN MODEL FILES ---
---- LATENTSYNC CHECKPOINTS ---
-/workspace/ctnetwork-local/src/LatentSync/checkpoints/whisper/tiny.pt|75572083 bytes
-/workspace/ctnetwork-local/src/LatentSync/checkpoints/latentsync_unet.pt|5072222488 bytes
---- RUNTIME FILES ---
-total 48572
--rwxrwxrwx 1 root root      396 Sep 14 11:29 ctn-health
--rwxrwxrwx 1 root root      723 Sep 14 12:42 ctn-lipsync-test
--rwxrwxrwx 1 root root 49388608 Sep 10 19:12 uv
--rwxrwxrwx 1 root root   347072 Sep 10 19:12 uvx
---- FFMPEG ---
-ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
-__CTN_LTX_AUDIT_DONE__
+--- GLOBAL PERSISTENT LTX-2.5 WEIGHT SEARCH ---
+SEARCH:ltx-2.5-22b-distilled-transformer-bf16.safetensors
+SEARCH:gemma4-12b-with-proj-ltx-2.5-bf16.safetensors
+SEARCH:ltx-2.5-video-vae-bf16.safetensors
