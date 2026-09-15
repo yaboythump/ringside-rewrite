@@ -1,1 +1,1 @@
-{"name":"ctnetwork-factory-migration-source","networkVolumeId":"9wjb3sa5zm","dataCenterId":"EU-RO-1","gpuTypes":["NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA GeForce RTX 4090","NVIDIA A100 80GB PCIe","NVIDIA RTX PRO 6000 Blackwell Server Edition"],"desiredStatus":"CREATE_FAILED"}
+{"name":"ctnetwork-factory-final-install","networkVolumeId":"9wjb3sa5zm","desiredStatus":"DELETED","persistentVolumePreserved":true}
