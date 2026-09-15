@@ -2,6 +2,50 @@
   "production_date": "2026-09-15",
   "manual_gate_required": true,
   "publish_allowed": false,
-  "slate_state": "SAFE_HOLD",
-  "jobs": []
+  "slate_state": "STAGED_AWAITING_FACTORY_CERT",
+  "jobs": [
+    {
+      "job_id": "hiphop-what-if-wutang-never-formed-20260915",
+      "show": "Hip Hop What If",
+      "title": "What If Wu-Tang Clan Never Formed? | Hip Hop What If",
+      "description": "What if Wu-Tang Clan never came together on Staten Island—and Enter the Wu-Tang (36 Chambers) never existed? Hip Hop What If rewinds the real early-1990s Wu-Tang story, then branches into an alternate timeline where RZA’s plan never fully unites the crew. Method Man, Ghostface Killah, Raekwon, GZA, Ol’ Dirty Bastard and the rest still have talent—but without one central movement, the solo careers, business blueprint, New York rap landscape and worldwide Wu mythology all change. This is alternate-history commentary. The historical setup is factual; events after the branch point are hypothetical.",
+      "tags": [
+        "Wu-Tang Clan",
+        "Wu Tang",
+        "Hip Hop What If",
+        "hip hop history",
+        "rap history",
+        "RZA",
+        "GZA",
+        "Method Man",
+        "Ghostface Killah",
+        "Raekwon",
+        "Ol Dirty Bastard",
+        "Inspectah Deck",
+        "U-God",
+        "Masta Killa",
+        "36 Chambers",
+        "Enter the Wu-Tang",
+        "Staten Island",
+        "New York hip hop",
+        "alternate history",
+        "hip hop documentary"
+      ],
+      "publish": false,
+      "inputs": {
+        "narration_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/842625da-7478-43cb-90a6-2e105af114fa.mp3",
+        "visual_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/95098fbd-35db-426a-a057-5febf89f77ec.mp4",
+        "thumbnail_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/5bcecf3a-6c20-4892-bbfc-b0d1151c6891.jpg"
+      },
+      "shorts": {
+        "clips": [
+          {"start": 0, "seconds": 50, "title": "NO 36 CHAMBERS?"},
+          {"start": 90, "seconds": 50, "title": "METHOD MAN STILL A STAR?"},
+          {"start": 150, "seconds": 50, "title": "THE SOLO UNIVERSE CHANGES"},
+          {"start": 200, "seconds": 50, "title": "WU-TANG CHANGED THE BUSINESS"},
+          {"start": 260, "seconds": 50, "title": "THE WORLD WITHOUT THE W"}
+        ]
+      }
+    }
+  ]
 }
