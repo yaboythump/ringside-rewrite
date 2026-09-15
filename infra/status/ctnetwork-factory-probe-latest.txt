@@ -1,3 +1,4 @@
+TERMINAL_READY attempt=1
 groups: cannot find name for group ID 993
  _____                             _ 
 |  __ \                           | |
@@ -11,30 +12,29 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@2d76143489bb: /root@2d76143489bb:/# echo c2V0ICtlCmVjaG8gIj09PSBDVE5FVFdPUksgRkFDVE9SWSBQUk9CRSBTVEFSVCA9PT0iCmRhdGUgLXUKZWNobyAiLS0tIEdQVSAtLS0iOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS51c2VkLHV0aWxpemF0aW9uLmdwdSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RPUkFHRSAtLS0iOyBkZiAtaCAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEZBQ1RPUlkgU0laRSAtLS0iOyBkdSAtc2ggL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gRkFDVE9SWSBGSUxFIENPVU5UIC0tLSI7IGZpbmQgL3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwgLXR5cGUgZiAyPi9kZXYvbnVsbCB8IHdjIC1sIHx8IHRydWUKZWNobyAiLS0tIFNUQVRVUyBGSUxFUyAtLS0iOyBmaW5kIC93b3Jrc3BhY2UvY3RuZXR3b3JrLWxvY2FsL3N0YXR1cyAtbWF4ZGVwdGggMiAtdHlwZSBmIC1wcmludCAyPi9kZXYvbnVsbCB8IHNvcnQKZWNobyAiLS0tIEFDVElWRSBUUkFOU0ZFUi9GQUNUT1JZIFBST0NFU1NFUyAtLS0iOyBwZ3JlcCAtYWYgInJzeW5jfHNzaGR8Y3RuZXR3b3JrfHNjcmlwdHMuaW5mZXJlbmNlfExhdGVudFN5bmN8bGF0ZW50c3luY3x1diB8cGlwIGluc3RhbGx8c25hcHNob3RfZG93bmxvYWQiIDI+L2Rldi9udWxsIHwgZ3JlcCAtdiAicGdyZXAgLWFmIiB8fCB0cnVlCnByaW50ZiAnX19DVE5fUFJPQkVfRE9ORV9fXG4nCg== | base64 -d | bash
+[?2004h]0;root@2d76143489bb: /root@2d76143489bb:/# echo c2V0ICtlClJPT1Q9L3dvcmtzcGFjZS9jdG5ldHdvcmstbG9jYWwKZWNobyAiPT09IENUTkVUV09SSyBGQUNUT1JZIFBST0JFIFNUQVJUID09PSI7IGRhdGUgLXUKZWNobyAiLS0tIEdQVSAtLS0iOyBudmlkaWEtc21pIC0tcXVlcnktZ3B1PW5hbWUsbWVtb3J5LnRvdGFsLG1lbW9yeS51c2VkLHV0aWxpemF0aW9uLmdwdSAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gU1RPUkFHRSAtLS0iOyBkZiAtaCAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAiLS0tIEZBQ1RPUlkgU0laRSAtLS0iOyBkdSAtc2ggIiRST09UIiAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gIi0tLSBNT0RFTCBTSVpFUyAtLS0iOyBkdSAtc2ggIiRST09UL21vZGVscy9xd2VuMy10dHMiICIkUk9PVC9tb2RlbHMvbHR4LTIuNSIgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICItLS0gTFRYIE1PREVMIEZJTEVTIC0tLSI7IGZpbmQgLUwgIiRST09UL21vZGVscy9sdHgtMi41IiAtdHlwZSBmIC1uYW1lICcqLnNhZmV0ZW5zb3JzJyAtcHJpbnRmICclcHwlc1xuJyAyPi9kZXYvbnVsbCB8IHNvcnQKZWNobyAiLS0tIFNUQVRVUyBWQUxVRVMgLS0tIjsgZm9yIGYgaW4gIiRST09UIi9zdGF0dXMvKi5zdGF0dXM7IGRvIFsgLWYgIiRmIiBdIHx8IGNvbnRpbnVlOyBwcmludGYgJyVzPScgIiQoYmFzZW5hbWUgIiRmIikiOyBjYXQgIiRmIjsgZG9uZSB8IHNvcnQKZWNobyAiLS0tIEFDVElWRSBGQUNUT1JZIFBST0NFU1NFUyAtLS0iOyBwZ3JlcCAtYWYgImN0bmV0d29ya3x1diBzeW5jfHV2IHBpcHxoZiBkb3dubG9hZHxodWdnaW5nZmFjZXxweXRob24uKkxUWHxsdHhfcGlwZWxpbmVzfFF3ZW58cXdlbnxMYXRlbnRTeW5jfGxhdGVudHN5bmMiIDI+L2Rldi9udWxsIHwgZ3JlcCAtdiAicGdyZXAgLWFmIiB8fCB0cnVlCnByaW50ZiAnX19DVE5fUFJPQkVfRE9ORV9fXG4nCg== | base64 -d | bash
 [?2004l=== CTNETWORK FACTORY PROBE START ===
-Tue Sep 15 00:28:36 UTC 2026
+Tue Sep 15 00:31:14 UTC 2026
 --- GPU ---
 NVIDIA RTX PRO 4500 Blackwell, 32623 MiB, 2 MiB, 0 %
 --- STORAGE ---
 Filesystem                Size  Used Avail Use% Mounted on
 mfs#euro.runpod.net:9421  2.3P  1.9P  377T  84% /workspace
 --- FACTORY SIZE ---
-49G	/workspace/ctnetwork-local
---- FACTORY FILE COUNT ---
-173040
---- STATUS FILES ---
-/workspace/ctnetwork-local/status/core.status
-/workspace/ctnetwork-local/status/install.status
-/workspace/ctnetwork-local/status/latentsync-requirements-blackwell.txt
-/workspace/ctnetwork-local/status/latentsync.status
-/workspace/ctnetwork-local/status/latentsync_runtime_persistent.status
-/workspace/ctnetwork-local/status/ltx25_code.status
-/workspace/ctnetwork-local/status/phase.txt
-/workspace/ctnetwork-local/status/qwen3_tts.status
-/workspace/ctnetwork-local/status/system.status
---- ACTIVE TRANSFER/FACTORY PROCESSES ---
-105 sshd: /usr/sbin/sshd [listener] 0 of 10-100 startups
+51G	/workspace/ctnetwork-local
+--- MODEL SIZES ---
+4.3G	/workspace/ctnetwork-local/models/qwen3-tts
+64K	/workspace/ctnetwork-local/models/ltx-2.5
+--- LTX MODEL FILES ---
+--- STATUS VALUES ---
+core.status=PASS
+install.status=FAILED rc=1 phase=LTX_2_5
+latentsync.status=PASS
+latentsync_runtime_persistent.status=PASS
+ltx25_code.status=PASS
+qwen3_tts.status=PASS
+system.status=PASS
+--- ACTIVE FACTORY PROCESSES ---
 201 bash /workspace/ctnetwork-local/bin/final-ltx-repair
 229 uv pip install --python /workspace/ctnetwork-local/envs/core/bin/python torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 __CTN_PROBE_DONE__
