@@ -151,7 +151,7 @@ def download(url,dest):
             b=r.read(4*1024*1024)
             if not b: break
             f.write(b)
-    if dest.stat().st_size<1024: raise RuntimeError(f'downloaded asset empty: {url}')
+    if dest.stat().st_size<1024: raise RuntimeError(f'downloaded asset empty: {{url}}')
     print('ASSET_DOWNLOADED',dest,dest.stat().st_size,flush=True)
 
 def duration(path):
