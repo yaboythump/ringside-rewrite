@@ -284,7 +284,7 @@ def normalize_thumbnail(src: Path, out: Path):
 
 
 def black_ratio(path: Path) -> float:
-    p = subprocess.run(['ffmpeg', '-hide_banner', '-i', str(path), '-vf', 'blackdetect=d=1:pix_th=0.98', '-an', '-f', 'null', '-'], text=True, capture_output=True)
+    p = subprocess.run(['ffmpeg', '-hide_banner', '-i', str(path), '-vf', 'blackdetect=d=1:pix_th=0.10', '-an', '-f', 'null', '-'], text=True, capture_output=True)
     import re
     total = sum(float(x) for x in re.findall(r'black_duration:([0-9.]+)', p.stderr))
     d = media_summary(path)['duration']
@@ -357,6 +357,7 @@ def package_manifest(m: dict, job: Job, narration: Path, visual: Path) -> Path:
     qc['shorts_unique'] = {'count': len(shorts), 'unique_hashes': len(set(sha256(p) for p in shorts)), 'pass': len(shorts) <= 1 or len(set(sha256(p) for p in shorts)) == len(shorts)}
     qc['pass'] = all(v.get('pass', False) for v in qc.values() if isinstance(v, dict))
     write_json(job.out / 'qc.json', qc)
+    print('QC_RESULT', json.dumps(qc, sort_keys=True), flush=True)
     if not qc['pass']:
         job.block('QC', 'one or more package QC checks failed')
 
