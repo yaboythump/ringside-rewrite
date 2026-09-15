@@ -1,7 +1,29 @@
 CTNETWORK FINAL LTX INSTALL
-run_id=34913012582
-pod_id=
-network_volume_id=
+run_id=34913023948
+pod_id=fh41n2aa1kf0b7
+network_volume_id=9wjb3sa5zm
 job_status=failure
 
-final_remote_output_missing=true
+JUPYTER_READY attempt=1
+Traceback (most recent call last):
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_final_remote.py", line 99, in <module>
+    deploy("runpod/ctnetwork-final-ltx-repair.sh", "/workspace/ctnetwork-local/bin/final-ltx-repair", "755")
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_final_remote.py", line 94, in deploy
+    run(f"mkdir -p {json.dumps(parent)}; echo {b64} | base64 -d > {json.dumps(remote)}; chmod {mode} {json.dumps(remote)}", 180, "deploy")
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_final_remote.py", line 61, in run
+    name, ws = terminal()
+               ^^^^^^^^^^
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_final_remote.py", line 55, in terminal
+    ws = websocket.create_connection(f"wss://{POD_ID}-8888.proxy.runpod.net/terminals/websocket/{name}",
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/.local/lib/python3.12/site-packages/websocket/_core.py", line 734, in create_connection
+    websock.connect(url, **options)
+  File "/home/runner/.local/lib/python3.12/site-packages/websocket/_core.py", line 284, in connect
+    self.handshake_response = handshake(self.sock, url, *addrs, **options)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/.local/lib/python3.12/site-packages/websocket/_handshake.py", line 73, in handshake
+    status, resp = _get_resp_headers(sock)
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/.local/lib/python3.12/site-packages/websocket/_handshake.py", line 173, in _get_resp_headers
+    raise WebSocketBadStatusException(
+websocket._exceptions.WebSocketBadStatusException: Handshake status 404 Not Found -+-+- {'date': 'Tue, 15 Sep 2026 00:24:41 GMT', 'content-length': '0', 'connection': 'keep-alive', 'strict-transport-security': 'max-age=63072000; includeSubDomains', 'cf-cache-status': 'BYPASS', 'server': 'cloudflare', 'cf-ray': 'a3b37d685bb23434-LAX'} -+-+- None
