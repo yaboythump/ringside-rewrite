@@ -1,14 +1,14 @@
 {
   "action": "provision",
-  "name": "ctnetwork-factory-final-install",
-  "network_volume_id": "9wjb3sa5zm",
-  "data_center_id": "EU-RO-1",
+  "name": "ctnetwork-factory-norway",
+  "network_volume_id": "631b7gakhp",
+  "data_center_id": "EUR-NO-1",
   "gpu_types": [
-    "NVIDIA RTX PRO 4500 Blackwell",
     "NVIDIA GeForce RTX 5090",
+    "NVIDIA RTX PRO 4500 Blackwell",
     "NVIDIA RTX PRO 6000 Blackwell Server Edition",
     "NVIDIA A100 80GB PCIe"
   ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "ctnetwork-final-install-euro-source-2026-09-14-01"
+  "request_id": "ctnetwork-norway-destination-provision-2026-09-15-01"
 }
