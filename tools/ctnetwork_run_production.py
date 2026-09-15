@@ -145,7 +145,7 @@ def suffix(url,fallback):
 
 def download(url,dest):
     dest.parent.mkdir(parents=True,exist_ok=True)
-    req=urllib.request.Request(url,headers={'User-Agent':'CTNETWORK-Production/1.0'})
+    req=urllib.request.Request(url,headers={{'User-Agent':'CTNETWORK-Production/1.0'}})
     with urllib.request.urlopen(req,timeout=180) as r, open(dest,'wb') as f:
         while True:
             b=r.read(4*1024*1024)
