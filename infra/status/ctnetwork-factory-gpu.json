@@ -1,1 +1,24 @@
-{"name":"ctnetwork-factory-final-install","networkVolumeId":"9wjb3sa5zm","desiredStatus":"DELETED","persistentVolumePreserved":true}
+{
+  "id": "i0fo7wf04xpof4",
+  "name": "ctnetwork-factory-migration-source",
+  "desiredStatus": "RUNNING",
+  "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+  "networkVolumeId": "9wjb3sa5zm",
+  "containerDiskInGb": 40,
+  "volumeMountPath": "/workspace",
+  "ports": [
+    "8888/http",
+    "22/tcp"
+  ],
+  "publicIp": "",
+  "portMappings": null,
+  "costPerHr": 0.25,
+  "adjustedCostPerHr": null,
+  "machineId": "279psz4y9p69",
+  "gpu": null,
+  "machine": {
+    "dataCenterId": null,
+    "location": null,
+    "gpuDisplayName": null
+  }
+}
