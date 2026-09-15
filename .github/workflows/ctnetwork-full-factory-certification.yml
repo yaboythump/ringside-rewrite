@@ -2,8 +2,10 @@ name: CTNETWORK Full Local Factory Certification
 
 on:
   workflow_run:
-    workflows: ["CTNETWORK Migrate Factory To Norway"]
-    types: [completed]
+    workflows:
+      - CTNETWORK Migrate Factory To Norway
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -15,111 +17,84 @@ concurrency:
 
 jobs:
   certify:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       SOURCE_VIDEO_URL: https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260911_215620_6c19d3c4-4e5c-464e-bc57-1c363a6e1812.mp4
       SOURCE_AUDIO_URL: https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/2c289697-6d4b-495e-a2a1-52c00fa4a942.mp3
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main
+        uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Verify migration certificate and resolve sticky Norway pod
+      - name: Verify migration certificate and resolve Norway pod
         id: resolve
         shell: bash
         run: |
           set -euo pipefail
-          # Commissioning may only follow the hardened migration that wrote a
-          # checksum-verified PASS report. Never trust workflow conclusion alone.
-          REPORT=infra/status/ctnetwork-factory-migration-latest.txt
-          [[ -f "$REPORT" ]] || { echo MIGRATION_REPORT_MISSING; exit 2; }
-          grep -q '^migration_outcome=success$' "$REPORT" || { echo MIGRATION_NOT_SUCCESS; exit 3; }
-          grep -q 'CTNETWORK_FACTORY_MIGRATION_PASS' "$REPORT" || { echo MIGRATION_CHECKSUM_PASS_MISSING; exit 4; }
+          REPORT="infra/status/ctnetwork-factory-migration-latest.txt"
+          test -f "$REPORT" || { echo "MIGRATION_REPORT_MISSING"; exit 2; }
+          grep -q '^migration_outcome=success$' "$REPORT" || { echo "MIGRATION_NOT_SUCCESS"; exit 3; }
+          grep -q 'CTNETWORK_FACTORY_MIGRATION_PASS' "$REPORT" || { echo "MIGRATION_CHECKSUM_PASS_MISSING"; exit 4; }
 
           POD_ID=""
-          if [[ -f ctnetwork-full-certification-command.json ]]; then
-            POD_ID=$(jq -r '.pod_id // empty' ctnetwork-full-certification-command.json)
+          if test -f ctnetwork-full-certification-command.json; then
+            POD_ID="$(jq -r '.pod_id // empty' ctnetwork-full-certification-command.json)"
           fi
-          if [[ -z "$POD_ID" ]]; then
-            DEST_NAME=$(jq -r '.destination_name' ctnetwork-migrate-factory-command.json)
-            DEST_VOLUME=$(jq -r '.destination_volume_id' ctnetwork-migrate-factory-command.json)
-            PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-            POD_ID=$(printf '%s' "$PODS" | jq -r --arg n "$DEST_NAME" --arg v "$DEST_VOLUME" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first | .id // empty')
+
+          if test -z "$POD_ID"; then
+            DEST_NAME="$(jq -r '.destination_name' ctnetwork-migrate-factory-command.json)"
+            DEST_VOLUME="$(jq -r '.destination_volume_id' ctnetwork-migrate-factory-command.json)"
+            PODS="$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")"
+            POD_ID="$(printf '%s' "$PODS" | jq -r --arg n "$DEST_NAME" --arg v "$DEST_VOLUME" '[.[] | select(.name == $n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first | .id // empty')"
           fi
-          [[ -n "$POD_ID" ]] || { echo POD_ID_MISSING; exit 5; }
-          API="https://rest.runpod.io/v1/pods/$POD_ID"
-          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          refresh(){ POD=$(curl -fsS "$API" "${auth[@]}"); STATUS=$(echo "$POD"|jq -r '.desiredStatus // "unknown"'); }
+
+          test -n "$POD_ID" || { echo "POD_ID_MISSING"; exit 5; }
+          API="https://rest.runpod.io/v1/pods/${POD_ID}"
+
+          refresh() {
+            POD="$(curl -fsS "$API" -H "Authorization: Bearer ${RUNPOD_API_KEY}")"
+            STATUS="$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')"
+          }
+
           refresh
-          if [[ "$STATUS" != RUNNING ]]; then
-            curl -fsS -X POST "$API/start" "${auth[@]}" >/dev/null
-            for i in $(seq 1 120); do sleep 5; refresh; [[ "$STATUS" == RUNNING ]] && break; done
+          if test "$STATUS" != "RUNNING"; then
+            curl -fsS -X POST "${API}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+            for i in $(seq 1 120); do
+              sleep 5
+              refresh
+              test "$STATUS" = "RUNNING" && break
+            done
           fi
-          [[ "$STATUS" == RUNNING ]] || { echo "POD_START_BLOCKED:$STATUS"; exit 6; }
+          test "$STATUS" = "RUNNING" || { echo "POD_START_BLOCKED:${STATUS}"; exit 6; }
+
+          code="000"
           for i in $(seq 1 60); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
-            echo "jupyter attempt=$i http=$code"
-            [[ "$code" == 200 || "$code" == 302 ]] && break
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)"
+            echo "jupyter attempt=${i} http=${code}"
+            if test "$code" = "200" || test "$code" = "302"; then
+              break
+            fi
             sleep 5
           done
-          [[ "$code" == 200 || "$code" == 302 ]] || { echo JUPYTER_NOT_READY; exit 7; }
+          if test "$code" != "200" && test "$code" != "302"; then
+            echo "JUPYTER_NOT_READY"
+            exit 7
+          fi
+
           refresh
-          JPASS=$(echo "$POD"|jq -r '.env.JUPYTER_PASSWORD // empty')
-          [[ -n "$JPASS" ]] || { echo JUPYTER_PASSWORD_MISSING; exit 8; }
-          echo "::add-mask::$JPASS"
-          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
-          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          JPASS="$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')"
+          test -n "$JPASS" || { echo "JUPYTER_PASSWORD_MISSING"; exit 8; }
+          echo "::add-mask::${JPASS}"
+          printf '%s' "$JPASS" > "${RUNNER_TEMP}/jupyter_password"
+          echo "pod_id=${POD_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Install certification client
         run: python3 -m pip install --quiet requests websocket-client
-
-      - name: Self-heal LatentSync VAE symlink gate
-        env:
-          POD_ID: ${{ steps.resolve.outputs.pod_id }}
-          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import base64,json,os,re,time
-          from pathlib import Path
-          import requests,websocket
-          pod=os.environ['POD_ID']; password=Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
-          base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session(); r=s.get(base+'/login',timeout=20)
-          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
-          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},allow_redirects=False,timeout=20)
-          assert rr.status_code in (200,302,303)
-          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
-          s.get(base+'/api/status',headers=headers,timeout=20).raise_for_status()
-          t=s.post(base+'/api/terminals',headers=headers,json={},timeout=20); t.raise_for_status(); name=t.json()['name']
-          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
-          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
-          sh=r'''set -Eeuo pipefail
-          ROOT=/workspace/ctnetwork-local
-          MODEL=$(find -L "$ROOT/cache/huggingface/hub" -type f \( -name 'diffusion_pytorch_model.safetensors' -o -name 'diffusion_pytorch_model.bin' \) -print -quit)
-          test -n "$MODEL" && test -s "$MODEL"
-          mkdir -p "$ROOT/status"
-          echo PASS > "$ROOT/status/latentsync_vae_persistent.status"
-          echo VAE_SYMLINK_GATE_PASS
-          echo __DONE__:0
-          '''
-          enc=base64.b64encode(sh.encode()).decode(); ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d | bash\n']))
-          out=''; deadline=time.time()+180
-          while time.time()<deadline:
-              msg=ws.recv()
-              if not msg: continue
-              try:d=json.loads(msg)
-              except:continue
-              if isinstance(d,list) and len(d)>=2 and d[0]=='stdout':
-                  out+=d[1]; print(d[1],end='',flush=True)
-                  if '__DONE__:0' in out: break
-          ws.close(); s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
-          assert '__DONE__:0' in out
-          PY
 
       - name: Certify LatentSync demo
         env:
@@ -166,10 +141,15 @@ jobs:
           mkdir -p infra/status
           {
             echo "CTNETWORK FULL LOCAL FACTORY CERTIFICATION"
-            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_id=${GITHUB_RUN_ID}"
             echo "pod_id=${{ steps.resolve.outputs.pod_id }}"
             echo "job_status=${{ job.status }}"
-            for f in /tmp/0*.txt; do [ -f "$f" ] || continue; echo; echo "===== $f ====="; tail -120 "$f"; done
+            for f in /tmp/0*.txt; do
+              test -f "$f" || continue
+              echo
+              echo "===== $f ====="
+              tail -120 "$f"
+            done
           } > infra/status/ctnetwork-full-certification-latest.txt
           git config user.name 'ctnetwork-bot'
           git config user.email 'ctnetwork-bot@users.noreply.github.com'
@@ -182,4 +162,6 @@ jobs:
         if: success()
         env:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
-        run: curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+        shell: bash
+        run: |
+          curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
