@@ -41,16 +41,21 @@ if ! env_persistent "$ENVS/core/bin/python"; then
   echo REPAIR_CORE_PERSISTENT_PYTHON
   rm -rf "$ENVS/core"
   uv venv --python "$PY312" "$ENVS/core"
+  uv pip install --python "$ENVS/core/bin/python" torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
   uv pip install --python "$ENVS/core/bin/python" \
     fastapi 'uvicorn[standard]' pydantic pyyaml typer rich tenacity filelock psutil watchdog \
     httpx requests orjson sqlalchemy aiosqlite numpy scipy soundfile librosa pyloudnorm pedalboard \
     noisereduce ffmpeg-python scenedetect opencv-python-headless faster-whisper pillow \
     huggingface-hub hf_xet safetensors
+else
+  # Older core envs may have been created before torch was an explicit dependency.
+  "$ENVS/core/bin/python" -c 'import torch' 2>/dev/null || \
+    uv pip install --python "$ENVS/core/bin/python" torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 fi
-"$ENVS/core/bin/python" -c 'import fastapi,torch; print("CORE_PY_OK", torch.__version__)' || fail "core env invalid"
+"$ENVS/core/bin/python" -c 'import fastapi,torch; assert torch.cuda.is_available(); print("CORE_PY_OK", torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0))' || fail "core env/CUDA invalid"
 mark core PASS
 
-# Qwen environment. Models are preserved; only recreate the broken interpreter/packages.
+# Qwen environment. Recreate only a disposable/broken runtime; preserve/download weights separately.
 if ! env_persistent "$ENVS/qwen3-tts/bin/python"; then
   echo REPAIR_QWEN_PERSISTENT_PYTHON
   rm -rf "$ENVS/qwen3-tts"
@@ -60,7 +65,25 @@ if ! env_persistent "$ENVS/qwen3-tts/bin/python"; then
   uv pip install --python "$ENVS/qwen3-tts/bin/python" huggingface-hub hf_xet safetensors
 fi
 QMODEL="$MODELS/qwen3-tts/1.7B-Base"
-find -L "$QMODEL" -type f \( -name '*.safetensors' -o -name '*.bin' \) -size +1M -print -quit | grep -q . || fail "Qwen weights missing"
+mkdir -p "$QMODEL"
+QHF="$ENVS/qwen3-tts/bin/hf"
+[ -x "$QHF" ] || fail "Qwen hf CLI missing"
+if ! find -L "$QMODEL" -type f \( -name '*.safetensors' -o -name '*.bin' \) -size +1M -print -quit | grep -q .; then
+  echo DOWNLOAD_OR_RESUME_QWEN3_TTS
+  HF_HUB_ENABLE_HF_TRANSFER=0 "$QHF" download Qwen/Qwen3-TTS-12Hz-1.7B-Base --local-dir "$QMODEL" || fail "Qwen model download failed"
+fi
+find -L "$QMODEL" -type f \( -name '*.safetensors' -o -name '*.bin' \) -size +1M -print -quit | grep -q . || fail "Qwen weights missing after download"
+# Validate every local safetensors shard that exists; broken/partial shards fail here.
+while IFS= read -r qf; do
+  "$ENVS/qwen3-tts/bin/python" - "$qf" <<'PY'
+import sys
+from safetensors import safe_open
+p=sys.argv[1]
+with safe_open(p,framework='pt',device='cpu') as f:
+    if not list(f.keys()): raise SystemExit('empty safetensors:'+p)
+print('QWEN_SAFETENSORS_OK',p)
+PY
+done < <(find -L "$QMODEL" -type f -name '*.safetensors' -size +1M | sort)
 "$ENVS/qwen3-tts/bin/python" - <<'PY'
 import torch
 assert torch.cuda.is_available(), 'Qwen CUDA unavailable'
@@ -102,8 +125,6 @@ uv pip install --python "$LTXPY" huggingface-hub hf_xet safetensors
 "$LTXPY" -c 'import ltx_pipelines,torch; assert torch.cuda.is_available(); print("LTX_IMPORT_CUDA_OK",torch.__version__,torch.version.cuda,torch.cuda.get_device_name(0))' || fail "LTX import/CUDA failed"
 mark ltx25_code PASS
 
-# Authenticate if an approved gated-model token is available.
-if [ -n "${HF_TOKEN:-}" ]; then "$LTXPY" -m huggingface_hub.commands.huggingface_cli login --token "$HF_TOKEN" >/dev/null 2>&1 || true; fi
 HF="$SRC/LTX-2/.venv/bin/hf"
 [ -x "$HF" ] || HF="$ENVS/qwen3-tts/bin/hf"
 [ -x "$HF" ] || fail "hf CLI missing"
@@ -155,7 +176,6 @@ fi
 mark ltx25_models PASS
 mark ltx25_dfr_models PASS
 
-# Persist runtime/controller scripts staged by the commissioning workflow.
 cat > "$ROOT/STACK.json" <<'JSON'
 {
   "root":"/workspace/ctnetwork-local",
