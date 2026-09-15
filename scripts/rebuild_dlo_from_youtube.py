@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
+
+import requests
 
 from ringside.config import load_settings
 from ringside.youtube import _upload_video, youtube_service
@@ -23,6 +26,55 @@ def probe(path: Path) -> dict:
     ], text=True))
 
 
+def download(url: str, path: Path) -> None:
+    with requests.get(url, stream=True, timeout=120) as response:
+        response.raise_for_status()
+        with path.open('wb') as fh:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    fh.write(chunk)
+
+
+def fetch_approved_facebook_sources(out: Path) -> list[Path]:
+    key = os.environ.get('UPLOAD_POST_API_KEY', '').strip()
+    if not key:
+        raise RuntimeError('UPLOAD_POST_API_KEY is required to recover the approved Facebook short cuts.')
+
+    target_ids = [
+        '363068784190156_122288036642062695',
+        '363068784190156_122288051144062695',
+        '363068784190156_122288070266062695',
+    ]
+    response = requests.get(
+        'https://api.upload-post.com/api/uploadposts/media',
+        headers={'Authorization': f'Apikey {key}'},
+        params={'platform': 'facebook', 'user': 'Ringsiderewrite', 'limit': 50},
+        timeout=60,
+    )
+    response.raise_for_status()
+    data = response.json()
+    media = {item.get('id'): item for item in data.get('media', [])}
+
+    sources: list[Path] = []
+    for index, media_id in enumerate(target_ids, 1):
+        item = media.get(media_id)
+        if not item:
+            raise RuntimeError(f'Approved Facebook source {media_id} was not found.')
+        media_url = item.get('media_url')
+        if not media_url:
+            raise RuntimeError(f'Approved Facebook source {media_id} has no downloadable media_url.')
+        src = out / f'DLo_Droz_Approved_Source_{index:02d}.mp4'
+        download(media_url, src)
+        info = probe(src)
+        stream = info['streams'][0]
+        duration = float(info['format']['duration'])
+        print(f'SOURCE {index}: {stream["width"]}x{stream["height"]}, {duration:.3f}s, Facebook ID {media_id}')
+        if duration < 20 or duration > 59.2:
+            raise RuntimeError(f'Approved source {index} has unsafe duration {duration:.3f}s.')
+        sources.append(src)
+    return sources
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--video-id', default='O4DB032Y22U')
@@ -30,45 +82,17 @@ def main() -> None:
 
     out = Path('dlo-rebuilt-shorts')
     out.mkdir(exist_ok=True)
-    master = out / 'dlo-master.mp4'
+    sources = fetch_approved_facebook_sources(out)
 
-    run([
-        'yt-dlp',
-        '--no-playlist',
-        '-f', 'bv*[height<=1080]+ba/b[height<=1080]',
-        '--merge-output-format', 'mp4',
-        '-o', str(master),
-        f'https://www.youtube.com/watch?v={args.video_id}',
-    ])
-    if not master.exists():
-        # yt-dlp may append an extension despite merge-output-format.
-        matches = sorted(out.glob('dlo-master*.mp4'))
-        if not matches:
-            raise RuntimeError('Could not recover the published DLo master.')
-        master = matches[0]
-
-    full = probe(master)
-    full_duration = float(full['format']['duration'])
-    print(f'Master duration: {full_duration:.3f}s')
-    if full_duration < 300:
-        raise RuntimeError('Downloaded master is unexpectedly short; refusing repair.')
-
-    # Three story beats spread across the 5:33 master: opening consequence/hook,
-    # alternate-career middle, and legacy/payoff section. Each stays safely below 60s.
-    cuts = [
-        (0.0, 58.8),
-        (122.0, 58.8),
-        (244.0, 58.8),
-    ]
     titles = [
-        "What If D’Lo Brown Never Injured Droz? | Ringside Rewrite #Shorts",
-        "Droz’s Career Continues — Then Everything Changes | Ringside Rewrite #Shorts",
-        "The D’Lo Brown Future We Never Saw | Ringside Rewrite #Shorts",
+        "What If The Move Landed Safely? | Ringside Rewrite #Shorts",
+        "Droz & Prince Albert Enter The Tag War | Ringside Rewrite #Shorts",
+        "One Move Changed Two Careers | Ringside Rewrite #Shorts",
     ]
     hooks = [
-        "One move changed two careers. What if that night ended differently?",
-        "If Droz keeps wrestling, the entire Attitude Era gets another timeline.",
-        "D’Lo Brown carried that night for years. What changes if the injury never happens?",
+        "October 5, 1999 changes completely if D’Lo Brown’s running powerbomb lands safely and Droz gets back up.",
+        "If Droz’s career continues, he and Prince Albert become a wrecking crew in the WWF tag-team era.",
+        "In this alternate timeline, Droz gets years of matches and D’Lo keeps moving forward without that night defining his career.",
     ]
 
     shorts: list[Path] = []
@@ -77,13 +101,12 @@ def main() -> None:
         '[background]scale=1080:1920:force_original_aspect_ratio=increase,'
         'crop=1080:1920,gblur=sigma=32,eq=brightness=-0.12[bg];'
         '[foreground]scale=1080:1920:force_original_aspect_ratio=decrease[fg];'
-        '[bg][fg]overlay=(W-w)/2:(H-h)/2-120,format=yuv420p[video]'
+        '[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p[video]'
     )
-    for i, (start, duration) in enumerate(cuts, 1):
+    for i, source in enumerate(sources, 1):
         dest = out / f'DLo_Droz_Short_{i:02d}.mp4'
         run([
-            'ffmpeg','-y','-ss',f'{start:.3f}','-i',str(master),
-            '-t',f'{duration:.3f}',
+            'ffmpeg','-y','-i',str(source),
             '-filter_complex',vf,
             '-map','[video]','-map','0:a?',
             '-c:v','libx264','-preset','medium','-crf','19',
@@ -102,16 +125,11 @@ def main() -> None:
     settings = load_settings(Path.cwd())
     service = youtube_service(settings, interactive=False)
 
-    # These IDs are the known failed horizontal DLo/Droz attempts. They are not
-    # valid Shorts and must not block publication of the corrected 1080x1920 set.
     known_failed_ids = {
         '8rau0GIKiv8', 'T9Y7Cgp-3Bc', 'BgX-u8PKAeo',
         'fFlMFMGQmho', 'FSBWD4YQf_Y', 'znMlDBzizDY',
     }
 
-    # Recheck immediately before upload. The only DLo/Droz video normally allowed
-    # is the protected full episode; known failed horizontal repair attempts above
-    # are ignored so the validated replacements can publish without deleting posts.
     search = service.search().list(
         part='id,snippet', forMine=True, type='video', order='date', maxResults=50
     ).execute()
@@ -135,9 +153,9 @@ def main() -> None:
     for i, path in enumerate(shorts):
         description = (
             f'{hooks[i]}\n\n'
-            f'From: “What If D’Lo Brown Never Injured Droz?”\n'
-            f'Watch the full Ringside Rewrite episode: https://youtu.be/{args.video_id}\n\n'
-            '#RingsideRewrite #WrestlingShorts #WWE #DLoBrown #Droz'
+            f'Full episode: What If D’Lo Brown Never Injured Droz?\n'
+            f'https://youtu.be/{args.video_id}\n\n'
+            '#RingsideRewrite #WrestlingShorts #WWE #DLoBrown #Droz #Shorts'
         )
         video_id = _upload_video(
             service, settings, path, titles[i], description, base_tags,
@@ -148,6 +166,12 @@ def main() -> None:
 
     receipt = {
         'protected_full_episode': args.video_id,
+        'source': 'approved Facebook DLo/Droz short cuts',
+        'facebook_source_ids': [
+            '363068784190156_122288036642062695',
+            '363068784190156_122288051144062695',
+            '363068784190156_122288070266062695',
+        ],
         'known_failed_horizontal_ids_ignored': sorted(known_failed_ids),
         'new_shorts': uploaded,
     }
