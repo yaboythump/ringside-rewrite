@@ -1,7 +1,19 @@
 CTNETWORK FACTORY MIGRATION
-run_id=34897352637
-source_pod=
-destination_pod=
-migration_outcome=skipped
+run_id=35016475611
+source_pod=fh41n2aa1kf0b7
+destination_pod=mf6zerw7icgnr3
+migration_outcome=failure
 
-migration_log_missing=true
+Traceback (most recent call last):
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_migrate_factory.py", line 283, in <module>
+    main()
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_migrate_factory.py", line 191, in main
+    src = JupyterShell(pod_auth(SOURCE_POD_ID))
+                       ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_migrate_factory.py", line 67, in pod_auth
+    p = wait_running(pod_id)
+        ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/ringside-rewrite/ringside-rewrite/tools/ctnetwork_migrate_factory.py", line 59, in wait_running
+    raise RuntimeError(
+RuntimeError: Pod fh41n2aa1kf0b7 start failed HTTP=500: {"error":"start pod: There are not enough free GPUs on the host machine to start this pod.","status":500}
+
