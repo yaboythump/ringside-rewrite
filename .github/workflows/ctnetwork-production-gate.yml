@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: ctnetwork-daily-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   production:
@@ -30,57 +30,71 @@ jobs:
         run: |
           set -euo pipefail
           ACTION=$(jq -r '.action // "hold"' ctnetwork-production-command.json | tr '[:upper:]' '[:lower:]')
-          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-production-command.json)
+          POD_ID=$(jq -r '.pod_id // .preferred_pod_id // empty' ctnetwork-production-command.json)
+          VOLUME=$(jq -r '.network_volume_id // "9wjb3sa5zm"' ctnetwork-production-command.json)
+          DC=$(jq -r '.data_center_id // "EU-RO-1"' ctnetwork-production-command.json)
           [[ "$ACTION" == hold || "$ACTION" == start ]] || { echo "Unsupported action $ACTION"; exit 2; }
           echo "action=$ACTION" >> "$GITHUB_OUTPUT"
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "volume_id=$VOLUME" >> "$GITHUB_OUTPUT"
+          echo "dc=$DC" >> "$GITHUB_OUTPUT"
           if [[ "$ACTION" == hold ]]; then
             echo 'PRODUCTION_GATE_HOLD: nothing will be produced or published.'
           else
             echo 'MANUAL_START_ACCEPTED: production only; publishing remains disabled.'
           fi
 
-      - name: Resolve, start, and health-gate factory pod
+      - name: Resolve healthy factory compute
         if: steps.gate.outputs.action == 'start'
         id: resolve
         shell: bash
         run: |
-          set -euo pipefail
-          POD_ID='${{ steps.gate.outputs.pod_id }}'
-          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 3; }
-          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          pod_api="https://rest.runpod.io/v1/pods/${POD_ID}"
-          jupyter="https://${POD_ID}-8888.proxy.runpod.net/login"
-          refresh() { POD=$(curl -fsS "$pod_api" "${auth[@]}"); STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"'); }
-          wait_running() { for i in $(seq 1 120); do refresh; [[ "$STATUS" == RUNNING ]] && return 0; sleep 5; done; return 1; }
-          wait_jupyter() {
-            local hard404=0
-            for i in $(seq 1 18); do
-              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "$jupyter" || true)
-              echo "jupyter readiness attempt=$i http=$code"
-              [[ "$code" == 200 || "$code" == 302 ]] && return 0
-              if [[ "$code" == 404 ]]; then hard404=$((hard404+1)); else hard404=0; fi
-              [[ "$hard404" -ge 3 ]] && return 1
-              sleep 5
-            done
-            return 1
-          }
-          refresh
-          if [[ "$STATUS" != RUNNING ]]; then curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true; wait_running || exit 4; fi
-          if ! wait_jupyter; then
-            echo 'Jupyter unhealthy; controlled recycle.'
-            curl -fsS -X POST "$pod_api/stop" "${auth[@]}" >/dev/null || true
-            for i in $(seq 1 60); do sleep 3; refresh; [[ "$STATUS" != RUNNING ]] && break; done
-            curl -fsS -X POST "$pod_api/start" "${auth[@]}" >/dev/null || true
-            wait_running || exit 5
-            wait_jupyter || { echo JUPYTER_READINESS_BLOCKED; exit 6; }
+          set -Eeuo pipefail
+          PREFERRED='${{ steps.gate.outputs.pod_id }}'
+          VOLUME='${{ steps.gate.outputs.volume_id }}'
+          DC='${{ steps.gate.outputs.dc }}'
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          getpod(){ curl -fsS "https://rest.runpod.io/v1/pods/$1" "${AUTH[@]}"; }
+          wait_running(){ local id="$1" max="${2:-15}"; for i in $(seq 1 "$max"); do P=$(getpod "$id" 2>/dev/null || true); S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown); echo "pod=$id attempt=$i/$max status=$S"; [[ "$S" == RUNNING ]] && { printf '%s' "$P" >/tmp/ctn-production-pod.json; return 0; }; sleep 5; done; return 1; }
+          POD_ID=""
+          if [[ -n "$PREFERRED" ]]; then
+            P=$(getpod "$PREFERRED" 2>/dev/null || true)
+            PV=$(printf '%s' "$P" | jq -r '.networkVolumeId // .networkVolume.id // empty' 2>/dev/null || true)
+            if [[ "$PV" == "$VOLUME" ]]; then
+              S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"')
+              [[ "$S" == RUNNING ]] || curl -sS -X POST "https://rest.runpod.io/v1/pods/$PREFERRED/start" "${AUTH[@]}" >/dev/null || true
+              wait_running "$PREFERRED" 12 && POD_ID="$PREFERRED" || true
+            fi
           fi
-          refresh
-          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
-          [[ -n "$JPASS" ]] || exit 7
-          echo "::add-mask::$JPASS"
+          if [[ -z "$POD_ID" ]]; then
+            JPASS=$(openssl rand -hex 24); echo "::add-mask::$JPASS"
+            GPU_TYPES='["NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 6000 Blackwell Server Edition","NVIDIA A100 80GB PCIe"]'
+            BODY=$(jq -nc --arg name "ctnetwork-production-$(date +%s)" --arg dc "$DC" --arg vol "$VOLUME" --arg jp "$JPASS" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+            HTTP=$(curl -sS -o /tmp/ctn-production-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods "${AUTH[@]}" -H 'Content-Type: application/json' --data "$BODY" || true)
+            [[ "$HTTP" =~ ^2 ]] || { cat /tmp/ctn-production-create.json; exit 4; }
+            POD_ID=$(jq -r '.id // empty' /tmp/ctn-production-create.json); [[ -n "$POD_ID" ]] || exit 5
+            wait_running "$POD_ID" 90 || exit 6
+          else
+            P=$(cat /tmp/ctn-production-pod.json); JPASS=$(printf '%s' "$P" | jq -r '.env.JUPYTER_PASSWORD // empty'); [[ -n "$JPASS" ]] || exit 7; echo "::add-mask::$JPASS"
+          fi
           printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "FACTORY_COMPUTE_READY pod=$POD_ID volume=$VOLUME"
+
+      - name: Wait for authenticated Jupyter readiness
+        if: steps.gate.outputs.action == 'start'
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 120); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 5
+          done
+          exit 8
 
       - name: Run all jobs due today
         if: steps.gate.outputs.action == 'start'
@@ -89,15 +103,18 @@ jobs:
           JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
         shell: bash
         run: |
+          set -Eeuo pipefail
           python3 -m pip install --quiet requests websocket-client
           python3 tools/ctnetwork_run_production.py
 
       - name: Stop exact production pod
-        if: steps.gate.outputs.action == 'start' && always() && !cancelled()
+        if: steps.gate.outputs.action == 'start' && always()
         env:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
         shell: bash
         run: |
-          if [[ -n "${POD_ID:-}" ]]; then
-            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
-          fi
+          set +e
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          for i in $(seq 1 40); do sleep 2; S=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"'); echo "stop attempt=$i status=$S"; [[ "$S" != RUNNING ]] && exit 0; done
+          exit 1
