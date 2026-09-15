@@ -1,82 +1,85 @@
-# CTNETWORK LTX Bridge
+# CTNETWORK Local LTX Bridge
 
-This bridge gives ChatGPT a safe control surface for the existing CTNETWORK LTX production server.
+This bridge is the approval-gated control surface between CTNETWORK and the local RunPod production factory at `/workspace/ctnetwork-local`.
 
 ## What it exposes
 
-- Start a production job
-- Read job status
+- Start a real local production job
+- Read real job status/progress
 - Retry a recoverable failure
-- Render a master
-- Build the locked Shorts package
-- Run QC
+- Run render/Shorts/QC actions through the real factory controller
 - Retrieve output paths
+- Retrieve authenticated finished artifacts from `ready_for_approval`
 
-It intentionally does **not** expose publishing. Publishing remains behind Thump's approval gate.
+It intentionally does **not** expose publishing. Publishing remains behind Thump's explicit approval gate.
 
-## Server deployment
+## Production deployment
 
-Run this on the LTX server (or on a host that can call the existing LTX production controller):
-
-```bash
-docker build -f ltx_bridge/Dockerfile -t ctnetwork-ltx-bridge .
-docker run -d \
-  --name ctnetwork-ltx-bridge \
-  --restart unless-stopped \
-  -p 127.0.0.1:8080:8080 \
-  -e LTX_BRIDGE_TOKEN='REPLACE_WITH_LONG_RANDOM_TOKEN' \
-  -e LTX_CONTROL_CMD='/opt/ctnetwork/bin/production-control' \
-  -e LTX_BRIDGE_STATE_DIR='/data/state' \
-  -v /var/lib/ctnetwork-ltx-bridge:/data/state \
-  ctnetwork-ltx-bridge
-```
-
-Place the HTTPS reverse proxy already used by the server in front of port 8080. Do not expose the container directly to the public Internet without TLS.
-
-## Existing LTX controller contract
-
-`LTX_CONTROL_CMD` must be a trusted executable. The bridge calls it with one action argument and sends JSON over stdin. See `ltx_bridge/CONTROL_PROTOCOL.md`.
-
-Example:
+The commissioning install creates the trusted controller executable at:
 
 ```bash
-/opt/ctnetwork/bin/production-control start < payload.json
+/workspace/ctnetwork-local/bin/ctnetwork-production-control
 ```
 
-The executable returns JSON on stdout.
+The bridge application is persisted at:
+
+```bash
+/workspace/ctnetwork-local/bridge/app.py
+```
+
+A local production launch uses:
+
+```bash
+LTX_BRIDGE_TOKEN="$(cat /workspace/ctnetwork-local/secrets/bridge_token)" \
+LTX_CONTROL_CMD=/workspace/ctnetwork-local/bin/ctnetwork-production-control \
+LTX_BRIDGE_STATE_DIR=/workspace/ctnetwork-local/bridge-state \
+LTX_CONTROL_TIMEOUT_SECONDS=7200 \
+PYTHONPATH=/workspace/ctnetwork-local/bridge \
+/workspace/ctnetwork-local/envs/core/bin/python -m uvicorn app:app \
+  --host 127.0.0.1 --port 8080
+```
+
+If remote ChatGPT access is later enabled, place an authenticated HTTPS reverse proxy in front of the service. Do not expose port 8080 directly to the public Internet.
+
+## Real controller contract
+
+`LTX_CONTROL_CMD` must point to the real CTNETWORK production controller. The production bridge explicitly rejects `fake_controller.py` or any controller path containing `fake_controller`.
+
+The real controller calls the local factory stack:
+
+- Qwen3-TTS for approved/authorized narrator references
+- LTX-2.5 / LTX-2.5 DFR for local video generation
+- FFmpeg for assembly, audio normalization, Shorts, thumbnail extraction and encoding
+- deterministic QC and checksums
+- `READY_FOR_APPROVAL` package generation
+
+The executable receives JSON over stdin and returns JSON on stdout. See `ltx_bridge/CONTROL_PROTOCOL.md`.
 
 ## Required environment values
 
-- `LTX_BRIDGE_TOKEN`: bearer token used by the ChatGPT integration.
-- `LTX_CONTROL_CMD`: path to the existing LTX production controller executable.
-- `LTX_BRIDGE_STATE_DIR`: persistent job-state folder.
-- `LTX_CONTROL_TIMEOUT_SECONDS`: optional; defaults to 900.
+- `LTX_BRIDGE_TOKEN`: persistent bearer token stored under `/workspace/ctnetwork-local/secrets/bridge_token`.
+- `LTX_CONTROL_CMD`: `/workspace/ctnetwork-local/bin/ctnetwork-production-control`.
+- `LTX_BRIDGE_STATE_DIR`: `/workspace/ctnetwork-local/bridge-state`.
+- `LTX_CONTROL_TIMEOUT_SECONDS`: use a production-safe value such as `7200` for GPU jobs.
 
-## ChatGPT connection
+## API surfaces
 
-The service automatically exposes OpenAPI at:
-
+- `/health`
 - `/openapi.json`
+- `POST /v1/production/start`
+- `GET /v1/production/{job_id}`
+- retry/render/shorts/qc endpoints
+- `GET /v1/production/{job_id}/outputs`
+- `GET /v1/production/{job_id}/artifact/{artifact_name}`
 
-Connect the deployed HTTPS endpoint as the CTNETWORK LTX custom integration and configure bearer authentication with the same `LTX_BRIDGE_TOKEN`.
-
-Once connected, ChatGPT can map commands such as:
-
-- `START TODAY'S PRODUCTION`
-- `check production status`
-- `fix failed production automatically`
-- `run QC`
-- `show me finished outputs`
-
-to the bridge endpoints.
+Artifact downloads are restricted to files explicitly returned by the real controller and located under `/workspace/ctnetwork-local/ready_for_approval`.
 
 ## Locked network behavior
 
-1. Johnny Facts is excluded from LTX and remains on its separate locked Higgsfield production method.
-2. A recoverable error may be retried automatically.
-3. A hard formula/narrator/reference failure blocks only that show lane.
-4. No narrator substitution is permitted.
-5. No visual identity substitution is permitted.
-6. No change to a show's locked Shorts count is permitted.
-7. The bridge never publishes.
-8. Final status before approval is `READY FOR REVIEW`.
+1. No Higgsfield dependency is required by the local CTNETWORK production path.
+2. All active show lanes may use the local factory while preserving each show's locked audience-facing formula, narrator identity, visual identity and Shorts cadence.
+3. A recoverable error may be retried automatically and only the failed stage should rerun when practical.
+4. A hard narrator/reference/formula failure blocks only that show lane; no narrator or visual-identity substitution is allowed.
+5. The bridge never publishes.
+6. Factory output must stop at `READY_FOR_APPROVAL` with `publish_allowed=false` and `requires_manual_approval=true`.
+7. Normal daily production still requires Thump's manual production start command; commissioning tests are the only automatic exception.
