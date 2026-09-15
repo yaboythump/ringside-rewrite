@@ -1,0 +1,45 @@
+name: CTNETWORK Factory QC Patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-factory-qc-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Correct black-frame QC and expose diagnostics
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('runpod/ctnetwork_factory_v2.py')
+          s = p.read_text()
+          old = "blackdetect=d=1:pix_th=0.98"
+          new = "blackdetect=d=1:pix_th=0.10"
+          if old not in s:
+              raise SystemExit('expected bad blackdetect threshold not found')
+          s = s.replace(old, new, 1)
+          needle = "    write_json(job.out / 'qc.json', qc)\n    if not qc['pass']:\n"
+          repl = "    write_json(job.out / 'qc.json', qc)\n    print('QC_RESULT', json.dumps(qc, sort_keys=True), flush=True)\n    if not qc['pass']:\n"
+          if needle not in s:
+              raise SystemExit('QC diagnostic insertion point not found')
+          s = s.replace(needle, repl, 1)
+          p.write_text(s)
+          PY
+          grep -q "pix_th=0.10" runpod/ctnetwork_factory_v2.py
+          grep -q "QC_RESULT" runpod/ctnetwork_factory_v2.py
+          git config user.name ctnetwork-bot
+          git config user.email ctnetwork-bot@users.noreply.github.com
+          git add runpod/ctnetwork_factory_v2.py
+          git commit -m 'CTNETWORK: correct black-frame QC threshold'
+          git pull --rebase origin main
+          git push origin HEAD:main
