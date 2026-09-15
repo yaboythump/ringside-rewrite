@@ -1,0 +1,76 @@
+name: CTNETWORK Asset Pipeline Certification
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-asset-certify-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve and start exact factory pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-asset-certify-command.json)
+          test -n "$POD_ID"; test "$POD_ID" != null
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          P=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")
+          S=$(jq -r '.desiredStatus // "unknown"' <<<"$P")
+          if [[ "$S" != RUNNING ]]; then curl -fsS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null; fi
+          for i in $(seq 1 120); do
+            sleep 5
+            P=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")
+            S=$(jq -r '.desiredStatus // "unknown"' <<<"$P")
+            [[ "$S" == RUNNING ]] && break
+          done
+          [[ "$S" == RUNNING ]] || { echo "pod failed to start: $S"; exit 4; }
+          JPASS=$(jq -r '.env.JUPYTER_PASSWORD // empty' <<<"$P")
+          test -n "$JPASS"
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jpass"
+
+      - name: Run real supplied-asset production certification
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jpass
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_asset_pipeline_certify.py | tee /tmp/ctnetwork-asset-certification.txt
+          grep -q 'CTNETWORK_ASSET_PIPELINE_CERTIFICATION_PASS' /tmp/ctnetwork-asset-certification.txt
+
+      - name: Upload certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-asset-pipeline-certification
+          path: /tmp/ctnetwork-asset-certification.txt
+          if-no-files-found: warn
+
+      - name: Stop exact paid GPU
+        if: always() && steps.pod.outputs.pod_id != ''
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null
+          for i in $(seq 1 40); do
+            sleep 2
+            S=$(curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" | jq -r '.desiredStatus // "unknown"')
+            [[ "$S" != RUNNING ]] && { echo "pod_status=$S"; exit 0; }
+          done
+          echo 'WARNING: pod still RUNNING after stop request'; exit 1
