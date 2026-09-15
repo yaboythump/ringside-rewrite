@@ -46,7 +46,12 @@ def terminal(h):
 
 def run(h,cmd,timeout=1200):
     name,ws=terminal(h); marker=f'__CTN_CERT_{int(time.time()*1000)}__'; out=''; rc=None
-    ws.send(json.dumps(['stdin',f'set +e\n{cmd}\nrc=$?\necho {marker}:$rc\n']))
+    # Never paste multiline shell directly into the interactive Jupyter terminal.
+    # Terminal bracketed-paste/echo handling previously corrupted `ffmpeg` -> `fmpeg`.
+    # Ship the exact script as base64 and execute the decoded file instead.
+    encoded=base64.b64encode(cmd.encode()).decode()
+    remote=f"set +e; echo {encoded} | base64 -d >/tmp/ctn-cert-script.sh; bash /tmp/ctn-cert-script.sh; rc=$?; echo {marker}:$rc\n"
+    ws.send(json.dumps(['stdin',remote]))
     deadline=time.time()+timeout
     try:
         while time.time()<deadline:
@@ -97,5 +102,5 @@ report={'mode':'supplied_assets','status':'PASS','job_id':'ctn-asset-pipeline-ce
 PY
 sha256sum "$OUT/master.mp4" "$OUT/short_01_9x16.mp4" "$OUT/short_02_9x16.mp4"
 echo CTNETWORK_ASSET_PIPELINE_CERTIFICATION_PASS'''
-    out=run(h,cmd,timeout=1200); Path('/tmp/ctnetwork-asset-pipeline-certification.txt').write_text(out)
+    out=run(h,cmd,timeout=300); Path('/tmp/ctnetwork-asset-pipeline-certification.txt').write_text(out)
 if __name__=='__main__': main()
