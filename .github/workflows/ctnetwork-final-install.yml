@@ -55,15 +55,18 @@ jobs:
           AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
           : > /tmp/ctn-final-pod-id; : > /tmp/ctn-final-jupyter-password
           getpod(){ curl -fsS "https://rest.runpod.io/v1/pods/$1" "${AUTH[@]}"; }
-          wait_running(){ local id="$1" pod status; for i in $(seq 1 90); do pod=$(getpod "$id" 2>/dev/null || true); status=$(printf '%s' "$pod" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown); echo "pod=$id attempt=$i status=$status"; [[ "$status" == RUNNING ]] && { printf '%s' "$pod" >/tmp/ctn-final-pod.json; return 0; }; sleep 5; done; return 1; }
+          wait_running(){ local id="$1" max="${2:-90}" pod status; for i in $(seq 1 "$max"); do pod=$(getpod "$id" 2>/dev/null || true); status=$(printf '%s' "$pod" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown); echo "pod=$id attempt=$i/$max status=$status"; [[ "$status" == RUNNING ]] && { printf '%s' "$pod" >/tmp/ctn-final-pod.json; return 0; }; sleep 5; done; return 1; }
           POD_ID=""
           if [[ -n "$PREFERRED" ]]; then
             POD=$(getpod "$PREFERRED" 2>/dev/null || true)
             PV=$(printf '%s' "$POD" | jq -r '.networkVolumeId // .networkVolume.id // empty' 2>/dev/null || true)
             if [[ -n "$POD" && "$PV" == "$VOLUME" ]]; then
               STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
-              [[ "$STATUS" == RUNNING ]] || curl -sS -X POST "https://rest.runpod.io/v1/pods/$PREFERRED/start" "${AUTH[@]}" >/dev/null
-              wait_running "$PREFERRED" && POD_ID="$PREFERRED"
+              if [[ "$STATUS" != RUNNING ]]; then
+                START_HTTP=$(curl -sS -o /tmp/ctn-preferred-start.json -w '%{http_code}' -X POST "https://rest.runpod.io/v1/pods/$PREFERRED/start" "${AUTH[@]}" || true)
+                echo "preferred_start_http=$START_HTTP"
+              fi
+              wait_running "$PREFERRED" 12 && POD_ID="$PREFERRED" || echo "preferred pod failed to start quickly; provisioning fresh compute"
             fi
           fi
           if [[ -z "$POD_ID" ]]; then
@@ -73,7 +76,7 @@ jobs:
             [[ "$HTTP" =~ ^2 ]] || { cat /tmp/ctn-create.json; exit 3; }
             POD_ID=$(jq -r '.id // empty' /tmp/ctn-create.json); test -n "$POD_ID"
             printf '%s' "$JUPYTER_PASSWORD" >/tmp/ctn-final-jupyter-password
-            wait_running "$POD_ID" || exit 5
+            wait_running "$POD_ID" 90 || exit 5
           else
             POD=$(cat /tmp/ctn-final-pod.json); JUPYTER_PASSWORD=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty'); test -n "$JUPYTER_PASSWORD"; echo "::add-mask::$JUPYTER_PASSWORD"; printf '%s' "$JUPYTER_PASSWORD" >/tmp/ctn-final-jupyter-password
           fi
