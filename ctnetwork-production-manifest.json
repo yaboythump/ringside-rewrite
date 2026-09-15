@@ -2,7 +2,7 @@
   "production_date": "2026-09-15",
   "manual_gate_required": true,
   "publish_allowed": false,
-  "slate_state": "STAGED_AWAITING_FACTORY_CERT",
+  "slate_state": "CERTIFIED_READY_TO_START",
   "jobs": [
     {
       "job_id": "hiphop-what-if-wutang-never-formed-20260915",
