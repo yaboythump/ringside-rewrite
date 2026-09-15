@@ -1,0 +1,41 @@
+name: Repair DLo Droz TikTok Shorts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-dlo-tiktok.yml'
+      - 'scripts/repair_dlo_tiktok.py'
+
+concurrency:
+  group: repair-dlo-droz-tiktok
+  cancel-in-progress: false
+
+jobs:
+  repair-tiktok:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install repair dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install requests
+      - name: Rebuild true vertical DLo shorts and publish to TikTok
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        run: python scripts/repair_dlo_tiktok.py
+      - name: Save TikTok repair receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dlo-droz-tiktok-repair
+          path: |
+            dlo-tiktok-repair/DLo_Droz_TikTok_*.mp4
+            dlo-tiktok-repair/receipt.json
+          if-no-files-found: warn
+          retention-days: 30
