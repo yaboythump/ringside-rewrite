@@ -2,8 +2,10 @@ name: CTNETWORK Commissioning Proof
 
 on:
   workflow_run:
-    workflows: ["CTNETWORK Full Local Factory Certification"]
-    types: [completed]
+    workflows:
+      - CTNETWORK Full Local Factory Certification
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -15,61 +17,80 @@ concurrency:
 
 jobs:
   proof:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main
+        uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Verify commissioning inputs
+      - name: Verify commissioning inputs and manual publish lock
         shell: bash
         run: |
           set -euo pipefail
-          CERT=infra/status/ctnetwork-full-certification-latest.txt
-          [[ -f "$CERT" ]] || { echo CERTIFICATION_REPORT_MISSING; exit 2; }
-          grep -q '^job_status=success$' "$CERT" || { echo CERTIFICATION_REPORT_NOT_SUCCESS; exit 3; }
+          CERT="infra/status/ctnetwork-full-certification-latest.txt"
+          test -f "$CERT" || { echo "CERTIFICATION_REPORT_MISSING"; exit 2; }
+          grep -q '^job_status=success$' "$CERT" || { echo "CERTIFICATION_REPORT_NOT_SUCCESS"; exit 3; }
+
           jq -e '.manual_gate_required == true and .publish_allowed == false' ctnetwork-production-manifest.json >/dev/null
-          jq -e '[.jobs[] | select(.job_id=="ctn-local-factory-proof-20260914" and (.publish // false)==false)] | length == 1' ctnetwork-production-manifest.json >/dev/null
-          echo COMMISSIONING_INPUTS_PASS
+          jq -e '(.jobs | length) >= 1' ctnetwork-production-manifest.json >/dev/null
+          jq -e '[.jobs[] | select((.publish // false) == true)] | length == 0' ctnetwork-production-manifest.json >/dev/null
+          echo "COMMISSIONING_INPUTS_PASS"
+          echo "PUBLISH_LOCK_CONFIRMED"
 
       - name: Resolve and start Norway factory
         id: resolve
         shell: bash
         run: |
           set -euo pipefail
-          DEST_NAME=$(jq -r '.destination_name' ctnetwork-migrate-factory-command.json)
-          DEST_VOLUME=$(jq -r '.destination_volume_id' ctnetwork-migrate-factory-command.json)
-          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          POD_ID=$(printf '%s' "$PODS" | jq -r --arg n "$DEST_NAME" --arg v "$DEST_VOLUME" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first | .id // empty')
-          [[ -n "$POD_ID" ]] || { echo NORWAY_POD_NOT_FOUND; exit 4; }
-          API="https://rest.runpod.io/v1/pods/$POD_ID"
-          auth=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          refresh(){ POD=$(curl -fsS "$API" "${auth[@]}"); STATUS=$(echo "$POD"|jq -r '.desiredStatus // "unknown"'); }
+          DEST_NAME="$(jq -r '.destination_name' ctnetwork-migrate-factory-command.json)"
+          DEST_VOLUME="$(jq -r '.destination_volume_id' ctnetwork-migrate-factory-command.json)"
+          PODS="$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")"
+          POD_ID="$(printf '%s' "$PODS" | jq -r --arg n "$DEST_NAME" --arg v "$DEST_VOLUME" '[.[] | select(.name == $n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first | .id // empty')"
+          test -n "$POD_ID" || { echo "NORWAY_POD_NOT_FOUND"; exit 4; }
+
+          API="https://rest.runpod.io/v1/pods/${POD_ID}"
+          refresh() {
+            POD="$(curl -fsS "$API" -H "Authorization: Bearer ${RUNPOD_API_KEY}")"
+            STATUS="$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')"
+          }
+
           refresh
-          if [[ "$STATUS" != RUNNING ]]; then
-            curl -fsS -X POST "$API/start" "${auth[@]}" >/dev/null || true
-            for i in $(seq 1 120); do sleep 5; refresh; [[ "$STATUS" == RUNNING ]] && break; done
+          if test "$STATUS" != "RUNNING"; then
+            curl -fsS -X POST "${API}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+            for i in $(seq 1 120); do
+              sleep 5
+              refresh
+              test "$STATUS" = "RUNNING" && break
+            done
           fi
-          [[ "$STATUS" == RUNNING ]] || { echo "NORWAY_POD_START_BLOCKED:$STATUS"; exit 5; }
+          test "$STATUS" = "RUNNING" || { echo "NORWAY_POD_START_BLOCKED:${STATUS}"; exit 5; }
+
+          code="000"
           for i in $(seq 1 60); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
-            echo "jupyter attempt=$i http=$code"
-            [[ "$code" == 200 || "$code" == 302 ]] && break
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)"
+            echo "jupyter attempt=${i} http=${code}"
+            if test "$code" = "200" || test "$code" = "302"; then
+              break
+            fi
             sleep 5
           done
-          [[ "$code" == 200 || "$code" == 302 ]] || { echo JUPYTER_NOT_READY; exit 6; }
+          if test "$code" != "200" && test "$code" != "302"; then
+            echo "JUPYTER_NOT_READY"
+            exit 6
+          fi
+
           refresh
-          JPASS=$(echo "$POD"|jq -r '.env.JUPYTER_PASSWORD // empty')
-          [[ -n "$JPASS" ]] || { echo JUPYTER_PASSWORD_MISSING; exit 7; }
-          echo "::add-mask::$JPASS"
-          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
-          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          JPASS="$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')"
+          test -n "$JPASS" || { echo "JUPYTER_PASSWORD_MISSING"; exit 7; }
+          echo "::add-mask::${JPASS}"
+          printf '%s' "$JPASS" > "${RUNNER_TEMP}/jupyter_password"
+          echo "pod_id=${POD_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Run real approval-gated CTNETWORK package
         id: production
@@ -78,10 +99,12 @@ jobs:
           JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
         shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
           python3 -m pip install --quiet requests websocket-client
           python3 tools/ctnetwork_run_production.py 2>&1 | tee /tmp/ctnetwork-commissioning-proof.log
           grep -q 'CTNETWORK_PRODUCTION_BATCH_READY_FOR_APPROVAL' /tmp/ctnetwork-commissioning-proof.log
+          grep -q 'READY_FOR_APPROVAL' /tmp/ctnetwork-commissioning-proof.log
+          echo "COMMISSIONING_REAL_PACKAGE_PASS"
 
       - name: Record commissioning proof
         if: always()
@@ -90,10 +113,11 @@ jobs:
           mkdir -p infra/status
           {
             echo "CTNETWORK COMMISSIONING PROOF"
-            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_id=${GITHUB_RUN_ID}"
             echo "pod_id=${{ steps.resolve.outputs.pod_id }}"
             echo "production_outcome=${{ steps.production.outcome }}"
             echo "expected_state=READY_FOR_APPROVAL"
+            echo "manual_gate_required=true"
             echo "publish_allowed=false"
             echo "approved=false"
             echo
@@ -112,6 +136,6 @@ jobs:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
         shell: bash
         run: |
-          if [[ -n "${POD_ID:-}" ]]; then
+          if test -n "${POD_ID:-}"; then
             curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
           fi
