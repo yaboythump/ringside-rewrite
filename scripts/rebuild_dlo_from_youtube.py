@@ -102,9 +102,16 @@ def main() -> None:
     settings = load_settings(Path.cwd())
     service = youtube_service(settings, interactive=False)
 
-    # Recheck immediately before upload. The only DLo/Droz video is allowed to be
-    # the protected full episode. If another matching child appears, stop rather
-    # than creating duplicates.
+    # These IDs are the known failed horizontal DLo/Droz attempts. They are not
+    # valid Shorts and must not block publication of the corrected 1080x1920 set.
+    known_failed_ids = {
+        '8rau0GIKiv8', 'T9Y7Cgp-3Bc', 'BgX-u8PKAeo',
+        'fFlMFMGQmho', 'FSBWD4YQf_Y', 'znMlDBzizDY',
+    }
+
+    # Recheck immediately before upload. The only DLo/Droz video normally allowed
+    # is the protected full episode; known failed horizontal repair attempts above
+    # are ignored so the validated replacements can publish without deleting posts.
     search = service.search().list(
         part='id,snippet', forMine=True, type='video', order='date', maxResults=50
     ).execute()
@@ -113,7 +120,9 @@ def main() -> None:
         vid = item.get('id', {}).get('videoId', '')
         title = item.get('snippet', {}).get('title', '')
         t = title.replace('’', "'").casefold()
-        if vid != args.video_id and ("d'lo" in t or 'droz' in t):
+        if vid == args.video_id or vid in known_failed_ids:
+            continue
+        if "d'lo" in t or 'droz' in t:
             matching.append({'id': vid, 'title': title})
     if matching:
         raise RuntimeError(f'Safety stop: unexpected existing DLo/Droz child uploads appeared: {matching}')
@@ -139,7 +148,7 @@ def main() -> None:
 
     receipt = {
         'protected_full_episode': args.video_id,
-        'old_child_uploads_found': 0,
+        'known_failed_horizontal_ids_ignored': sorted(known_failed_ids),
         'new_shorts': uploaded,
     }
     (out / 'repair-receipt.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
