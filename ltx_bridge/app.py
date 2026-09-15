@@ -20,7 +20,7 @@ BRIDGE_TOKEN = os.getenv("LTX_BRIDGE_TOKEN", "").strip()
 
 app = FastAPI(
     title="CTNETWORK LTX Production Bridge",
-    version="1.0.0",
+    version="1.1.0",
     description=(
         "Control bridge between ChatGPT and the CTNETWORK LTX production server. "
         "Production may start, retry, render, build Shorts and run QC. Publishing is "
@@ -102,13 +102,11 @@ def _load(job_id: str) -> JobRecord:
 
 
 def _run_control(action: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """Invoke the existing LTX controller without shell interpolation.
-
-    LTX_CONTROL_CMD must point to a trusted executable on the LTX server. The bridge
-    sends one JSON document on stdin and expects a JSON document on stdout.
-    """
+    """Invoke the real LTX controller without shell interpolation."""
     if not CONTROL_CMD:
         raise RuntimeError("LTX_CONTROL_CMD is not configured")
+    if Path(CONTROL_CMD).name == "fake_controller.py" or "fake_controller" in CONTROL_CMD:
+        raise RuntimeError("mock/fake controller is forbidden in production")
 
     command = [CONTROL_CMD, action]
     proc = subprocess.run(
@@ -170,11 +168,13 @@ def _apply_action(record: JobRecord, action: str, extra: dict[str, Any] | None =
 
 @app.get("/health")
 def health() -> dict[str, Any]:
+    fake = bool(CONTROL_CMD) and (Path(CONTROL_CMD).name == "fake_controller.py" or "fake_controller" in CONTROL_CMD)
     return {
-        "ok": True,
+        "ok": bool(CONTROL_CMD) and bool(BRIDGE_TOKEN) and not fake,
         "service": "ctnetwork-ltx-bridge",
         "controller_configured": bool(CONTROL_CMD),
         "token_configured": bool(BRIDGE_TOKEN),
+        "mock_controller": fake,
         "publishing_locked": APPROVAL_LOCK,
     }
 
@@ -280,6 +280,39 @@ def outputs(job_id: str) -> dict[str, Any]:
         "publishing_locked": True,
         "outputs": result,
     }
+
+
+@app.get("/v1/production/{job_id}/artifact/{artifact_name}", dependencies=[Depends(_auth)])
+def download_artifact(job_id: str, artifact_name: str):
+    from fastapi.responses import FileResponse
+
+    _load(job_id)
+    try:
+        result = _run_control("outputs", {"job_id": job_id, "publish": False})
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    candidates: dict[str, str] = {}
+    if isinstance(result.get("master"), str):
+        candidates["master"] = result["master"]
+    if isinstance(result.get("thumbnail"), str):
+        candidates["thumbnail"] = result["thumbnail"]
+    for idx, p in enumerate(result.get("shorts") or [], 1):
+        if isinstance(p, str):
+            candidates[f"short_{idx:02d}"] = p
+
+    if artifact_name not in candidates:
+        raise HTTPException(status_code=404, detail="Artifact not available")
+    path = Path(candidates[artifact_name]).resolve()
+    ready_root = Path("/workspace/ctnetwork-local/ready_for_approval").resolve()
+    try:
+        path.relative_to(ready_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Artifact escaped approval directory") from exc
+    if not path.exists() or not path.is_file() or path.stat().st_size < 1:
+        raise HTTPException(status_code=404, detail="Artifact file missing")
+    media = "video/mp4" if path.suffix.lower() == ".mp4" else "application/octet-stream"
+    return FileResponse(path, media_type=media, filename=path.name)
 
 
 @app.post("/v1/publish")
