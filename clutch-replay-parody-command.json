@@ -1,16 +1,16 @@
 {
   "action": "render",
-  "pod_id": "ocqwnswp1h8ld8",
+  "pod_id": "1yo5l3u3lcya13",
   "network_volume_id": "9wjb3sa5zm",
   "project": "breaking-cap-sports-parodies",
   "slug": "2026-09-16-phx-postgame-interview-parody",
   "driver_url": "https://cdn.creativeclaw.co/u/6d1d5f99/videos/7018baa9-306d-49c9-afa8-d94e7b06a4c9.mp4",
   "driver_start_seconds": 0,
   "driver_duration_seconds": 20.408345,
-  "reference_image_url": "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/assets/breaking-cap/phx-interview.jpg",
-  "logo_url": "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/assets/breaking-cap/breaking-cap-logo.webp",
+  "reference_image_url": "https://cdn.creativeclaw.co/u/6d1d5f99/images/620ce524-d759-423f-8eea-fed143c8b63d.jpg",
+  "logo_url": "https://cdn.creativeclaw.co/u/6d1d5f99/images/4d45360e-341c-4cc2-936a-b4e965cd8fc9.png",
   "headline": "SHE ASKED HIM HOW HE FELT ABOUT THE GAME TONIGHT",
   "parody_label": "AI PARODY",
   "publish_allowed": false,
-  "request_id": "breaking-cap-phx-parody-2026-09-16-render-02"
+  "request_id": "breaking-cap-phx-parody-2026-09-16-render-03"
 }
