@@ -7,10 +7,8 @@ import ringside_s2e01_server_assets as base
 PREFERRED_POD_ID = "ugt1pe6ndmichc"
 ORIGINAL_CREATE_POD = base.create_pod
 ORIGINAL_TERMINAL_RUN = base.terminal_run
-KEVIN_REF_PARTS = [
-    f"https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/server_refs/kevin_ref_part{i}.txt"
-    for i in range(1, 5)
-]
+KEVIN_REF_B64_URL = "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/server_refs/kevin_ref_short.b64"
+base.REF_TEXT = "One bell changed professional wrestling"
 
 
 def resolve_or_create_pod():
@@ -85,10 +83,7 @@ def terminal_run_retry(base_url, pod_id, session, headers, shell, timeout=10800)
         shell = shell.replace(line, 'echo "STALE_SMOKE_GATE_SKIPPED"')
 
     old_kevin = f'curl -L --fail --retry 5 "{base.KEVIN_URL}" -o "$JOB/raw/kevin_master.mp3"'
-    part_cmds = " ; ".join(
-        f'curl -L --fail --retry 5 "{url}"' for url in KEVIN_REF_PARTS
-    )
-    new_kevin = f'{{ {part_cmds}; }} | tr -d "\\r\\n" | base64 -d > "$JOB/raw/kevin_master.mp3" ; test -s "$JOB/raw/kevin_master.mp3"'
+    new_kevin = f'curl -L --fail --retry 5 "{KEVIN_REF_B64_URL}" | tr -d "\\r\\n" | base64 -d > "$JOB/raw/kevin_master.mp3" ; test -s "$JOB/raw/kevin_master.mp3"'
     if old_kevin not in shell:
         raise RuntimeError("Kevin download line not found in production shell")
     shell = shell.replace(old_kevin, new_kevin)
