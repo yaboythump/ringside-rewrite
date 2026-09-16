@@ -1,0 +1,16 @@
+{
+  "action": "render",
+  "pod_id": "9bn44dd6jq2qsl",
+  "network_volume_id": "9wjb3sa5zm",
+  "project": "clutch-replay-sports-parodies",
+  "slug": "2026-09-16-tommy-pham-what-more-do-you-want",
+  "driver_url": "https://www.youtube.com/watch?v=ZfCflxkLbMs",
+  "driver_fallback_url": "https://www.youtube.com/watch?v=1I1w4CGQCG8",
+  "driver_start_seconds": 198.7,
+  "driver_duration_seconds": 4.7,
+  "reference_image_url": "https://img.mlbstatic.com/mlb-images/image/upload/ar_16%3A9%2Cg_auto%2Cq_auto%3Agood%2Cw_1024%2Cc_fill%2Cf_jpg/mlb/chc4qtrodmnwgxehmsfo",
+  "headline": "TOMMY PHAM AFTER BEGGING TO PLAY... THEN DOING THIS 😭",
+  "parody_label": "AI PARODY",
+  "publish_allowed": false,
+  "request_id": "clutch-replay-pham-parody-2026-09-16-01"
+}
