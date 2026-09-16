@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/ringside-s2e01-attitude-era-server-assets.yml'
       - 'tools/ringside_s2e01_server_assets.py'
+      - 'tools/ringside_s2e01_server_assets_retry.py'
   workflow_dispatch:
 
 permissions:
@@ -31,7 +32,7 @@ jobs:
         run: python -m pip install --quiet requests websocket-client
 
       - name: Generate Kevin narration and five LTX motion inserts
-        run: python tools/ringside_s2e01_server_assets.py
+        run: python tools/ringside_s2e01_server_assets_retry.py
 
       - name: Verify server asset package
         shell: bash
