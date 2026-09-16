@@ -22,31 +22,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Start approval volume pod
+      - name: Mount approval production volume
         id: pod
         shell: bash
         run: |
           set -Eeuo pipefail
-          POD_ID=$(jq -r '.pod_id' ctnetwork-export-command.json)
+          PREFERRED=$(jq -r '.pod_id // empty' ctnetwork-export-command.json)
+          VOLUME=$(jq -r '.network_volume_id // "9wjb3sa5zm"' ctnetwork-export-command.json)
+          DC=$(jq -r '.data_center_id // "EU-RO-1"' ctnetwork-export-command.json)
           AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          P=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" "${AUTH[@]}")
-          S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"')
-          if [[ "$S" != RUNNING ]]; then
-            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" "${AUTH[@]}" >/dev/null
+          getpod(){ curl -sS "https://rest.runpod.io/v1/pods/$1" "${AUTH[@]}"; }
+          wait_running(){ local id="$1" max="${2:-20}"; for i in $(seq 1 "$max"); do P=$(getpod "$id" 2>/dev/null || true); S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown); echo "pod=$id attempt=$i/$max status=$S"; [[ "$S" == RUNNING ]] && { printf '%s' "$P" >/tmp/ctn-export-pod.json; return 0; }; sleep 5; done; return 1; }
+          POD_ID=""
+          if [[ -n "$PREFERRED" ]]; then
+            P=$(getpod "$PREFERRED" 2>/dev/null || true)
+            PV=$(printf '%s' "$P" | jq -r '.networkVolumeId // .networkVolume.id // empty' 2>/dev/null || true)
+            if [[ "$PV" == "$VOLUME" ]]; then
+              S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown)
+              [[ "$S" == RUNNING ]] || curl -sS -X POST "https://rest.runpod.io/v1/pods/$PREFERRED/start" "${AUTH[@]}" >/dev/null || true
+              wait_running "$PREFERRED" 12 && POD_ID="$PREFERRED" || true
+            fi
           fi
-          for i in $(seq 1 60); do
-            P=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" "${AUTH[@]}")
-            S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"')
-            echo "pod=$POD_ID attempt=$i status=$S"
-            [[ "$S" == RUNNING ]] && break
-            sleep 5
-          done
-          [[ "$S" == RUNNING ]] || exit 5
-          JPASS=$(printf '%s' "$P" | jq -r '.env.JUPYTER_PASSWORD // empty')
-          [[ -n "$JPASS" ]] || { echo JUPYTER_PASSWORD_MISSING; exit 6; }
-          echo "::add-mask::$JPASS"
+          if [[ -z "$POD_ID" ]]; then
+            JPASS=$(openssl rand -hex 24); echo "::add-mask::$JPASS"
+            GPU_TYPES='["NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 6000 Blackwell Server Edition","NVIDIA A100 80GB PCIe"]'
+            BODY=$(jq -nc --arg name "ctnetwork-approval-export-$(date +%s)" --arg dc "$DC" --arg vol "$VOLUME" --arg jp "$JPASS" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+            HTTP=$(curl -sS -o /tmp/ctn-export-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods "${AUTH[@]}" -H 'Content-Type: application/json' --data "$BODY" || true)
+            [[ "$HTTP" =~ ^2 ]] || { cat /tmp/ctn-export-create.json; exit 4; }
+            POD_ID=$(jq -r '.id // empty' /tmp/ctn-export-create.json); [[ -n "$POD_ID" ]] || exit 5
+            wait_running "$POD_ID" 90 || exit 6
+          else
+            P=$(cat /tmp/ctn-export-pod.json)
+            JPASS=$(printf '%s' "$P" | jq -r '.env.JUPYTER_PASSWORD // empty')
+            [[ -n "$JPASS" ]] || exit 7
+            echo "::add-mask::$JPASS"
+          fi
           printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "APPROVAL_VOLUME_READY pod=$POD_ID volume=$VOLUME"
 
       - name: Wait for Jupyter
         env:
@@ -54,13 +67,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 90); do
+          for i in $(seq 1 120); do
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
             echo "jupyter attempt=$i http=$code"
             [[ "$code" == 200 ]] && exit 0
             sleep 5
           done
-          exit 7
+          exit 8
 
       - name: Download ready-for-approval files
         env:
@@ -88,7 +101,7 @@ jobs:
           if rr.status_code not in (200,302,303): raise RuntimeError(f'login {rr.status_code}')
           out=Path('approval-export'); out.mkdir(exist_ok=True)
           names=['master.mp4','short_01_9x16.mp4','short_02_9x16.mp4','short_03_9x16.mp4','thumbnail.jpg','qc.json','approval.json']
-          prefixes=[f'/files/ctnetwork-local/ready_for_approval/{folder}/',f'/files/workspace/ctnetwork-local/ready_for_approval/{folder}/']
+          prefixes=[f'/files/workspace/ctnetwork-local/ready_for_approval/{folder}/',f'/files/ctnetwork-local/ready_for_approval/{folder}/']
           for name in names:
               ok=False
               for prefix in prefixes:
@@ -99,7 +112,7 @@ jobs:
                           for chunk in resp.iter_content(4*1024*1024):
                               if chunk: f.write(chunk)
                       if dest.stat().st_size>0:
-                          print('EXPORTED',name,dest.stat().st_size)
+                          print('EXPORTED',name,dest.stat().st_size,flush=True)
                           ok=True; break
               if not ok: raise RuntimeError(f'could not export {name}')
           PY
@@ -110,29 +123,34 @@ jobs:
           name: tcwt-e05-master
           path: approval-export/master.mp4
           compression-level: 0
+          retention-days: 7
       - name: Upload short 1
         uses: actions/upload-artifact@v4
         with:
           name: tcwt-e05-short-01
           path: approval-export/short_01_9x16.mp4
           compression-level: 0
+          retention-days: 7
       - name: Upload short 2
         uses: actions/upload-artifact@v4
         with:
           name: tcwt-e05-short-02
           path: approval-export/short_02_9x16.mp4
           compression-level: 0
+          retention-days: 7
       - name: Upload short 3
         uses: actions/upload-artifact@v4
         with:
           name: tcwt-e05-short-03
           path: approval-export/short_03_9x16.mp4
           compression-level: 0
+          retention-days: 7
       - name: Upload thumbnail
         uses: actions/upload-artifact@v4
         with:
           name: tcwt-e05-thumbnail
           path: approval-export/thumbnail.jpg
+          retention-days: 7
       - name: Upload QC gate
         uses: actions/upload-artifact@v4
         with:
@@ -140,6 +158,7 @@ jobs:
           path: |
             approval-export/qc.json
             approval-export/approval.json
+          retention-days: 7
 
       - name: Stop export pod
         if: always()
