@@ -4,10 +4,14 @@
   "network_volume_id": "9wjb3sa5zm",
   "data_center_id": "EU-RO-1",
   "gpu_types": [
-    "NVIDIA GeForce RTX 5090",
+    "NVIDIA RTX PRO 4000 Blackwell",
+    "NVIDIA L4",
+    "NVIDIA GeForce RTX 4090",
+    "NVIDIA RTX A4500",
+    "NVIDIA RTX 4000 Ada Generation",
     "NVIDIA RTX PRO 4500 Blackwell",
-    "NVIDIA GeForce RTX 4090"
+    "NVIDIA GeForce RTX 5090"
   ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "clutch-replay-pham-parody-2026-09-16-01"
+  "request_id": "clutch-replay-pham-parody-2026-09-16-02"
 }
