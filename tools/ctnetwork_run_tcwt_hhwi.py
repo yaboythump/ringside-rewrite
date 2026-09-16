@@ -50,10 +50,10 @@ def terminal(headers):
 
 def run_remote(headers):
     term,ws=terminal(headers); payload=build_payload()
-    shell=f'''set -Eeuo pipefail
+    shell='''set -Eeuo pipefail
 ROOT=/workspace/ctnetwork-local
 mkdir -p "$ROOT/controller" "$ROOT/incoming" "$ROOT/incoming/jobs" "$ROOT/incoming/remote-assets" "$ROOT/ready_for_approval" "$ROOT/status"
-echo {payload} | base64 -d >/tmp/tcwt-payload.tgz
+echo __PAYLOAD__ | base64 -d >/tmp/tcwt-payload.tgz
 tar --no-same-owner -xzf /tmp/tcwt-payload.tgz -C "$ROOT"
 chmod +x "$ROOT/controller/ctnetwork_factory_v2.py" "$ROOT/controller/ctnetwork_qwen_narrate.py"
 command -v ffmpeg >/dev/null
@@ -90,7 +90,7 @@ def make_slideshow(images,narration,dest):
         vf=f"scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,zoompan=z='{zoom}':x='{x}':y='{y}':d=1:s=1920x1080:fps=30,format=yuv420p"
         subprocess.run(['ffmpeg','-y','-loop','1','-t',f'{each:.3f}','-i',str(img),'-vf',vf,'-an','-c:v','libx264','-preset','veryfast','-crf','19','-movflags','+faststart',str(clip)],check=True)
         clips.append(clip)
-    concat=cdir/'concat.txt'; concat.write_text(''.join("file '%s'\\n"%str(c).replace("'","'\\\\''") for c in clips))
+    concat=cdir/'concat.txt'; concat.write_text(''.join("file '%s'\n"%str(c).replace("'","'\\''") for c in clips))
     subprocess.run(['ffmpeg','-y','-f','concat','-safe','0','-i',str(concat),'-c','copy',str(dest)],check=True)
     print('HHWI_STYLE_VISUAL_MASTER_READY',dest,flush=True)
 
@@ -142,6 +142,7 @@ test "$failed" -eq 0
 echo PASS > "$ROOT/status/production_batch.status"
 echo CTNETWORK_TCWT_HHWI_READY_FOR_APPROVAL
 '''
+    shell=shell.replace('__PAYLOAD__',payload)
     marker=f'__TCWT_{int(time.time()*1000)}__'; enc=base64.b64encode(shell.encode()).decode()
     ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d >/tmp/tcwt-run.sh; bash /tmp/tcwt-run.sh; rc=$?; echo {marker}:$rc\n']))
     deadline=time.time()+21600; output=''; rc=None
