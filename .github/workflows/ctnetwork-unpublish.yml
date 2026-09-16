@@ -1,0 +1,40 @@
+name: CTNETWORK Unpublish Cleanup
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-unpublish-job.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unpublish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove erroneous published post
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${UPLOAD_POST_API_KEY:-}" || { echo "::error::UPLOAD_POST_API_KEY secret is missing"; exit 1; }
+          ENABLED=$(jq -r '.enabled // false' ctnetwork-unpublish-job.json)
+          PLATFORM=$(jq -r '.platform // empty' ctnetwork-unpublish-job.json)
+          USER_NAME=$(jq -r '.user // empty' ctnetwork-unpublish-job.json)
+          POST_ID=$(jq -r '.post_id // empty' ctnetwork-unpublish-job.json)
+          [[ "$ENABLED" == "true" ]] || { echo "Cleanup job disabled"; exit 0; }
+          [[ "$PLATFORM" =~ ^(facebook|youtube|x|linkedin|pinterest|bluesky|google_business|discord|telegram|mastodon|wordpress)$ ]] || { echo "::error::Unsupported platform"; exit 2; }
+          test -n "$USER_NAME" && test -n "$POST_ID"
+          BODY=$(jq -n --arg platform "$PLATFORM" --arg user "$USER_NAME" --arg post_id "$POST_ID" '{platform:$platform,user:$user,post_id:$post_id}')
+          HTTP=$(curl -sS -o response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/posts/unpublish' \
+            -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
+            -H 'Content-Type: application/json' \
+            --data "$BODY")
+          cat response.json; echo
+          [[ "$HTTP" -ge 200 && "$HTTP" -lt 300 ]] || { echo "::error::Unpublish HTTP $HTTP"; exit 3; }
+          jq -e '.success == true' response.json >/dev/null
+          echo "UNPUBLISH_PASS platform=$PLATFORM post_id=$POST_ID"
