@@ -22,7 +22,7 @@ def resolve_or_create_pod():
                 state = pod.get("desiredStatus", "")
                 print("PREFERRED_POD", PREFERRED_POD_ID, state, flush=True)
                 if state != "RUNNING":
-                    for attempt in range(1, 4):
+                    for attempt in range(1, 6):
                         try:
                             sr = requests.post(f"https://rest.runpod.io/v1/pods/{PREFERRED_POD_ID}/start", headers=base.AUTH, timeout=30)
                             sr.raise_for_status()
@@ -34,18 +34,21 @@ def resolve_or_create_pod():
                     else:
                         raise RuntimeError("preferred pod unavailable")
                 return PREFERRED_POD_ID, password
+            print("PREFERRED_POD_METADATA_MISMATCH", volume, bool(password), flush=True)
+        else:
+            print("PREFERRED_POD_LOOKUP", r.status_code, r.text[:500], flush=True)
     except Exception as exc:
         print("PREFERRED_POD_FALLBACK", repr(exc), flush=True)
 
     last = None
-    for attempt in range(1, 7):
+    for attempt in range(1, 3):
         try:
-            print(f"CREATE_POD_ATTEMPT {attempt}/6", flush=True)
+            print(f"CREATE_POD_ATTEMPT {attempt}/2", flush=True)
             return ORIGINAL_CREATE_POD()
         except Exception as exc:
             last = exc
             print("CREATE_POD_RETRY", repr(exc), flush=True)
-            time.sleep(min(30, attempt * 5))
+            time.sleep(min(15, attempt * 5))
     raise RuntimeError(f"Unable to resolve or create production pod: {last!r}")
 
 
