@@ -7,6 +7,7 @@ import ringside_s2e01_server_assets as base
 PREFERRED_POD_ID = "ugt1pe6ndmichc"
 ORIGINAL_CREATE_POD = base.create_pod
 ORIGINAL_TERMINAL_RUN = base.terminal_run
+KEVIN_REF_B64_URL = "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/server_refs/kevin_bret_approved_ref.b64"
 
 
 def resolve_or_create_pod():
@@ -79,6 +80,14 @@ def terminal_run_retry(base_url, pod_id, session, headers, shell, timeout=10800)
     ]
     for line in stale_checks:
         shell = shell.replace(line, 'echo "STALE_SMOKE_GATE_SKIPPED"')
+
+    # The old temporary CloudFront Kevin URL expired. Replace only that download
+    # with a reference extracted from the user's approved Bret Hart master.
+    old_kevin = f'curl -L --fail --retry 5 "{base.KEVIN_URL}" -o "$JOB/raw/kevin_master.mp3"'
+    new_kevin = f'curl -L --fail --retry 5 "{KEVIN_REF_B64_URL}" | base64 -d > "$JOB/raw/kevin_master.mp3"'
+    if old_kevin not in shell:
+        raise RuntimeError("Kevin download line not found in production shell")
+    shell = shell.replace(old_kevin, new_kevin)
 
     bootstrap = r'''set -Eeuo pipefail
 if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
