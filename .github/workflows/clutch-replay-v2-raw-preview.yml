@@ -1,0 +1,56 @@
+name: Clutch Replay V2 Raw Preview
+
+on:
+  push:
+    paths:
+      - '.github/workflows/clutch-replay-v2-raw-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull raw V2 output
+        shell: bash
+        run: |
+          set -euo pipefail
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD=$(echo "$PODS" | jq -c '[.[] | select((.name // "") | startswith("clutch-replay-character-replace-v2-35149451543"))] | first // empty')
+          [[ -n "$POD" ]] || { echo 'pod missing'; exit 2; }
+          POD_ID=$(echo "$POD" | jq -r '.id'); JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          echo "::add-mask::$JPASS"; export POD_ID JPASS
+          python3 -m pip install --quiet requests
+          python3 - <<'PY'
+          import os,re,requests
+          pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status(); m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False); assert r.status_code in (200,302,303)
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          paths=[
+            '/files/workspace/ComfyUI/output/clutch_replay_v2/tommy_pham_mix_00001_.mp4',
+            '/files/ComfyUI/output/clutch_replay_v2/tommy_pham_mix_00001_.mp4'
+          ]
+          for path in paths:
+              rr=s.get(base+path,headers=headers,timeout=180,stream=True)
+              if rr.status_code==200:
+                  with open('tommy_pham_mix_raw.mp4','wb') as f:
+                      for c in rr.iter_content(1024*1024):
+                          if c:f.write(c)
+                  print('bytes',os.path.getsize('tommy_pham_mix_raw.mp4')); break
+          else: raise SystemExit('raw V2 output not retrievable')
+          PY
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_type,width,height -of json tommy_pham_mix_raw.mp4
+      - name: Upload raw preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: clutch-replay-v2-raw-preview
+          path: tommy_pham_mix_raw.mp4
+          if-no-files-found: error
+          retention-days: 2
