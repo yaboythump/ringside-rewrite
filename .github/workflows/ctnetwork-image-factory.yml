@@ -1,0 +1,32 @@
+name: CTNETWORK Premium Local Image Factory
+on:
+  push:
+    paths: ['image-factory-command.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ctnetwork-image-factory
+  cancel-in-progress: false
+jobs:
+  install-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet requests websocket-client
+      - name: Install isolated studio and generate real sample assets
+        run: python3 -u image_factory/remote.py
+      - name: Stop only the GPU pod started for image setup
+        if: always()
+        run: python3 -u image_factory/remote.py stop
+      - name: Retain setup report and private review download
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-image-factory-review
+          path: image-factory-results/
+          if-no-files-found: warn
+          retention-days: 7
