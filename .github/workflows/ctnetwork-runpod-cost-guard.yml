@@ -1,0 +1,108 @@
+name: CTNETWORK RunPod Cost Guard
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-runpod-cost-guard.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  FACTORY_VOLUME_ID: 9wjb3sa5zm
+  MAX_ACTIVE_MINUTES: '360'
+
+jobs:
+  cost-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Stop idle CTNETWORK RunPod compute
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          API='https://api.github.com'
+          AUTH_GH=(-H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28')
+          AUTH_RP=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          NOW=$(date -u +%s)
+          PROTECTED=0
+          ACTIVE_GPU_RUNS=0
+          RECENT_GPU_RUNS=0
+
+          echo 'Checking active GitHub workflows for real RunPod work...'
+          RUNS=$(curl -fsS "${API}/repos/${GITHUB_REPOSITORY}/actions/runs?status=in_progress&per_page=100" "${AUTH_GH[@]}")
+
+          while IFS=$'\t' read -r RUN_ID WF_PATH HEAD_SHA STARTED_AT RUN_NAME; do
+            [[ -n "${RUN_ID:-}" ]] || continue
+            [[ "$WF_PATH" == '.github/workflows/ctnetwork-runpod-cost-guard.yml' ]] && continue
+
+            ENCODED_PATH=${WF_PATH// /%20}
+            WF_JSON=$(curl -fsS "${API}/repos/${GITHUB_REPOSITORY}/contents/${ENCODED_PATH}?ref=${HEAD_SHA}" "${AUTH_GH[@]}" 2>/dev/null || true)
+            WF_TEXT=$(printf '%s' "$WF_JSON" | jq -r '.content // empty' | tr -d '\n' | base64 -d 2>/dev/null || true)
+
+            if printf '%s' "$WF_TEXT" | grep -Eqi 'RUNPOD_API_KEY|rest\.runpod\.io|proxy\.runpod\.net|runpodctl'; then
+              ACTIVE_GPU_RUNS=$((ACTIVE_GPU_RUNS + 1))
+              START_EPOCH=$(date -u -d "$STARTED_AT" +%s 2>/dev/null || echo 0)
+              if [[ "$START_EPOCH" -gt 0 ]]; then
+                AGE_MIN=$(( (NOW - START_EPOCH) / 60 ))
+              else
+                AGE_MIN=$MAX_ACTIVE_MINUTES
+              fi
+              echo "RunPod workflow active: id=$RUN_ID age=${AGE_MIN}m name=$RUN_NAME"
+              if [[ "$AGE_MIN" -lt "$MAX_ACTIVE_MINUTES" ]]; then
+                RECENT_GPU_RUNS=$((RECENT_GPU_RUNS + 1))
+                PROTECTED=1
+              fi
+            fi
+          done < <(printf '%s' "$RUNS" | jq -r '.workflow_runs[]? | [.id,.path,.head_sha,.run_started_at,.name] | @tsv')
+
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods "${AUTH_RP[@]}")
+          TARGETS=$(printf '%s' "$PODS" | jq -c --arg vol "$FACTORY_VOLUME_ID" '[.[] | select(((.networkVolumeId // .networkVolume.id // "") == $vol) and (.desiredStatus == "RUNNING") and ((.name // "") | startswith("ctnetwork")))]')
+          COUNT=$(printf '%s' "$TARGETS" | jq 'length')
+
+          if [[ "$COUNT" -eq 0 ]]; then
+            echo 'COST_GUARD_OK: no running CTNETWORK GPU pod on the factory volume.'
+            exit 0
+          fi
+
+          if [[ "$PROTECTED" -eq 1 ]]; then
+            echo "COST_GUARD_HOLD: $COUNT running CTNETWORK pod(s) protected by $RECENT_GPU_RUNS active RunPod workflow(s)."
+            exit 0
+          fi
+
+          if [[ "$ACTIVE_GPU_RUNS" -gt 0 ]]; then
+            echo "HARD_CAP_REACHED: active RunPod workflow(s) are at least ${MAX_ACTIVE_MINUTES} minutes old. Stopping compute to prevent runaway billing."
+          else
+            echo 'IDLE_CUTOFF: no active RunPod workflow. Stopping CTNETWORK compute.'
+          fi
+
+          printf '%s' "$TARGETS" | jq -r '.[].id' | while read -r POD_ID; do
+            [[ -n "$POD_ID" ]] || continue
+            POD=$(printf '%s' "$TARGETS" | jq -c --arg id "$POD_ID" '.[] | select(.id==$id)')
+            NAME=$(printf '%s' "$POD" | jq -r '.name // ""')
+            VOL=$(printf '%s' "$POD" | jq -r '.networkVolumeId // .networkVolume.id // ""')
+            [[ "$VOL" == "$FACTORY_VOLUME_ID" && "$NAME" == ctnetwork* ]] || { echo "REFUSED_IDENTITY_MISMATCH id=$POD_ID name=$NAME volume=$VOL"; continue; }
+
+            echo "STOP_ONLY: pod=$POD_ID name=$NAME volume=$VOL"
+            HTTP=$(curl -sS -o /tmp/runpod-stop.json -w '%{http_code}' -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" "${AUTH_RP[@]}" || true)
+            [[ "$HTTP" =~ ^2 ]] || { echo "Stop request failed HTTP=$HTTP pod=$POD_ID"; cat /tmp/runpod-stop.json 2>/dev/null || true; exit 3; }
+
+            STOPPED=0
+            for i in $(seq 1 45); do
+              sleep 2
+              STATUS=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" "${AUTH_RP[@]}" | jq -r '.desiredStatus // "unknown"')
+              echo "pod=$POD_ID stop_check=$i status=$STATUS"
+              if [[ "$STATUS" != 'RUNNING' ]]; then STOPPED=1; break; fi
+            done
+            [[ "$STOPPED" -eq 1 ]] || { echo "COST_GUARD_ERROR: pod still RUNNING: $POD_ID"; exit 4; }
+          done
+
+          echo 'COST_GUARD_COMPLETE: paid CTNETWORK GPU compute is off. Persistent factory storage was not deleted.'
