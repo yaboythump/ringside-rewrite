@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: ringside-s2e01-narration-only
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   narrate:
