@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Bounded RunPod deployment; credentials never leave Actions or enter logs."""
-import base64,json,os,re,shlex,sys,time,uuid
+import base64,json,os,re,shlex,sys,time,uuid,secrets
 from pathlib import Path
 import requests,websocket
 AUTH={'Authorization':'Bearer '+os.environ['RUNPOD_API_KEY']}
@@ -30,7 +30,25 @@ def select():
     time.sleep(5)
   except requests.HTTPError as e:print('EXISTING_POD_UNAVAILABLE',pid,e.response.status_code,flush=True)
   stop(pid);Path('image-factory-owned-pod.txt').unlink()
- raise RuntimeError('No existing stopped factory pod could resume within cost limit; no new pod created')
+ # Recovery: create exactly one compatible worker, preserving every existing pod/volume.
+ name='ctnetwork-image-phase1-'+os.environ.get('GITHUB_RUN_ID',str(int(time.time())))
+ password=secrets.token_hex(24)
+ body={'name':name,'imageName':'runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404','cloudType':'SECURE','computeType':'GPU','gpuTypeIds':['NVIDIA RTX PRO 4500 Blackwell','NVIDIA GeForce RTX 4090'],'gpuTypePriority':'availability','gpuCount':1,'dataCenterIds':['EU-RO-1'],'dataCenterPriority':'availability','containerDiskInGb':40,'networkVolumeId':VOLUME,'volumeMountPath':'/workspace','ports':['8888/http','22/tcp'],'env':{'JUPYTER_PASSWORD':password}}
+ try:p=api('POST','pods',json=body)
+ except Exception:
+  # Resolve a timeout ambiguously accepted by the provider before any retry.
+  matches=[x for x in api('GET','pods') if x.get('name')==name and x.get('networkVolumeId')==VOLUME]
+  if len(matches)!=1:raise
+  p=matches[0]
+ pid=p['id'];Path('image-factory-owned-pod.txt').write_text(pid)
+ for _ in range(60):
+  p=api('GET','pods/'+pid)
+  if float(p.get('costPerHr') or 999)>.75:
+   stop(pid);raise RuntimeError('Worker price exceeds setup cap; stopped immediately')
+  if p['desiredStatus']=='RUNNING':
+   print('IMAGE_RECOVERY_WORKER',pid,'hourly_rate',p.get('costPerHr'),flush=True);return p
+  time.sleep(5)
+ raise RuntimeError('Recovery GPU did not start; cleanup will stop exact worker')
 def main():
  pod=select();pid=pod['id'];password=pod['env']['JUPYTER_PASSWORD'];print('::add-mask::'+password,flush=True)
  base=f'https://{pid}-8888.proxy.runpod.net';s=requests.Session()
