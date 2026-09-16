@@ -1,6 +1,6 @@
 {
-  "id": "9bn44dd6jq2qsl",
-  "name": "clutch-replay-pham-parody-20260916",
+  "id": "ocqwnswp1h8ld8",
+  "name": "breaking-cap-phx-parody-20260916",
   "desiredStatus": "RUNNING",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
   "networkVolumeId": "9wjb3sa5zm",
@@ -14,7 +14,7 @@
   "portMappings": null,
   "costPerHr": 0.74,
   "adjustedCostPerHr": null,
-  "machineId": "f7aoknqdit15",
+  "machineId": "p01m6nckys1n",
   "gpu": null,
   "machine": {
     "dataCenterId": null,
