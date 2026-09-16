@@ -1,4 +1,4 @@
-name: Clutch Replay Sports Parody
+name: Breaking Cap Sports Parody
 
 on:
   push:
@@ -58,7 +58,7 @@ jobs:
       - name: Install remote client
         run: python3 -m pip install --quiet requests websocket-client
 
-      - name: Render Tommy Pham Sports Parody on RunPod
+      - name: Render Breaking Cap Sports Parody on RunPod
         env:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
           JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
@@ -68,8 +68,8 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: clutch-replay-tommy-pham-parody
-          path: clutch_replay_tommy_pham_parody.mp4
+          name: breaking-cap-phx-parody
+          path: breaking_cap_phx_parody_FINAL.mp4
           if-no-files-found: error
           retention-days: 7
 

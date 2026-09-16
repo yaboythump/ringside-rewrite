@@ -1,16 +1,16 @@
 {
   "action": "render",
-  "pod_id": "9bn44dd6jq2qsl",
+  "pod_id": "ocqwnswp1h8ld8",
   "network_volume_id": "9wjb3sa5zm",
-  "project": "clutch-replay-sports-parodies",
-  "slug": "2026-09-16-tommy-pham-what-more-do-you-want",
-  "driver_url": "https://www.youtube.com/watch?v=ZfCflxkLbMs",
-  "driver_fallback_url": "https://www.youtube.com/watch?v=1I1w4CGQCG8",
-  "driver_start_seconds": 198.7,
-  "driver_duration_seconds": 4.7,
-  "reference_image_url": "https://img.mlbstatic.com/mlb-images/image/upload/ar_16%3A9%2Cg_auto%2Cq_auto%3Agood%2Cw_1024%2Cc_fill%2Cf_jpg/mlb/chc4qtrodmnwgxehmsfo",
-  "headline": "TOMMY PHAM AFTER BEGGING TO PLAY... THEN DOING THIS 😭",
+  "project": "breaking-cap-sports-parodies",
+  "slug": "2026-09-16-phx-postgame-interview-parody",
+  "driver_url": "https://cdn.creativeclaw.co/u/6d1d5f99/videos/7018baa9-306d-49c9-afa8-d94e7b06a4c9.mp4",
+  "driver_start_seconds": 0,
+  "driver_duration_seconds": 20.408345,
+  "reference_image_url": "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/assets/breaking-cap/phx-interview.jpg",
+  "logo_url": "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/assets/breaking-cap/breaking-cap-logo.webp",
+  "headline": "SHE ASKED HIM HOW HE FELT ABOUT THE GAME TONIGHT",
   "parody_label": "AI PARODY",
   "publish_allowed": false,
-  "request_id": "clutch-replay-pham-parody-2026-09-16-01"
+  "request_id": "breaking-cap-phx-parody-2026-09-16-01"
 }
