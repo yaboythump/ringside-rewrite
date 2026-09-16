@@ -1,0 +1,101 @@
+name: Breaking Cap PHX Parody
+
+on:
+  push:
+    paths:
+      - 'breaking-cap-phx-command.json'
+      - 'tools/breaking_cap_phx_render.py'
+      - '.github/workflows/breaking-cap-phx-parody.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve exact RunPod
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' breaking-cap-phx-command.json)
+          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 2; }
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ "$STATUS" == RUNNING ]] || { echo "pod not running: $STATUS"; exit 3; }
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "POD_READY $POD_ID"
+
+      - name: Wait for Jupyter
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 120); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 3
+          done
+          exit 5
+
+      - name: Install remote client
+        run: python3 -m pip install --quiet requests websocket-client
+
+      - name: Render Breaking Cap PHX parody on server
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        run: python3 tools/breaking_cap_phx_render.py
+
+      - name: Verify final locally
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_type,width,height,codec_name -of json breaking_cap_phx_final.mp4
+          test -s breaking_cap_phx_final.mp4
+
+      - name: Upload finished video
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: breaking-cap-phx-final
+          path: breaking_cap_phx_final.mp4
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop exact GPU pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ -n "${POD_ID:-}" ]] || POD_ID=$(jq -r '.pod_id // empty' breaking-cap-phx-command.json)
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          echo "STOPPING_POD $POD_ID"
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          for i in $(seq 1 90); do
+            sleep 2
+            S=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
+            echo "stop attempt=$i status=$S"
+            [[ "$S" != RUNNING ]] && exit 0
+          done
+          exit 1
