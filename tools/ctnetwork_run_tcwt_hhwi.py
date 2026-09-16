@@ -90,7 +90,7 @@ def make_slideshow(images,narration,dest):
         vf=f"scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,zoompan=z='{zoom}':x='{x}':y='{y}':d=1:s=1920x1080:fps=30,format=yuv420p"
         subprocess.run(['ffmpeg','-y','-loop','1','-t',f'{each:.3f}','-i',str(img),'-vf',vf,'-an','-c:v','libx264','-preset','veryfast','-crf','19','-movflags','+faststart',str(clip)],check=True)
         clips.append(clip)
-    concat=cdir/'concat.txt'; concat.write_text(''.join("file '%s'\n"%str(c).replace("'","'\\''") for c in clips))
+    concat=cdir/'concat.txt'; concat.write_text(''.join("file '"+str(c).replace("'","'\\''")+"'"+chr(10) for c in clips))
     subprocess.run(['ffmpeg','-y','-f','concat','-safe','0','-i',str(concat),'-c','copy',str(dest)],check=True)
     print('HHWI_STYLE_VISUAL_MASTER_READY',dest,flush=True)
 
@@ -107,8 +107,8 @@ for i,j in enumerate(jobs,1):
         ref_url=n.get('voice_reference_url'); ref_text=n.get('voice_reference_text'); script=n.get('text') or j.get('script')
         assert ref_url and ref_text and script
         ref=a/('voice-reference'+suffix(ref_url,'.mp3')); download(ref_url,ref)
-        script_file=a/'script.txt'; script_file.write_text(script+'\n')
-        ref_text_file=a/'voice-reference.txt'; ref_text_file.write_text(ref_text+'\n')
+        script_file=a/'script.txt'; script_file.write_text(script+chr(10))
+        ref_text_file=a/'voice-reference.txt'; ref_text_file.write_text(ref_text+chr(10))
         narration=a/'narration-onyx-reference.wav'
         qpy=root/'envs/qwen3-tts/bin/python'; helper=root/'controller/ctnetwork_qwen_narrate.py'
         cmd=[str(qpy),str(helper),'--text-file',str(script_file),'--ref-audio',str(ref),'--ref-text-file',str(ref_text_file),'--output',str(narration),'--language','English']
@@ -119,7 +119,7 @@ for i,j in enumerate(jobs,1):
     for k,url in enumerate(urls,1):
         p=a/f'image_{k:03d}'+suffix(url,'.png'); download(url,p); imgs.append(p)
     visual=a/'hhwi-style-storyboard-master.mp4'; make_slideshow(imgs,pathlib.Path(inputs['narration']),visual); inputs['visual']=str(visual)
-    (out/f'{i:02d}-{jid}.json').write_text(json.dumps(j,indent=2)+'\n')
+    (out/f'{i:02d}-{jid}.json').write_text(json.dumps(j,indent=2)+chr(10))
 PY
 PY=python3; [ -x "$ROOT/envs/core/bin/python" ] && PY="$ROOT/envs/core/bin/python"
 failed=0
@@ -136,7 +136,7 @@ for j in m['jobs']:
  if ap.exists():
   a=json.load(open(ap)); assert a.get('publish_allowed') is False and a.get('approved') is False; s['approval_gate_verified']=True
  summary['jobs'].append(s)
-path=root/'status'/'production_batch_latest.json'; path.write_text(json.dumps(summary,indent=2)+'\n'); print(json.dumps(summary,indent=2))
+path=root/'status'/'production_batch_latest.json'; path.write_text(json.dumps(summary,indent=2)+chr(10)); print(json.dumps(summary,indent=2))
 PY
 test "$failed" -eq 0
 echo PASS > "$ROOT/status/production_batch.status"
