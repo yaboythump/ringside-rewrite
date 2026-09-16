@@ -1,6 +1,6 @@
 {
-  "action": "setup",
-  "target": "ltx",
-  "pod_id": "5ziiyypuiq8pwq",
-  "request_id": "hhwi-ltx-setup-2026-09-12-01"
+  "action": "inspect",
+  "target": "ctnetwork-factory-gpu-v2",
+  "pod_id": "g1zf15egp0w2i3",
+  "request_id": "clutch-replay-sports-parody-inspect-2026-09-16-01"
 }
