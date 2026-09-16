@@ -1,6 +1,8 @@
 {
   "action": "export",
   "pod_id": "y59d4mxapkqgkz",
+  "network_volume_id": "9wjb3sa5zm",
+  "data_center_id": "EU-RO-1",
   "folder": "tcwt-e05-elevator-came-down-empty-20260916",
-  "request_id": "tcwt-e05-approval-export-20260916-01"
+  "request_id": "tcwt-e05-approval-export-20260916-02"
 }
