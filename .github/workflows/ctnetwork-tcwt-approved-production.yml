@@ -91,7 +91,7 @@ jobs:
           done
           exit 8
 
-      - name: Produce approved TCWT master and Shorts
+      - name: Self-heal and certify Qwen narration
         if: steps.gate.outputs.action == 'start'
         env:
           POD_ID: ${{ steps.resolve.outputs.pod_id }}
@@ -100,6 +100,16 @@ jobs:
         run: |
           set -Eeuo pipefail
           python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_qwen_smoke.py
+
+      - name: Produce approved TCWT master and Shorts
+        if: steps.gate.outputs.action == 'start'
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           python3 tools/ctnetwork_run_tcwt_hhwi.py
 
       - name: Stop exact production pod
