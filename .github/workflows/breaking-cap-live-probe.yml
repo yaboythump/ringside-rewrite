@@ -33,21 +33,21 @@ jobs:
           pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'
           s=requests.Session(); r=s.get(base+'/login',timeout=20); r.raise_for_status()
           m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
-          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=20,allow_redirects=False)
+          s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=20,allow_redirects=False)
           xsrf=s.cookies.get('_xsrf'); h={'X-XSRFToken':xsrf} if xsrf else {}
           t=s.post(base+'/api/terminals',headers=h,json={},timeout=20); t.raise_for_status(); name=t.json()['name']
           cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
           ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=20)
-          marker='__PROBE_DONE__'
-          cmd="WORK=/workspace/ctnetwork/breaking-cap/sports-parodies/2026-09-16-phx-postgame-interview-parody; echo '=== GPU ==='; nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader || true; echo '=== WORK ==='; ls -lh $WORK 2>/dev/null || true; echo '=== COMFY LOG ==='; tail -80 $WORK/comfy.log 2>/dev/null || true; echo '=== RUN FILES ==='; for f in $WORK/comfy-run-*.err $WORK/comfy-run-*.json; do [ -f \"$f\" ] && { echo ---$f; tail -25 \"$f\"; }; done; echo '=== RENDERS ==='; find $WORK /workspace/ComfyUI/output -type f -name '*.mp4' -printf '%TY-%Tm-%Td %TH:%TM:%TS %s %p\\n' 2>/dev/null | tail -20; echo __PROBE_DONE__\n"
-          ws.send(json.dumps(['stdin',cmd])); end=time.time()+45
+          marker='__PROBE_FINISHED_8472__'
+          cmd="WORK=/workspace/ctnetwork/breaking-cap/sports-parodies/2026-09-16-phx-postgame-interview-parody; echo '=== GPU ==='; nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader || true; echo '=== WORK ==='; ls -lh $WORK 2>/dev/null || true; echo '=== COMFY LOG ==='; tail -100 $WORK/comfy.log 2>/dev/null || true; echo '=== RUN FILES ==='; for f in $WORK/comfy-run-*.err $WORK/comfy-run-*.json; do [ -f \"$f\" ] && { echo ---$f; tail -30 \"$f\"; }; done; echo '=== RENDERS ==='; find $WORK /workspace/ComfyUI/output -type f -name '*.mp4' -printf '%TY-%Tm-%Td %TH:%TM:%TS %s %p\\n' 2>/dev/null | tail -30; echo __PROBE_FINISHED_8472__\n"
+          ws.send(json.dumps(['stdin',cmd])); end=time.time()+50; alltext=''
           while time.time()<end:
               try: raw=ws.recv()
               except Exception: continue
               try: msg=json.loads(raw)
               except Exception: continue
               if isinstance(msg,list) and len(msg)>=2 and msg[0]=='stdout':
-                  text=str(msg[1]); print(text,end='')
-                  if marker in text: break
+                  text=str(msg[1]); print(text,end=''); alltext += text
+                  if alltext.count(marker) >= 2: break
           ws.close()
           PY
