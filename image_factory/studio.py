@@ -184,7 +184,9 @@ def main():
   reference=upload(m['reference']) if m.get('reference') else None
   raw=execute(flux(m['prompt']+' '+PRESETS[show]['style'],w,h,m.get('seed',42),reference,prefix='ctnetwork/'+show+'/'+job),out/'raw.png')
   final=out/('asset.jpg' if kind=='youtube_thumbnail' else 'asset.png')
-  if kind=='transparent_png':background(raw,final)
+  if kind=='transparent_png':
+   background(raw,final)
+   im=ImageOps.contain(Image.open(final),(1500,1500),Image.Resampling.LANCZOS);canvas=Image.new('RGBA',(1600,1600));canvas.alpha_composite(im,((1600-im.width)//2,(1600-im.height)//2));canvas.save(final)
   else:package(raw,final,show,kind,m.get('headline'))
   save_json(out/'result.json',{'output':str(final),'qc':qc(final,alpha=kind=='transparent_png'),'approval_required':True,'publish_allowed':False})
 if __name__=='__main__':main()
