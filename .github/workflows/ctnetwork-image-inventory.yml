@@ -1,0 +1,19 @@
+name: CTNETWORK Image Factory Inventory
+on:
+  push:
+    paths: ['.github/workflows/ctnetwork-image-inventory.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Read pod and persistent volume inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --max-time 45 -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq '[.[] | {id,name,desiredStatus,imageName,networkVolumeId,volumeMountPath,volumeInGb,containerDiskInGb,costPerHr,ports,lastStartedAt,gpu,machineId}]'
