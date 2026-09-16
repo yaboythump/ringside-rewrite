@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 import time
 import requests
 import ringside_s2e01_server_assets as base
@@ -46,6 +47,30 @@ def resolve_or_create_pod():
     raise RuntimeError(f"Unable to resolve or create production pod: {last!r}")
 
 
+def login_retry(base_url, password):
+    last = None
+    for attempt in range(1, 16):
+        try:
+            s = requests.Session()
+            r = s.get(base_url + "/login", timeout=30)
+            if r.status_code != 200:
+                raise RuntimeError(f"login page {r.status_code}")
+            m = re.search(r'name="_xsrf" value="([^"]+)"', r.text)
+            if not m:
+                raise RuntimeError("no xsrf")
+            rr = s.post(base_url + "/login", data={"_xsrf": m.group(1), "password": password, "next": "/"}, timeout=30, allow_redirects=False)
+            if rr.status_code not in (200, 302, 303):
+                raise RuntimeError(f"login {rr.status_code}")
+            cx = s.cookies.get("_xsrf")
+            print("JUPYTER_LOGIN_OK", attempt, rr.status_code, flush=True)
+            return s, ({"X-XSRFToken": cx} if cx else {})
+        except Exception as exc:
+            last = exc
+            print("JUPYTER_LOGIN_RETRY", attempt, repr(exc), flush=True)
+            time.sleep(min(12, attempt * 2))
+    raise RuntimeError(f"Jupyter login never stabilized: {last!r}")
+
+
 def terminal_run_retry(base_url, pod_id, session, headers, shell, timeout=10800):
     stale_checks = [
         'test "$(cat "$ROOT/status/production_ready.status" 2>/dev/null || true)" = PASS',
@@ -67,9 +92,9 @@ ls -la /workspace/ctnetwork-local/envs 2>/dev/null || true
 '''
     shell = bootstrap + "\nset -x\n" + shell
     last = None
-    for attempt in range(1, 5):
+    for attempt in range(1, 7):
         try:
-            print(f"TERMINAL_CONNECT_ATTEMPT {attempt}/4", flush=True)
+            print(f"TERMINAL_CONNECT_ATTEMPT {attempt}/6", flush=True)
             return ORIGINAL_TERMINAL_RUN(base_url, pod_id, session, headers, shell, timeout)
         except Exception as exc:
             last = exc
@@ -81,5 +106,6 @@ ls -la /workspace/ctnetwork-local/envs 2>/dev/null || true
 
 
 base.create_pod = resolve_or_create_pod
+base.login = login_retry
 base.terminal_run = terminal_run_retry
 base.main()
