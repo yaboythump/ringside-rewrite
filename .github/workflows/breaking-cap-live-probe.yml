@@ -1,0 +1,44 @@
+name: Breaking Cap Live Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/breaking-cap-live-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tail current Breaking Cap render log
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' breaking-cap-phx-command.json)
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          echo "::add-mask::$JPASS"
+          python3 -m pip install --quiet requests
+          export POD_ID JPASS
+          python3 - <<'PY'
+          import os,re,requests
+          pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'
+          s=requests.Session(); r=s.get(base+'/login',timeout=20); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=20).raise_for_status()
+          r=s.get(base+'/files/workspace/bc_phx.log',timeout=30)
+          if r.status_code==200:
+              print('\n'.join(r.text.splitlines()[-120:]))
+          else:
+              print('log status',r.status_code)
+          rc=s.get(base+'/files/workspace/bc_phx.rc',timeout=10)
+          print('RC_FILE', rc.text.strip() if rc.status_code==200 else 'not-ready')
+          PY
