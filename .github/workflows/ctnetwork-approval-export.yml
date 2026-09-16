@@ -70,42 +70,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           python3 -m pip install --quiet requests websocket-client
-          python3 - <<'PY'
-          import json, os, re, time
-          from pathlib import Path
-          import requests, websocket
-
-          pod=os.environ['POD_ID']
-          password=Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
-          folder=json.load(open('ctnetwork-export-command.json'))['folder']
-          base=f'https://{pod}-8888.proxy.runpod.net'
-          s=requests.Session()
-          r=s.get(base+'/login',timeout=20); r.raise_for_status()
-          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
-          if not m: raise RuntimeError('xsrf missing')
-          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=20,allow_redirects=False)
-          if rr.status_code not in (200,302,303): raise RuntimeError(f'login {rr.status_code}')
-          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
-          sr=s.get(base+'/api/status',headers=headers,timeout=20); sr.raise_for_status()
-          tr=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); tr.raise_for_status()
-          name=tr.json()['name']
-          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
-          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
-          marker='__CTN_APPROVAL_HTTP_READY__'
-          target=f'/workspace/ctnetwork-local/ready_for_approval/{folder}'
-          cmd=f"test -f '{target}/master.mp4' && cd '{target}' && nohup python3 -m http.server 8000 --bind 0.0.0.0 >/tmp/ctn-approval-http.log 2>&1 & echo {marker}\n"
-          ws.send(json.dumps(['stdin',cmd]))
-          deadline=time.time()+60; seen=False
-          while time.time()<deadline:
-              msg=ws.recv()
-              try: data=json.loads(msg)
-              except Exception: continue
-              if isinstance(data,list) and len(data)>=2 and data[0]=='stdout' and marker in data[1]:
-                  seen=True; break
-          ws.close()
-          if not seen: raise RuntimeError('approval HTTP server did not start')
-          print('APPROVAL_HTTP_SERVER_STARTED',target,flush=True)
-          PY
+          python3 tools/ctnetwork_export_approval_http.py
           for i in $(seq 1 60); do
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://${POD_ID}-8000.proxy.runpod.net/master.mp4" || true)
             echo "approval-http attempt=$i http=$code"
