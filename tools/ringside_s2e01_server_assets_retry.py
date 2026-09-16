@@ -49,6 +49,14 @@ def resolve_or_create_pod():
 
 
 def terminal_run_retry(base_url, pod_id, session, headers, shell, timeout=10800):
+    bootstrap = r'''set -Eeuo pipefail
+if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -y
+  apt-get install -y --no-install-recommends ffmpeg ca-certificates curl
+fi
+'''
+    shell = bootstrap + "\n" + shell
     last = None
     for attempt in range(1, 9):
         try:
