@@ -1,0 +1,99 @@
+name: Clutch Replay Rescue 20260916
+
+on:
+  push:
+    paths:
+      - '.github/workflows/clutch-replay-rescue-20260916.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  rescue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Pull finished MP4 directly from Jupyter
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
+          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 2; }
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ "$STATUS" == RUNNING ]] || { echo "pod not running: $STATUS"; exit 3; }
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
+          echo "::add-mask::$JPASS"
+          export POD_ID JPASS
+          python3 -m pip install --quiet requests
+          python3 - <<'PY'
+          import base64, os, re, requests, sys
+          pod=os.environ['POD_ID']; password=os.environ['JPASS']
+          base=f'https://{pod}-8888.proxy.runpod.net'
+          s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise RuntimeError('xsrf token missing')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False)
+          if rr.status_code not in (200,302,303): raise RuntimeError(f'login failed {rr.status_code}')
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          candidates=[
+            'workspace/clutch_replay_tommy_pham_parody.mp4',
+            'clutch_replay_tommy_pham_parody.mp4',
+          ]
+          last=[]
+          for p in candidates:
+            u=base+'/api/contents/'+p
+            q=s.get(u,headers=headers,params={'content':'1','format':'base64'},timeout=60)
+            last.append((p,q.status_code,q.text[:200]))
+            if q.status_code!=200: continue
+            j=q.json(); data=j.get('content'); fmt=j.get('format')
+            if fmt=='base64' and data:
+              b=base64.b64decode(data)
+              open('clutch_replay_tommy_pham_parody.mp4','wb').write(b)
+              print('DOWNLOADED',p,len(b))
+              if len(b) < 10000: raise RuntimeError('downloaded video too small')
+              sys.exit(0)
+          raise RuntimeError('video not found via contents API: '+repr(last))
+          PY
+          ls -lh clutch_replay_tommy_pham_parody.mp4
+          python3 - <<'PY'
+          import os
+          p='clutch_replay_tommy_pham_parody.mp4'
+          assert os.path.getsize(p) > 10000
+          print('VIDEO_READY_BYTES', os.path.getsize(p))
+          PY
+
+      - name: Upload rescued parody artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clutch-replay-tommy-pham-parody-rescued
+          path: clutch_replay_tommy_pham_parody.mp4
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop exact parody GPU pod
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
+          [[ -n "$POD_ID" ]] || exit 0
+          echo "STOPPING_POD $POD_ID"
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          for i in $(seq 1 60); do
+            sleep 2
+            S=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
+            echo "stop attempt=$i status=$S"
+            [[ "$S" != RUNNING ]] && exit 0
+          done
+          exit 1
