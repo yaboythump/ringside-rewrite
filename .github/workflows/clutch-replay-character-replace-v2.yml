@@ -1,0 +1,174 @@
+name: Clutch Replay Character Replace V2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/clutch-replay-character-replace-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Provision temporary GPU on persistent CTNETWORK volume
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME="clutch-replay-character-replace-v2-${GITHUB_RUN_ID}"
+          JPASS=$(openssl rand -hex 24)
+          echo "::add-mask::$JPASS"
+          GPU_TYPES='["NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4000 Blackwell","NVIDIA L4","NVIDIA RTX A4500"]'
+          BODY=$(jq -nc --arg name "$NAME" --arg jp "$JPASS" --argjson g "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$g,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:["EU-RO-1"],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:"9wjb3sa5zm",volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+          HTTP=$(curl -sS -o /tmp/pod.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}" -H 'Content-Type: application/json' --data "$BODY")
+          echo "create http=$HTTP"
+          cat /tmp/pod.json | jq '{id,name,desiredStatus,costPerHr,gpu}' || true
+          [[ "$HTTP" =~ ^2 ]] || exit 3
+          POD_ID=$(jq -r '.id' /tmp/pod.json)
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "jpass=$JPASS" >> "$GITHUB_OUTPUT"
+          for i in $(seq 1 120); do
+            P=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            S=$(echo "$P" | jq -r '.desiredStatus // "unknown"')
+            echo "pod attempt=$i status=$S"
+            [[ "$S" == RUNNING ]] && exit 0
+            [[ "$S" == EXITED ]] && { echo "$P"; exit 4; }
+            sleep 5
+          done
+          exit 5
+
+      - name: Wait for Jupyter
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        run: |
+          for i in $(seq 1 120); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 3
+          done
+          exit 6
+
+      - name: Install local runner deps
+        run: python3 -m pip install --quiet requests websocket-client
+
+      - name: Run Wan2.2 MIX character replacement and retrieve final
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JPASS: ${{ steps.pod.outputs.jpass }}
+        shell: bash
+        run: |
+          cat > /tmp/run_mix.py <<'PY'
+          import os,re,json,time,base64,requests,websocket,sys
+          pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status(); m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False); assert r.status_code in (200,302,303)
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          shell=r'''set -Eeuo pipefail
+          WORK=/workspace/ctnetwork/clutch-replay/sports-parodies/2026-09-16-tommy-pham-what-more-do-you-want
+          COMFY=/workspace/ComfyUI
+          VENV=/workspace/ctnetwork-local/envs/wan-animate
+          PY=$VENV/bin/python
+          test -f "$WORK/driver_16fps.mp4"
+          test -f "$WORK/driver_audio.m4a"
+          test -f "$WORK/tommy_pham.jpg"
+          test -f "$COMFY/models/diffusion_models/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors"
+          cp "$WORK/driver_16fps.mp4" "$COMFY/input/clutch_driver_mix.mp4"
+          cp "$WORK/tommy_pham.jpg" "$COMFY/input/tommy_pham_mix.jpg"
+          WF="$WORK/wan22_mix_ui.json"
+          curl -L --fail --retry 4 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/video_wan2_2_14B_animate.json' -o "$WF"
+          "$PY" - "$WF" <<'PATCH'
+          import json,sys
+          p=sys.argv[1]; w=json.load(open(p))
+          for n in w.get('nodes',[]):
+              if n.get('id')==145:
+                  n['widgets_values'][0]='clutch_driver_mix.mp4'
+              elif n.get('id')==10:
+                  n['widgets_values'][0]='tommy_pham_mix.jpg'
+              elif n.get('id')==21:
+                  n['widgets_values'][0]='Tommy Pham, Chicago White Sox outfielder, same recognizable face and identity as the reference image, emotional animated rant, realistic skin, realistic eyes, natural facial proportions, preserve original room, camera framing and body performance.'
+              elif n.get('id')==19:
+                  n['widgets_values'][0]='clutch_replay_v2/tommy_pham_mix'
+                  n['mode']=0
+          # IMPORTANT: leave background_video + character_mask connected. That is MIX / replacement mode.
+          json.dump(w,open(p,'w'),ensure_ascii=False)
+          PATCH
+          START=$(date +%s)
+          pkill -f "$COMFY/main.py" >/dev/null 2>&1 || true
+          nohup "$PY" "$COMFY/main.py" --listen 127.0.0.1 --port 8188 --lowvram > "$WORK/comfy_mix.log" 2>&1 &
+          for i in $(seq 1 120); do curl -fsS --max-time 3 http://127.0.0.1:8188/system_stats >/dev/null 2>&1 && break; sleep 2; done
+          cd "$COMFY"
+          export COMFYUI_HOST=http://127.0.0.1:8188
+          "$VENV/bin/comfy" --json run --workflow "$WF" --wait --timeout 3600 > "$WORK/comfy_mix_run.json" 2> "$WORK/comfy_mix_run.err" || { cat "$WORK/comfy_mix_run.err"; tail -220 "$WORK/comfy_mix.log"; exit 91; }
+          GEN=$(find "$COMFY/output/clutch_replay_v2" "$COMFY/output" -type f \( -name '*.mp4' -o -name '*.webm' \) -newermt "@$START" -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
+          [ -n "$GEN" ] && [ -s "$GEN" ] || { echo NO_NEW_GENERATED_VIDEO; tail -220 "$WORK/comfy_mix.log"; exit 92; }
+          echo "GENERATED_MIX=$GEN"
+          FINAL=/workspace/clutch_replay_tommy_pham_parody_v2.mp4
+          FONT=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+          ffmpeg -y -i "$GEN" -i "$WORK/driver_audio.m4a" -filter_complex "[0:v]split=2[bg][fg];[bg]scale=576:1024:force_original_aspect_ratio=increase,crop=576:1024,gblur=sigma=28[blur];[fg]scale=576:760:force_original_aspect_ratio=decrease[front];[blur][front]overlay=(W-w)/2:210[tmp];[tmp]drawbox=x=0:y=0:w=576:h=190:color=black@0.90:t=fill,drawtext=fontfile=$FONT:text='TOMMY PHAM AFTER GETTING ACTIVATED':x=(w-text_w)/2:y=35:fontsize=27:fontcolor=white:borderw=2:bordercolor=black,drawtext=fontfile=$FONT:text='THEN HITTING A 3-RUN BOMB':x=(w-text_w)/2:y=82:fontsize=30:fontcolor=white:borderw=2:bordercolor=black,drawtext=fontfile=$FONT:text='AI PARODY':x=18:y=145:fontsize=20:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=8[v]" -map '[v]' -map 1:a:0 -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k -shortest -movflags +faststart "$FINAL"
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_type,width,height -of json "$FINAL" > /workspace/clutch_replay_tommy_pham_parody_v2_qc.json
+          cat /workspace/clutch_replay_tommy_pham_parody_v2_qc.json
+          test -s "$FINAL"
+          echo MIX_FINAL_READY
+          '''
+          marker='__MIX_DONE_9f6d__'; enc=base64.b64encode(shell.encode()).decode()
+          ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d >/tmp/run_mix.sh; bash /tmp/run_mix.sh; rc=$?; echo {marker}:$rc\n']))
+          seen=''; deadline=time.time()+7200; rc=None
+          while time.time()<deadline:
+              msg=ws.recv()
+              try:d=json.loads(msg)
+              except:continue
+              if isinstance(d,list) and len(d)>1 and d[0]=='stdout':
+                  t=d[1]; seen+=t; print(t,end='',flush=True)
+                  m=re.search(re.escape(marker)+r':(\d+)',seen)
+                  if m: rc=int(m.group(1)); break
+          ws.close()
+          if rc is None: raise SystemExit('remote timeout')
+          if rc != 0: raise SystemExit(f'remote rc={rc}')
+          path='/files/workspace/clutch_replay_tommy_pham_parody_v2.mp4'
+          rr=s.get(base+path,headers=headers,timeout=240,stream=True); rr.raise_for_status()
+          with open('clutch_replay_tommy_pham_parody_v2.mp4','wb') as f:
+              for c in rr.iter_content(1024*1024):
+                  if c:f.write(c)
+          print('LOCAL_BYTES',os.path.getsize('clutch_replay_tommy_pham_parody_v2.mp4'))
+          PY
+          python3 /tmp/run_mix.py
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_type,width,height -of json clutch_replay_tommy_pham_parody_v2.mp4
+
+      - name: Upload corrected parody
+        uses: actions/upload-artifact@v4
+        with:
+          name: clutch-replay-tommy-pham-parody-v2
+          path: clutch_replay_tommy_pham_parody_v2.mp4
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop temporary GPU
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          echo "stopping $POD_ID"
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          for i in $(seq 1 60); do
+            sleep 2
+            S=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
+            echo "stop attempt=$i status=$S"
+            [[ "$S" != RUNNING ]] && exit 0
+          done
+          exit 1
