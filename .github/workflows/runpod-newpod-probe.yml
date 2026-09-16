@@ -12,23 +12,53 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
-      - name: Probe active HHWI one-shot pod without modifying it
+      - uses: actions/checkout@v4
+      - name: Probe active Clutch Replay parody pod
         shell: bash
         run: |
           set -euo pipefail
-          # Read-only stage probe for the active HHWI rerender.
-          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          POD_ID=$(printf '%s' "$PODS" | jq -r '.[] | select(.name=="hhwi-memphis-bleek-shot01" and .desiredStatus=="RUNNING") | .id' | head -n1)
-          echo "pod_id=${POD_ID:-none}"
-          printf '%s' "$PODS" | jq '[.[] | select(.name=="hhwi-memphis-bleek-shot01") | {id,name,desiredStatus,imageName,templateId,costPerHr,lastStartedAt,ports}]'
-          [[ -n "$POD_ID" ]] || exit 0
-          BASE="https://${POD_ID}-8188.proxy.runpod.net"
-          echo 'system_stats:'
-          curl -sS --max-time 20 "$BASE/system_stats" | jq '{version:.system.comfyui_version,torch:.system.pytorch_version,device:.devices[0].name}' || true
-          echo 'manager_queue:'
-          curl -sS --max-time 20 "$BASE/manager/queue/status" | jq . || true
-          echo 'comfy_queue:'
-          curl -sS --max-time 20 "$BASE/queue" | jq . || true
+          POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          COST=$(printf '%s' "$POD" | jq -r '.costPerHr // .adjustedCostPerHr // "unknown"')
+          echo "pod_id=$POD_ID status=$STATUS cost=$COST"
+          [[ "$STATUS" == RUNNING ]] || exit 0
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo 'missing JUPYTER_PASSWORD'; exit 1; }
+          echo "::add-mask::$JPASS"
+          export POD_ID JPASS
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import json, os, re, time
+          import requests, websocket
+          pod=os.environ['POD_ID']; password=os.environ['JPASS']
+          base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False)
+          assert r.status_code in (200,302,303)
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
+          cmd="echo '=== CLUTCH PROBE ==='; date -u; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader || true; echo '--- processes ---'; ps -eo pid,etimes,pcpu,pmem,cmd --sort=-pcpu | head -35; echo '--- disk ---'; df -h /workspace / || true; echo '--- models ---'; du -sh /workspace/ComfyUI/models/diffusion_models /workspace/ComfyUI/models/loras 2>/dev/null || true; echo '--- parody files ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -maxdepth 3 -type f -printf '%s %p\\n' 2>/dev/null | sort -nr | head -80; echo '--- logs ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -name comfy.log -type f -exec tail -120 {} \\; 2>/dev/null || true; echo '--- active ---'; pgrep -af 'curl|yt-dlp|comfy|python|git' || true; echo __PROBE_DONE__"
+          ws.send(json.dumps(['stdin',cmd+'\n']))
+          deadline=time.time()+240
+          try:
+            while time.time()<deadline:
+              msg=ws.recv()
+              if not msg: continue
+              try: data=json.loads(msg)
+              except Exception: continue
+              if isinstance(data,list) and len(data)>1 and data[0]=='stdout':
+                text=data[1]; print(text,end='',flush=True)
+                if '__PROBE_DONE__' in text: break
+          finally:
+            ws.close()
+            try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+            except Exception: pass
+          PY
