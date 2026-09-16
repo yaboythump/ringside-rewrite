@@ -27,36 +27,23 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          PREFERRED=$(jq -r '.pod_id // empty' ctnetwork-export-command.json)
           VOLUME=$(jq -r '.network_volume_id // "9wjb3sa5zm"' ctnetwork-export-command.json)
           DC=$(jq -r '.data_center_id // "EU-RO-1"' ctnetwork-export-command.json)
           AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          getpod(){ curl -sS "https://rest.runpod.io/v1/pods/$1" "${AUTH[@]}"; }
-          wait_running(){ local id="$1" max="${2:-20}"; for i in $(seq 1 "$max"); do P=$(getpod "$id" 2>/dev/null || true); S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown); echo "pod=$id attempt=$i/$max status=$S"; [[ "$S" == RUNNING ]] && { printf '%s' "$P" >/tmp/ctn-export-pod.json; return 0; }; sleep 5; done; return 1; }
-          POD_ID=""
-          if [[ -n "$PREFERRED" ]]; then
-            P=$(getpod "$PREFERRED" 2>/dev/null || true)
-            PV=$(printf '%s' "$P" | jq -r '.networkVolumeId // .networkVolume.id // empty' 2>/dev/null || true)
-            if [[ "$PV" == "$VOLUME" ]]; then
-              S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown)
-              [[ "$S" == RUNNING ]] || curl -sS -X POST "https://rest.runpod.io/v1/pods/$PREFERRED/start" "${AUTH[@]}" >/dev/null || true
-              wait_running "$PREFERRED" 12 && POD_ID="$PREFERRED" || true
-            fi
-          fi
-          if [[ -z "$POD_ID" ]]; then
-            JPASS=$(openssl rand -hex 24); echo "::add-mask::$JPASS"
-            GPU_TYPES='["NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 6000 Blackwell Server Edition","NVIDIA A100 80GB PCIe"]'
-            BODY=$(jq -nc --arg name "ctnetwork-approval-export-$(date +%s)" --arg dc "$DC" --arg vol "$VOLUME" --arg jp "$JPASS" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
-            HTTP=$(curl -sS -o /tmp/ctn-export-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods "${AUTH[@]}" -H 'Content-Type: application/json' --data "$BODY" || true)
-            [[ "$HTTP" =~ ^2 ]] || { cat /tmp/ctn-export-create.json; exit 4; }
-            POD_ID=$(jq -r '.id // empty' /tmp/ctn-export-create.json); [[ -n "$POD_ID" ]] || exit 5
-            wait_running "$POD_ID" 90 || exit 6
-          else
-            P=$(cat /tmp/ctn-export-pod.json)
-            JPASS=$(printf '%s' "$P" | jq -r '.env.JUPYTER_PASSWORD // empty')
-            [[ -n "$JPASS" ]] || exit 7
-            echo "::add-mask::$JPASS"
-          fi
+          JPASS=$(openssl rand -hex 24); echo "::add-mask::$JPASS"
+          GPU_TYPES='["NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 6000 Blackwell Server Edition","NVIDIA A100 80GB PCIe"]'
+          BODY=$(jq -nc --arg name "ctnetwork-approval-export-$(date +%s)" --arg dc "$DC" --arg vol "$VOLUME" --arg jp "$JPASS" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","8000/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+          HTTP=$(curl -sS -o /tmp/ctn-export-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods "${AUTH[@]}" -H 'Content-Type: application/json' --data "$BODY" || true)
+          [[ "$HTTP" =~ ^2 ]] || { cat /tmp/ctn-export-create.json; exit 4; }
+          POD_ID=$(jq -r '.id // empty' /tmp/ctn-export-create.json); [[ -n "$POD_ID" ]] || exit 5
+          for i in $(seq 1 90); do
+            P=$(curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}" 2>/dev/null || true)
+            S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown)
+            echo "pod=$POD_ID attempt=$i/90 status=$S"
+            [[ "$S" == RUNNING ]] && break
+            sleep 5
+          done
+          [[ "$S" == RUNNING ]] || exit 6
           printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
           echo "APPROVAL_VOLUME_READY pod=$POD_ID volume=$VOLUME"
@@ -75,23 +62,22 @@ jobs:
           done
           exit 8
 
-      - name: Download ready-for-approval files
+      - name: Serve approval folder
         env:
           POD_ID: ${{ steps.pod.outputs.pod_id }}
           JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
         shell: bash
         run: |
           set -Eeuo pipefail
-          python3 -m pip install --quiet requests
+          python3 -m pip install --quiet requests websocket-client
           python3 - <<'PY'
-          import json, os, re
+          import json, os, re, time
           from pathlib import Path
-          import requests
+          import requests, websocket
 
           pod=os.environ['POD_ID']
           password=Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
-          cfg=json.load(open('ctnetwork-export-command.json'))
-          folder=cfg['folder']
+          folder=json.load(open('ctnetwork-export-command.json'))['folder']
           base=f'https://{pod}-8888.proxy.runpod.net'
           s=requests.Session()
           r=s.get(base+'/login',timeout=20); r.raise_for_status()
@@ -99,23 +85,48 @@ jobs:
           if not m: raise RuntimeError('xsrf missing')
           rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=20,allow_redirects=False)
           if rr.status_code not in (200,302,303): raise RuntimeError(f'login {rr.status_code}')
-          out=Path('approval-export'); out.mkdir(exist_ok=True)
-          names=['master.mp4','short_01_9x16.mp4','short_02_9x16.mp4','short_03_9x16.mp4','thumbnail.jpg','qc.json','approval.json']
-          prefixes=[f'/files/workspace/ctnetwork-local/ready_for_approval/{folder}/',f'/files/ctnetwork-local/ready_for_approval/{folder}/']
-          for name in names:
-              ok=False
-              for prefix in prefixes:
-                  resp=s.get(base+prefix+name,timeout=180,stream=True)
-                  if resp.status_code==200:
-                      dest=out/name
-                      with dest.open('wb') as f:
-                          for chunk in resp.iter_content(4*1024*1024):
-                              if chunk: f.write(chunk)
-                      if dest.stat().st_size>0:
-                          print('EXPORTED',name,dest.stat().st_size,flush=True)
-                          ok=True; break
-              if not ok: raise RuntimeError(f'could not export {name}')
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          sr=s.get(base+'/api/status',headers=headers,timeout=20); sr.raise_for_status()
+          tr=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); tr.raise_for_status()
+          name=tr.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          marker='__CTN_APPROVAL_HTTP_READY__'
+          target=f'/workspace/ctnetwork-local/ready_for_approval/{folder}'
+          cmd=f"test -f '{target}/master.mp4' && cd '{target}' && nohup python3 -m http.server 8000 --bind 0.0.0.0 >/tmp/ctn-approval-http.log 2>&1 & echo {marker}\n"
+          ws.send(json.dumps(['stdin',cmd]))
+          deadline=time.time()+60; seen=False
+          while time.time()<deadline:
+              msg=ws.recv()
+              try: data=json.loads(msg)
+              except Exception: continue
+              if isinstance(data,list) and len(data)>=2 and data[0]=='stdout' and marker in data[1]:
+                  seen=True; break
+          ws.close()
+          if not seen: raise RuntimeError('approval HTTP server did not start')
+          print('APPROVAL_HTTP_SERVER_STARTED',target,flush=True)
           PY
+          for i in $(seq 1 60); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://${POD_ID}-8000.proxy.runpod.net/master.mp4" || true)
+            echo "approval-http attempt=$i http=$code"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 3
+          done
+          exit 9
+
+      - name: Download ready-for-approval files
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p approval-export
+          BASE="https://${POD_ID}-8000.proxy.runpod.net"
+          for name in master.mp4 short_01_9x16.mp4 short_02_9x16.mp4 short_03_9x16.mp4 thumbnail.jpg qc.json approval.json; do
+            curl -fL --retry 4 --retry-delay 2 --max-time 300 "$BASE/$name" -o "approval-export/$name"
+            test -s "approval-export/$name"
+            echo "EXPORTED $name $(stat -c%s "approval-export/$name")"
+          done
 
       - name: Upload master
         uses: actions/upload-artifact@v4
