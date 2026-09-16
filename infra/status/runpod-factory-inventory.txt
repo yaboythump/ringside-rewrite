@@ -32,7 +32,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": "Low"
+        "stockStatus": ""
       }
     ]
   },
@@ -56,7 +56,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": "Low"
+        "stockStatus": ""
       }
     ]
   }
@@ -76,17 +76,17 @@
       {
         "displayName": "RTX 4090",
         "gpuId": "NVIDIA GeForce RTX 4090",
-        "stockStatus": "Medium"
+        "stockStatus": "Low"
       },
       {
         "displayName": "RTX PRO 4500",
         "gpuId": "NVIDIA RTX PRO 4500 Blackwell",
-        "stockStatus": "High"
+        "stockStatus": "Low"
       },
       {
         "displayName": "A100 PCIe",
         "gpuId": "NVIDIA A100 80GB PCIe",
-        "stockStatus": "Low"
+        "stockStatus": ""
       },
       {
         "displayName": "RTX PRO 6000",
@@ -106,17 +106,17 @@
       {
         "displayName": "RTX A4500",
         "gpuId": "NVIDIA RTX A4500",
-        "stockStatus": "Low"
+        "stockStatus": ""
       },
       {
         "displayName": "RTX 4000 Ada",
         "gpuId": "NVIDIA RTX 4000 Ada Generation",
-        "stockStatus": "Low"
+        "stockStatus": ""
       },
       {
         "displayName": "RTX 2000 Ada",
         "gpuId": "NVIDIA RTX 2000 Ada Generation",
-        "stockStatus": "Low"
+        "stockStatus": ""
       },
       {
         "displayName": "B200",
@@ -131,7 +131,7 @@
       {
         "displayName": "A100 SXM",
         "gpuId": "NVIDIA A100-SXM4-80GB",
-        "stockStatus": "Low"
+        "stockStatus": ""
       },
       {
         "displayName": "MI300X",
@@ -171,23 +171,11 @@
     ]
   },
   {
-    "gpuId": "AMD Instinct MI350 OAM",
-    "displayName": "AMD Instinct MI350 OAM",
-    "memoryInGb": 294,
-    "available": false,
-    "stockStatus": null,
-    "secureCloud": false,
-    "securePricePerHr": null,
-    "communityCloud": false,
-    "communityPricePerHr": null,
-    "dataCenterAvailability": null
-  },
-  {
     "gpuId": "NVIDIA A100 80GB PCIe",
     "displayName": "A100 PCIe",
     "memoryInGb": 80,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 1.59,
     "communityCloud": true,
@@ -195,11 +183,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "CA-MTL-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-KS-2",
@@ -236,11 +224,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-CA-2",
@@ -269,7 +257,7 @@
     "displayName": "A40",
     "memoryInGb": 48,
     "available": true,
-    "stockStatus": "Medium",
+    "stockStatus": "Low",
     "secureCloud": true,
     "securePricePerHr": 0.49,
     "communityCloud": false,
@@ -281,7 +269,7 @@
       },
       {
         "dataCenterId": "EU-SE-1",
-        "stockStatus": "Medium"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-MO-1",
@@ -293,8 +281,8 @@
     "gpuId": "NVIDIA B200",
     "displayName": "B200",
     "memoryInGb": 180,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 6.79,
     "communityCloud": true,
@@ -310,7 +298,7 @@
       },
       {
         "dataCenterId": "US-NC-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NE-1",
@@ -326,8 +314,8 @@
     "gpuId": "NVIDIA B300 SXM6 AC",
     "displayName": "B300",
     "memoryInGb": 288,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 7.89,
     "communityCloud": true,
@@ -335,15 +323,15 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-WA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -351,8 +339,8 @@
     "gpuId": "NVIDIA GeForce RTX 3090",
     "displayName": "RTX 3090",
     "memoryInGb": 24,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 0.5,
     "communityCloud": true,
@@ -360,11 +348,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-CZ-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -385,7 +373,7 @@
     "displayName": "RTX 4090",
     "memoryInGb": 24,
     "available": true,
-    "stockStatus": "Medium",
+    "stockStatus": "Low",
     "secureCloud": true,
     "securePricePerHr": 0.74,
     "communityCloud": true,
@@ -401,11 +389,11 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Medium"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -421,7 +409,7 @@
       },
       {
         "dataCenterId": "US-IL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-1",
@@ -454,7 +442,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -462,7 +450,7 @@
       },
       {
         "dataCenterId": "EUR-NO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -483,15 +471,15 @@
       },
       {
         "dataCenterId": "AP-IN-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "AP-JP-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "CA-MTL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-FR-1",
@@ -499,7 +487,7 @@
       },
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-3",
@@ -515,7 +503,7 @@
       },
       {
         "dataCenterId": "US-GA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-KS-2",
@@ -523,7 +511,7 @@
       },
       {
         "dataCenterId": "US-MO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NE-1",
@@ -535,8 +523,8 @@
     "gpuId": "NVIDIA H100 NVL",
     "displayName": "H100 NVL",
     "memoryInGb": 94,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 3.19,
     "communityCloud": true,
@@ -544,15 +532,15 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-GA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -560,8 +548,8 @@
     "gpuId": "NVIDIA H100 PCIe",
     "displayName": "H100 PCIe",
     "memoryInGb": 80,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 2.89,
     "communityCloud": true,
@@ -569,7 +557,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -586,19 +574,19 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "AP-JP-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "CA-MTL-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "CA-MTL-4",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-FR-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -610,7 +598,7 @@
       },
       {
         "dataCenterId": "EUR-IS-5",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-CA-2",
@@ -618,15 +606,15 @@
       },
       {
         "dataCenterId": "US-CO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-GA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-PA-1",
@@ -668,7 +656,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -676,7 +664,7 @@
       },
       {
         "dataCenterId": "US-GA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-MO-2",
@@ -688,8 +676,8 @@
     "gpuId": "NVIDIA L40",
     "displayName": "L40",
     "memoryInGb": 48,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 0.82,
     "communityCloud": true,
@@ -701,7 +689,7 @@
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -709,8 +697,8 @@
     "gpuId": "NVIDIA L40S",
     "displayName": "L40S",
     "memoryInGb": 48,
-    "available": true,
-    "stockStatus": "Low",
+    "available": false,
+    "stockStatus": null,
     "secureCloud": true,
     "securePricePerHr": 1.09,
     "communityCloud": true,
@@ -718,35 +706,35 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "OC-AU-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-IL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-MO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-TX-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-TX-4",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -775,7 +763,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-IL-1",
@@ -879,7 +867,7 @@
     "displayName": "RTX PRO 4500",
     "memoryInGb": 32,
     "available": true,
-    "stockStatus": "High",
+    "stockStatus": "Low",
     "secureCloud": true,
     "securePricePerHr": 0.72,
     "communityCloud": false,
@@ -887,11 +875,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "High"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -941,7 +929,7 @@
     "displayName": "RTX PRO 6000",
     "memoryInGb": 96,
     "available": true,
-    "stockStatus": "Medium",
+    "stockStatus": "Low",
     "secureCloud": true,
     "securePricePerHr": 2.09,
     "communityCloud": true,
@@ -949,15 +937,15 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "CA-MTL-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-CZ-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-RO-1",
@@ -965,7 +953,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Medium"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -977,15 +965,15 @@
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-MO-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-2",
@@ -997,7 +985,7 @@
       },
       {
         "dataCenterId": "US-PA-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -1051,7 +1039,7 @@
       },
       {
         "dataCenterId": "US-PA-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-WA-1",
@@ -1102,7 +1090,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -1110,7 +1098,7 @@
       },
       {
         "dataCenterId": "EUR-NO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ],
     "displayName": "RTX 5090",
@@ -1144,6 +1132,370 @@
 ]
 === PODS ===
 [
+  {
+    "id": "ugim57hthcqnyk",
+    "name": "ctnetwork-approval-export-1789559326",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "1pp8ujwg5qkn",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "nuajge27bftx3p",
+    "name": "ctnetwork-approval-export-1789559164",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "7bct84swagqh",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "9u6cw3ykkiqd85",
+    "name": "ringside-s2e01-1789559128",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "2hua2sdwuqgw",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "g9ef8mgchbwnbt",
+    "name": "ctnetwork-approval-export-1789559006",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "rltdur41349h",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "lz0ns42dzd3igk",
+    "name": "ringside-s2e01-1789558990",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "oa3g39i4ut4k",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "b8gl0rjwu45b4b",
+    "name": "ringside-s2e01-1789558913",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "kmlmsuledyhy",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "jh1m1ye02teqf4",
+    "name": "ringside-s2e01-1789558804",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "b54pctilzkh3",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "mcik0afdf4uojw",
+    "name": "ringside-s2e01-1789558665",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "ttbrh0tu7o84",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "ixd4heb0gcqehj",
+    "name": "ringside-s2e01-1789558047",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "0nu9nxy6nr0d",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "y59d4mxapkqgkz",
+    "name": "ctnetwork-production-1789557730",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "ttbrh0tu7o84",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "v4a9n2hytlmae1",
+    "name": "ringside-s2e01-1789557698",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "rbk4lz93bv5r",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "lnv92mfyd15efe",
+    "name": "ctnetwork-tcwt-1789556657",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "rbk4lz93bv5r",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "yrcvmmjmbrhtxv",
+    "name": "ctnetwork-tcwt-1789556473",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "rbk4lz93bv5r",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "znl4u66vs4l2ub",
+    "name": "ctnetwork-tcwt-1789556317",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "dljnsqw4eq84",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "0ce5zglr1z7xn1",
+    "name": "ctnetwork-tcwt-1789556153",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "8i6z0gnwumwf",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "c5gauj2weng1fr",
+    "name": "ringside-s2e01-1789555403",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "rrdb0z8gv885",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "i0fo7wf04xpof4",
+    "name": "ctnetwork-factory-migration-source",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "279psz4y9p69",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.25,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "ya9olgpzo7va10",
+    "name": "ctnetwork-production-1789467085",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "si01rou120la",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "xrbhwtx9vx9uz5",
+    "name": "ctnetwork-production-1789464966",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "cnxf256by30r",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "1x6jbc38cojxm6",
+    "name": "ctnetwork-production-1789464764",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "q3mcdz9yti4g",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "e2ptmz3u448xav",
+    "name": "ctnetwork-production-1789464547",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "86jaarkup92x",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "cu1xmgmlwd2ksz",
+    "name": "ctnetwork-production-1789464181",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "kmlmsuledyhy",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "2tousj99hfcsm9",
+    "name": "ctnetwork-final-install-1789463998",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "d9oslwk6vszw",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "efjz80ha9gpq7e",
+    "name": "ctnetwork-final-install-1789463712",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "xeo2h6t0naw7",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "c456l2kklqhx95",
+    "name": "ctnetwork-final-install-1789460159",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "tiz6ohjx6whi",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "ycmbyzzuyc3h82",
+    "name": "ctnetwork-final-install-1789459248",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "dljnsqw4eq84",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "aem2tetzr8xlbq",
+    "name": "ctnetwork-final-install-1789459106",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "oa3g39i4ut4k",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
+  {
+    "id": "ugt1pe6ndmichc",
+    "name": "ctnetwork-final-install-1789445819",
+    "desiredStatus": "EXITED",
+    "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+    "gpu": null,
+    "machineId": "v65kk4oij2h3",
+    "networkVolumeId": "9wjb3sa5zm",
+    "volumeInGb": 0,
+    "containerDiskInGb": 40,
+    "costPerHr": 0.72,
+    "adjustedCostPerHr": null
+  },
   {
     "id": "g1zf15egp0w2i3",
     "name": "ctnetwork-factory-gpu-v2",
