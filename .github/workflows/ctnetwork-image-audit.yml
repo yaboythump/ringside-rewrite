@@ -1,0 +1,55 @@
+name: CTNETWORK Image Factory Server Audit
+on:
+  push:
+    paths: ['.github/workflows/ctnetwork-image-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: 9bn44dd6jq2qsl
+    steps:
+      - run: python3 -m pip install --quiet requests websocket-client
+      - name: Inspect existing server without changing services
+        shell: python
+        run: |
+          import requests,websocket,os,re,json,time,base64
+          p=os.environ['POD_ID']
+          key=os.environ['RUNPOD_API_KEY']
+          pod=requests.get('https://rest.runpod.io/v1/pods/'+p,headers={'Authorization':'Bearer '+key},timeout=30).json()
+          assert pod.get('networkVolumeId')=='9wjb3sa5zm'
+          assert pod['desiredStatus']=='RUNNING', 'Target is not running; audit does not start compute'
+          password=pod['env']['JUPYTER_PASSWORD']
+          print('::add-mask::'+password)
+          base=f'https://{p}-8888.proxy.runpod.net'
+          s=requests.Session()
+          r=s.get(base+'/login',timeout=30);r.raise_for_status()
+          x=re.search(r'name="_xsrf" value="([^"]+)"',r.text).group(1)
+          r=s.post(base+'/login',data={'_xsrf':x,'password':password,'next':'/'},timeout=30)
+          h={'X-XSRFToken':s.cookies.get('_xsrf')}
+          r=s.post(base+'/api/terminals',headers=h,json={},timeout=30);r.raise_for_status()
+          name=r.json()['name']
+          ws=websocket.create_connection(f'wss://{p}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies),origin=base,timeout=20)
+          payload=base64.b64encode("import os, json, subprocess, pathlib, urllib.request\nprint('IMAGE_FACTORY_AUDIT_BEGIN',flush=True)\nfor cmd in [['nvidia-smi','--query-gpu=name,memory.total,memory.used,utilization.gpu','--format=csv,noheader'],['df','-h','/workspace','/'],['ps','-eo','pid,etimes,pcpu,comm','--sort=-pcpu']]:\n r=subprocess.run(cmd,capture_output=True,text=True);print(r.stdout[:5500])\nfor root in ['/workspace','/workspace/ctnetwork-local','/workspace/ctnetwork']:\n p=pathlib.Path(root);print('DIRECTORY',root,[x.name for x in p.iterdir()] if p.exists() else [])\nfor path,ds,fs in os.walk('/workspace'):\n ds[:]=[d for d in ds if d not in ['.git','node_modules','__pycache__','site-packages','.cache']]\n if path.count('/')>8:ds[:]=[];continue\n for f in fs:\n  if f.endswith(('.safetensors','.pth','.onnx')) or f in ['pyvenv.cfg','extra_model_paths.yaml'] or ('brand' in f.lower() and f.endswith('.json')):\n   p=pathlib.Path(path)/f\n   try:print('ASSET',str(p),p.stat().st_size)\n   except OSError:pass\nfor port in [3000,8188,8189,8190]:\n try:\n  base=f'http://127.0.0.1:{port}'\n  for ep in ['system_stats','queue']:\n   print('COMFY',port,ep,urllib.request.urlopen(base+'/'+ep,timeout=3).read().decode()[:5000])\n except Exception:pass\nprint('IMAGE_FACTORY_AUDIT_END',flush=True)\n".encode()).decode()
+          ws.send(json.dumps(['stdin',"stty -echo\n"]))
+          time.sleep(1)
+          ws.send(json.dumps(['stdin',"python3 -c \"import base64;exec(base64.b64decode('"+payload+"'))\"\n"]))
+          out=''
+          try:
+           end=time.time()+180
+           while time.time()<end:
+            try:d=json.loads(ws.recv())
+            except websocket.WebSocketTimeoutException:continue
+            if isinstance(d,list) and d[0]=='stdout':
+             out+=d[1]
+             if 'IMAGE_FACTORY_AUDIT_END' in out:break
+           print(out)
+          finally:
+           ws.close()
+           s.delete(base+'/api/terminals/'+name,headers=h,timeout=10)
+          assert 'IMAGE_FACTORY_AUDIT_END' in out
+          
