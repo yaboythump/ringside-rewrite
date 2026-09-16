@@ -6,6 +6,7 @@ on:
       - '.github/workflows/ringside-s2e01-attitude-era-server-assets.yml'
       - 'tools/ringside_s2e01_server_assets.py'
       - 'tools/ringside_s2e01_server_assets_retry.py'
+      - 'server_refs/kevin_bret_approved_ref.b64'
   workflow_dispatch:
 
 permissions:
