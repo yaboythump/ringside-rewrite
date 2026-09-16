@@ -1,49 +1,59 @@
 {
-  "production_date": "2026-09-15",
+  "production_date": "2026-09-16",
   "manual_gate_required": true,
   "publish_allowed": false,
-  "slate_state": "CERTIFIED_READY_TO_START",
+  "slate_state": "APPROVED_FOR_PRODUCTION_ONLY",
   "jobs": [
     {
-      "job_id": "hiphop-what-if-wutang-never-formed-20260915",
-      "show": "Hip Hop What If",
-      "title": "What If Wu-Tang Clan Never Formed? | Hip Hop What If",
-      "description": "What if Wu-Tang Clan never came together on Staten Island—and Enter the Wu-Tang (36 Chambers) never existed? Hip Hop What If rewinds the real early-1990s Wu-Tang story, then branches into an alternate timeline where RZA’s plan never fully unites the crew. Method Man, Ghostface Killah, Raekwon, GZA, Ol’ Dirty Bastard and the rest still have talent—but without one central movement, the solo careers, business blueprint, New York rap landscape and worldwide Wu mythology all change. This is alternate-history commentary. The historical setup is factual; events after the branch point are hypothetical.",
+      "job_id": "tcwt-e05-elevator-came-down-empty-20260916",
+      "show": "True Crime With Thump",
+      "title": "The Elevator Came Down Empty | True Crime With Thump",
+      "description": "At 1:55 A.M., 29-year-old Nia Grant steps into Elevator B inside Westbridge Tower. Twenty-two minutes later, the elevator reaches the basement empty — but her tote, cracked phone and broken necklace are still inside. This original fictional True Crime With Thump case follows the access logs, emergency call, maintenance badge, inspection-mode clue and the question at the center of the disappearance: who had the key?",
       "tags": [
-        "Wu-Tang Clan",
-        "Wu Tang",
-        "Hip Hop What If",
-        "hip hop history",
-        "rap history",
-        "RZA",
-        "GZA",
-        "Method Man",
-        "Ghostface Killah",
-        "Raekwon",
-        "Ol Dirty Bastard",
-        "Inspectah Deck",
-        "U-God",
-        "Masta Killa",
-        "36 Chambers",
-        "Enter the Wu-Tang",
-        "Staten Island",
-        "New York hip hop",
-        "alternate history",
-        "hip hop documentary"
+        "True Crime With Thump",
+        "true crime documentary",
+        "fictional true crime",
+        "missing person mystery",
+        "elevator mystery",
+        "crime story",
+        "investigation",
+        "evidence timeline",
+        "unsolved mystery",
+        "CTNETWORK"
       ],
       "publish": false,
+      "narration": {
+        "engine": "qwen3-tts",
+        "voice_reference_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_103228_5a761d75-63c3-4d59-bcf7-58a45aa3a527.mp3",
+        "voice_reference_text": "The camera inside the car showed her pressing eleven. She was alone. At one-fifty-six, the elevator system recorded a normal stop on the eleventh floor. The doors opened. The car remained there for twelve seconds. Then the doors closed. But Nia’s apartment door never opened. Her electronic key fob did not register at Apartment 11-08. Her smart lock recorded no manual entry. Her home Wi-Fi never detected her phone. And the camera that normally watched the eleventh-floor hallway had been taken offline during renovation work three days earlier. Then, at two-oh-three A.M., the building’s elevator emergency line activated from Elevator B. The call lasted eight seconds. Dispatch heard no clear voice. What they did hear were three sharp knocks, a scrape of metal, and then silence. When the operator tried to call back through the elevator intercom, there was no answer. Seven minutes had passed since Nia reached the eleventh floor. She had not entered her apartment. And now someone, or something, had triggered the emergency system inside the elevator she had just used. Investigators started with the building’s access logs. At two-oh-seven A.M., a maintenance credential labeled M-14 opened the eleventh-floor service stairwell door. The problem was that M-14 belonged to Isaac Bell, a contractor who had been fired six weeks earlier.",
+        "language": "English",
+        "text": "At two-seventeen in the morning, the elevator doors opened in the basement of Westbridge Tower. The car was empty. On the floor sat a black leather tote, a cracked phone, and a broken gold chain. Twenty-one minutes earlier, twenty-nine-year-old Nia Grant had stepped into that same elevator alone. She was never seen walking out. Tonight’s story is an original fictional case from True Crime With Thump. Nia Grant was the kind of person who built her life around routine. She worked as a paralegal at a small civil-rights firm, kept color-coded calendars, called her younger sister Monique almost every night, and lived alone on the eleventh floor of Westbridge Tower. Coworkers described her as careful, organized, and almost impossible to surprise. That matters because on the night she vanished, nothing about Nia’s behavior suggested she planned to disappear. At one-thirty-two A.M., security footage at her office showed Nia leaving after a late filing deadline. At one-forty-one, she got into a rideshare. The driver later told investigators she spent most of the ride texting, seemed tired, and mentioned she wanted nothing more than to get upstairs, shower, and sleep. At one-fifty-four, the lobby camera at Westbridge captured Nia coming through the front doors in a navy coat, carrying a black tote and a red umbrella. At one-fifty-five, she entered Elevator B. The camera inside the car showed her pressing eleven. She was alone. At one-fifty-six, the elevator system recorded a normal stop on the eleventh floor. The doors opened. The car remained there for twelve seconds. Then the doors closed. But Nia’s apartment door never opened. Her electronic key fob did not register at Apartment 11-08. Her smart lock recorded no manual entry. Her home Wi-Fi never detected her phone. And the camera that normally watched the eleventh-floor hallway had been taken offline during renovation work three days earlier. Then, at two-oh-three A.M., the building’s elevator emergency line activated from Elevator B. The call lasted eight seconds. Dispatch heard no clear voice. What they did hear were three sharp knocks, a scrape of metal, and then silence. When the operator tried to call back through the elevator intercom, there was no answer. Seven minutes had passed since Nia reached the eleventh floor. She had not entered her apartment. And now someone, or something, had triggered the emergency system inside the elevator she had just used. Investigators started with the building’s access logs. At two-oh-seven A.M., a maintenance credential labeled M-14 opened the eleventh-floor service stairwell door. The problem was that M-14 belonged to Isaac Bell, a contractor who had been fired six weeks earlier. Building management insisted his badge had been collected and disabled. Isaac had an immediate alibi. Hospital cameras showed him in an emergency room waiting area with his wife from shortly after midnight until nearly four in the morning. So the badge had moved through Westbridge Tower, but the man assigned to it had not. A deeper audit uncovered something worse. Three days before Nia disappeared, a duplicate credential carrying the same M-14 number had been created from a building-management terminal. The system did not record a person’s name because the terminal used a shared administrator account. A resident on the eleventh floor told police she heard a metal tool cart rolling past her door at around one-fifty-nine. She looked through the peephole and saw an empty gray cart near the elevators. She did not see Nia. She did not see a maintenance worker. But she remembered the stairwell door standing partly open. That door became one of the most important pieces of the case. Investigators found a tiny burgundy fabric thread caught high on the metal door closer. Nia had been wearing a burgundy blouse beneath her coat. Laboratory testing could not identify the fiber as uniquely hers, but it was consistent in color and material. At two-seventeen, Elevator B appeared in the basement. The doors opened automatically. Nia was not inside. Her tote was on the floor. Her phone had a shattered corner. The clasp on her gold chain was broken. Her red umbrella was gone. There was no obvious blood in the elevator. But on the concrete outside the car, detectives photographed wet shoe impressions leading toward the boiler-room corridor. The prints faded where the floor became dry. None came back toward the elevator. The basement presented another problem. It had no public exit, but it did have a service loading gate used by maintenance crews and deliveries. That gate was normally alarmed after midnight. On this night, the alarm was manually disabled from two-twenty until two-twenty-seven. At two-twenty-three, a loading-dock camera caught a dark cargo van leaving Westbridge. Rain glare blocked the plate. The angle hid the driver. The van was never conclusively identified. By then, investigators were no longer asking whether Nia simply walked away. Someone appeared to understand the building’s blind spots: the disabled hallway camera, the service stairwell, the maintenance credential, the basement gate, and most importantly, the elevator system itself. There were three people on duty inside Westbridge that night who had regular access to maintenance areas. Darius Venn, the maintenance supervisor, said he was repairing a leak in Apartment 4-C from one-forty-five until two-twenty. The resident confirmed the repair, but said Darius stepped out around one-fifty-two and did not return until after two-twenty. Evan Pike, the overnight concierge, told detectives he never left the lobby desk. Camera footage contradicted that. Evan disappeared from the front-desk camera at two-oh-one and returned at two-sixteen. He later said he had gone into the employee break room because he felt sick. No camera covered that room. The third employee, building engineer Lena Ortiz, was working in a mechanical room on the roof. Her electronic access history matched her statement, and roof cameras showed her entering at one-thirty-nine and not leaving until two-thirty-one. Neither Darius nor Evan was charged. Both denied any involvement. Investigators could not prove who created the duplicate M-14 credential. Then technicians pulled the elevator controller’s backup diagnostics. At two-oh-two A.M., one minute before the emergency call, Elevator B had been switched into inspection mode. In inspection mode, the car could be moved manually by someone with the correct key, and ordinary floor-to-floor travel would not appear in the normal passenger log. That explained the impossible timeline. The elevator could have left the eleventh floor, stopped between floors, traveled to a service level, or gone to the basement without creating the clean digital trail investigators originally expected. The inspection key was stored in a locked cabinet in the building security office. The cabinet required a four-digit code shared by seven employees. When police checked it the next morning, every key appeared to be present. But one inspection key had no usable fingerprints at all, even though maintenance staff said it was handled regularly. The final major clue came from the security computer. At one-forty-eight, the software controlling the basement loading-gate camera had been restarted remotely. The camera came back online, but its archive from the previous thirty minutes was corrupted. Whoever did it used a generic maintenance account. The case narrowed, but it did not close. Nia Grant’s phone contained no goodbye message. Her bank accounts were untouched. Her passport remained in her apartment. No verified sighting of her surfaced after one-fifty-five A.M. What happened between the eleventh floor and the basement remains unresolved in this fictional case. But the elevator leaves behind a disturbing possibility. Nia did not vanish from a street, a parking lot, or a dark highway. She disappeared inside a building filled with locks, cameras, access logs, alarms, and people who were supposed to know who belonged there. Someone knew how to turn those systems into blind spots. At one-fifty-five, Nia Grant stepped into Elevator B. At two-seventeen, it came down empty. Her bag came back. Her phone came back. Her necklace came back. Nia did not. And if investigators are right about inspection mode, the most important question may not be where the elevator went. It may be who had the key. True Crime With Thump."
+      },
       "inputs": {
-        "narration_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/842625da-7478-43cb-90a6-2e105af114fa.mp3",
-        "visual_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/95098fbd-35db-426a-a057-5febf89f77ec.mp4",
-        "thumbnail_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/5bcecf3a-6c20-4892-bbfc-b0d1151c6891.jpg"
+        "visual_urls": [
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102633_f87c4740-846d-4682-a640-096dc39cd33d.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102715_cc094603-0af1-4fd9-b734-d28ed47a56b2.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102715_719ab8e1-36c0-4dab-b2ae-55cd9f17562a.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102714_5c2c45d5-9256-45ca-8130-3391c8c7e950.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102714_ed0184bf-654f-4c21-ac05-45837c051daf.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102714_ed8005d6-79fb-4c15-9585-a72f91623e24.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102757_cd389c21-6e0e-4059-b4af-7f238b2c73e9.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102757_0e1ae199-b706-4d95-87f0-3bd63070ea99.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102757_13f5b7f2-04d7-409a-a842-ce7bb24e44d2.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102757_fd51412f-3727-40b5-898e-e4aaa6a78c7b.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102758_23989083-d03b-4aeb-8de7-7d6bfdbc1eba.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102946_5f02a7d2-c8c8-468c-a89d-7f66ded06404.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102946_32314ab8-5449-4685-9fe0-de5c83f4106e.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102946_db38654b-7812-4918-a23a-f6c3fbf57904.png",
+          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102946_7b4cfeb7-21cb-4fa7-858d-be2ae5739aa5.png"
+        ],
+        "thumbnail_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_103028_25be87bd-74f2-4e93-8b41-1697b1eabaae.png"
       },
       "shorts": {
         "clips": [
-          {"start": 0, "seconds": 50, "title": "NO 36 CHAMBERS?"},
-          {"start": 90, "seconds": 50, "title": "METHOD MAN STILL A STAR?"},
-          {"start": 150, "seconds": 50, "title": "THE SOLO UNIVERSE CHANGES"},
-          {"start": 200, "seconds": 50, "title": "WU-TANG CHANGED THE BUSINESS"},
-          {"start": 260, "seconds": 50, "title": "THE WORLD WITHOUT THE W"}
+          {"start": 0, "seconds": 55, "title": "THE ELEVATOR CAME DOWN EMPTY"},
+          {"start": 120, "seconds": 55, "title": "THE M-14 BADGE SHOULD NOT EXIST"},
+          {"start": 260, "seconds": 55, "title": "WHO HAD THE INSPECTION KEY?"}
         ]
       }
     }
