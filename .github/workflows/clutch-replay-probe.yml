@@ -22,6 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo 'probe revision 2'
           POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
           POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
