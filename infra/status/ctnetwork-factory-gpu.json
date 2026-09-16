@@ -1,7 +1,7 @@
 {
-  "id": "ocqwnswp1h8ld8",
+  "id": "1yo5l3u3lcya13",
   "name": "breaking-cap-phx-parody-20260916",
-  "desiredStatus": "EXITED",
+  "desiredStatus": "RUNNING",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
   "networkVolumeId": "9wjb3sa5zm",
   "containerDiskInGb": 40,
@@ -14,7 +14,7 @@
   "portMappings": null,
   "costPerHr": 0.74,
   "adjustedCostPerHr": null,
-  "machineId": "p01m6nckys1n",
+  "machineId": "5w332r1lbk0u",
   "gpu": null,
   "machine": {
     "dataCenterId": null,
