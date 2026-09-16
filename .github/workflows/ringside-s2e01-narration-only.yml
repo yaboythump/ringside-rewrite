@@ -1,0 +1,37 @@
+name: Ringside S2E01 Narration Only
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ringside-s2e01-narration-only.yml'
+      - 'tools/ringside_s2e01_narration_only.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ringside-s2e01-narration-only
+  cancel-in-progress: false
+
+jobs:
+  narrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --quiet requests websocket-client
+      - name: Generate Kevin narration
+        run: python tools/ringside_s2e01_narration_only.py
+      - name: Upload narration approval asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: ringside-s2e01-kevin-narration
+          path: narration-only/ringside-s2e01-narration-only.tar.gz
+          retention-days: 7
+          if-no-files-found: error
