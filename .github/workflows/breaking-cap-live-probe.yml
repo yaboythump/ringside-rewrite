@@ -18,27 +18,36 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Tail current Breaking Cap render log
+      - name: Probe current Breaking Cap render
         shell: bash
         run: |
           set -euo pipefail
-          POD_ID=$(jq -r '.pod_id' breaking-cap-phx-command.json)
+          POD_ID=$(jq -r '.pod_id' clutch-replay-parody-command.json)
           POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
           echo "::add-mask::$JPASS"
-          python3 -m pip install --quiet requests
+          python3 -m pip install --quiet requests websocket-client
           export POD_ID JPASS
           python3 - <<'PY'
-          import os,re,requests
+          import os,re,requests,websocket,json,time
           pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'
           s=requests.Session(); r=s.get(base+'/login',timeout=20); r.raise_for_status()
           m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
-          s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=20).raise_for_status()
-          r=s.get(base+'/files/workspace/bc_phx.log',timeout=30)
-          if r.status_code==200:
-              print('\n'.join(r.text.splitlines()[-120:]))
-          else:
-              print('log status',r.status_code)
-          rc=s.get(base+'/files/workspace/bc_phx.rc',timeout=10)
-          print('RC_FILE', rc.text.strip() if rc.status_code==200 else 'not-ready')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=20,allow_redirects=False)
+          xsrf=s.cookies.get('_xsrf'); h={'X-XSRFToken':xsrf} if xsrf else {}
+          t=s.post(base+'/api/terminals',headers=h,json={},timeout=20); t.raise_for_status(); name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=20)
+          marker='__PROBE_DONE__'
+          cmd="WORK=/workspace/ctnetwork/breaking-cap/sports-parodies/2026-09-16-phx-postgame-interview-parody; echo '=== GPU ==='; nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader || true; echo '=== WORK ==='; ls -lh $WORK 2>/dev/null || true; echo '=== COMFY LOG ==='; tail -80 $WORK/comfy.log 2>/dev/null || true; echo '=== RUN FILES ==='; for f in $WORK/comfy-run-*.err $WORK/comfy-run-*.json; do [ -f \"$f\" ] && { echo ---$f; tail -25 \"$f\"; }; done; echo '=== RENDERS ==='; find $WORK /workspace/ComfyUI/output -type f -name '*.mp4' -printf '%TY-%Tm-%Td %TH:%TM:%TS %s %p\\n' 2>/dev/null | tail -20; echo __PROBE_DONE__\n"
+          ws.send(json.dumps(['stdin',cmd])); end=time.time()+45
+          while time.time()<end:
+              try: raw=ws.recv()
+              except Exception: continue
+              try: msg=json.loads(raw)
+              except Exception: continue
+              if isinstance(msg,list) and len(msg)>=2 and msg[0]=='stdout':
+                  text=str(msg[1]); print(text,end='')
+                  if marker in text: break
+          ws.close()
           PY
