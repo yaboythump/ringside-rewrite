@@ -8,6 +8,7 @@ KEY=os.environ['RUNPOD_API_KEY']; AUTH={'Authorization':f'Bearer {KEY}'}
 VOL=src.VOLUME; DC=src.DC; REPO=os.environ.get('GITHUB_REPOSITORY','yaboythump/ringside-rewrite')
 OUT=Path('narration-only'); OUT.mkdir(exist_ok=True)
 REF_URL='https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/server_refs/kevin_ref_short.b64'
+BATCH_URL='https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/runpod/ctnetwork_qwen_narrate_batch.py'
 REF_TEXT='One bell changed professional wrestling'
 
 def create_pod():
@@ -75,17 +76,13 @@ def main():
         shell=f'''set -Eeuo pipefail
 if ! command -v ffmpeg >/dev/null; then export DEBIAN_FRONTEND=noninteractive; apt-get update -y; apt-get install -y --no-install-recommends ffmpeg curl ca-certificates; fi
 ROOT=/workspace/ctnetwork-local; JOB=$ROOT/ringside-s2e01-narration-only; rm -rf "$JOB"; mkdir -p "$JOB"/{{text,audio,raw}}
-QPY="$ROOT/envs/qwen3-tts/bin/python"; QHELP="$ROOT/controller/ctnetwork_qwen_narrate.py"; test -x "$QPY"; test -s "$QHELP"
+QPY="$ROOT/envs/qwen3-tts/bin/python"; QBATCH="$ROOT/controller/ctnetwork_qwen_narrate_batch.py"; test -x "$QPY"
+curl -L --fail --retry 5 "{BATCH_URL}" -o "$QBATCH"; chmod +x "$QBATCH"; test -s "$QBATCH"
 curl -L --fail --retry 5 "{REF_URL}" | tr -d '\\r\\n ' | base64 -d > "$JOB/raw/kevin.mp3"; ffprobe -v error "$JOB/raw/kevin.mp3"
 ffmpeg -y -loglevel error -i "$JOB/raw/kevin.mp3" -t 3.4 -ar 24000 -ac 1 "$JOB/raw/kevin_ref.wav"
 echo {ref} | base64 -d > "$JOB/text/ref.txt"; echo {sec} | base64 -d > "$JOB/text/sections.json"
-python3 - <<'PY'
-import json,pathlib
-j=pathlib.Path('/workspace/ctnetwork-local/ringside-s2e01-narration-only'); ss=json.load(open(j/'text/sections.json'))
-for i,t in enumerate(ss,1):(j/'text'/f'section_{{i:02d}}.txt').write_text(t.strip()+'\\n')
-PY
-for I in 01 02 03 04 05; do "$QPY" "$QHELP" --text-file "$JOB/text/section_${{I}}.txt" --ref-audio "$JOB/raw/kevin_ref.wav" --ref-text-file "$JOB/text/ref.txt" --output "$JOB/audio/section_${{I}}.wav" --language English; done
-: > "$JOB/audio/concat.txt"; for I in 01 02 03 04 05; do echo "file '$JOB/audio/section_${{I}}.wav'" >> "$JOB/audio/concat.txt"; done
+"$QPY" "$QBATCH" --sections-json "$JOB/text/sections.json" --ref-audio "$JOB/raw/kevin_ref.wav" --ref-text-file "$JOB/text/ref.txt" --output-dir "$JOB/audio" --language English
+: > "$JOB/audio/concat.txt"; for I in 01 02 03 04 05; do test -s "$JOB/audio/section_${{I}}.wav"; echo "file '$JOB/audio/section_${{I}}.wav'" >> "$JOB/audio/concat.txt"; done
 ffmpeg -y -loglevel error -f concat -safe 0 -i "$JOB/audio/concat.txt" -ar 48000 -ac 1 -c:a pcm_s16le "$JOB/narration.wav"
 ffprobe -v error -show_entries format=duration,size -of json "$JOB/narration.wav" > "$JOB/qc.json"
 cd "$ROOT"; tar -czf ringside-s2e01-narration-only.tar.gz ringside-s2e01-narration-only/narration.wav ringside-s2e01-narration-only/qc.json
