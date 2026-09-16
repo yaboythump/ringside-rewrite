@@ -1,0 +1,44 @@
+name: CTNETWORK Image Factory Cost Guard
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/ctnetwork-image-cost-guard.yml']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Stop orphaned image workers and enforce 90-minute maximum
+        shell: python
+        run: |
+          import json,os,re,time,urllib.request
+          def call(url,token,method='GET'):
+              r=urllib.request.Request(url,method=method,headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
+              with urllib.request.urlopen(r,timeout=30) as f:
+                  b=f.read()
+                  return json.loads(b) if b else {}
+          rp=os.environ['RUNPOD_API_KEY']
+          for p in call('https://rest.runpod.io/v1/pods',rp):
+              m=re.fullmatch(r'ctnetwork-image-phase1-(\d+)',p.get('name',''))
+              if not m or p.get('networkVolumeId')!='9wjb3sa5zm' or p.get('desiredStatus')!='RUNNING':continue
+              run=call('https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+m.group(1),os.environ['GH_TOKEN'])
+              from datetime import datetime,timezone
+              age=(datetime.now(timezone.utc)-datetime.fromisoformat(run['run_started_at'].replace('Z','+00:00'))).total_seconds()
+              if run['status']!='completed' and age<5400:
+                  print('IMAGE_COST_GUARD_HOLD',p['id'],int(age))
+                  continue
+              call('https://rest.runpod.io/v1/pods/'+p['id']+'/stop',rp,'POST')
+              for _ in range(30):
+                  state=call('https://rest.runpod.io/v1/pods/'+p['id'],rp)['desiredStatus']
+                  if state in ('EXITED','STOPPED'):break
+                  time.sleep(2)
+              assert state in ('EXITED','STOPPED'),'Unable to verify image GPU shutdown'
+              print('IMAGE_COST_GUARD_STOPPED',p['id'],state)
