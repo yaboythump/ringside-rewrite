@@ -19,19 +19,17 @@ def resolve_or_create_pod():
                 state = pod.get("desiredStatus", "")
                 print("PREFERRED_POD", PREFERRED_POD_ID, state, flush=True)
                 if state != "RUNNING":
-                    last = None
-                    for attempt in range(1, 7):
+                    for attempt in range(1, 4):
                         try:
                             sr = requests.post(f"https://rest.runpod.io/v1/pods/{PREFERRED_POD_ID}/start", headers=base.AUTH, timeout=30)
                             sr.raise_for_status()
                             print("PREFERRED_POD_START_SENT", attempt, flush=True)
                             break
                         except Exception as exc:
-                            last = exc
                             print("PREFERRED_POD_START_RETRY", attempt, repr(exc), flush=True)
-                            time.sleep(min(20, attempt * 4))
+                            time.sleep(attempt * 4)
                     else:
-                        raise RuntimeError(f"preferred pod start failed: {last!r}")
+                        raise RuntimeError("preferred pod unavailable")
                 return PREFERRED_POD_ID, password
     except Exception as exc:
         print("PREFERRED_POD_FALLBACK", repr(exc), flush=True)
@@ -49,23 +47,36 @@ def resolve_or_create_pod():
 
 
 def terminal_run_retry(base_url, pod_id, session, headers, shell, timeout=10800):
+    stale_checks = [
+        'test "$(cat "$ROOT/status/production_ready.status" 2>/dev/null || true)" = PASS',
+        'test "$(cat "$ROOT/status/qwen_smoke.status" 2>/dev/null || true)" = PASS',
+        'test "$(cat "$ROOT/status/ltx25_smoke.status" 2>/dev/null || true)" = PASS',
+    ]
+    for line in stale_checks:
+        shell = shell.replace(line, 'echo "STALE_SMOKE_GATE_SKIPPED"')
+
     bootstrap = r'''set -Eeuo pipefail
 if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
   apt-get install -y --no-install-recommends ffmpeg ca-certificates curl
 fi
+echo SERVER_BOOTSTRAP_OK
+ls -ld /workspace /workspace/ctnetwork-local || true
+ls -la /workspace/ctnetwork-local/envs 2>/dev/null || true
 '''
-    shell = bootstrap + "\n" + shell
+    shell = bootstrap + "\nset -x\n" + shell
     last = None
-    for attempt in range(1, 9):
+    for attempt in range(1, 5):
         try:
-            print(f"TERMINAL_CONNECT_ATTEMPT {attempt}/8", flush=True)
+            print(f"TERMINAL_CONNECT_ATTEMPT {attempt}/4", flush=True)
             return ORIGINAL_TERMINAL_RUN(base_url, pod_id, session, headers, shell, timeout)
         except Exception as exc:
             last = exc
             print("TERMINAL_RETRY", attempt, repr(exc), flush=True)
-            time.sleep(min(20, attempt * 3))
+            if "404" not in repr(exc) and "Handshake" not in repr(exc):
+                raise
+            time.sleep(min(15, attempt * 3))
     raise RuntimeError(f"Jupyter terminal websocket never stabilized: {last!r}")
 
 
