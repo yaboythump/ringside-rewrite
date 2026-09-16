@@ -1,0 +1,152 @@
+name: CTNETWORK Approval Package Export
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-export-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctnetwork-approval-export
+  cancel-in-progress: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start approval volume pod
+        id: pod
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-export-command.json)
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          P=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" "${AUTH[@]}")
+          S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$S" != RUNNING ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" "${AUTH[@]}" >/dev/null
+          fi
+          for i in $(seq 1 60); do
+            P=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" "${AUTH[@]}")
+            S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"')
+            echo "pod=$POD_ID attempt=$i status=$S"
+            [[ "$S" == RUNNING ]] && break
+            sleep 5
+          done
+          [[ "$S" == RUNNING ]] || exit 5
+          JPASS=$(printf '%s' "$P" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo JUPYTER_PASSWORD_MISSING; exit 6; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Jupyter
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 90); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 5
+          done
+          exit 7
+
+      - name: Download ready-for-approval files
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          import requests
+
+          pod=os.environ['POD_ID']
+          password=Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
+          cfg=json.load(open('ctnetwork-export-command.json'))
+          folder=cfg['folder']
+          base=f'https://{pod}-8888.proxy.runpod.net'
+          s=requests.Session()
+          r=s.get(base+'/login',timeout=20); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise RuntimeError('xsrf missing')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=20,allow_redirects=False)
+          if rr.status_code not in (200,302,303): raise RuntimeError(f'login {rr.status_code}')
+          out=Path('approval-export'); out.mkdir(exist_ok=True)
+          names=['master.mp4','short_01_9x16.mp4','short_02_9x16.mp4','short_03_9x16.mp4','thumbnail.jpg','qc.json','approval.json']
+          prefixes=[f'/files/ctnetwork-local/ready_for_approval/{folder}/',f'/files/workspace/ctnetwork-local/ready_for_approval/{folder}/']
+          for name in names:
+              ok=False
+              for prefix in prefixes:
+                  resp=s.get(base+prefix+name,timeout=180,stream=True)
+                  if resp.status_code==200:
+                      dest=out/name
+                      with dest.open('wb') as f:
+                          for chunk in resp.iter_content(4*1024*1024):
+                              if chunk: f.write(chunk)
+                      if dest.stat().st_size>0:
+                          print('EXPORTED',name,dest.stat().st_size)
+                          ok=True; break
+              if not ok: raise RuntimeError(f'could not export {name}')
+          PY
+
+      - name: Upload master
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcwt-e05-master
+          path: approval-export/master.mp4
+          compression-level: 0
+      - name: Upload short 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcwt-e05-short-01
+          path: approval-export/short_01_9x16.mp4
+          compression-level: 0
+      - name: Upload short 2
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcwt-e05-short-02
+          path: approval-export/short_02_9x16.mp4
+          compression-level: 0
+      - name: Upload short 3
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcwt-e05-short-03
+          path: approval-export/short_03_9x16.mp4
+          compression-level: 0
+      - name: Upload thumbnail
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcwt-e05-thumbnail
+          path: approval-export/thumbnail.jpg
+      - name: Upload QC gate
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcwt-e05-qc-approval
+          path: |
+            approval-export/qc.json
+            approval-export/approval.json
+
+      - name: Stop export pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
