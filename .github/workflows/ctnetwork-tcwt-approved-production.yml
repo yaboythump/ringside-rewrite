@@ -1,0 +1,115 @@
+name: CTNETWORK TCWT Approved Production
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-tcwt-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctnetwork-tcwt-approved-production
+  cancel-in-progress: true
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Read approved TCWT gate
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTION=$(jq -r '.action // "hold"' ctnetwork-tcwt-command.json | tr '[:upper:]' '[:lower:]')
+          POD_ID=$(jq -r '.pod_id // .preferred_pod_id // empty' ctnetwork-tcwt-command.json)
+          VOLUME=$(jq -r '.network_volume_id // "9wjb3sa5zm"' ctnetwork-tcwt-command.json)
+          DC=$(jq -r '.data_center_id // "EU-RO-1"' ctnetwork-tcwt-command.json)
+          [[ "$ACTION" == hold || "$ACTION" == start ]] || exit 2
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "volume_id=$VOLUME" >> "$GITHUB_OUTPUT"
+          echo "dc=$DC" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve healthy factory compute
+        if: steps.gate.outputs.action == 'start'
+        id: resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          PREFERRED='${{ steps.gate.outputs.pod_id }}'
+          VOLUME='${{ steps.gate.outputs.volume_id }}'
+          DC='${{ steps.gate.outputs.dc }}'
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          getpod(){ curl -fsS "https://rest.runpod.io/v1/pods/$1" "${AUTH[@]}"; }
+          wait_running(){ local id="$1" max="${2:-15}"; for i in $(seq 1 "$max"); do P=$(getpod "$id" 2>/dev/null || true); S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"' 2>/dev/null || echo unknown); echo "pod=$id attempt=$i/$max status=$S"; [[ "$S" == RUNNING ]] && { printf '%s' "$P" >/tmp/ctn-tcwt-pod.json; return 0; }; sleep 5; done; return 1; }
+          POD_ID=""
+          if [[ -n "$PREFERRED" ]]; then
+            P=$(getpod "$PREFERRED" 2>/dev/null || true)
+            PV=$(printf '%s' "$P" | jq -r '.networkVolumeId // .networkVolume.id // empty' 2>/dev/null || true)
+            if [[ "$PV" == "$VOLUME" ]]; then
+              S=$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"')
+              [[ "$S" == RUNNING ]] || curl -sS -X POST "https://rest.runpod.io/v1/pods/$PREFERRED/start" "${AUTH[@]}" >/dev/null || true
+              wait_running "$PREFERRED" 12 && POD_ID="$PREFERRED" || true
+            fi
+          fi
+          if [[ -z "$POD_ID" ]]; then
+            JPASS=$(openssl rand -hex 24); echo "::add-mask::$JPASS"
+            GPU_TYPES='["NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 6000 Blackwell Server Edition","NVIDIA A100 80GB PCIe"]'
+            BODY=$(jq -nc --arg name "ctnetwork-tcwt-$(date +%s)" --arg dc "$DC" --arg vol "$VOLUME" --arg jp "$JPASS" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+            HTTP=$(curl -sS -o /tmp/ctn-tcwt-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods "${AUTH[@]}" -H 'Content-Type: application/json' --data "$BODY" || true)
+            [[ "$HTTP" =~ ^2 ]] || { cat /tmp/ctn-tcwt-create.json; exit 4; }
+            POD_ID=$(jq -r '.id // empty' /tmp/ctn-tcwt-create.json); [[ -n "$POD_ID" ]] || exit 5
+            wait_running "$POD_ID" 90 || exit 6
+          else
+            P=$(cat /tmp/ctn-tcwt-pod.json); JPASS=$(printf '%s' "$P" | jq -r '.env.JUPYTER_PASSWORD // empty'); [[ -n "$JPASS" ]] || exit 7; echo "::add-mask::$JPASS"
+          fi
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "FACTORY_COMPUTE_READY pod=$POD_ID volume=$VOLUME"
+
+      - name: Wait for authenticated Jupyter readiness
+        if: steps.gate.outputs.action == 'start'
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 120); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 5
+          done
+          exit 8
+
+      - name: Produce approved TCWT master and Shorts
+        if: steps.gate.outputs.action == 'start'
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ctnetwork_run_tcwt_hhwi.py
+
+      - name: Stop exact production pod
+        if: steps.gate.outputs.action == 'start' && always()
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          for i in $(seq 1 40); do sleep 2; S=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"'); echo "stop attempt=$i status=$S"; [[ "$S" != RUNNING ]] && exit 0; done
+          exit 1
