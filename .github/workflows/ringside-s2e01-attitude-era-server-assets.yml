@@ -1,0 +1,54 @@
+name: Ringside S2E01 Attitude Era Server Assets
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ringside-s2e01-attitude-era-server-assets.yml'
+      - 'tools/ringside_s2e01_server_assets.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ringside-s2e01-attitude-era-server-assets
+  cancel-in-progress: false
+
+jobs:
+  produce-server-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install control client
+        run: python -m pip install --quiet requests websocket-client
+
+      - name: Generate Kevin narration and five LTX motion inserts
+        run: python tools/ringside_s2e01_server_assets.py
+
+      - name: Verify server asset package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p server-assets/unpacked
+          tar -xzf server-assets/ringside-s2e01-server-assets.tar.gz -C server-assets/unpacked
+          test -s server-assets/unpacked/ringside-s2e01-attitude-era/narration.wav
+          test $(find server-assets/unpacked/ringside-s2e01-attitude-era/motion -name 'motion_*.mp4' | wc -l) -ge 5
+          echo 'APPROVAL_ONLY=true' > server-assets/APPROVAL_ONLY.txt
+          echo 'PUBLISH_ALLOWED=false' >> server-assets/APPROVAL_ONLY.txt
+          find server-assets/unpacked -maxdepth 4 -type f -print | sort
+
+      - name: Upload approval-only server assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ringside-s2e01-attitude-era-server-assets
+          path: server-assets/
+          retention-days: 7
+          if-no-files-found: error
