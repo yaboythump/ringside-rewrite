@@ -22,7 +22,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo 'probe revision 2'
           POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
           POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
@@ -34,27 +33,33 @@ jobs:
           export POD_ID JPASS
           python3 -m pip install --quiet requests websocket-client
           python3 - <<'PY'
-          import json,os,re,time,requests,websocket
-          pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session()
-          r=s.get(base+'/login',timeout=30); r.raise_for_status(); m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
-          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False); assert r.status_code in (200,302,303)
+          import json, os, re, time, requests, websocket
+          pod=os.environ['POD_ID']
+          password=os.environ['JPASS']
+          base=f'https://{pod}-8888.proxy.runpod.net'
+          s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False)
+          assert r.status_code in (200,302,303)
           xs=s.cookies.get('_xsrf'); h={'X-XSRFToken':xs} if xs else {}
           r=s.post(base+'/api/terminals',headers=h,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
-          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies); ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
-          cmd=r'''echo '=== PROBE ==='; date -u; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader || true; echo '--- processes ---'; ps -eo pid,etimes,pcpu,pmem,cmd --sort=-pcpu | head -35; echo '--- disk ---'; df -h /workspace / || true; echo '--- model sizes ---'; du -sh /workspace/ComfyUI /workspace/ComfyUI/models/diffusion_models /workspace/ComfyUI/models/loras /workspace/ctnetwork/clutch-replay 2>/dev/null || true; echo '--- work files ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -maxdepth 3 -type f -printf '%TY-%Tm-%Td %TH:%TM:%TS %s %p\n' 2>/dev/null | sort | tail -80; echo '--- comfy log tail ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -name comfy.log -type f -print -exec tail -120 {} \; 2>/dev/null || true; echo '--- curl/wget/yt-dlp ---'; pgrep -af 'curl|yt-dlp|comfy|python|git' || true; echo __PROBE_DONE__
-'''
-          ws.send(json.dumps(['stdin',cmd+'\n'])); end=time.time()+240
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
+          cmd="""echo '=== PROBE ==='; date -u; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader || true; echo '--- processes ---'; ps -eo pid,etimes,pcpu,pmem,cmd --sort=-pcpu | head -35; echo '--- disk ---'; df -h /workspace / || true; echo '--- key dirs ---'; du -sh /workspace/ComfyUI/models/diffusion_models /workspace/ComfyUI/models/loras /workspace/ctnetwork/clutch-replay 2>/dev/null || true; echo '--- files ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -maxdepth 3 -type f -printf '%TY-%Tm-%Td %TH:%TM:%TS %s %p\\n' 2>/dev/null | sort | tail -80; echo '--- comfy logs ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -name comfy.log -type f -exec tail -120 {} \\; 2>/dev/null || true; echo '--- active download/render ---'; pgrep -af 'curl|yt-dlp|comfy|python|git' || true; echo __PROBE_DONE__"""
+          ws.send(json.dumps(['stdin',cmd+'\n']))
+          end=time.time()+240
           try:
-            while time.time()<end:
-              msg=ws.recv();
-              if not msg: continue
-              try:d=json.loads(msg)
-              except:continue
-              if isinstance(d,list) and len(d)>1 and d[0]=='stdout':
-                print(d[1],end='',flush=True)
-                if '__PROBE_DONE__' in d[1]: break
+              while time.time()<end:
+                  msg=ws.recv()
+                  if not msg: continue
+                  try: d=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(d,list) and len(d)>1 and d[0]=='stdout':
+                      print(d[1],end='',flush=True)
+                      if '__PROBE_DONE__' in d[1]: break
           finally:
-            ws.close()
-            try:s.delete(base+f'/api/terminals/{name}',headers=h,timeout=10)
-            except:pass
+              ws.close()
+              try: s.delete(base+f'/api/terminals/{name}',headers=h,timeout=10)
+              except Exception: pass
           PY
