@@ -45,9 +45,10 @@ jobs:
           r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
           cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
           ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=30)
-          cmd="echo '=== CLUTCH PROBE ==='; date -u; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader || true; echo '--- processes ---'; ps -eo pid,etimes,pcpu,pmem,cmd --sort=-pcpu | head -35; echo '--- disk ---'; df -h /workspace / || true; echo '--- models ---'; du -sh /workspace/ComfyUI/models/diffusion_models /workspace/ComfyUI/models/loras 2>/dev/null || true; echo '--- parody files ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -maxdepth 3 -type f -printf '%s %p\\n' 2>/dev/null | sort -nr | head -80; echo '--- logs ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -name comfy.log -type f -exec tail -120 {} \\; 2>/dev/null || true; echo '--- active ---'; pgrep -af 'curl|yt-dlp|comfy|python|git' || true; echo __PROBE_DONE__"
+          marker='__PROBE_DONE_92d6f7__'
+          cmd="echo '=== CLUTCH PROBE ==='; date -u; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader || true; echo '--- processes ---'; ps -eo pid,etimes,pcpu,pmem,cmd --sort=-pcpu | head -35; echo '--- disk ---'; df -h /workspace / || true; echo '--- models ---'; du -sh /workspace/ComfyUI/models/diffusion_models /workspace/ComfyUI/models/loras 2>/dev/null || true; echo '--- parody files ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -maxdepth 3 -type f -printf '%s %p\\n' 2>/dev/null | sort -nr | head -80; echo '--- logs ---'; find /workspace/ctnetwork/clutch-replay/sports-parodies -name comfy.log -type f -exec tail -120 {} \\; 2>/dev/null || true; echo '--- active ---'; pgrep -af 'curl|yt-dlp|comfy|python|git' || true; printf '\\n%s\\n' '"+marker+"'"
           ws.send(json.dumps(['stdin',cmd+'\n']))
-          deadline=time.time()+240
+          deadline=time.time()+240; seen=''
           try:
             while time.time()<deadline:
               msg=ws.recv()
@@ -55,8 +56,8 @@ jobs:
               try: data=json.loads(msg)
               except Exception: continue
               if isinstance(data,list) and len(data)>1 and data[0]=='stdout':
-                text=data[1]; print(text,end='',flush=True)
-                if '__PROBE_DONE__' in text: break
+                text=data[1]; seen += text; print(text,end='',flush=True)
+                if seen.count(marker) >= 2: break
           finally:
             ws.close()
             try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
