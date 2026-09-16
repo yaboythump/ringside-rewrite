@@ -1,0 +1,57 @@
+name: Clutch Replay V2 Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/clutch-replay-v2-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe live V2 pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD=$(echo "$PODS" | jq -c '[.[] | select((.name // "") | startswith("clutch-replay-character-replace-v2-35149451543"))] | first // empty')
+          [[ -n "$POD" ]] || { echo 'pod not found'; exit 0; }
+          POD_ID=$(echo "$POD" | jq -r '.id')
+          STATUS=$(echo "$POD" | jq -r '.desiredStatus')
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          COST=$(echo "$POD" | jq -r '.costPerHr // .adjustedCostPerHr // "unknown"')
+          echo "pod=$POD_ID status=$STATUS cost=$COST"
+          [[ "$STATUS" == RUNNING ]] || exit 0
+          echo "::add-mask::$JPASS"
+          export POD_ID JPASS
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import os,re,json,time,requests,websocket
+          pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status(); m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False); assert r.status_code in (200,302,303)
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          marker='__V2PROBE_DONE__'
+          cmd="echo '=== GPU ==='; nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader || true; echo '=== PROCS ==='; ps -eo pid,etimes,pcpu,pmem,cmd --sort=-pcpu | head -25; echo '=== MIX LOG ==='; tail -180 /workspace/ctnetwork/clutch-replay/sports-parodies/2026-09-16-tommy-pham-what-more-do-you-want/comfy_mix.log 2>/dev/null || true; echo '=== MIX ERR ==='; cat /workspace/ctnetwork/clutch-replay/sports-parodies/2026-09-16-tommy-pham-what-more-do-you-want/comfy_mix_run.err 2>/dev/null || true; echo '=== OUTPUTS ==='; find /workspace/ComfyUI/output -type f \( -name '*.mp4' -o -name '*.webm' \) -printf '%T@ %s %p\\n' 2>/dev/null | sort -nr | head -20; echo '=== FINAL ==='; ls -lh /workspace/clutch_replay_tommy_pham_parody_v2.mp4 2>/dev/null || true; echo '"+marker+"'"
+          ws.send(json.dumps(['stdin',cmd+'\n']))
+          seen=''; deadline=time.time()+180
+          while time.time()<deadline:
+              msg=ws.recv()
+              try:d=json.loads(msg)
+              except:continue
+              if isinstance(d,list) and len(d)>1 and d[0]=='stdout':
+                  t=d[1]; seen+=t; print(t,end='',flush=True)
+                  if seen.count(marker)>=2: break
+          ws.close()
+          PY
