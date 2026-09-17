@@ -1,0 +1,87 @@
+name: Breaking Cap Auto Replace V2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/breaking-cap-auto-replace-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Provision GPU
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          JPASS=$(openssl rand -hex 24); echo "::add-mask::$JPASS"
+          GPUS='["NVIDIA GeForce RTX 5090","NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA RTX PRO 4000 Blackwell"]'
+          BODY=$(jq -nc --arg name "breaking-cap-auto-v2-${GITHUB_RUN_ID}" --arg jp "$JPASS" --argjson g "$GPUS" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$g,gpuTypePriority:"availability",gpuCount:1,containerDiskInGb:40,networkVolumeId:"9wjb3sa5zm",volumeMountPath:"/workspace",ports:["8888/http"],env:{JUPYTER_PASSWORD:$jp}}')
+          curl -fsS -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}" -H 'Content-Type: application/json' --data "$BODY" >/tmp/pod.json
+          POD_ID=$(jq -r '.id' /tmp/pod.json); echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"; echo "jpass=$JPASS" >> "$GITHUB_OUTPUT"
+          for i in $(seq 1 120); do S=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus'); echo "pod=$S"; [[ "$S" == RUNNING ]] && exit 0; sleep 5; done; exit 4
+
+      - name: Wait for Jupyter
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        run: |
+          for i in $(seq 1 120); do C=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true); echo "jupyter=$C"; [[ "$C" == 200 ]] && exit 0; sleep 3; done; exit 5
+
+      - name: Run renderer on GPU
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JPASS: ${{ steps.pod.outputs.jpass }}
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          base64 -w0 tools/breaking_cap_auto_replace_v2.sh >/tmp/payload.b64
+          cat >/tmp/run.py <<'PY'
+          import os,re,json,time,base64,requests,websocket
+          pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status(); m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False); assert r.status_code in (200,302,303)
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          enc=open('/tmp/payload.b64').read().strip(); marker='__DONE_BC_AUTO_V2__'
+          ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d >/tmp/bc_auto.sh; chmod +x /tmp/bc_auto.sh; /tmp/bc_auto.sh; rc=$?; echo {marker}:$rc\n']))
+          seen=''; deadline=time.time()+10000; rc=None
+          while time.time()<deadline:
+              msg=ws.recv()
+              try:d=json.loads(msg)
+              except:continue
+              if isinstance(d,list) and len(d)>1 and d[0]=='stdout':
+                  t=d[1]; seen+=t; print(t,end='',flush=True); mm=re.search(re.escape(marker)+r':(\d+)',seen)
+                  if mm: rc=int(mm.group(1)); break
+          ws.close(); assert rc==0, f'remote rc={rc}'
+          p='workspace/breaking_cap_photo_lock_FINAL.mp4'
+          q=s.get(base+'/api/contents/'+p,headers=headers,params={'content':'1','format':'base64'},timeout=300); q.raise_for_status()
+          b=base64.b64decode(q.json()['content']); open('breaking_cap_photo_lock_FINAL.mp4','wb').write(b); print('BYTES',len(b)); assert len(b)>1000000
+          PY
+          python3 /tmp/run.py
+
+      - name: Upload review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: breaking-cap-auto-replace-v2
+          path: breaking_cap_photo_lock_FINAL.mp4
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop GPU
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        run: |
+          [[ -z "${POD_ID:-}" ]] || curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
