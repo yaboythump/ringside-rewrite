@@ -1,6 +1,6 @@
 {
   "action": "recycle",
-  "name": "breaking-cap-phx-parody-20260916",
+  "name": "breaking-cap-auto-replace-20260917",
   "network_volume_id": "9wjb3sa5zm",
   "data_center_id": "EU-RO-1",
   "gpu_types": [
@@ -11,5 +11,5 @@
     "NVIDIA L4"
   ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "breaking-cap-phx-parody-2026-09-17-rescue-recycle-02"
+  "request_id": "breaking-cap-auto-replace-2026-09-17-01"
 }
