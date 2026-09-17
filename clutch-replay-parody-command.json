@@ -1,16 +1,16 @@
 {
   "action": "render",
-  "pod_id": "1yo5l3u3lcya13",
+  "pod_id": "rehkqunr91kpp3",
   "network_volume_id": "9wjb3sa5zm",
   "project": "breaking-cap-sports-parodies",
-  "slug": "2026-09-16-phx-postgame-interview-parody",
-  "driver_url": "https://cdn.creativeclaw.co/u/6d1d5f99/videos/7018baa9-306d-49c9-afa8-d94e7b06a4c9.mp4",
+  "slug": "2026-09-17-photo-lock-auto-replace",
+  "driver_url": "https://cdn.creativeclaw.co/u/6d1d5f99/videos/5e75207c-49e6-4b54-acea-8469be5aa737.mp4",
   "driver_start_seconds": 0,
   "driver_duration_seconds": 20.408345,
-  "reference_image_url": "https://cdn.creativeclaw.co/u/6d1d5f99/images/620ce524-d759-423f-8eea-fed143c8b63d.jpg",
-  "logo_url": "https://cdn.creativeclaw.co/u/6d1d5f99/images/4d45360e-341c-4cc2-936a-b4e965cd8fc9.png",
+  "reference_image_url": "https://cdn.creativeclaw.co/u/6d1d5f99/images/568bb85d-2474-42dd-a5cf-50df0e5b3aa4.jpg",
+  "logo_url": "https://cdn.creativeclaw.co/u/6d1d5f99/images/d9c58993-5aa6-4e56-93a8-c114273e92b9.jpg",
   "headline": "SHE ASKED HIM HOW HE FELT ABOUT THE GAME TONIGHT",
   "parody_label": "AI PARODY",
   "publish_allowed": false,
-  "request_id": "breaking-cap-phx-parody-2026-09-16-render-03"
+  "request_id": "breaking-cap-auto-replace-2026-09-17-render-01"
 }
