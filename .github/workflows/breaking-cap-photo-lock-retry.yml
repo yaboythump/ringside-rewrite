@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/breaking-cap-photo-lock-retry.yml'
+      - 'breaking-cap-auto-replace-command.json'
   workflow_dispatch:
 
 permissions:
