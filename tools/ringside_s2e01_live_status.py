@@ -29,3 +29,4 @@ for path in paths:
         j=q.json(); items=j.get('content') if isinstance(j,dict) else None
         if isinstance(items,list):
             for item in items: print('ITEM',item.get('name'),item.get('size'),item.get('type'),flush=True)
+# live probe 2
