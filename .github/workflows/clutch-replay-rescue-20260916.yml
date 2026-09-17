@@ -21,18 +21,39 @@ jobs:
         with:
           ref: main
 
-      - name: Pull finished MP4 directly from Jupyter
+      - name: Start exact parody GPU pod
         shell: bash
         run: |
           set -euo pipefail
           POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
           [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 2; }
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+          for i in $(seq 1 90); do
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+            echo "start attempt=$i status=$STATUS"
+            [[ "$STATUS" == RUNNING ]] && exit 0
+            sleep 3
+          done
+          exit 3
+
+      - name: Pull finished Breaking Cap MP4 directly from Jupyter
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
           POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
           JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
           [[ "$STATUS" == RUNNING ]] || { echo "pod not running: $STATUS"; exit 3; }
           [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
           echo "::add-mask::$JPASS"
+          for i in $(seq 1 120); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == 200 ]] && break
+            sleep 3
+          done
           export POD_ID JPASS
           python3 -m pip install --quiet requests
           python3 - <<'PY'
@@ -47,37 +68,31 @@ jobs:
           if rr.status_code not in (200,302,303): raise RuntimeError(f'login failed {rr.status_code}')
           xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
           candidates=[
-            'workspace/clutch_replay_tommy_pham_parody.mp4',
-            'clutch_replay_tommy_pham_parody.mp4',
+            'workspace/breaking_cap_phx_parody_FINAL.mp4',
+            'breaking_cap_phx_parody_FINAL.mp4',
           ]
           last=[]
           for p in candidates:
             u=base+'/api/contents/'+p
-            q=s.get(u,headers=headers,params={'content':'1','format':'base64'},timeout=60)
+            q=s.get(u,headers=headers,params={'content':'1','format':'base64'},timeout=120)
             last.append((p,q.status_code,q.text[:200]))
             if q.status_code!=200: continue
             j=q.json(); data=j.get('content'); fmt=j.get('format')
             if fmt=='base64' and data:
               b=base64.b64decode(data)
-              open('clutch_replay_tommy_pham_parody.mp4','wb').write(b)
+              open('breaking_cap_phx_parody_FINAL.mp4','wb').write(b)
               print('DOWNLOADED',p,len(b))
-              if len(b) < 10000: raise RuntimeError('downloaded video too small')
+              if len(b) < 1000000: raise RuntimeError('downloaded video too small')
               sys.exit(0)
           raise RuntimeError('video not found via contents API: '+repr(last))
           PY
-          ls -lh clutch_replay_tommy_pham_parody.mp4
-          python3 - <<'PY'
-          import os
-          p='clutch_replay_tommy_pham_parody.mp4'
-          assert os.path.getsize(p) > 10000
-          print('VIDEO_READY_BYTES', os.path.getsize(p))
-          PY
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,codec_type,width,height -of json breaking_cap_phx_parody_FINAL.mp4
 
-      - name: Upload rescued parody artifact
+      - name: Upload rescued Breaking Cap artifact
         uses: actions/upload-artifact@v4
         with:
-          name: clutch-replay-tommy-pham-parody-rescued
-          path: clutch_replay_tommy_pham_parody.mp4
+          name: breaking-cap-phx-parody-final
+          path: breaking_cap_phx_parody_FINAL.mp4
           if-no-files-found: error
           retention-days: 7
 
