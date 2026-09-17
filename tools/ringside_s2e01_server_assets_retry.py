@@ -8,7 +8,23 @@ PREFERRED_POD_ID = "ugt1pe6ndmichc"
 ORIGINAL_CREATE_POD = base.create_pod
 ORIGINAL_TERMINAL_RUN = base.terminal_run
 KEVIN_REF_B64_URL = "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/server_refs/kevin_ref_short.b64"
+QBATCH_URL = "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/runpod/ctnetwork_qwen_narrate_batch.py"
 base.REF_TEXT = "One bell changed professional wrestling"
+
+
+def graphql(query):
+    r = requests.post(
+        "https://api.runpod.io/graphql",
+        params={"api_key": base.RUNPOD_API_KEY},
+        headers={"Content-Type": "application/json"},
+        json={"query": query},
+        timeout=60,
+    )
+    r.raise_for_status()
+    data = r.json()
+    if data.get("errors"):
+        raise RuntimeError(f"RunPod GraphQL errors: {data['errors']}")
+    return data.get("data") or {}
 
 
 def resolve_or_create_pod():
@@ -22,17 +38,11 @@ def resolve_or_create_pod():
                 state = pod.get("desiredStatus", "")
                 print("PREFERRED_POD", PREFERRED_POD_ID, state, flush=True)
                 if state != "RUNNING":
-                    for attempt in range(1, 6):
-                        try:
-                            sr = requests.post(f"https://rest.runpod.io/v1/pods/{PREFERRED_POD_ID}/start", headers=base.AUTH, timeout=30)
-                            sr.raise_for_status()
-                            print("PREFERRED_POD_START_SENT", attempt, flush=True)
-                            break
-                        except Exception as exc:
-                            print("PREFERRED_POD_START_RETRY", attempt, repr(exc), flush=True)
-                            time.sleep(attempt * 4)
-                    else:
-                        raise RuntimeError("preferred pod unavailable")
+                    q = f'''mutation {{ podResume(input: {{ podId: "{PREFERRED_POD_ID}", gpuCount: 1 }}) {{ id desiredStatus imageName }} }}'''
+                    resumed = graphql(q).get("podResume") or {}
+                    print("PREFERRED_POD_GRAPHQL_RESUME", resumed, flush=True)
+                    if resumed.get("id") != PREFERRED_POD_ID:
+                        raise RuntimeError("GraphQL resume did not return preferred pod")
                 return PREFERRED_POD_ID, password
             print("PREFERRED_POD_METADATA_MISMATCH", volume, bool(password), flush=True)
         else:
@@ -41,20 +51,20 @@ def resolve_or_create_pod():
         print("PREFERRED_POD_FALLBACK", repr(exc), flush=True)
 
     last = None
-    for attempt in range(1, 3):
+    for attempt in range(1, 4):
         try:
-            print(f"CREATE_POD_ATTEMPT {attempt}/2", flush=True)
+            print(f"CREATE_POD_ATTEMPT {attempt}/3", flush=True)
             return ORIGINAL_CREATE_POD()
         except Exception as exc:
             last = exc
             print("CREATE_POD_RETRY", repr(exc), flush=True)
-            time.sleep(min(15, attempt * 5))
+            time.sleep(min(20, attempt * 5))
     raise RuntimeError(f"Unable to resolve or create production pod: {last!r}")
 
 
 def login_retry(base_url, password):
     last = None
-    for attempt in range(1, 16):
+    for attempt in range(1, 21):
         try:
             s = requests.Session()
             r = s.get(base_url + "/login", timeout=30)
@@ -86,10 +96,23 @@ def terminal_run_retry(base_url, pod_id, session, headers, shell, timeout=10800)
         shell = shell.replace(line, 'echo "STALE_SMOKE_GATE_SKIPPED"')
 
     old_kevin = f'curl -L --fail --retry 5 "{base.KEVIN_URL}" -o "$JOB/raw/kevin_master.mp3"'
-    new_kevin = f'curl -L --fail --retry 5 "{KEVIN_REF_B64_URL}" | tr -d "\\r\\n" | base64 -d > "$JOB/raw/kevin_master.mp3" ; test -s "$JOB/raw/kevin_master.mp3"'
+    new_kevin = f'curl -L --fail --retry 5 "{KEVIN_REF_B64_URL}" | tr -d "\\r\\n " | base64 -d > "$JOB/raw/kevin_master.mp3" ; test -s "$JOB/raw/kevin_master.mp3"'
     if old_kevin not in shell:
         raise RuntimeError("Kevin download line not found in production shell")
     shell = shell.replace(old_kevin, new_kevin)
+
+    old_qwen = '''QPY="$ROOT/envs/qwen3-tts/bin/python"
+test -x "$QPY"
+for I in 01 02 03 04 05; do "$QPY" "$QHELP" --text-file "$JOB/text/section_${I}.txt" --ref-audio "$JOB/raw/kevin_ref.wav" --ref-text-file "$JOB/text/ref.txt" --output "$JOB/audio/section_${I}.wav" --language English; done'''
+    new_qwen = f'''QPY="$ROOT/envs/qwen3-tts/bin/python"
+test -x "$QPY"
+QBATCH="$ROOT/controller/ctnetwork_qwen_narrate_batch.py"
+curl -L --fail --retry 5 "{QBATCH_URL}" -o "$QBATCH"
+chmod +x "$QBATCH"; test -s "$QBATCH"
+"$QPY" "$QBATCH" --sections-json "$JOB/text/sections.json" --ref-audio "$JOB/raw/kevin_ref.wav" --ref-text-file "$JOB/text/ref.txt" --output-dir "$JOB/audio" --language English'''
+    if old_qwen not in shell:
+        raise RuntimeError("five-load Qwen block not found")
+    shell = shell.replace(old_qwen, new_qwen)
 
     bootstrap = r'''set -Eeuo pipefail
 if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
