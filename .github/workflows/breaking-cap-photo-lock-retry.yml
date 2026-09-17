@@ -18,32 +18,30 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-
-      - name: Provision GPU on persistent CTNETWORK volume
+      - name: Provision GPU
         id: pod
         shell: bash
         run: |
           set -euo pipefail
           JPASS=$(openssl rand -hex 24); echo "::add-mask::$JPASS"
           GPUS='["NVIDIA GeForce RTX 5090","NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA RTX PRO 4000 Blackwell"]'
-          BODY=$(jq -nc --arg name "breaking-cap-photo-lock-${GITHUB_RUN_ID}" --arg jp "$JPASS" --argjson g "$GPUS" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$g,gpuTypePriority:"availability",gpuCount:1,containerDiskInGb:40,networkVolumeId:"9wjb3sa5zm",volumeMountPath:"/workspace",ports:["8888/http"],env:{JUPYTER_PASSWORD:$jp}}')
+          BODY=$(jq -nc --arg name "breaking-cap-auto-${GITHUB_RUN_ID}" --arg jp "$JPASS" --argjson g "$GPUS" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$g,gpuTypePriority:"availability",gpuCount:1,containerDiskInGb:40,networkVolumeId:"9wjb3sa5zm",volumeMountPath:"/workspace",ports:["8888/http"],env:{JUPYTER_PASSWORD:$jp}}')
           curl -fsS -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}" -H 'Content-Type: application/json' --data "$BODY" >/tmp/pod.json
           POD_ID=$(jq -r '.id' /tmp/pod.json); echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"; echo "jpass=$JPASS" >> "$GITHUB_OUTPUT"
           for i in $(seq 1 120); do S=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus'); echo "pod=$S"; [[ "$S" == RUNNING ]] && exit 0; sleep 5; done; exit 4
-
       - name: Wait for Jupyter
         env:
           POD_ID: ${{ steps.pod.outputs.pod_id }}
         run: |
           for i in $(seq 1 120); do C=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true); echo "jupyter=$C"; [[ "$C" == 200 ]] && exit 0; sleep 3; done; exit 5
-
-      - name: Render target-only photo-lock parody
+      - name: Run renderer on GPU
         env:
           POD_ID: ${{ steps.pod.outputs.pod_id }}
           JPASS: ${{ steps.pod.outputs.jpass }}
         shell: bash
         run: |
           python3 -m pip install --quiet requests websocket-client
+          base64 -w0 tools/breaking_cap_auto_replace_v2.sh >/tmp/payload.b64
           cat >/tmp/run.py <<'PY'
           import os,re,json,time,base64,requests,websocket
           pod=os.environ['POD_ID']; password=os.environ['JPASS']; base=f'https://{pod}-8888.proxy.runpod.net'; s=requests.Session()
@@ -53,69 +51,9 @@ jobs:
           r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
           cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
           ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
-          shell=r'''set -Eeuo pipefail
-          WORK=/workspace/ctnetwork/breaking-cap/sports-parodies/2026-09-16-photo-lock-retry
-          COMFY=/workspace/ComfyUI
-          VENV=/workspace/ctnetwork-local/envs/wan-animate
-          PY=$VENV/bin/python
-          mkdir -p "$WORK" "$COMFY/input" "$COMFY/output"
-          command -v ffmpeg >/dev/null || { apt-get update -qq; apt-get install -y -qq ffmpeg fonts-dejavu-core; }
-          test -x "$PY"; test -f "$COMFY/main.py"; test -f "$COMFY/models/diffusion_models/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors"
-          DRIVER='https://cdn.creativeclaw.co/u/6d1d5f99/videos/8b33a2c0-0dfc-4216-a3ae-f08bbafdf31b.mp4'
-          REF='https://cdn.creativeclaw.co/u/6d1d5f99/images/22e7a0db-576e-4ef0-9f08-03d7800f39ef.jpg'
-          MASK='https://cdn.creativeclaw.co/u/6d1d5f99/images/f9bbeed5-4a09-4ffa-a9bf-270245afa70b.png'
-          LOGO='https://cdn.creativeclaw.co/u/6d1d5f99/images/bfc5c6c0-b96b-4468-9414-f7b70d6a2551.webp'
-          curl -L --fail --retry 4 "$DRIVER" -o "$WORK/source.mp4"
-          curl -L --fail --retry 4 "$REF" -o "$WORK/reference.jpg"
-          curl -L --fail --retry 4 "$MASK" -o "$WORK/athlete_mask.png"
-          curl -L --fail --retry 4 "$LOGO" -o "$WORK/logo.webp"
-          cp "$WORK/reference.jpg" "$COMFY/input/breaking_cap_reference.jpg"
-          WF0="$WORK/wan_move.json"; curl -L --fail --retry 4 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/video_wan2_2_14B_animate.json' -o "$WF0"
-          pkill -f "$COMFY/main.py" >/dev/null 2>&1 || true
-          nohup "$PY" "$COMFY/main.py" --listen 127.0.0.1 --port 8188 --lowvram >"$WORK/comfy.log" 2>&1 &
-          for i in $(seq 1 120); do curl -fsS --max-time 3 http://127.0.0.1:8188/system_stats >/dev/null 2>&1 && break; sleep 2; done
-          curl -fsS http://127.0.0.1:8188/system_stats >/dev/null || { tail -120 "$WORK/comfy.log"; exit 70; }
-          rm -f "$WORK"/concat.txt "$WORK"/locked_*.mp4
-          N=0
-          for SPEC in 0:4 4:4 8:4 12:4 16:4.408345; do
-            ST=${SPEC%%:*}; LN=${SPEC##*:}; N=$((N+1)); P=$(printf '%02d' $N); IN="bc_driver_$P.mp4"
-            ffmpeg -y -ss "$ST" -t "$LN" -i "$WORK/source.mp4" -vf 'fps=16,scale=384:672:force_original_aspect_ratio=increase,crop=384:672' -an -c:v libx264 -preset veryfast -crf 20 "$COMFY/input/$IN" >/dev/null 2>&1
-            WF="$WORK/wf_$P.json"; cp "$WF0" "$WF"
-            "$PY" - "$WF" "$IN" "$P" <<'PATCH'
-          import json,sys
-          p,inp,pad=sys.argv[1:]; w=json.load(open(p))
-          for n in w.get('nodes',[]):
-              if n.get('id')==145: n['widgets_values'][0]=inp
-              elif n.get('id')==10: n['widgets_values'][0]='breaking_cap_reference.jpg'
-              elif n.get('id')==21: n['widgets_values'][0]='Animate ONLY the seated basketball player from the reference image. Transfer the driving performer’s facial expression, head movement, upper-body motion and arm gestures to that one player. Keep the locker-room background, microphone, interviewer hand, lower-third graphic, chair, clothing in the room and every non-target object unchanged. One consistent player identity for the entire clip. Photorealistic anatomy, stable face, natural hands, no extra people, no scene changes.'
-              elif n.get('id')==232:
-                  for x in n.get('inputs',[]):
-                      if x.get('name') in ('background_video','character_mask'): x['link']=None
-              elif n.get('id')==19: n['widgets_values'][0]=f'breaking_cap/photo_lock_{pad}'; n['mode']=0
-              elif n.get('id') in (243,277): n['mode']=4
-          kill={676,692}; w['links']=[l for l in w.get('links',[]) if not (isinstance(l,list) and l and l[0] in kill)]
-          for n in w.get('nodes',[]):
-              for o in n.get('outputs',[]) or []:
-                  if isinstance(o.get('links'),list): o['links']=[x for x in o['links'] if x not in kill] or None
-          json.dump(w,open(p,'w'),ensure_ascii=False)
-          PATCH
-            BEFORE=$(date +%s); cd "$COMFY"; export COMFYUI_HOST=http://127.0.0.1:8188
-            "$VENV/bin/comfy" --json run --workflow "$WF" --wait --timeout 3600 >"$WORK/run_$P.json" 2>"$WORK/run_$P.err" || { cat "$WORK/run_$P.err"; tail -200 "$WORK/comfy.log"; exit 71; }
-            GEN=$(find "$COMFY/output" -type f -name '*.mp4' -newermt "@$BEFORE" -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)
-            test -s "$GEN" || exit 72
-            OUT="$WORK/locked_$P.mp4"
-            ffmpeg -y -loop 1 -i "$WORK/reference.jpg" -i "$GEN" -loop 1 -i "$WORK/athlete_mask.png" -filter_complex "[0:v]scale=588:330[bg];[1:v]scale=588:330[fg];[2:v]scale=588:330,format=gray,boxblur=3:1[m];[fg][m]alphamerge[fga];[bg][fga]overlay=0:0:shortest=1[v]" -map '[v]' -t "$LN" -r 16 -an -c:v libx264 -preset medium -crf 17 -pix_fmt yuv420p "$OUT" >/dev/null 2>&1
-            echo "file '$OUT'" >>"$WORK/concat.txt"
-          done
-          ffmpeg -y -f concat -safe 0 -i "$WORK/concat.txt" -an -c:v libx264 -preset medium -crf 17 "$WORK/visual.mp4" >/dev/null 2>&1
-          FONT=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
-          FINAL=/workspace/breaking_cap_photo_lock_FINAL.mp4
-          ffmpeg -y -i "$WORK/visual.mp4" -i "$WORK/source.mp4" -i "$WORK/logo.webp" -filter_complex "[0:v]split=2[b][f];[b]scale=576:1024:force_original_aspect_ratio=increase,crop=576:1024,gblur=sigma=26[blur];[f]scale=576:-2[front];[blur][front]overlay=(W-w)/2:(H-h)/2[base];[2:v]scale=74:74:force_original_aspect_ratio=decrease,format=rgba,colorchannelmixer=aa=.92[lg];[base]drawbox=x=0:y=0:w=576:h=176:color=black@.84:t=fill,drawtext=fontfile=$FONT:text='SHE ASKED HIM HOW HE FELT':x=(w-text_w)/2:y=32:fontsize=31:fontcolor=white:borderw=2:bordercolor=black,drawtext=fontfile=$FONT:text='ABOUT THE GAME TONIGHT':x=(w-text_w)/2:y=80:fontsize=34:fontcolor=white:borderw=2:bordercolor=black,drawtext=fontfile=$FONT:text='AI PARODY':x=18:y=136:fontsize=19:fontcolor=white:box=1:boxcolor=red@.8:boxborderw=7[t];[t][lg]overlay=W-w-16:H-h-18[v]" -map '[v]' -map 1:a:0 -t 20.408345 -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a copy -movflags +faststart "$FINAL" >/dev/null 2>&1
-          ffprobe -v error -show_entries format=duration -show_entries stream=codec_type,width,height -of json "$FINAL" | tee "$WORK/qc.json"
-          test -s "$FINAL"; echo PHOTO_LOCK_FINAL_READY
-          '''
-          marker='__DONE_BC_LOCK__'; enc=base64.b64encode(shell.encode()).decode(); ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d >/tmp/bc.sh; bash /tmp/bc.sh; rc=$?; echo {marker}:$rc\n']))
-          seen=''; deadline=time.time()+9000; rc=None
+          enc=open('/tmp/payload.b64').read().strip(); marker='__DONE_BC_AUTO__'
+          ws.send(json.dumps(['stdin',f'echo {enc} | base64 -d >/tmp/bc_auto.sh; chmod +x /tmp/bc_auto.sh; /tmp/bc_auto.sh; rc=$?; echo {marker}:$rc\n']))
+          seen=''; deadline=time.time()+10000; rc=None
           while time.time()<deadline:
               msg=ws.recv()
               try:d=json.loads(msg)
@@ -124,18 +62,16 @@ jobs:
                   t=d[1]; seen+=t; print(t,end='',flush=True); mm=re.search(re.escape(marker)+r':(\d+)',seen)
                   if mm: rc=int(mm.group(1)); break
           ws.close(); assert rc==0, f'remote rc={rc}'
-          p='workspace/breaking_cap_photo_lock_FINAL.mp4'; q=s.get(base+'/api/contents/'+p,headers=headers,params={'content':'1','format':'base64'},timeout=240); q.raise_for_status(); j=q.json(); b=base64.b64decode(j['content']); open('breaking_cap_photo_lock_FINAL.mp4','wb').write(b); print('BYTES',len(b)); assert len(b)>1000000
+          p='workspace/breaking_cap_photo_lock_FINAL.mp4'; q=s.get(base+'/api/contents/'+p,headers=headers,params={'content':'1','format':'base64'},timeout=300); q.raise_for_status(); b=base64.b64decode(q.json()['content']); open('breaking_cap_photo_lock_FINAL.mp4','wb').write(b); assert len(b)>1000000
           PY
           python3 /tmp/run.py
-
       - name: Upload review artifact
         uses: actions/upload-artifact@v4
         with:
-          name: breaking-cap-photo-lock-final
+          name: breaking-cap-auto-replace-final
           path: breaking_cap_photo_lock_FINAL.mp4
           if-no-files-found: error
           retention-days: 7
-
       - name: Stop GPU
         if: always()
         env:
