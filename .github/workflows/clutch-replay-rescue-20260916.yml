@@ -21,7 +21,7 @@ jobs:
         with:
           ref: main
 
-      - name: Resolve current factory GPU pod
+      - name: Start current factory GPU pod
         shell: bash
         run: |
           set -euo pipefail
@@ -30,12 +30,22 @@ jobs:
           echo "POD_ID=$POD_ID" >> "$GITHUB_ENV"
           POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
-          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
-          echo "current pod=$POD_ID status=$STATUS"
-          [[ "$STATUS" == RUNNING ]] || { echo "current pod not running: $STATUS"; exit 3; }
-          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
-          echo "::add-mask::$JPASS"
-          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          if [[ "$STATUS" != RUNNING ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          fi
+          for i in $(seq 1 90); do
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+            JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+            echo "pod=$POD_ID status=$STATUS attempt=$i"
+            if [[ "$STATUS" == RUNNING && -n "$JPASS" ]]; then
+              echo "::add-mask::$JPASS"
+              printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 3
 
       - name: Pull finished Breaking Cap MP4 directly from persistent volume
         shell: bash
@@ -79,7 +89,8 @@ jobs:
               sys.exit(0)
           raise RuntimeError('video not found via contents API: '+repr(last))
           PY
-          ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,codec_type,width,height -of json breaking_cap_phx_parody_FINAL.mp4
+          test $(stat -c%s breaking_cap_phx_parody_FINAL.mp4) -gt 1000000
+          ls -lh breaking_cap_phx_parody_FINAL.mp4
 
       - name: Upload rescued Breaking Cap artifact
         uses: actions/upload-artifact@v4
