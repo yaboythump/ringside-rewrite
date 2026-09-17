@@ -1,0 +1,26 @@
+name: Ringside S2E01 Live Status
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ringside-s2e01-live-status.yml'
+      - 'tools/ringside_s2e01_live_status.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --quiet requests
+      - name: Probe live Ringside server job
+        run: python tools/ringside_s2e01_live_status.py
