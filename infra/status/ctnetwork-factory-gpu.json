@@ -1,6 +1,6 @@
 {
-  "id": "qqib46wvim14cw",
-  "name": "breaking-cap-phx-parody-20260916",
+  "id": "ut7sysi2v5sbjb",
+  "name": "breaking-cap-auto-replace-20260917",
   "desiredStatus": "RUNNING",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
   "networkVolumeId": "9wjb3sa5zm",
@@ -14,7 +14,7 @@
   "portMappings": null,
   "costPerHr": 0.74,
   "adjustedCostPerHr": null,
-  "machineId": "5c3wnstapavv",
+  "machineId": "7yxkdczkn825",
   "gpu": null,
   "machine": {
     "dataCenterId": null,
