@@ -1,0 +1,111 @@
+name: Breaking Cap Rescue Finished MP4
+
+on:
+  push:
+    paths:
+      - '.github/workflows/breaking-cap-rescue-finished.yml'
+
+permissions:
+  contents: read
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  rescue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start existing Breaking Cap pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' clutch-replay-parody-command.json)
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: $RUNPOD_API_KEY" >/tmp/start.json || true
+          for i in $(seq 1 90); do
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: $RUNPOD_API_KEY")
+            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+            echo "pod status=$STATUS attempt=$i"
+            if [[ "$STATUS" == "RUNNING" ]]; then
+              JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+              echo "::add-mask::$JPASS"
+              printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Existing pod did not restart" >&2
+          exit 2
+
+      - name: Wait for Jupyter
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 120); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter=$code attempt=$i"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 3
+          done
+          exit 3
+
+      - name: Pull finished MP4 through Jupyter contents API
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        run: |
+          python3 - <<'PY'
+          import os,re,requests,base64,sys
+          pod=os.environ['POD_ID']
+          password=open(os.environ['RUNNER_TEMP']+'/jupyter_password').read().strip()
+          base=f'https://{pod}-8888.proxy.runpod.net'
+          s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise RuntimeError('no xsrf token')
+          s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False)
+          xsrf=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xsrf} if xsrf else {}
+          candidates=[
+              'breaking_cap_phx_parody_FINAL.mp4',
+              'workspace/breaking_cap_phx_parody_FINAL.mp4',
+          ]
+          out='/tmp/breaking_cap_phx_parody_FINAL.mp4'
+          for p in candidates:
+              u=base+'/api/contents/'+p
+              rr=s.get(u,headers=headers,params={'content':1},timeout=120)
+              print('try',p,'status',rr.status_code)
+              if rr.status_code!=200: continue
+              j=rr.json(); data=j.get('content'); fmt=j.get('format')
+              if not data: continue
+              raw=base64.b64decode(data) if fmt=='base64' else data.encode()
+              open(out,'wb').write(raw)
+              print('RESCUED_BYTES',len(raw))
+              break
+          else:
+              raise RuntimeError('finished MP4 not found through contents API')
+          if os.path.getsize(out) < 1000000:
+              raise RuntimeError('rescued MP4 unexpectedly small')
+          PY
+
+      - name: Verify rescued MP4
+        run: |
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,codec_type,width,height -of json /tmp/breaking_cap_phx_parody_FINAL.mp4
+
+      - name: Upload finished parody artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: breaking-cap-phx-parody-final
+          path: /tmp/breaking_cap_phx_parody_FINAL.mp4
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop rescue pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        run: |
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: $RUNPOD_API_KEY" >/dev/null || true
