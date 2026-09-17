@@ -21,33 +21,27 @@ jobs:
         with:
           ref: main
 
-      - name: Start exact parody GPU pod
+      - name: Resolve current factory GPU pod
         shell: bash
         run: |
           set -euo pipefail
-          POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
-          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 2; }
-          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
-          for i in $(seq 1 90); do
-            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
-            echo "start attempt=$i status=$STATUS"
-            [[ "$STATUS" == RUNNING ]] && exit 0
-            sleep 3
-          done
-          exit 3
-
-      - name: Pull finished Breaking Cap MP4 directly from Jupyter
-        shell: bash
-        run: |
-          set -euo pipefail
-          POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
+          POD_ID=$(jq -r '.id // empty' infra/status/ctnetwork-factory-gpu.json)
+          [[ -n "$POD_ID" ]] || { echo 'current factory pod id missing'; exit 2; }
+          echo "POD_ID=$POD_ID" >> "$GITHUB_ENV"
           POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
           STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
           JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
-          [[ "$STATUS" == RUNNING ]] || { echo "pod not running: $STATUS"; exit 3; }
+          echo "current pod=$POD_ID status=$STATUS"
+          [[ "$STATUS" == RUNNING ]] || { echo "current pod not running: $STATUS"; exit 3; }
           [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
           echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+
+      - name: Pull finished Breaking Cap MP4 directly from persistent volume
+        shell: bash
+        run: |
+          set -euo pipefail
+          JPASS=$(cat "$RUNNER_TEMP/jupyter_password")
           for i in $(seq 1 120); do
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
             echo "jupyter attempt=$i http=$code"
@@ -69,12 +63,11 @@ jobs:
           xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
           candidates=[
             'workspace/breaking_cap_phx_parody_FINAL.mp4',
-            'breaking_cap_phx_parody_FINAL.mp4',
+            'workspace/ctnetwork/breaking-cap/sports-parodies/2026-09-16-phx-postgame-interview-parody/breaking_cap_phx_parody_FINAL.mp4',
           ]
           last=[]
           for p in candidates:
-            u=base+'/api/contents/'+p
-            q=s.get(u,headers=headers,params={'content':'1','format':'base64'},timeout=120)
+            q=s.get(base+'/api/contents/'+p,headers=headers,params={'content':'1','format':'base64'},timeout=120)
             last.append((p,q.status_code,q.text[:200]))
             if q.status_code!=200: continue
             j=q.json(); data=j.get('content'); fmt=j.get('format')
@@ -96,19 +89,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Stop exact parody GPU pod
+      - name: Stop current rescue GPU pod
         if: always()
         shell: bash
         run: |
           set +e
-          POD_ID=$(jq -r '.pod_id // empty' clutch-replay-parody-command.json)
-          [[ -n "$POD_ID" ]] || exit 0
+          [[ -n "${POD_ID:-}" ]] || exit 0
           echo "STOPPING_POD $POD_ID"
-          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
-          for i in $(seq 1 60); do
-            sleep 2
-            S=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
-            echo "stop attempt=$i status=$S"
-            [[ "$S" != RUNNING ]] && exit 0
-          done
-          exit 1
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
