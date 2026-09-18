@@ -1,0 +1,38 @@
+name: Ringside Recap AEW 0916 Production
+
+on:
+  push:
+    paths:
+      - 'tools/ringside_recap_aew_0916_narration.py'
+      - '.github/workflows/ringside-recap-aew-0916.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ringside-recap-aew-0916
+  cancel-in-progress: false
+
+jobs:
+  narrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install control dependencies
+        run: python -m pip install --quiet requests websocket-client
+      - name: Generate Ringside Recap narration on production GPU
+        run: python tools/ringside_recap_aew_0916_narration.py
+      - name: Upload narration checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: ringside-recap-aew-0916-narration
+          path: ringside-recap-aew-0916-narration/ringside-recap-aew-0916-narration.tar.gz
+          retention-days: 7
+          if-no-files-found: error
