@@ -1,6 +1,6 @@
 {
   "action": "start",
-  "target": "ctnetwork-factory-gpu-v2",
-  "pod_id": "g1zf15egp0w2i3",
-  "request_id": "start-ctnetwork-factory-v2-2026-09-18-1254z"
+  "target": "ctnetwork-upgrade-v3-20260917",
+  "pod_id": "4hbat776tgdpbt",
+  "request_id": "start-ctnetwork-upgrade-v3-2026-09-18-1255z"
 }
