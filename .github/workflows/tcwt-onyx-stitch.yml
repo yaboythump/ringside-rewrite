@@ -1,0 +1,47 @@
+name: Build TCWT Onyx Master Audio
+
+on:
+  push:
+    paths:
+      - 'tcwt-onyx-stitch-command.json'
+      - '.github/workflows/tcwt-onyx-stitch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stitch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Download Onyx sections
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/onyx
+          jq -r '.urls[]' tcwt-onyx-stitch-command.json | nl -w1 -s' ' | while read -r n url; do
+            curl -L --fail --retry 3 --retry-delay 2 "$url" -o "/tmp/onyx/part_$n.wav"
+          done
+          ls -lh /tmp/onyx
+
+      - name: Stitch narration
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -y             -i /tmp/onyx/part_1.wav             -i /tmp/onyx/part_2.wav             -i /tmp/onyx/part_3.wav             -i /tmp/onyx/part_4.wav             -filter_complex "[0:a]aresample=48000,aformat=channel_layouts=mono[a0];[1:a]aresample=48000,aformat=channel_layouts=mono[a1];[2:a]aresample=48000,aformat=channel_layouts=mono[a2];[3:a]aresample=48000,aformat=channel_layouts=mono[a3];[a0][a1][a2][a3]concat=n=4:v=0:a=1,alimiter=limit=0.96[out]"             -map "[out]" -c:a pcm_s16le /tmp/onyx/TCWT_Motel_Room_ORIGINAL_ONYX.wav
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/onyx/TCWT_Motel_Room_ORIGINAL_ONYX.wav
+
+      - name: Upload Onyx narration
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcwt-motel-original-onyx
+          path: /tmp/onyx/TCWT_Motel_Room_ORIGINAL_ONYX.wav
+          retention-days: 30
