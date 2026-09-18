@@ -2,7 +2,7 @@
 from __future__ import annotations
 import requests, time
 from pathlib import Path
-from ringside_recap_aew_0916_narration import create_pod, wait_running, login, terminal_run, download, AUTH
+from ringside_recap_aew_0916_narration import create_pod, wait_running, login, terminal_run, AUTH
 
 OUT=Path("ringside-recap-aew-0916-render")
 OUT.mkdir(exist_ok=True)
@@ -177,7 +177,20 @@ ls -lh ringside-recap-aew-0916-package.tar.gz
 echo RINGSIDE_RECAP_AEW_0916_READY_FOR_APPROVAL
 '''
         terminal_run(base,pid,s,h,shell)
-        download(base,s,h,"ctnetwork-local/ringside-recap-aew-0916-package.tar.gz",OUT/"ringside-recap-aew-0916-package.tar.gz")
+        target=OUT/"ringside-recap-aew-0916-package.tar.gz"
+        ok=False
+        for remote in ["ctnetwork-local/ringside-recap-aew-0916-package.tar.gz","workspace/ctnetwork-local/ringside-recap-aew-0916-package.tar.gz"]:
+            try:
+                rr=s.get(base+"/files/"+remote,headers=h,timeout=900)
+                if rr.ok and len(rr.content)>100000:
+                    target.write_bytes(rr.content)
+                    print("PACKAGE_DOWNLOADED",target,len(rr.content),flush=True)
+                    ok=True
+                    break
+            except Exception as exc:
+                print("PACKAGE_DOWNLOAD_RETRY",remote,repr(exc),flush=True)
+        if not ok:
+            raise RuntimeError("render package download failed")
     finally:
         try:
             requests.post(f"https://rest.runpod.io/v1/pods/{pid}/stop",headers=AUTH,timeout=30)
