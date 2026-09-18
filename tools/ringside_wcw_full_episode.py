@@ -236,7 +236,7 @@ echo {sections_b64} | base64 -d > "$JOB/text/sections.json"
 echo {crops_b64} | base64 -d > "$JOB/text/crops.json"
 : > "$JOB/raw/storyboard.b64"
 for I in $(seq -w 000 042); do
-  curl -L --fail --retry 5 "https://raw.githubusercontent.com/{REPO}/main/server_refs/wcw_storyboard_parts/part_${I}.txt" >> "$JOB/raw/storyboard.b64"
+  curl -L --fail --retry 5 "https://raw.githubusercontent.com/{REPO}/main/server_refs/wcw_storyboard_parts/part_${{I}}.txt" >> "$JOB/raw/storyboard.b64"
 done
 tr -d '\\r\\n ' < "$JOB/raw/storyboard.b64" | base64 -d > "$JOB/raw/storyboard.jpg"
 ffprobe -v error -show_entries stream=width,height -of default=nw=1 "$JOB/raw/storyboard.jpg"
@@ -245,8 +245,8 @@ ffprobe -v error -show_entries stream=width,height -of default=nw=1 "$JOB/raw/st
 
 : > "$JOB/audio/concat.txt"
 for I in $(seq -w 1 15); do
-  ffmpeg -y -loglevel error -i "$JOB/audio/section_${I}.wav" -ar 48000 -ac 1 -af "loudnorm=I=-16:TP=-1.5:LRA=11" "$JOB/audio/norm_${I}.wav"
-  echo "file '$JOB/audio/norm_${I}.wav'" >> "$JOB/audio/concat.txt"
+  ffmpeg -y -loglevel error -i "$JOB/audio/section_${{I}}.wav" -ar 48000 -ac 1 -af "loudnorm=I=-16:TP=-1.5:LRA=11" "$JOB/audio/norm_${{I}}.wav"
+  echo "file '$JOB/audio/norm_${{I}}.wav'" >> "$JOB/audio/concat.txt"
 done
 ffmpeg -y -loglevel error -f concat -safe 0 -i "$JOB/audio/concat.txt" -c:a pcm_s16le "$JOB/audio/narration.wav"
 
