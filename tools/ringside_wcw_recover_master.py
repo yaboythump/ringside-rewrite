@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import base64
 from ringside_wcw_full_episode import resolve_running_pod, wait_jupyter, login, terminal_run, download, stop_pod, JOB_ID
 
 OUT=Path("ringside-wcw-review")
@@ -39,7 +40,19 @@ tar -czf ringside-wcw-review.tar.gz \
 ls -lh ringside-wcw-review.tar.gz
 """
         terminal_run(base,pod_id,s,headers,shell,timeout=1800)
-        download(base,s,headers,"workspace/ctnetwork-local/ringside-wcw-review.tar.gz",OUT/"ringside-wcw-review.tar.gz")
+        dest=OUT/"ringside-wcw-review.tar.gz"
+        ok=False
+        for rel in ["ctnetwork-local/ringside-wcw-review.tar.gz","workspace/ctnetwork-local/ringside-wcw-review.tar.gz","ringside-wcw-review.tar.gz"]:
+            rr=s.get(base+"/api/contents/"+rel,headers=headers,timeout=1200)
+            if rr.ok:
+                model=rr.json()
+                if model.get("type")=="file" and model.get("content"):
+                    dest.write_bytes(base64.b64decode(model["content"]))
+                    print("CONTENTS_API_DOWNLOADED",rel,dest.stat().st_size,flush=True)
+                    ok=True
+                    break
+        if not ok:
+            raise RuntimeError("WCW_PACKAGE_DOWNLOAD_FAILED")
     finally:
         stop_pod(pod_id)
 
