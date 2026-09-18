@@ -1,0 +1,98 @@
+ _____                             _ 
+|  __ \                           | |
+| |__) |   _ _ __  _ __   ___   __| |
+|  _  / | | | '_ \| '_ \ / _ \ / _` |
+| | \ \ |_| | | | | |_) | (_) | (_| |
+|_|  \_\__,_|_| |_| .__/ \___/ \__,_|
+                  | |                
+                  |_|                
+For detailed documentation and guides, please visit:
+[1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
+
+
+[?2004h]0;root@b493570ddc34: /root@b493570ddc34:/# echo c2V0IC11CmVjaG8gJz09PSBDVE5FVFdPUksgTE9DQUwgU1RBQ0sgQVVESVQgPT09JwpkYXRlIC11CmVjaG8gJy0tLSBHUFUgLS0tJzsgbnZpZGlhLXNtaSAtLXF1ZXJ5LWdwdT1uYW1lLG1lbW9yeS50b3RhbCxtZW1vcnkuZnJlZSxkcml2ZXJfdmVyc2lvbiAtLWZvcm1hdD1jc3Ysbm9oZWFkZXIgfHwgdHJ1ZQplY2hvICctLS0gTlZJRElBLVNNSSAtLS0nOyBudmlkaWEtc21pIHx8IHRydWUKZWNobyAnLS0tIERJU0sgLS0tJzsgZGYgLWggLyAvd29ya3NwYWNlIDI+L2Rldi9udWxsIHx8IHRydWUKZWNobyAnLS0tIE1FTU9SWSAtLS0nOyBmcmVlIC1oIHx8IHRydWUKZWNobyAnLS0tIE9TIC0tLSc7IGNhdCAvZXRjL29zLXJlbGVhc2UgMj4vZGV2L251bGwgfHwgdHJ1ZQplY2hvICctLS0gUFlUSE9OIC0tLSc7IHB5dGhvbjMgLS12ZXJzaW9uIHx8IHRydWU7IC91c3IvYmluL3B5dGhvbiAtLXZlcnNpb24gfHwgdHJ1ZQplY2hvICctLS0gQ1VEQSAtLS0nOyBudmNjIC0tdmVyc2lvbiAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gJy0tLSBDT01GWSBQQVRIUyAtLS0nOyBscyAtbGQgL0NvbWZ5VUkgL3dvcmtzcGFjZS9jb21meXVpIC93b3Jrc3BhY2UvQ29tZnlVSSAyPi9kZXYvbnVsbCB8fCB0cnVlCmVjaG8gJy0tLSBXT1JLU1BBQ0UgVE9QIC0tLSc7IGR1IC1zaCAvd29ya3NwYWNlLyogMj4vZGV2L251bGwgfCBzb3J0IC1oIHwgdGFpbCAtbiA0MCB8fCB0cnVlCmVjaG8gJy0tLSBMVFggTU9ERUxTIC0tLSc7IGZpbmQgL3dvcmtzcGFjZSAvQ29tZnlVSSAtbWF4ZGVwdGggNSAtdHlwZSBmIFwoIC1pbmFtZSAnKmx0eCouc2FmZXRlbnNvcnMnIC1vIC1pbmFtZSAnKmx0eCouY2twdCcgXCkgLXByaW50ZiAnJXAgJXMgYnl0ZXNcbicgMj4vZGV2L251bGwgfCBoZWFkIC1uIDEwMCB8fCB0cnVlCmVjaG8gJy0tLSBDT05EQS9WRU5WUyAtLS0nOyBjb21tYW5kIC12IGNvbmRhIHx8IHRydWU7IGZpbmQgL3dvcmtzcGFjZSAtbWF4ZGVwdGggMyAtdHlwZSBkIFwoIC1uYW1lICcudmVudicgLW8gLW5hbWUgJ3ZlbnYnIC1vIC1uYW1lICdlbnYnIFwpIC1wcmludCAyPi9kZXYvbnVsbCB8IGhlYWQgLW4gNjAgfHwgdHJ1ZQplY2hvICctLS0gVE9PTFMgLS0tJzsgZm9yIHggaW4gZmZtcGVnIGZmcHJvYmUgZ2l0IGN1cmwgdXY7IGRvIHByaW50ZiAnJXM6ICcgIiR4IjsgY29tbWFuZCAtdiAiJHgiIHx8IHRydWU7IGRvbmUKZWNobyAnLS0tIEFDVElWRSBTRVJWSUNFUyAtLS0nOyBwcyBhdXggfCBlZ3JlcCAnQ29tZnlVSXxqdXB5dGVyfHV2aWNvcm58Z3JhZGlvfG11c2V0YWxrfGxhdGVudHN5bmN8cXdlbnxjaGF0dGVyYm94JyB8IGdyZXAgLXYgZ3JlcCB8fCB0cnVlCmVjaG8gJy0tLSBQWVRPUkNIIC0tLSc7IHB5dGhvbjMgLSA8PCdQWUMnCnRyeToKICBpbXBvcnQgdG9yY2gKICBwcmludCgndG9yY2gnLCB0b3JjaC5fX3ZlcnNpb25fXywgJ2N1ZGEnLCB0b3JjaC52ZXJzaW9uLmN1ZGEsICdhdmFpbGFibGUnLCB0b3JjaC5jdWRhLmlzX2F2YWlsYWJsZSgpKQogIGlmIHRvcmNoLmN1ZGEuaXNfYXZhaWxhYmxlKCk6IHByaW50KCdkZXZpY2UnLCB0b3JjaC5jdWRhLmdldF9kZXZpY2VfbmFtZSgwKSwgJ2NhcCcsIHRvcmNoLmN1ZGEuZ2V0X2RldmljZV9jYXBhYmlsaXR5KDApKQpleGNlcHQgRXhjZXB0aW9uIGFzIGU6IHByaW50KCd0b3JjaF9lcnJvcicsIHJlcHIoZSkpClBZQwplY2hvICc9PT0gQVVESVQgQ09NUExFVEUgPT09Jwo= | base64 -d >/tmp/ctn_audit.sh && bash /tmp/ctn_audit.sh; rc=$?; echo __REMOTE_DONE__:$rc
+[?2004l=== CTNETWORK LOCAL STACK AUDIT ===
+Fri Sep 18 13:01:19 UTC 2026
+--- GPU ---
+NVIDIA GeForce RTX 4090, 24564 MiB, 24080 MiB, 580.126.20
+--- NVIDIA-SMI ---
+Fri Sep 18 13:01:19 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.20             Driver Version: 580.126.20     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 4090        On  |   00000000:02:00.0 Off |                  Off |
+|  0%   33C    P8             19W /  450W |       1MiB /  24564MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+--- DISK ---
+Filesystem                Size  Used Avail Use% Mounted on
+overlay                    40G   16M   40G   1% /
+mfs#euro.runpod.net:9421  2.3P  1.9P  429T  82% /workspace
+--- MEMORY ---
+               total        used        free      shared  buff/cache   available
+Mem:           124Gi       9.1Gi        48Gi        12Mi        68Gi       115Gi
+Swap:             0B          0B          0B
+--- OS ---
+PRETTY_NAME="Ubuntu 24.04.3 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.3 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+--- PYTHON ---
+Python 3.12.3
+/tmp/ctn_audit.sh: line 9: /usr/bin/python: No such file or directory
+--- CUDA ---
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2025 NVIDIA Corporation
+Built on Fri_Feb_21_20:23:50_PST_2025
+Cuda compilation tools, release 12.8, V12.8.93
+Build cuda_12.8.r12.8/compiler.35583870_0
+--- COMFY PATHS ---
+drwxrwxrwx 27 root root 3002885 Sep 17 10:14 /workspace/ComfyUI
+--- WORKSPACE TOP ---
+512	/workspace/bc_phx.rc
+512	/workspace/clutch_replay_tommy_pham_parody_v2_qc.json
+6.0K	/workspace/bc_phx.log
+532K	/workspace/clutch_replay_tommy_pham_parody_v2.mp4
+723K	/workspace/clutch_replay_tommy_pham_parody.mp4
+4.7M	/workspace/breaking_cap_phx_parody_FINAL.mp4
+128M	/workspace/ctnetwork
+4.9G	/workspace/LatentSync
+30G	/workspace/ComfyUI
+43G	/workspace/ctnetwork-local.zip
+92G	/workspace/ctnetwork-local
+--- LTX MODELS ---
+--- CONDA/VENVS ---
+--- TOOLS ---
+ffmpeg: /usr/bin/ffmpeg
+ffprobe: /usr/bin/ffprobe
+git: /usr/bin/git
+curl: /usr/bin/curl
+uv: /usr/bin/uv
+--- ACTIVE SERVICES ---
+--- PYTORCH ---
+torch 2.8.0+cu128 cuda 12.8 available True
+device NVIDIA GeForce RTX 4090 cap (8, 9)
+=== AUDIT COMPLETE ===
+__REMOTE_DONE__:0
+[?2004h
