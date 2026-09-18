@@ -279,11 +279,12 @@ job=pathlib.Path('/workspace/ctnetwork-local/{JOB_ID}')
 durs=json.load(open(job/'text/durations.json')); concat=[]
 for i,dur in enumerate(durs,1):
     img=job/'visuals'/f'scene_{{i:02d}}.jpg'; out=job/'clips'/f'scene_{{i:02d}}.mp4'; frames=max(60,int((dur+0.12)*30)); variant=(i-1)%5
+    denom=max(1,frames-1)
     if variant==0: zp="zoompan=z='min(zoom+0.00065,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
-    elif variant==1: zp="zoompan=z='min(zoom+0.00055,1.07)':x='(iw-iw/zoom)*on/max(1,d-1)':y='ih/2-(ih/zoom/2)'"
-    elif variant==2: zp="zoompan=z='min(zoom+0.00055,1.07)':x='iw-iw/zoom-(iw-iw/zoom)*on/max(1,d-1)':y='ih/2-(ih/zoom/2)'"
-    elif variant==3: zp="zoompan=z='1.055':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/max(1,d-1)'"
-    else: zp="zoompan=z='1.055':x='iw/2-(iw/zoom/2)':y='ih-ih/zoom-(ih-ih/zoom)*on/max(1,d-1)'"
+    elif variant==1: zp=f"zoompan=z='min(zoom+0.00055,1.07)':x='(iw-iw/zoom)*on/{denom}':y='ih/2-(ih/zoom/2)'"
+    elif variant==2: zp=f"zoompan=z='min(zoom+0.00055,1.07)':x='iw-iw/zoom-(iw-iw/zoom)*on/{denom}':y='ih/2-(ih/zoom/2)'"
+    elif variant==3: zp=f"zoompan=z='1.055':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/{denom}'"
+    else: zp=f"zoompan=z='1.055':x='iw/2-(iw/zoom/2)':y='ih-ih/zoom-(ih-ih/zoom)*on/{denom}'"
     extra=',eq=contrast=1.08:saturation=1.06' if i in (2,3,7,9,14,15) else ''
     vf=f"scale=1920:1080,{{zp}}:d={{frames}}:s=1920x1080:fps=30{{extra}},format=yuv420p"
     subprocess.run(['ffmpeg','-y','-loglevel','error','-loop','1','-t',f'{{dur+0.08:.3f}}','-i',str(img),'-vf',vf,'-an','-c:v','libx264','-preset','fast','-crf','18','-movflags','+faststart',str(out)],check=True)
