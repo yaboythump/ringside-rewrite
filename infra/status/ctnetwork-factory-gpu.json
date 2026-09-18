@@ -1,6 +1,6 @@
 {
-  "id": "rehkqunr91kpp3",
-  "name": "breaking-cap-auto-replace-20260917",
+  "id": "hn0kc03bpibw3c",
+  "name": "ctnetwork-factory-next",
   "desiredStatus": "RUNNING",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
   "networkVolumeId": "9wjb3sa5zm",
@@ -14,7 +14,7 @@
   "portMappings": null,
   "costPerHr": 0.74,
   "adjustedCostPerHr": null,
-  "machineId": "jt3f5bpkjiu0",
+  "machineId": "y8im578a7li4",
   "gpu": null,
   "machine": {
     "dataCenterId": null,
