@@ -1,0 +1,26 @@
+name: Stage Ringside Recap AEW 0916 Assets
+
+on:
+  push:
+    paths:
+      - 'tools/ringside_recap_aew_0916_stage_assets.py'
+      - '.github/workflows/ringside-recap-aew-0916-stage-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --quiet requests websocket-client pillow
+      - name: Stage approved full-frame episode assets
+        run: python tools/ringside_recap_aew_0916_stage_assets.py
