@@ -1,0 +1,38 @@
+name: Ringside WCW Review Master
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ringside-wcw-review-master.yml'
+      - 'tools/ringside_wcw_full_episode.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ringside-wcw-review-master
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install control dependencies
+        run: python -m pip install --quiet requests websocket-client
+      - name: Render WCW review master on running CTNETWORK server
+        run: python tools/ringside_wcw_full_episode.py
+      - name: Upload review master package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ringside-wcw-review-master
+          path: ringside-wcw-review/
+          retention-days: 7
+          if-no-files-found: error
