@@ -1,6 +1,6 @@
 {
   "action": "start",
-  "target": "ctnetwork-factory-gpu-migration",
-  "pod_id": "g7b6es3pvuuwqz",
-  "request_id": "start-urban-silver-ape-migration-2026-09-18"
+  "target": "ctnetwork-upgrade-v3",
+  "pod_id": "4hbat776tgdpbt",
+  "request_id": "start-ctnetwork-upgrade-v3-2026-09-18"
 }
