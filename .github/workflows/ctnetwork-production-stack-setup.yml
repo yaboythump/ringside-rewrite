@@ -1,0 +1,278 @@
+name: CTNETWORK Production Stack Setup
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-production-setup-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve production pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' ctnetwork-production-setup-command.json)
+          [[ -n "$POD_ID" ]] || { echo 'pod_id missing'; exit 2; }
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+            for i in $(seq 1 60); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+              STATUS=$(echo "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 3; }
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo 'JUPYTER_PASSWORD missing'; exit 4; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Build CTNETWORK production stack
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY' | tee /tmp/ctnetwork-production-setup.txt
+          import base64, json, os, re, sys, time
+          import requests, websocket
+          pod_id=os.environ['POD_ID']; password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          base=f'https://{pod_id}-8888.proxy.runpod.net'
+          script=r'''set -euo pipefail
+          ROOT=/workspace/ctnetwork-production
+          mkdir -p "$ROOT"/{bin,config,episodes,incoming,models/huggingface,services/tts,services/comfy,logs,tmp}
+          mkdir -p "$ROOT/episodes/_template"/{images,motion,audio,work,master,shorts,logs}
+          export HF_HOME="$ROOT/models/huggingface"
+          export PIP_DISABLE_PIP_VERSION_CHECK=1
+
+          echo '=== CTNETWORK production stack setup ==='
+          date -u
+          echo '[1/7] Base directories ready'
+
+          if [[ ! -x "$ROOT/services/tts/.venv/bin/python" ]]; then
+            /usr/bin/uv venv --system-site-packages --seed "$ROOT/services/tts/.venv"
+          fi
+          /usr/bin/uv pip install --python "$ROOT/services/tts/.venv/bin/python" -U qwen-tts soundfile
+          echo '[2/7] Qwen3-TTS isolated environment ready'
+
+          if [[ ! -x "$ROOT/services/comfy/.venv/bin/python" ]]; then
+            /usr/bin/uv venv --system-site-packages --seed "$ROOT/services/comfy/.venv"
+          fi
+          if [[ -f /workspace/ComfyUI/requirements.txt ]]; then
+            /usr/bin/uv pip install --python "$ROOT/services/comfy/.venv/bin/python" -r /workspace/ComfyUI/requirements.txt
+          fi
+          echo '[3/7] ComfyUI isolated runtime ready'
+
+          cat > "$ROOT/bin/narrate.py" <<'PY1'
+          #!/usr/bin/env python3
+          import argparse, os
+          import torch, soundfile as sf
+          from qwen_tts import Qwen3TTSModel
+
+          p=argparse.ArgumentParser()
+          p.add_argument('--text-file', required=True)
+          p.add_argument('--output', required=True)
+          p.add_argument('--speaker', default='Aiden')
+          p.add_argument('--language', default='English')
+          p.add_argument('--instruct', default='')
+          p.add_argument('--model', default='Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice')
+          a=p.parse_args()
+          os.environ.setdefault('HF_HOME','/workspace/ctnetwork-production/models/huggingface')
+          text=open(a.text_file,encoding='utf-8').read().strip()
+          if not text:
+              raise SystemExit('Narration text is empty')
+          model=Qwen3TTSModel.from_pretrained(a.model,device_map='cuda:0',dtype=torch.bfloat16)
+          wavs,sr=model.generate_custom_voice(text=text,language=a.language,speaker=a.speaker,instruct=a.instruct)
+          os.makedirs(os.path.dirname(os.path.abspath(a.output)),exist_ok=True)
+          tmp=a.output+'.part.wav'
+          sf.write(tmp,wavs[0],sr)
+          os.replace(tmp,a.output)
+          print(a.output)
+          PY1
+          chmod +x "$ROOT/bin/narrate.py"
+
+          cat > "$ROOT/bin/assemble_episode.py" <<'PY2'
+          #!/usr/bin/env python3
+          import json, os, subprocess, sys
+          from pathlib import Path
+
+          def run(cmd):
+              print('+',' '.join(map(str,cmd)),flush=True)
+              subprocess.run([str(x) for x in cmd],check=True)
+
+          def duration(path):
+              out=subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=nw=1:nk=1',str(path)],text=True).strip()
+              return float(out)
+
+          if len(sys.argv)!=2:
+              raise SystemExit('usage: assemble_episode.py /path/to/manifest.json')
+          manifest=Path(sys.argv[1]).resolve()
+          cfg=json.loads(manifest.read_text())
+          ep=manifest.parent
+          work=ep/'work'; work.mkdir(exist_ok=True)
+          master=ep/'master'; master.mkdir(exist_ok=True)
+          fps=int(cfg.get('fps',30)); width=int(cfg.get('width',1920)); height=int(cfg.get('height',1080))
+          narration=(ep/cfg['narration']).resolve()
+          scenes=cfg['scenes']
+          if not scenes: raise SystemExit('manifest has no scenes')
+          total_audio=duration(narration)
+          default_d=max(2.5,total_audio/len(scenes))
+          clips=[]
+          for i,s in enumerate(scenes,1):
+              src=(ep/s['source']).resolve()
+              if not src.exists(): raise SystemExit(f'missing scene source: {src}')
+              clip=work/f'scene_{i:03d}.mp4'
+              clips.append(clip)
+              if clip.exists() and clip.stat().st_size>10000: continue
+              d=float(s.get('duration',default_d)); motion=s.get('motion','zoom_in')
+              if src.suffix.lower()=='.mp4':
+                  run(['ffmpeg','-y','-i',src,'-t',str(d),'-vf',f'scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},fps={fps},format=yuv420p','-an','-c:v','libx264','-preset','veryfast',clip])
+              else:
+                  if motion=='static':
+                      vf=f'scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},fps={fps},format=yuv420p'
+                  elif motion=='zoom_out':
+                      frames=max(1,int(d*fps)); vf=f'scale=2400:-2,zoompan=z=\'if(eq(on,1),1.08,max(1.0,zoom-0.0006))\':d={frames}:s={width}x{height}:fps={fps},format=yuv420p'
+                  else:
+                      frames=max(1,int(d*fps)); vf=f'scale=2400:-2,zoompan=z=\'min(zoom+0.0006,1.08)\':d={frames}:s={width}x{height}:fps={fps},format=yuv420p'
+                  run(['ffmpeg','-y','-loop','1','-i',src,'-t',str(d),'-vf',vf,'-an','-c:v','libx264','-preset','veryfast',clip])
+          concat=work/'concat.txt'
+          concat.write_text(''.join(f"file '{p.as_posix()}'\n" for p in clips))
+          joined=work/'joined.mp4'
+          run(['ffmpeg','-y','-f','concat','-safe','0','-i',concat,'-c','copy',joined])
+          out=master/(cfg.get('output','episode_master.mp4'))
+          music=cfg.get('music')
+          if music and (ep/music).exists():
+              run(['ffmpeg','-y','-i',joined,'-i',narration,'-stream_loop','-1','-i',ep/music,'-filter_complex','[1:a]volume=1.0[n];[2:a]volume=0.10[m];[n][m]amix=inputs=2:duration=first:dropout_transition=2[a]','-map','0:v','-map','[a]','-c:v','copy','-c:a','aac','-b:a','192k','-shortest',out])
+          else:
+              run(['ffmpeg','-y','-i',joined,'-i',narration,'-map','0:v','-map','1:a','-c:v','copy','-c:a','aac','-b:a','192k','-shortest',out])
+          print(out)
+          PY2
+          chmod +x "$ROOT/bin/assemble_episode.py"
+
+          cat > "$ROOT/bin/comfy-start.sh" <<'SH1'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          ROOT=/workspace/ctnetwork-production
+          if pgrep -f '/workspace/ComfyUI/main.py' >/dev/null; then echo 'ComfyUI already running'; exit 0; fi
+          nohup "$ROOT/services/comfy/.venv/bin/python" /workspace/ComfyUI/main.py --listen 0.0.0.0 --port 8188 >"$ROOT/logs/comfy.log" 2>&1 &
+          echo $! > "$ROOT/services/comfy/comfy.pid"
+          echo "ComfyUI PID $!"
+          SH1
+          chmod +x "$ROOT/bin/comfy-start.sh"
+
+          cat > "$ROOT/bin/comfy-stop.sh" <<'SH2'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          pkill -f '/workspace/ComfyUI/main.py' || true
+          rm -f /workspace/ctnetwork-production/services/comfy/comfy.pid
+          SH2
+          chmod +x "$ROOT/bin/comfy-stop.sh"
+
+          cat > "$ROOT/bin/doctor.sh" <<'SH3'
+          #!/usr/bin/env bash
+          set -u
+          ROOT=/workspace/ctnetwork-production
+          echo '=== CTNETWORK PRODUCTION DOCTOR ==='
+          date -u
+          nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free --format=csv,noheader || true
+          echo "ffmpeg: $(ffmpeg -version | head -1)"
+          "$ROOT/services/tts/.venv/bin/python" - <<'PY3'
+          try:
+              import qwen_tts
+              print('qwen_tts: OK')
+          except Exception as e:
+              print('qwen_tts: FAIL',repr(e))
+          PY3
+          "$ROOT/services/comfy/.venv/bin/python" - <<'PY4'
+          try:
+              import torch
+              print('comfy_runtime torch:',torch.__version__,'cuda:',torch.cuda.is_available())
+          except Exception as e:
+              print('comfy_runtime: FAIL',repr(e))
+          PY4
+          test -f /workspace/ComfyUI/main.py && echo 'ComfyUI: PRESENT' || echo 'ComfyUI: MISSING'
+          test -x "$ROOT/bin/assemble_episode.py" && echo 'Assembler: READY' || echo 'Assembler: MISSING'
+          SH3
+          chmod +x "$ROOT/bin/doctor.sh"
+
+          cat > "$ROOT/config/README.txt" <<'TXT'
+          CTNETWORK production architecture:
+          ChatGPT creates/approves storyboard images.
+          Qwen3-TTS creates narration as a standalone WAV checkpoint.
+          ComfyUI is started only when hero-shot motion is needed.
+          FFmpeg assembly is deterministic and resumes scene-by-scene.
+          Episode folders preserve images, motion, audio, work files, master, shorts, and logs.
+          LTX is optional and is not required for narration or final assembly.
+          TXT
+
+          echo '[4/7] Narration runner installed'
+          echo '[5/7] FFmpeg checkpointed assembler installed'
+          echo '[6/7] ComfyUI on-demand controls installed'
+          "$ROOT/bin/doctor.sh"
+          echo '[7/7] Production stack ready'
+          '''
+          payload=base64.b64encode(script.encode()).decode()
+          cmd=f"echo {payload} | base64 -d >/tmp/ctn_prod_setup.sh && bash /tmp/ctn_prod_setup.sh; rc=$?; echo __REMOTE_DONE__:$rc\n"
+          s=requests.Session()
+          for attempt in range(40):
+            try:
+              r=s.get(base+'/login',timeout=15)
+              if r.ok: break
+            except Exception: pass
+            time.sleep(5)
+          else: raise SystemExit('Jupyter did not become reachable')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); xsrf=m.group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},timeout=30,allow_redirects=True); r.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          ws.send(json.dumps(['stdin',cmd])); rc=None; deadline=time.time()+2700
+          try:
+            while time.time()<deadline:
+              msg=ws.recv()
+              if not msg: continue
+              try: data=json.loads(msg)
+              except Exception: continue
+              if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                out=data[1]; sys.stdout.write(out); sys.stdout.flush()
+                mm=re.search(r'__REMOTE_DONE__:(\d+)',out)
+                if mm: rc=int(mm.group(1)); break
+          finally:
+            ws.close()
+            try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+            except Exception: pass
+          if rc is None: raise SystemExit('remote setup timed out')
+          raise SystemExit(rc)
+          PY
+
+      - name: Save setup report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/ctnetwork-production-setup.txt infra/status/ctnetwork-production-setup.txt 2>/dev/null || echo 'setup did not produce output' > infra/status/ctnetwork-production-setup.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-production-setup.txt
+          git commit -m 'CTNETWORK: save production stack setup report' || exit 0
+          git push origin HEAD:main
