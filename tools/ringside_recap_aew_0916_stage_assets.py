@@ -3,7 +3,7 @@ from __future__ import annotations
 import requests
 from ringside_recap_aew_0916_narration import create_pod, wait_running, login, terminal_run, AUTH
 
-ASSET_URL="https://sdmntprcentralus.oaiusercontent.com/files/00000000-ac24-81f5-ae53-81ff26d9cf39/raw?se=2026-09-18T16%3A37%3A31Z&sp=r&sv=2026-02-06&sr=b&scid=e3d4bd0f-16b1-56a3-975a-b0e6f18cd560&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-18T13%3A31%3A49Z&ske=2026-09-19T13%3A31%3A49Z&sks=b&skv=2026-02-06&sig=OgeuEd%2BtWANCord68ECX1SEnz9nAi0EwXGd79qVYcXw%3D"
+ASSET_URL="https://sdmntprcentralus.oaiusercontent.com/files/00000000-a2e4-81f5-a059-a8993c560ac3/raw?se=2026-09-18T16%3A42%3A03Z&sp=r&sv=2026-02-06&sr=b&scid=aa50ca2a-c15a-543c-9edf-46098c5880df&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-18T13%3A36%3A29Z&ske=2026-09-19T13%3A36%3A29Z&sks=b&skv=2026-02-06&sig=yXTJjTCtz5vMgXkrHNIWD7zXt6FBzUj3QtPkCOVJZwY%3D"
 
 def main():
     pid,pw=create_pod()
@@ -24,7 +24,7 @@ ROOT=/workspace/ctnetwork-local
 STAGE=$ROOT/staged-assets/ringside-recap-aew-0916
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
-curl -fL --retry 5 --retry-delay 2 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-ac24-81f5-ae53-81ff26d9cf39/raw?se=2026-09-18T16%3A37%3A31Z&sp=r&sv=2026-02-06&sr=b&scid=e3d4bd0f-16b1-56a3-975a-b0e6f18cd560&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-18T13%3A31%3A49Z&ske=2026-09-19T13%3A31%3A49Z&sks=b&skv=2026-02-06&sig=OgeuEd%2BtWANCord68ECX1SEnz9nAi0EwXGd79qVYcXw%3D' -o /tmp/aew0916-assets.zip
+curl -fL --retry 5 --retry-delay 2 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-a2e4-81f5-a059-a8993c560ac3/raw?se=2026-09-18T16%3A42%3A03Z&sp=r&sv=2026-02-06&sr=b&scid=aa50ca2a-c15a-543c-9edf-46098c5880df&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-18T13%3A36%3A29Z&ske=2026-09-19T13%3A36%3A29Z&sks=b&skv=2026-02-06&sig=yXTJjTCtz5vMgXkrHNIWD7zXt6FBzUj3QtPkCOVJZwY%3D' -o /tmp/aew0916-assets.zip
 unzip -q /tmp/aew0916-assets.zip -d "$STAGE"
 python3 - <<'PY'
 from pathlib import Path
