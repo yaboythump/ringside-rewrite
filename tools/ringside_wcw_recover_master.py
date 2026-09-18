@@ -39,7 +39,7 @@ tar -czf ringside-wcw-review.tar.gz \
 ls -lh ringside-wcw-review.tar.gz
 """
         terminal_run(base,pod_id,s,headers,shell,timeout=1800)
-        download(base,s,headers,"ctnetwork-local/ringside-wcw-review.tar.gz",OUT/"ringside-wcw-review.tar.gz")
+        download(base,s,headers,"workspace/ctnetwork-local/ringside-wcw-review.tar.gz",OUT/"ringside-wcw-review.tar.gz")
     finally:
         stop_pod(pod_id)
 
