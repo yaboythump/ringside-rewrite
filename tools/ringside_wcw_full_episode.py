@@ -221,7 +221,6 @@ def main():
         shell = f'''set -Eeuo pipefail
 ROOT=/workspace/ctnetwork-local
 JOB=$ROOT/{JOB_ID}
-rm -rf "$JOB"
 mkdir -p "$JOB"/{{text,audio,visuals,clips,sfx,output,raw}}
 if ! command -v ffmpeg >/dev/null 2>&1; then apt-get update -y >/dev/null && DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg curl >/dev/null; fi
 QPY="$ROOT/envs/qwen3-tts/bin/python"
@@ -241,7 +240,11 @@ done
 tr -d '\\r\\n ' < "$JOB/raw/storyboard.b64" | base64 -d > "$JOB/raw/storyboard.jpg"
 ffprobe -v error -show_entries stream=width,height -of default=nw=1 "$JOB/raw/storyboard.jpg"
 
-"$QPY" "$QBATCH" --sections-json "$JOB/text/sections.json" --ref-audio "$JOB/raw/kevin_ref.wav" --ref-text-file "$JOB/text/ref.txt" --output-dir "$JOB/audio" --language English
+if [ -s "$JOB/audio/section_15.wav" ]; then
+  echo "REUSING_COMPLETED_WCW_NARRATION"
+else
+  "$QPY" "$QBATCH" --sections-json "$JOB/text/sections.json" --ref-audio "$JOB/raw/kevin_ref.wav" --ref-text-file "$JOB/text/ref.txt" --output-dir "$JOB/audio" --language English
+fi
 
 : > "$JOB/audio/concat.txt"
 for I in $(seq -w 1 15); do
@@ -284,7 +287,7 @@ for i,dur in enumerate(durs,1):
     extra=',eq=contrast=1.08:saturation=1.06' if i in (2,3,7,9,14,15) else ''
     vf=f"scale=1920:1080,{{zp}}:d={{frames}}:s=1920x1080:fps=30{{extra}},format=yuv420p"
     subprocess.run(['ffmpeg','-y','-loglevel','error','-loop','1','-t',f'{{dur+0.08:.3f}}','-i',str(img),'-vf',vf,'-an','-c:v','libx264','-preset','fast','-crf','18','-movflags','+faststart',str(out)],check=True)
-    concat.append(f"file '{{out}}'\n")
+    concat.append(f"file '{{out}}'\\n")
 (job/'clips'/'concat.txt').write_text(''.join(concat))
 PY_MOTION
 ffmpeg -y -loglevel error -f concat -safe 0 -i "$JOB/clips/concat.txt" -c copy "$JOB/visual_master.mp4"
