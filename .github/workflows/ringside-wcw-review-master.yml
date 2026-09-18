@@ -3,8 +3,7 @@ name: Ringside WCW Review Master
 on:
   push:
     paths:
-      - 'server_refs/ringside_wcw_storyboard.b64'
-      - 'tools/ringside_wcw_full_episode.py'
+      - 'tools/ringside_wcw_stable_assemble.py'
       - '.github/workflows/ringside-wcw-review-master.yml'
   workflow_dispatch:
 
@@ -13,12 +12,12 @@ permissions:
 
 concurrency:
   group: ringside-wcw-review-master
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 180
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
@@ -28,8 +27,8 @@ jobs:
           python-version: '3.12'
       - name: Install control dependencies
         run: python -m pip install --quiet requests websocket-client
-      - name: Render WCW review master on running CTNETWORK server
-        run: python tools/ringside_wcw_full_episode.py
+      - name: Assemble stable WCW review master
+        run: python tools/ringside_wcw_stable_assemble.py
       - name: Upload review master package
         uses: actions/upload-artifact@v4
         with:
