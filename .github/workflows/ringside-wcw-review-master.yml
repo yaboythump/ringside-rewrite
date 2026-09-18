@@ -1,10 +1,6 @@
 name: Ringside WCW Review Master
 
 on:
-  push:
-    paths:
-      - '.github/workflows/ringside-wcw-review-master.yml'
-      - 'tools/ringside_wcw_full_episode.py'
   workflow_dispatch:
 
 permissions:
