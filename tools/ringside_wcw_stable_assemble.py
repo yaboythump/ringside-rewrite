@@ -78,12 +78,12 @@ ffmpeg -y -loglevel error \
 ffmpeg -y -loglevel error \
   -f lavfi -i "sine=frequency=880:sample_rate=48000:duration=1.1" \
   -f lavfi -i "sine=frequency=1320:sample_rate=48000:duration=1.1" \
-  -filter_complex "[0:a]volume=.24,afade=t=out:st=.12:d=.9[a];[1:a]volume=.14,afade=t=out:st=.08:d=.9[b];[a][b]amix=inputs=2" \
+  -filter_complex "[0:a]volume=0.24[a];[1:a]volume=0.14[b];[a][b]amix=inputs=2" \
   "$JOB/sfx/bell_stable.wav"
 
 ffmpeg -y -loglevel error \
   -f lavfi -i "anoisesrc=color=pink:amplitude=0.08:sample_rate=48000:duration=3" \
-  -af "highpass=f=250,lowpass=f=5000,afade=t=in:d=.15,afade=t=out:st=1.8:d=1.2,volume=.16" \
+  -af "highpass=f=250,lowpass=f=5000,volume=0.16" \
   "$JOB/sfx/crowd_stable.wav"
 
 ffmpeg -y -loglevel error \
