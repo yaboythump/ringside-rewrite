@@ -165,7 +165,7 @@ ffmpeg -y -loglevel error -i "$JOB/raw/kevin_ref.mp3" -t 3.4 -ar 24000 -ac 1 "$J
 printf '%s' 'One bell changed professional wrestling' > "$JOB/text/ref.txt"
 echo {sections_b64} | base64 -d > "$JOB/text/sections.json"
 echo {crops_b64} | base64 -d > "$JOB/text/crops.json"
-curl -L --fail --retry 5 "https://raw.githubusercontent.com/{REPO}/main/server_refs/ringside_wcw_storyboard.b64" | tr -d '\\r\\n ' | base64 -d > "$JOB/raw/storyboard.jpg"
+curl -L --fail --retry 5 "https://cdn.creativeclaw.co/u/6d1d5f99/images/afc54cc6-452b-4706-9af1-298ccfc0eeb3.jpg" -o "$JOB/raw/storyboard.jpg"
 ffprobe -v error -show_entries stream=width,height -of default=nw=1 "$JOB/raw/storyboard.jpg"
 
 "$QPY" "$QBATCH" --sections-json "$JOB/text/sections.json" --ref-audio "$JOB/raw/kevin_ref.wav" --ref-text-file "$JOB/text/ref.txt" --output-dir "$JOB/audio" --language English
