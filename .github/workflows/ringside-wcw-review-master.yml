@@ -3,7 +3,7 @@ name: Ringside WCW Review Master
 on:
   push:
     paths:
-      - 'tools/ringside_wcw_recover_master.py'
+      - 'tools/ringside_wcw_fullframe_rebuild.py'
       - '.github/workflows/ringside-wcw-review-master.yml'
   workflow_dispatch:
 
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
@@ -27,12 +27,12 @@ jobs:
           python-version: '3.12'
       - name: Install control dependencies
         run: python -m pip install --quiet requests websocket-client
-      - name: Recover completed WCW review master
-        run: python tools/ringside_wcw_recover_master.py
-      - name: Upload review master package
+      - name: Rebuild WCW master with full-frame visuals
+        run: python tools/ringside_wcw_fullframe_rebuild.py
+      - name: Upload corrected review master
         uses: actions/upload-artifact@v4
         with:
-          name: ringside-wcw-review-master
-          path: ringside-wcw-review/
+          name: ringside-wcw-fullframe-review
+          path: ringside-wcw-reframed/
           retention-days: 7
           if-no-files-found: error
