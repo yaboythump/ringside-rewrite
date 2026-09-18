@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import requests
-from tools.ringside_recap_aew_0916_narration import create_pod, wait_running, login, terminal_run, AUTH
+from ringside_recap_aew_0916_narration import create_pod, wait_running, login, terminal_run, AUTH
 
 ASSET_URL="https://sdmntprcentralus.oaiusercontent.com/files/00000000-ac24-81f5-ae53-81ff26d9cf39/raw?se=2026-09-18T16%3A37%3A31Z&sp=r&sv=2026-02-06&sr=b&scid=e3d4bd0f-16b1-56a3-975a-b0e6f18cd560&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-18T13%3A31%3A49Z&ske=2026-09-19T13%3A31%3A49Z&sks=b&skv=2026-02-06&sig=OgeuEd%2BtWANCord68ECX1SEnz9nAi0EwXGd79qVYcXw%3D"
 
