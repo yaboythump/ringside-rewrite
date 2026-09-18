@@ -1,0 +1,107 @@
+name: TCWT Asset Audit
+
+on:
+  push:
+    paths:
+      - 'tcwt-asset-audit-command.json'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' tcwt-asset-audit-command.json)
+          [[ -n "$POD_ID" ]] || exit 2
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          [[ "$(echo "$POD" | jq -r '.desiredStatus')" == "RUNNING" ]] || exit 3
+          JPASS=$(echo "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || exit 4
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Search TCWT assets
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY' | tee /tmp/tcwt-asset-audit.txt
+          import base64, json, os, re, sys, time
+          import requests, websocket
+          pod_id=os.environ['POD_ID']; password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          base=f'https://{pod_id}-8888.proxy.runpod.net'
+          script=r'''set -u
+          echo '=== TCWT ASSET AUDIT ==='
+          date -u
+          echo '--- MATCHING FILENAMES ---'
+          find /workspace -type f \( -iname '*true*crime*' -o -iname '*tcwt*' -o -iname '*thump*' -o -iname '*onyx*' -o -iname '*narrat*' \) 2>/dev/null | head -n 500
+          echo '--- AUDIO CANDIDATES ---'
+          find /workspace -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.flac' \) 2>/dev/null | egrep -i 'true.?crime|tcwt|thump|onyx|narrat' | head -n 300 || true
+          echo '--- CONFIG TEXT HITS ---'
+          grep -RIlE 'True Crime With Thump|TCWT|Onyx' /workspace/ctnetwork /workspace/ctnetwork-local 2>/dev/null | head -n 300 || true
+          echo '--- RECENT VIDEO/AUDIO DIRS ---'
+          find /workspace/ctnetwork /workspace/ctnetwork-local -maxdepth 5 -type d 2>/dev/null | egrep -i 'true.?crime|tcwt|thump' | head -n 200 || true
+          echo '=== AUDIT COMPLETE ==='
+          '''
+          payload=base64.b64encode(script.encode()).decode()
+          cmd=f"echo {payload} | base64 -d >/tmp/tcwt_audit.sh && bash /tmp/tcwt_audit.sh; rc=$?; echo __REMOTE_DONE__:$rc\n"
+          s=requests.Session()
+          for _ in range(30):
+            try:
+              r=s.get(base+'/login',timeout=15)
+              if r.ok: break
+            except Exception: pass
+            time.sleep(3)
+          else: raise SystemExit('Jupyter unavailable')
+          xsrf=re.search(r'name="_xsrf" value="([^"]+)"',r.text).group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},allow_redirects=True,timeout=30); r.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          ws.send(json.dumps(['stdin',cmd])); rc=None; deadline=time.time()+900
+          try:
+            while time.time()<deadline:
+              msg=ws.recv()
+              if not msg: continue
+              try: data=json.loads(msg)
+              except Exception: continue
+              if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                out=data[1]; sys.stdout.write(out); sys.stdout.flush()
+                m=re.search(r'__REMOTE_DONE__:(\d+)',out)
+                if m: rc=int(m.group(1)); break
+          finally:
+            ws.close()
+            try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+            except Exception: pass
+          if rc is None: raise SystemExit('timed out')
+          raise SystemExit(rc)
+          PY
+
+      - name: Save report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/tcwt-asset-audit.txt infra/status/tcwt-asset-audit.txt 2>/dev/null || true
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/tcwt-asset-audit.txt
+          git commit -m 'CTNETWORK: save TCWT asset audit' || exit 0
+          git push origin HEAD:main
