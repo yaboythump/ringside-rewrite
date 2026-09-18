@@ -1,0 +1,25 @@
+name: Stop AEW Recap GPU Pods
+
+on:
+  push:
+    paths:
+      - 'stop-aew-recap-pods-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --quiet requests
+      - name: Stop AEW recap GPU pods
+        run: python tools/stop_rwn_aew_recap_pods.py
