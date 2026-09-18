@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import base64, json, os, re, sys, time
+import base64, json, os, re, secrets, sys, time
 from pathlib import Path
 import requests, websocket
 
@@ -39,6 +39,72 @@ CROPS = [
 ]
 
 
+def wait_running(pod_id, attempts=120):
+    for i in range(1, attempts + 1):
+        r = requests.get(f'https://rest.runpod.io/v1/pods/{pod_id}', headers=AUTH, timeout=30)
+        r.raise_for_status()
+        p = r.json(); state = p.get('desiredStatus', '')
+        print('POD_WAIT', i, state, flush=True)
+        if state == 'RUNNING':
+            return p
+        if state in {'EXITED', 'TERMINATED'} and i > 12:
+            raise RuntimeError(f'POD_FAILED_TO_START:{state}')
+        time.sleep(5)
+    raise RuntimeError('POD_START_TIMEOUT')
+
+
+def create_fresh_factory_pod():
+    password = secrets.token_hex(24)
+    gpu_types = [
+        'NVIDIA RTX PRO 4500 Blackwell',
+        'NVIDIA GeForce RTX 5090',
+        'NVIDIA RTX PRO 6000 Blackwell Server Edition',
+        'NVIDIA L40S',
+        'NVIDIA L40',
+        'NVIDIA RTX A6000',
+        'NVIDIA A40',
+        'NVIDIA RTX 6000 Ada Generation',
+        'NVIDIA A100 80GB PCIe',
+        'NVIDIA A100-SXM4-80GB',
+        'NVIDIA H100 PCIe',
+        'NVIDIA H100 80GB HBM3',
+    ]
+    common = {
+        'name': f'ringside-wcw-render-{int(time.time())}',
+        'imageName': 'runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404',
+        'cloudType': 'ALL',
+        'computeType': 'GPU',
+        'gpuCount': 1,
+        'dataCenterIds': ['EU-RO-1'],
+        'dataCenterPriority': 'availability',
+        'containerDiskInGb': 40,
+        'networkVolumeId': VOLUME,
+        'volumeMountPath': '/workspace',
+        'ports': ['8888/http', '22/tcp'],
+        'env': {'JUPYTER_PASSWORD': password},
+    }
+    attempts = [{**common, 'gpuTypeIds': gpu_types, 'gpuTypePriority': 'availability'}]
+    attempts += [{**common, 'gpuTypeIds': [g]} for g in gpu_types]
+    last = None
+    for n, payload in enumerate(attempts, 1):
+        try:
+            print('FRESH_GPU_ATTEMPT', n, payload['gpuTypeIds'], flush=True)
+            r = requests.post('https://rest.runpod.io/v1/pods', headers={**AUTH, 'Content-Type':'application/json'}, json=payload, timeout=60)
+            print('FRESH_GPU_HTTP', r.status_code, r.text[:700], flush=True)
+            if not r.ok:
+                last = RuntimeError(f'HTTP {r.status_code}: {r.text[:500]}')
+                time.sleep(2); continue
+            pod = r.json(); pod_id = pod.get('id')
+            if not pod_id:
+                last = RuntimeError('fresh pod missing id'); continue
+            wait_running(pod_id, 120)
+            return pod_id, password, True
+        except Exception as exc:
+            last = exc
+            time.sleep(2)
+    raise RuntimeError(f'NO_FRESH_GPU_AVAILABLE:{last!r}')
+
+
 def resolve_running_pod():
     r = requests.get('https://rest.runpod.io/v1/pods', headers=AUTH, timeout=30)
     r.raise_for_status()
@@ -48,16 +114,17 @@ def resolve_running_pod():
         pw = (p.get('env') or {}).get('JUPYTER_PASSWORD')
         if p.get('desiredStatus') == 'RUNNING' and vol == VOLUME and pw:
             candidates.append(p)
-    if not candidates:
-        raise RuntimeError('NO_RUNNING_CTNETWORK_POD_WITH_PERSISTENT_VOLUME')
-    byid = {p.get('id'): p for p in candidates}
-    for pid in PREFERRED_POD_IDS:
-        if pid in byid:
-            p = byid[pid]
-            return p['id'], p['env']['JUPYTER_PASSWORD']
-    candidates.sort(key=lambda x: x.get('lastStartedAt') or '', reverse=True)
-    p = candidates[0]
-    return p['id'], p['env']['JUPYTER_PASSWORD']
+    if candidates:
+        byid = {p.get('id'): p for p in candidates}
+        for pid in PREFERRED_POD_IDS:
+            if pid in byid:
+                p = byid[pid]
+                return p['id'], p['env']['JUPYTER_PASSWORD'], False
+        candidates.sort(key=lambda x: x.get('lastStartedAt') or '', reverse=True)
+        p = candidates[0]
+        return p['id'], p['env']['JUPYTER_PASSWORD'], False
+    print('NO_RUNNING_FACTORY_GPU_CREATING_FRESH', flush=True)
+    return create_fresh_factory_pod()
 
 
 def wait_jupyter(base):
@@ -142,8 +209,8 @@ def stop_pod(pod_id):
 
 
 def main():
-    pod_id, password = resolve_running_pod()
-    print('USING_RUNNING_POD', pod_id, flush=True)
+    pod_id, password, created_pod = resolve_running_pod()
+    print('USING_PRODUCTION_POD', pod_id, 'created_fresh=', created_pod, flush=True)
     base = f'https://{pod_id}-8888.proxy.runpod.net'
     try:
         wait_jupyter(base); s, headers = login(base, password)
@@ -258,7 +325,8 @@ ls -lh ringside-wcw-review.tar.gz
         terminal_run(base, pod_id, s, headers, shell)
         download(base, s, headers, 'ctnetwork-local/ringside-wcw-review.tar.gz', OUT / 'ringside-wcw-review.tar.gz')
     finally:
-        stop_pod(pod_id)
+        if created_pod:
+            stop_pod(pod_id)
 
 
 if __name__ == '__main__':
