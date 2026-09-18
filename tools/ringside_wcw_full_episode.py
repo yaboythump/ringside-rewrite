@@ -72,7 +72,6 @@ def create_fresh_factory_pod():
     common = {
         'name': f'ringside-wcw-render-{int(time.time())}',
         'imageName': 'runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404',
-        'cloudType': 'ALL',
         'computeType': 'GPU',
         'gpuCount': 1,
         'dataCenterIds': ['EU-RO-1'],
@@ -83,8 +82,11 @@ def create_fresh_factory_pod():
         'ports': ['8888/http', '22/tcp'],
         'env': {'JUPYTER_PASSWORD': password},
     }
-    attempts = [{**common, 'gpuTypeIds': gpu_types, 'gpuTypePriority': 'availability'}]
-    attempts += [{**common, 'gpuTypeIds': [g]} for g in gpu_types]
+    attempts = []
+    for cloud in ['SECURE', 'COMMUNITY']:
+        cloud_common = {**common, 'cloudType': cloud}
+        attempts.append({**cloud_common, 'gpuTypeIds': gpu_types, 'gpuTypePriority': 'availability'})
+        attempts.extend({**cloud_common, 'gpuTypeIds': [g]} for g in gpu_types)
     last = None
     for n, payload in enumerate(attempts, 1):
         try:
