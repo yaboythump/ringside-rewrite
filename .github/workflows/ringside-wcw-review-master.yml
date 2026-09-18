@@ -1,6 +1,11 @@
 name: Ringside WCW Review Master
 
 on:
+  push:
+    paths:
+      - 'server_refs/ringside_wcw_storyboard.b64'
+      - 'tools/ringside_wcw_full_episode.py'
+      - '.github/workflows/ringside-wcw-review-master.yml'
   workflow_dispatch:
 
 permissions:
