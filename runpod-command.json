@@ -1,6 +1,6 @@
 {
-  "action": "status",
-  "target": "inventory-check",
-  "pod_id": "",
-  "request_id": "identify-silver-ape-merge-2026-09-18"
+  "action": "start",
+  "target": "ctnetwork-factory-gpu-migration",
+  "pod_id": "g7b6es3pvuuwqz",
+  "request_id": "start-urban-silver-ape-migration-2026-09-18"
 }
