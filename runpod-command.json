@@ -1,6 +1,6 @@
 {
-  "action": "start",
-  "target": "ctnetwork-factory-gpu",
-  "pod_id": "5ziiyypuiq8pwq",
-  "request_id": "start-urban-silver-ape-2026-09-18-0634-retry"
+  "action": "status",
+  "target": "inventory-check",
+  "pod_id": "",
+  "request_id": "identify-silver-ape-merge-2026-09-18"
 }
