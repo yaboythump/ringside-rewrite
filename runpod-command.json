@@ -1,5 +1,6 @@
 {
-  "action": "status",
-  "target": "ctnetwork-inventory",
-  "request_id": "inventory-ctnetwork-2026-09-18-1252z"
+  "action": "start",
+  "target": "ctnetwork-factory-gpu-v2",
+  "pod_id": "g1zf15egp0w2i3",
+  "request_id": "start-ctnetwork-factory-v2-2026-09-18-1254z"
 }
