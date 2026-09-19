@@ -1,0 +1,201 @@
+name: CTNETWORK Recover Original Narrator Bank
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-recover-original-narrators.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: g7b6es3pvuuwqz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Start original narrator pod
+        id: start
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://rest.runpod.io/v1/pods/${POD_ID}"
+          POD=$(curl -fsS "$API" -H "Authorization: Bearer $RUNPOD_API_KEY")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "$API/start" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
+          fi
+          for i in $(seq 1 120); do
+            POD=$(curl -fsS "$API" -H "Authorization: Bearer $RUNPOD_API_KEY")
+            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+            echo "start attempt=$i status=$STATUS"
+            [[ "$STATUS" == "RUNNING" ]] && break
+            sleep 4
+          done
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 2; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "JUPYTER_PASSWORD missing"; exit 3; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+
+      - name: Wait for original pod Jupyter
+        shell: bash
+        run: |
+          for i in $(seq 1 120); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == "200" ]] && exit 0
+            sleep 4
+          done
+          exit 4
+
+      - name: Recover F01-F10 and casting reels
+        env:
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, re, sys, time, pathlib
+          import requests, websocket
+          pid=os.environ['POD_ID']; pw=pathlib.Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
+          base=f'https://{pid}-8888.proxy.runpod.net'; s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('xsrf missing')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=30,allow_redirects=False)
+          if rr.status_code not in (200,302,303): rr.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          s.get(base+'/api/status',headers=headers,timeout=30).raise_for_status()
+          t=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); t.raise_for_status(); name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pid}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+
+          shell=r'''set +e
+          OUT=/workspace/original-narrator-recovery
+          rm -rf "$OUT"; mkdir -p "$OUT/files"
+          REPORT="$OUT/report.txt"
+          : > "$REPORT"
+          echo "CTNETWORK ORIGINAL NARRATOR BANK RECOVERY" | tee -a "$REPORT"
+          echo "UTC=$(date -u +%FT%TZ)" | tee -a "$REPORT"
+          echo "=== TOP-LEVEL WORKSPACE ===" | tee -a "$REPORT"
+          find /workspace -maxdepth 3 -type d 2>/dev/null | sort | head -500 | tee -a "$REPORT"
+
+          echo "=== EXACT F01-F10 / FEMALE / CASTING MATCHES ===" | tee -a "$REPORT"
+          TMP=/tmp/voice_candidates.txt
+          : > "$TMP"
+          for root in /workspace /root /tmp; do
+            [ -d "$root" ] || continue
+            timeout 90 find "$root" -maxdepth 10 \
+              \( -path '*/models/*' -o -path '*/envs/*' -o -path '*/node_modules/*' -o -path '*/.cache/*' -o -path '*/ComfyUI/models/*' \) -prune -o \
+              -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.flac' \) -print 2>/dev/null \
+              | grep -Ei '(^|[/_. -])(F0[1-9]|F10)([/_. -]|$)|female|casting|audition|voice|narrator|reel|sample' >> "$TMP" || true
+          done
+          sort -u "$TMP" -o "$TMP"
+          head -1200 "$TMP" | tee -a "$REPORT"
+
+          echo "=== AUDIO MODIFIED SEP 17-18 ===" | tee -a "$REPORT"
+          timeout 120 find /workspace -maxdepth 10 \
+            \( -path '*/models/*' -o -path '*/envs/*' -o -path '*/node_modules/*' -o -path '*/.cache/*' -o -path '*/ComfyUI/models/*' \) -prune -o \
+            -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.flac' \) \
+            -newermt '2026-09-17 00:00:00 UTC' ! -newermt '2026-09-19 00:00:00 UTC' -print 2>/dev/null \
+            | sort | head -1200 | tee -a "$REPORT" || true
+
+          i=0
+          while IFS= read -r f; do
+            [ -s "$f" ] || continue
+            i=$((i+1)); [ "$i" -le 100 ] || break
+            cp -f "$f" "$OUT/files/$(printf '%03d' "$i")_$(basename "$f")"
+          done < "$TMP"
+
+          # Also copy any likely female/casting reels from Sep 17-18 even if generic filenames
+          while IFS= read -r f; do
+            [ -s "$f" ] || continue
+            b=$(basename "$f")
+            case "$b" in
+              *.wav|*.mp3|*.m4a|*.flac) ;;
+              *) continue ;;
+            esac
+            if find "$OUT/files" -type f -name "*_$b" | grep -q .; then continue; fi
+            i=$((i+1)); [ "$i" -le 150 ] || break
+            cp -f "$f" "$OUT/files/$(printf '%03d' "$i")_$b"
+          done < <(
+            timeout 120 find /workspace -maxdepth 10 \
+              \( -path '*/models/*' -o -path '*/envs/*' -o -path '*/node_modules/*' -o -path '*/.cache/*' -o -path '*/ComfyUI/models/*' \) -prune -o \
+              -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.flac' \) \
+              -newermt '2026-09-17 00:00:00 UTC' ! -newermt '2026-09-19 00:00:00 UTC' -print 2>/dev/null | sort
+          )
+
+          echo "EXPORTED_AUDIO_FILES=$i" | tee -a "$REPORT"
+          tar -C /workspace -czf /workspace/original-narrator-recovery.tar.gz original-narrator-recovery
+          echo "__ORIGINAL_NARRATOR_RECOVERY_DONE__"
+          exit 0
+          '''
+          enc=base64.b64encode(shell.encode()).decode()
+          marker='__RECOVER_RC__'+str(int(time.time()*1000))
+          ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d >/tmp/recover-original.sh; bash /tmp/recover-original.sh; rc=$?; echo {marker}:$rc\n"]))
+          buf=''; deadline=time.time()+900; rc=None
+          try:
+              while time.time()<deadline:
+                  try: msg=ws.recv()
+                  except Exception: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]; buf+=txt; sys.stdout.write(txt); sys.stdout.flush()
+                      mm=re.search(re.escape(marker)+r':(\d+)',buf)
+                      if mm:
+                          rc=int(mm.group(1)); break
+          finally:
+              ws.close()
+              try:s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception:pass
+          if rc != 0: raise SystemExit(f'remote rc={rc}')
+
+          for rel, local in [
+              ('original-narrator-recovery.tar.gz','/tmp/original-narrator-recovery.tar.gz'),
+              ('original-narrator-recovery/report.txt','/tmp/original-narrator-recovery-report.txt')
+          ]:
+              got=False
+              for url in (base+'/files/'+rel, base+'/files/workspace/'+rel):
+                  try:
+                      q=s.get(url,headers=headers,timeout=300)
+                      if q.ok and len(q.content)>0:
+                          pathlib.Path(local).write_bytes(q.content); got=True; break
+                  except Exception: pass
+              if not got: raise SystemExit('download failed '+rel)
+          PY
+
+      - name: Upload recovered narrator bank
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-original-narrator-bank
+          path: /tmp/original-narrator-recovery.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Save recovery report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/original-narrator-recovery-report.txt infra/status/ctnetwork-original-narrator-recovery-latest.txt 2>/dev/null || echo report_unavailable > infra/status/ctnetwork-original-narrator-recovery-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-original-narrator-recovery-latest.txt
+          git commit -m 'CTNETWORK: record original narrator bank recovery' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Stop original narrator pod
+        if: always()
+        shell: bash
+        run: |
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
