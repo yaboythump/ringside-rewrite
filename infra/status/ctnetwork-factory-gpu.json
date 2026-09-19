@@ -1,7 +1,7 @@
 {
   "id": "6vinqiuolvv4dd",
   "name": "ctnetwork-factory-next",
-  "desiredStatus": "RUNNING",
+  "desiredStatus": "EXITED",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
   "networkVolumeId": "9wjb3sa5zm",
   "containerDiskInGb": 40,
