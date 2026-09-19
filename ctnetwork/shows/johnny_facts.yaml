@@ -1,29 +1,29 @@
 show: Johnny Facts
 show_id: johnny_facts
-formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
-narrator: registry_current
+formula_lock: Johnny Facts remains its own separate production workflow.
+narrator:
+  name: Ainsley
+  provider: higgsfield
+  status: unchanged_pending_owner_replacement
+workflow:
+  separate_from_standard_ctnetwork_pipeline: true
+  server_narration_route: false
+  do_not_auto_migrate: true
 character:
   identity_locked: true
   description: original goofy/confused cartoon boy mascot with messy brown hair, big expressive eyes, red-apple motif, white/blue casual variants, chalkboard/torn-paper educational-comedy branding
   adult_human_replacement_forbidden: true
 visuals:
-  local_generation_engine: ltx-2.5
-  production_quality_tier: dfr
+  premium_clean_playful: true
   reference_conditioning_required: true
 captions:
   burned_in: false
-shorts:
-  count_policy: preserve_locked_show_cadence
 audio:
-  normalize_lufs: -16
-  noise_cleanup: true
+  silly_music_and_sfx_required: true
 thumbnail:
-  required: true
+  unique_cover_required: true
 qc:
-  auto_repair: true
   character_identity_check_required: true
 publish:
   require_manual_approval: true
   default_allowed: false
-higgsfield:
-  allowed: false
