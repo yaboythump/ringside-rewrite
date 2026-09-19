@@ -1,0 +1,181 @@
+name: CTNETWORK Narrator Timebox Recovery
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-narrator-timebox-recovery.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      CTN_VOLUME: 9wjb3sa5zm
+      CTN_DC: EU-RO-1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create fresh recovery compute
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          JPASS=$(openssl rand -hex 24)
+          echo "::add-mask::$JPASS"
+          GPU_TYPES='["NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA L4"]'
+          BODY=$(jq -nc --arg name "ctn-narrator-timebox-$(date +%s)" --arg dc "$CTN_DC" --arg vol "$CTN_VOLUME" --arg jp "$JPASS" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+          HTTP=$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data "$BODY" || true)
+          [[ "$HTTP" =~ ^2 ]] || { cat /tmp/create.json; exit 2; }
+          POD_ID=$(jq -r '.id // empty' /tmp/create.json)
+          [[ -n "$POD_ID" ]] || exit 3
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          for i in $(seq 1 150); do
+            POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")
+            STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+            echo "pod attempt=$i status=$STATUS"
+            [[ "$STATUS" == "RUNNING" ]] && break
+            sleep 4
+          done
+          [[ "$STATUS" == "RUNNING" ]] || exit 4
+
+      - name: Wait for Jupyter
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          for i in $(seq 1 150); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == "200" ]] && exit 0
+            sleep 4
+          done
+          exit 5
+
+      - name: Recover timeboxed narrator audio
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, re, sys, time, pathlib
+          import requests, websocket
+          pid=os.environ['POD_ID']; pw=pathlib.Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
+          base=f'https://{pid}-8888.proxy.runpod.net'; s=requests.Session()
+          r=s.get(base+'/login',timeout=30); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('xsrf missing')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=30,allow_redirects=False)
+          if rr.status_code not in (200,302,303): rr.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          s.get(base+'/api/status',headers=headers,timeout=30).raise_for_status()
+          t=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); t.raise_for_status(); name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pid}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          shell=r'''set +e
+          ROOT=/workspace/ctnetwork-local
+          OUT=$ROOT/narrator-timebox-export
+          rm -rf "$OUT"; mkdir -p "$OUT/files"
+          LIST="$OUT/files.txt"
+          : > "$LIST"
+          for base in /workspace/CTNETWORK_ARCHIVE /workspace/ctnetwork-local /workspace/ctnetwork-production; do
+            [ -d "$base" ] || continue
+            find "$base" -maxdepth 9 \
+              \( -path '*/models/*' -o -path '*/envs/*' -o -path '*/node_modules/*' -o -path '*/.cache/*' \) -prune -o \
+              -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.flac' \) \
+              -newermt '2026-09-17 22:30:00 UTC' ! -newermt '2026-09-18 00:30:00 UTC' -print 2>/dev/null >> "$LIST"
+          done
+          sort -u "$LIST" -o "$LIST"
+          {
+            echo "CTNETWORK NARRATOR TIMEBOX RECOVERY"
+            echo "Window: 2026-09-17 22:30Z to 2026-09-18 00:30Z"
+            echo "Count=$(wc -l < "$LIST")"
+            while IFS= read -r f; do
+              [ -f "$f" ] || continue
+              stat -c '%y|%s|%n' "$f"
+            done < "$LIST"
+          } | tee "$OUT/report.txt"
+          i=0
+          while IFS= read -r f; do
+            [ -s "$f" ] || continue
+            i=$((i+1))
+            [ "$i" -le 150 ] || break
+            cp -f "$f" "$OUT/files/$(printf '%03d' "$i")_$(basename "$f")"
+          done < "$LIST"
+          tar -C "$ROOT" -czf "$ROOT/narrator-timebox-export.tar.gz" narrator-timebox-export
+          echo "EXPORTED=$i"
+          echo "__TIMEBOX_DONE__"
+          exit 0
+          '''
+          enc=base64.b64encode(shell.encode()).decode()
+          marker='__TIMEBOX_RC__'+str(int(time.time()*1000))
+          ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d >/tmp/timebox.sh; bash /tmp/timebox.sh; rc=$?; echo {marker}:$rc\n"]))
+          buf=''; deadline=time.time()+900; rc=None
+          try:
+              while time.time()<deadline:
+                  try: msg=ws.recv()
+                  except Exception: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]; buf+=txt; sys.stdout.write(txt); sys.stdout.flush()
+                      mm=re.search(re.escape(marker)+r':(\d+)',buf)
+                      if mm:
+                          rc=int(mm.group(1)); break
+          finally:
+              ws.close()
+              try:s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception:pass
+          if rc != 0: raise SystemExit(f'remote rc={rc}')
+          for rel, local in [
+              ('ctnetwork-local/narrator-timebox-export.tar.gz','/tmp/narrator-timebox-export.tar.gz'),
+              ('ctnetwork-local/narrator-timebox-export/report.txt','/tmp/narrator-timebox-report.txt')
+          ]:
+              got=False
+              for url in (base+'/files/'+rel, base+'/files/workspace/'+rel):
+                  try:
+                      q=s.get(url,headers=headers,timeout=300)
+                      if q.ok and len(q.content)>0:
+                          pathlib.Path(local).write_bytes(q.content); got=True; break
+                  except Exception: pass
+              if not got: raise SystemExit('download failed '+rel)
+          PY
+
+      - name: Upload timebox artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-narrator-timebox-export
+          path: /tmp/narrator-timebox-export.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Save timebox report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/narrator-timebox-report.txt infra/status/ctnetwork-narrator-timebox-latest.txt 2>/dev/null || echo timebox_report_unavailable > infra/status/ctnetwork-narrator-timebox-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-narrator-timebox-latest.txt
+          git commit -m 'CTNETWORK: record narrator timebox recovery' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Stop recovery pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
