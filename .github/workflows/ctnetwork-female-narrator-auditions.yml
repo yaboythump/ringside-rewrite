@@ -1,0 +1,292 @@
+name: CTNETWORK Female Narrator Auditions
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-female-narrator-auditions.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctnetwork-female-narrator-auditions
+  cancel-in-progress: true
+
+jobs:
+  audition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      CTN_VOLUME: 9wjb3sa5zm
+      CTN_DC: EU-RO-1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create narrator compute
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          JPASS=$(openssl rand -hex 24)
+          echo "::add-mask::$JPASS"
+          GPU_TYPES='["NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA L4"]'
+          BODY=$(jq -nc --arg name "ctn-female-auditions-$(date +%s)" --arg dc "$CTN_DC" --arg vol "$CTN_VOLUME" --arg jp "$JPASS" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+          HTTP=$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data "$BODY" || true)
+          echo "create http=$HTTP"
+          cat /tmp/create.json
+          [[ "$HTTP" =~ ^2 ]] || exit 2
+          POD_ID=$(jq -r '.id // empty' /tmp/create.json)
+          [[ -n "$POD_ID" ]] || exit 3
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Jupyter
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          for i in $(seq 1 150); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == "200" ]] && exit 0
+            sleep 4
+          done
+          exit 4
+
+      - name: Generate F01-F10 on local Qwen3-TTS
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, re, sys, time, pathlib
+          import requests, websocket
+
+          pid=os.environ['POD_ID']
+          pw=pathlib.Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
+          base=f'https://{pid}-8888.proxy.runpod.net'
+          s=None; headers=None
+
+          for attempt in range(1,51):
+              try:
+                  s=requests.Session()
+                  r=s.get(base+'/login',timeout=20)
+                  if not r.ok:
+                      raise RuntimeError(f'login page {r.status_code}')
+                  m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+                  if not m:
+                      raise RuntimeError('xsrf missing')
+                  rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=20,allow_redirects=False)
+                  if rr.status_code not in (200,302,303):
+                      raise RuntimeError(f'login post {rr.status_code}')
+                  xc=s.cookies.get('_xsrf')
+                  headers={'X-XSRFToken':xc} if xc else {}
+                  st=s.get(base+'/api/status',headers=headers,timeout=20)
+                  if st.status_code == 200:
+                      print(f'JUPYTER_API_READY attempt={attempt}', flush=True)
+                      break
+                  print(f'api status attempt={attempt} http={st.status_code}', flush=True)
+              except Exception as e:
+                  print(f'auth retry {attempt}: {e!r}', flush=True)
+              time.sleep(3)
+          else:
+              raise SystemExit('Jupyter API unavailable')
+
+          t=s.post(base+'/api/terminals',headers=headers,json={},timeout=30)
+          t.raise_for_status()
+          name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(
+              f'wss://{pid}-8888.proxy.runpod.net/terminals/websocket/{name}',
+              cookie=cookie, origin=base, timeout=90
+          )
+
+          script=r'''set -Eeuo pipefail
+          ROOT=/workspace/ctnetwork-local
+          QPY="$ROOT/envs/qwen3-tts/bin/python"
+          MODEL="$ROOT/models/qwen3-tts/1.7B-VoiceDesign"
+          OUT="$ROOT/narrator-auditions/female-urban-10"
+          mkdir -p "$ROOT/models/qwen3-tts" "$OUT"
+
+          test -x "$QPY" || { echo "QWEN_ENV_MISSING:$QPY"; exit 20; }
+
+          if [ ! -s "$MODEL/config.json" ]; then
+            echo "Downloading persistent Qwen3-TTS VoiceDesign model..."
+            "$QPY" - <<'PY2'
+from huggingface_hub import snapshot_download
+snapshot_download(
+    repo_id="Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    local_dir="/workspace/ctnetwork-local/models/qwen3-tts/1.7B-VoiceDesign",
+    local_dir_use_symlinks=False,
+)
+print("VOICE_DESIGN_MODEL_READY")
+PY2
+          fi
+
+          cat > /tmp/make_female_auditions.py <<'PY2'
+from pathlib import Path
+import gc, json, subprocess
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+MODEL=Path("/workspace/ctnetwork-local/models/qwen3-tts/1.7B-VoiceDesign")
+OUT=Path("/workspace/ctnetwork-local/narrator-auditions/female-urban-10")
+OUT.mkdir(parents=True, exist_ok=True)
+
+TEXT=(
+    "Look, the headline is only the beginning. "
+    "The real story is what happened next, why it mattered, and what everybody missed. "
+    "This is C T Network, where the details hit different."
+)
+
+voices = {
+"F01": "Contemporary American female narrator, warm lower-mid register, confident and grounded, relaxed city-media cadence, natural conversational rhythm, subtle edge, premium documentary delivery, never announcer-like.",
+"F02": "Contemporary American female narrator, youthful and bright, quick conversational rhythm, confident social-media energy, crisp articulation, playful but professional, natural rather than theatrical.",
+"F03": "Contemporary American female narrator, smoky low register, calm and serious, intimate late-night documentary tone, measured pacing, subtle tension, grounded and natural.",
+"F04": "Contemporary American female narrator, warm and empathetic, smooth podcast cadence, emotionally intelligent, easy conversational flow, confident without sounding formal, rich mid register.",
+"F05": "Contemporary American female narrator, bold and punchy, entertainment-news energy, sharp rhythmic delivery, confident attitude, lively but controlled, premium urban-media cadence.",
+"F06": "Contemporary American female narrator, mature and polished, deeper register, calm authority, smooth deliberate pacing, sophisticated documentary presence, natural and modern.",
+"F07": "Contemporary American female narrator, relaxed and witty, conversational city cadence, slightly husky texture, effortless confidence, expressive phrasing, not overly polished.",
+"F08": "Contemporary American female narrator, energetic and focused, sports-and-culture media cadence, clear attack on key words, medium-fast pace, confident and modern, never robotic.",
+"F09": "Contemporary American female narrator, husky and cinematic, lower register, serious emotional weight, slow-burn confidence, restrained intensity, premium true-story delivery.",
+"F10": "Contemporary American female narrator, expressive and versatile, confident medium register, natural modern cadence, strong hooks, smooth transitions between serious and upbeat lines."
+}
+
+manifest={"sample_text":TEXT,"voices":{}}
+
+tts=Qwen3TTSModel.from_pretrained(
+    str(MODEL),
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+)
+
+for label, instruct in voices.items():
+    print(f"GENERATING={label}", flush=True)
+    wavs, sr = tts.generate_voice_design(
+        text=TEXT,
+        language="English",
+        instruct=instruct,
+        max_new_tokens=2048,
+    )
+    raw=OUT/f"{label}_raw.wav"
+    sf.write(raw, wavs[0], sr)
+    mastered=OUT/f"{label}.wav"
+    mp3=OUT/f"{label}.mp3"
+    subprocess.run([
+        "ffmpeg","-y","-loglevel","error","-i",str(raw),
+        "-af","highpass=f=65,acompressor=threshold=-18dB:ratio=2.2:attack=12:release=100,loudnorm=I=-16:TP=-1.5:LRA=8,alimiter=limit=0.95",
+        "-ar","48000","-ac","1","-c:a","pcm_s16le",str(mastered)
+    ],check=True)
+    subprocess.run([
+        "ffmpeg","-y","-loglevel","error","-i",str(mastered),
+        "-b:a","192k",str(mp3)
+    ],check=True)
+    dur=float(subprocess.check_output([
+        "ffprobe","-v","error","-show_entries","format=duration",
+        "-of","default=nw=1:nk=1",str(mastered)
+    ],text=True).strip())
+    manifest["voices"][label]={"instruction":instruct,"duration_seconds":round(dur,2),"wav":mastered.name,"mp3":mp3.name}
+    raw.unlink(missing_ok=True)
+    gc.collect()
+    torch.cuda.empty_cache()
+
+# Reel: 750 ms silence between samples
+sil=OUT/"silence.wav"
+subprocess.run([
+    "ffmpeg","-y","-loglevel","error","-f","lavfi","-i",
+    "anullsrc=r=48000:cl=mono","-t","0.75","-c:a","pcm_s16le",str(sil)
+],check=True)
+concat=OUT/"concat.txt"
+lines=[]
+for i,label in enumerate(voices):
+    lines.append(f"file '{OUT/(label+'.wav')}'")
+    if i != len(voices)-1:
+        lines.append(f"file '{sil}'")
+concat.write_text("\n".join(lines)+"\n")
+reel=OUT/"CTNETWORK_F01-F10_Female_Audition_Reel.mp3"
+subprocess.run([
+    "ffmpeg","-y","-loglevel","error","-f","concat","-safe","0","-i",str(concat),
+    "-b:a","192k",str(reel)
+],check=True)
+sil.unlink(missing_ok=True)
+concat.unlink(missing_ok=True)
+(OUT/"manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
+print("ALL_FEMALE_AUDITIONS_READY", flush=True)
+PY2
+
+          "$QPY" /tmp/make_female_auditions.py
+
+          cd "$ROOT/narrator-auditions"
+          tar -czf /workspace/CTNETWORK_F01-F10_Female_Auditions.tar.gz female-urban-10
+          echo "AUDITION_PACKAGE_READY"
+          '''
+
+          enc=base64.b64encode(script.encode()).decode()
+          marker='__FEMALE_AUDITION_RC__'+str(int(time.time()*1000))
+          ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d >/tmp/female-auditions.sh; bash /tmp/female-auditions.sh; rc=$?; echo {marker}:$rc\n"]))
+
+          buf=''; deadline=time.time()+6600; rc=None
+          try:
+              while time.time()<deadline:
+                  try:
+                      msg=ws.recv()
+                  except Exception:
+                      continue
+                  try:
+                      data=json.loads(msg)
+                  except Exception:
+                      continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]
+                      buf+=txt
+                      sys.stdout.write(txt); sys.stdout.flush()
+                      mm=re.search(re.escape(marker)+r':(\d+)',buf)
+                      if mm:
+                          rc=int(mm.group(1)); break
+          finally:
+              ws.close()
+              try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception: pass
+
+          if rc != 0:
+              raise SystemExit(f'remote audition generation failed rc={rc}')
+
+          rel='CTNETWORK_F01-F10_Female_Auditions.tar.gz'
+          got=False
+          for url in (base+'/files/'+rel, base+'/files/workspace/'+rel):
+              try:
+                  q=s.get(url,headers=headers,timeout=600)
+                  if q.ok and len(q.content)>10000:
+                      pathlib.Path('/tmp/CTNETWORK_F01-F10_Female_Auditions.tar.gz').write_bytes(q.content)
+                      print('DOWNLOADED_AUDITIONS',len(q.content),flush=True)
+                      got=True
+                      break
+              except Exception as e:
+                  print('download retry',e,flush=True)
+          if not got:
+              raise SystemExit('could not download audition package')
+          PY
+
+      - name: Upload narrator auditions
+        uses: actions/upload-artifact@v4
+        with:
+          name: CTNETWORK-F01-F10-Female-Auditions
+          path: /tmp/CTNETWORK_F01-F10_Female_Auditions.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop audition compute
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
