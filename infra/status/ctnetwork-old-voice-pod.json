@@ -1,0 +1,31 @@
+{
+  "consumerUserId": "user_3IdtwvAAkoZmO5RtokL5RodFBfU",
+  "containerDiskInGb": 5,
+  "costPerHr": 0.99,
+  "createdAt": "2026-09-17 10:18:12.843 +0000 UTC",
+  "desiredStatus": "EXITED",
+  "env": {
+    "JUPYTER_PASSWORD": "0iryiyaegtxvj8azi33u",
+    "PUBLIC_KEY": ""
+  },
+  "gpuCount": 1,
+  "id": "g7b6es3pvuuwqz",
+  "imageName": "runpod/stable-diffusion:comfy-ui-6.0.0",
+  "lastStartedAt": "2026-09-17 10:18:12.837 +0000 UTC",
+  "lastStatusChange": "Exited by user: Fri Sep 18 2026 01:54:38 GMT+0000 (Coordinated Universal Time)",
+  "machine": {},
+  "machineId": "0c7hr7s1a4m9",
+  "memoryInGb": 167,
+  "name": "urban_silver_ape-migration",
+  "networkVolumeId": "xs4k4zrvn4",
+  "ports": [
+    "8888/http",
+    "3000/http",
+    "22/tcp"
+  ],
+  "publicIp": "",
+  "templateId": "runpod-comfy",
+  "vcpuCount": 85,
+  "volumeInGb": 0,
+  "volumeMountPath": "/workspace"
+}
