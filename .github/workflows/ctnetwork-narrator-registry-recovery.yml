@@ -1,0 +1,174 @@
+name: CTNETWORK Narrator Registry Recovery
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-narrator-registry-recovery.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      CTN_VOLUME: 9wjb3sa5zm
+      CTN_DC: EU-RO-1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create fresh registry compute
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          JPASS=$(openssl rand -hex 24)
+          echo "::add-mask::$JPASS"
+          GPU_TYPES='["NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA L4"]'
+          BODY=$(jq -nc --arg name "ctn-narrator-registry-$(date +%s)" --arg dc "$CTN_DC" --arg vol "$CTN_VOLUME" --arg jp "$JPASS" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8888/http","22/tcp"],env:{JUPYTER_PASSWORD:$jp}}')
+          HTTP=$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data "$BODY" || true)
+          [[ "$HTTP" =~ ^2 ]] || { cat /tmp/create.json; exit 2; }
+          POD_ID=$(jq -r '.id // empty' /tmp/create.json)
+          [[ -n "$POD_ID" ]] || exit 3
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Jupyter
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          for i in $(seq 1 150); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$code"
+            [[ "$code" == "200" ]] && exit 0
+            sleep 4
+          done
+          exit 5
+
+      - name: Search narrator registry and voice references
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, re, sys, time, pathlib
+          import requests, websocket
+          pid=os.environ['POD_ID']; pw=pathlib.Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
+          base=f'https://{pid}-8888.proxy.runpod.net'; s=requests.Session()
+          for _ in range(90):
+              try:
+                  r=s.get(base+'/login',timeout=12)
+                  if r.ok: break
+              except Exception: pass
+              time.sleep(2)
+          else: raise SystemExit('Jupyter unavailable')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('xsrf missing')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=20,allow_redirects=False)
+          if rr.status_code not in (200,302,303): rr.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          s.get(base+'/api/status',headers=headers,timeout=20).raise_for_status()
+          t=s.post(base+'/api/terminals',headers=headers,json={},timeout=20); t.raise_for_status(); name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pid}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=45)
+          shell=r'''set +e
+          OUT=/workspace/ctnetwork-local/narrator-registry-recovery.txt
+          {
+            echo "CTNETWORK NARRATOR REGISTRY RECOVERY"
+            echo "UTC=$(date -u +%FT%TZ)"
+            echo
+            echo "=== VOICE/NARRATOR DIRECTORIES ==="
+            for base in /workspace/ctnetwork-local /workspace/CTNETWORK_ARCHIVE /workspace/ctnetwork-production; do
+              [ -d "$base" ] || continue
+              find "$base" -maxdepth 8 -type d 2>/dev/null | grep -Ei 'voice|narr|speaker|casting|audition|reference|ref' || true
+            done | sort -u | head -1000
+            echo
+            echo "=== FILES CONTAINING LOCAL VOICE LABELS ==="
+            CAND=/tmp/ctn-candidate-text-files.txt
+            : > "$CAND"
+            for base in /workspace/ctnetwork-local /workspace/CTNETWORK_ARCHIVE /workspace/ctnetwork-production; do
+              [ -d "$base" ] || continue
+              find "$base" -maxdepth 9 \
+                \( -path '*/models/*' -o -path '*/envs/*' -o -path '*/node_modules/*' -o -path '*/.cache/*' \) -prune -o \
+                -type f \( -iname '*.json' -o -iname '*.txt' -o -iname '*.yaml' -o -iname '*.yml' -o -iname '*.py' -o -iname '*.md' \) -size -2M -print 2>/dev/null >> "$CAND"
+            done
+            sort -u "$CAND" -o "$CAND"
+            while IFS= read -r f; do
+              grep -Iq . "$f" 2>/dev/null || continue
+              if grep -qE 'M0[1-9]|M10|F0[1-9]|F10|Male[ _-]?[0-9]|Female[ _-]?[0-9]|voice.?registry|narrator.?registry' "$f" 2>/dev/null; then
+                echo "--- FILE: $f ---"
+                grep -nE -C 4 'M0[1-9]|M10|F0[1-9]|F10|Male[ _-]?[0-9]|Female[ _-]?[0-9]|voice.?registry|narrator.?registry' "$f" 2>/dev/null | head -300
+              fi
+            done < "$CAND"
+            echo
+            echo "=== AUDIO REFERENCES NEAR VOICE DIRECTORIES ==="
+            for base in /workspace/ctnetwork-local /workspace/CTNETWORK_ARCHIVE /workspace/ctnetwork-production; do
+              [ -d "$base" ] || continue
+              find "$base" -maxdepth 9 \
+                \( -path '*/models/*' -o -path '*/envs/*' -o -path '*/node_modules/*' -o -path '*/.cache/*' \) -prune -o \
+                -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.flac' -o -iname '*.m4a' \) -print 2>/dev/null
+            done | grep -Ei 'voice|narr|speaker|casting|audition|reference|ref|sample' | sort -u | head -1200
+          } | tee "$OUT"
+          echo "__REGISTRY_RECOVERY_DONE__"
+          exit 0
+          '''
+          enc=base64.b64encode(shell.encode()).decode()
+          marker='__REGISTRY_RC__'+str(int(time.time()*1000))
+          ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d >/tmp/registry.sh; bash /tmp/registry.sh; rc=$?; echo {marker}:$rc\n"]))
+          buf=''; deadline=time.time()+900; rc=None
+          try:
+              while time.time()<deadline:
+                  try: msg=ws.recv()
+                  except Exception: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]; buf+=txt; sys.stdout.write(txt); sys.stdout.flush()
+                      mm=re.search(re.escape(marker)+r':(\d+)',buf)
+                      if mm:
+                          rc=int(mm.group(1)); break
+          finally:
+              ws.close()
+              try:s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception:pass
+          if rc != 0: raise SystemExit(f'remote rc={rc}')
+          rel='ctnetwork-local/narrator-registry-recovery.txt'
+          got=False
+          for url in (base+'/files/'+rel, base+'/files/workspace/'+rel):
+              try:
+                  q=s.get(url,headers=headers,timeout=300)
+                  if q.ok and len(q.content)>0:
+                      pathlib.Path('/tmp/narrator-registry-recovery.txt').write_bytes(q.content); got=True; break
+              except Exception: pass
+          if not got: raise SystemExit('report download failed')
+          PY
+
+      - name: Save registry recovery report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/narrator-registry-recovery.txt infra/status/ctnetwork-narrator-registry-recovery-latest.txt 2>/dev/null || echo registry_report_unavailable > infra/status/ctnetwork-narrator-registry-recovery-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-narrator-registry-recovery-latest.txt
+          git commit -m 'CTNETWORK: record narrator registry recovery' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Stop registry recovery pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
