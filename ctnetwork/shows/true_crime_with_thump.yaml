@@ -1,0 +1,42 @@
+show: True Crime With Thump
+show_id: true_crime_with_thump
+formula_lock: Dark cinematic true-crime documentary storytelling with evidence, timeline graphics, mystery atmosphere, and approved storyboard framing.
+narrator:
+  name: F09
+  voice_key: F09
+  provider: ctnetwork_local_qwen
+  status: locked
+workflow:
+  visuals_created_in_chatgpt: true
+  picture_storyboard_approval_required: true
+  server_role: narration_only
+  server_visual_generation_forbidden: true
+  server_video_assembly_forbidden: true
+  final_assembly: outside_server_from_approved_visuals_and_narration
+  shorts_source: approved_master_only
+visuals:
+  dark_cinematic_documentary: true
+  evidence_and_timeline_graphics: true
+  preserve_approved_storyboard_framing: true
+  no_crop_or_downscale: true
+captions:
+  burned_in: false
+shorts:
+  count: 3
+  target_seconds: 50-58
+audio:
+  mystery_suspense_score_required: true
+  music_clearly_audible_but_ducked: true
+  reject_hiss_white_noise: true
+  preserve_native_voice_speed: true
+  normalize_lufs: -16
+thumbnail:
+  required_before_production: true
+qc:
+  verify_narrator: F09
+  verify_short_count: 3
+  verify_thumbnail: true
+  verify_av_sync_and_dead_tail: true
+publish:
+  require_manual_approval: true
+  default_allowed: false
