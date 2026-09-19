@@ -1,0 +1,119 @@
+name: CTNETWORK Narrator Inventory
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-narrator-inventory-command.json'
+      - '.github/workflows/ctnetwork-narrator-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve running factory pod
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-narrator-inventory-command.json)
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          [[ "$STATUS" == "RUNNING" ]] || { echo "Pod is not running: $STATUS"; exit 2; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "JUPYTER_PASSWORD missing"; exit 3; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Inventory local narrator bank
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY' | tee /tmp/ctnetwork-narrator-inventory.txt
+          import base64, json, os, re, sys, time
+          import requests, websocket
+          pid=os.environ['POD_ID']; pw=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          base=f'https://{pid}-8888.proxy.runpod.net'; s=requests.Session()
+          for _ in range(80):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.ok: break
+              except Exception: pass
+              time.sleep(3)
+          else: raise SystemExit('Jupyter not reachable')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('No XSRF')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=30,allow_redirects=False)
+          if rr.status_code not in (200,302,303): rr.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          s.get(base+'/api/status',headers=headers,timeout=30).raise_for_status()
+          t=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); t.raise_for_status(); name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pid}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+          script=r'''set +e
+          echo "=== NARRATOR INVENTORY ==="
+          echo "--- AUDIO FILES ---"
+          find /workspace -maxdepth 8 -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.flac' \) 2>/dev/null \
+            | grep -Ei 'voice|narr|speaker|ref|audition|sample|female|male|f[0-9]{1,2}|m[0-9]{1,2}' \
+            | sort | head -800
+          echo "--- CANDIDATE DIRECTORIES ---"
+          find /workspace -maxdepth 6 -type d 2>/dev/null \
+            | grep -Ei 'voice|narr|speaker|ref|audition|sample' \
+            | sort | head -300
+          echo "--- TEXT/JSON REFERENCES ---"
+          grep -RIlE 'F0?[0-9]|M0?[0-9]|female|male|narrator|voice' /workspace/ctnetwork-local /workspace/ctnetwork-production 2>/dev/null \
+            | grep -Ev '/envs/|/site-packages/|/models/' | sort | head -400
+          echo "--- DETAILS FOR LIKELY VOICE FILES ---"
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            dur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$f" 2>/dev/null | head -1)
+            sz=$(stat -c %s "$f" 2>/dev/null)
+            printf '%s|duration=%s|bytes=%s\n' "$f" "$dur" "$sz"
+          done < <(find /workspace -maxdepth 8 -type f \( -iname '*.wav' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.flac' \) 2>/dev/null | grep -Ei 'voice|narr|speaker|ref|audition|sample|female|male|f[0-9]{1,2}|m[0-9]{1,2}' | sort | head -300)
+          echo "__CTN_NARRATOR_INVENTORY_DONE__"
+          '''
+          enc=base64.b64encode(script.encode()).decode()
+          marker='__INV_DONE__'+str(int(time.time()*1000))
+          ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d >/tmp/inv.sh; bash /tmp/inv.sh; rc=$?; echo {marker}:$rc\n"]))
+          buf=''; deadline=time.time()+600
+          try:
+              while time.time()<deadline:
+                  try: msg=ws.recv()
+                  except Exception: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]; buf+=txt; sys.stdout.write(txt); sys.stdout.flush()
+                      if marker in buf: break
+          finally:
+              ws.close()
+              try:s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception:pass
+          PY
+
+      - name: Save narrator inventory report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          cp /tmp/ctnetwork-narrator-inventory.txt infra/status/ctnetwork-narrator-inventory-latest.txt 2>/dev/null || echo inventory_failed > infra/status/ctnetwork-narrator-inventory-latest.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-narrator-inventory-latest.txt
+          git commit -m 'CTNETWORK: record narrator inventory' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
