@@ -1,6 +1,6 @@
 show: Ringside Recap
 show_id: ringside_recap
-formula_lock: Fast premium wrestling recap show for RAW, SmackDown, AEW, PLE/PPV, and major wrestling events.
+formula_lock: Fast-but-breathing premium wrestling recap show for RAW, SmackDown, AEW, PLE/PPV, and major wrestling events.
 narrator:
   name: F06
   voice_key: F06
@@ -16,10 +16,20 @@ workflow:
   server_video_assembly_forbidden: true
   final_assembly: outside_server_from_approved_visuals_and_narration
   shorts_source: approved_master_only
+episode:
+  target_runtime_minutes: 4-5
+  minimum_visuals: 16
+  preferred_visuals: 18-22
+  pacing: deliberate_wrestling_recap
+  average_visual_hold_seconds: 10-18
+  rapid_fire_editing_forbidden: true
+  cover_full_show_story: true
 visuals:
   wrestling_event_recap: true
   arena_ring_crowd_backstage_scorecards: true
   premium_visual_floor_required: true
+  use_distinct_images_for_major_beats: true
+  preserve_readability_and_breathing_room: true
 captions:
   burned_in: false
 shorts:
@@ -38,6 +48,7 @@ audio:
   crowd_sfx: true
   normalize_lufs: -14
   music_ducking: true
+  narrator_speed: native
 thumbnail:
   required_before_storyboard: true
   distinct_from_ringside_rewrite: true
@@ -45,8 +56,11 @@ qc:
   verify_narrator: F06
   verify_thumbnail: true
   verify_music_bed_id: ringside_recap_arena_rock_bed_v1
+  verify_runtime_minutes: 4-5
+  verify_visual_count_minimum: 16
   reject_robotic_voice: true
   reject_video_game_or_arcade_music: true
+  reject_rushed_pacing: true
 publish:
   require_manual_approval: true
   default_allowed: false
