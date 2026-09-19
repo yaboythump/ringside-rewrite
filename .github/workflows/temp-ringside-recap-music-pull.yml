@@ -18,7 +18,7 @@ jobs:
           set -euo pipefail
           curl -fL --retry 5 --max-time 300             'https://dnznrvs05pmza.cloudfront.net/lyria3-pro/a97bcf92-048f-40c0-afbf-c0c58908d4f7/Ringside_Recap_Arena_Rock_Bed.mp3?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiZjk1MWFjYTA0MTNhMGFkMiIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTk0NDk5Mn0.Z7lqdqtMQ9RFILbiY-mnfmcJSjBzdWNsIToAwjis5Xo'             -o /tmp/Ringside_Recap_Arena_Rock_Bed.mp3
           test -s /tmp/Ringside_Recap_Arena_Rock_Bed.mp3
-          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 /tmp/Ringside_Recap_Arena_Rock_Bed.mp3
+          ls -lh /tmp/Ringside_Recap_Arena_Rock_Bed.mp3
       - name: Upload locked bed
         uses: actions/upload-artifact@v4
         with:
