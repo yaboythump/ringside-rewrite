@@ -64,14 +64,31 @@ jobs:
           import base64, json, os, re, sys, time, pathlib
           import requests, websocket
           pid=os.environ['POD_ID']; pw=pathlib.Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
-          base=f'https://{pid}-8888.proxy.runpod.net'; s=requests.Session()
-          r=s.get(base+'/login',timeout=30); r.raise_for_status()
-          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
-          if not m: raise SystemExit('xsrf missing')
-          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=30,allow_redirects=False)
-          if rr.status_code not in (200,302,303): rr.raise_for_status()
-          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
-          s.get(base+'/api/status',headers=headers,timeout=30).raise_for_status()
+          base=f'https://{pid}-8888.proxy.runpod.net'
+          s=None; headers=None
+          for attempt in range(1,41):
+              try:
+                  s=requests.Session()
+                  r=s.get(base+'/login',timeout=20)
+                  if not r.ok:
+                      raise RuntimeError(f'login page {r.status_code}')
+                  m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+                  if not m:
+                      raise RuntimeError('xsrf missing')
+                  rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=20,allow_redirects=False)
+                  if rr.status_code not in (200,302,303):
+                      raise RuntimeError(f'login post {rr.status_code}')
+                  xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+                  st=s.get(base+'/api/status',headers=headers,timeout=20)
+                  if st.status_code == 200:
+                      print(f'JUPYTER_API_READY attempt={attempt}', flush=True)
+                      break
+                  print(f'api status attempt={attempt} http={st.status_code}', flush=True)
+              except Exception as e:
+                  print(f'auth retry {attempt}: {e!r}', flush=True)
+              time.sleep(3)
+          else:
+              raise SystemExit('Jupyter API did not become ready')
           t=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); t.raise_for_status(); name=t.json()['name']
           cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
           ws=websocket.create_connection(f'wss://{pid}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
