@@ -1,31 +1,44 @@
 show: Ringside Rewrite
 show_id: ringside_rewrite
-formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
-narrator: ringside_locked_voice
+formula_lock: Premium wrestling alternate-history documentary. Preserve approved Ringside Rewrite identity.
+narrator:
+  name: Male 9
+  voice_key: M09
+  provider: ctnetwork_local_qwen
+  status: locked
+workflow:
+  visuals_created_in_chatgpt: true
+  picture_storyboard_approval_required: true
+  server_role: narration_only
+  server_visual_generation_forbidden: true
+  server_video_assembly_forbidden: true
+  final_assembly: outside_server_from_approved_visuals_and_narration
+  shorts_source: approved_master_only
 visuals:
-  archival_first: true
-  local_generation_engine: ltx-2.5
-  production_quality_tier: dfr_when_generated
+  archival_and_editorial_wrestling: true
+  arena_ring_crowd_backstage_timeline: true
+  premium_visual_floor_required: true
 captions:
   burned_in: false
 shorts:
   count: 3
-  youtube_target_seconds: 50-58
+  target_seconds: 50-58
   hook_first_seconds: 1-2
-  no_slow_logo_intro: true
   destinations: [youtube_shorts, facebook_reels, tiktok_ringsiderw]
   tiktok_safe_encode_required: true
 audio:
+  wrestling_music_bed_required: true
+  ring_bell_sfx: true
+  crowd_sfx: true
   normalize_lufs: -16
-  noise_cleanup: true
   music_ducking: true
 thumbnail:
-  required: true
+  required_before_production: true
 qc:
-  auto_repair: true
+  verify_narrator: M09
   verify_short_count: 3
-  verify_tiktok_encode: true
   verify_thumbnail: true
+  reject_formula_drift: true
 publish:
   require_manual_approval: true
   default_allowed: false
