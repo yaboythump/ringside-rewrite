@@ -19,9 +19,9 @@ OUT = ROOT / "narrator-auditions/female-urban-10"
 PACKAGE = Path("/workspace/CTNETWORK_F01-F10_Female_Auditions.tar.gz")
 
 TEXT = (
-    "Look, the headline is only the beginning. "
-    "The real story is what happened next, why it mattered, and what everybody missed. "
-    "This is C T Network, where the details hit different."
+    "This is C T Network. "
+    "The real story starts where the headline ends. "
+    "Stay with me."
 )
 
 VOICES = {
@@ -73,7 +73,7 @@ def main() -> None:
             text=TEXT,
             language="English",
             instruct=instruct,
-            max_new_tokens=2048,
+            max_new_tokens=768,
         )
         raw = OUT / f"{label}_raw.wav"
         wav = OUT / f"{label}.wav"
