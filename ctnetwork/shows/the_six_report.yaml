@@ -1,31 +1,39 @@
 show: The Six Report
 show_id: the_six_report
-formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
-narrator: simone_locked_identity
+formula_lock: Premium GTA 6 / Rockstar news-and-analysis broadcast.
+narrator:
+  name: H02
+  voice_key: H02
+  provider: ctnetwork_local_qwen
+  status: locked
+workflow:
+  visuals_created_in_chatgpt: true
+  picture_storyboard_approval_required: true
+  server_role: narration_only
+  server_visual_generation_forbidden: true
+  server_video_assembly_forbidden: true
+  final_assembly: outside_server_from_approved_visuals_and_narration
+  shorts_source: approved_master_only
 visuals:
-  official_gameplay_first: true
-  local_generation_engine: ltx-2.5
+  official_gameplay_and_reference_first: true
+  maps_screenshots_trailers_evidence_timeline_newsroom: true
   ai_gta_recreation_default: false
 captions:
   burned_in: false
 shorts:
   count: 5
+  target_seconds: 50-58
 audio:
-  normalize_lufs: -16
-  noise_cleanup: true
-  static_detection_required: true
-  whisper_low_loudness_detection_required: true
   music_bed_required: true
+  normalize_lufs: -16
   music_ducking: true
+  reject_static_or_whisper_low_narration: true
 thumbnail:
-  required: true
+  required_before_production: true
 qc:
-  auto_repair: true
-  reject_static: true
-  reject_underlevel_narration: true
+  verify_narrator: H02
   verify_short_count: 5
+  verify_thumbnail: true
 publish:
   require_manual_approval: true
   default_allowed: false
-higgsfield:
-  allowed: false
