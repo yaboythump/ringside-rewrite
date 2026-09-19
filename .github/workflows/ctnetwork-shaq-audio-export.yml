@@ -1,0 +1,23 @@
+name: CTNETWORK Shaq Audio Export
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-shaq-audio-export.yml'
+      - 'production/case-against/shaq-2026-09-19/narration.mp3'
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify narration
+        run: |
+          test -s production/case-against/shaq-2026-09-19/narration.mp3
+          ls -lh production/case-against/shaq-2026-09-19/narration.mp3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shaq-m01-narration
+          path: production/case-against/shaq-2026-09-19/narration.mp3
+          retention-days: 7
