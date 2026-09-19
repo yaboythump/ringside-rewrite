@@ -40,7 +40,9 @@ Use Talia. Preserve the approved Wu-Tang/premium HHWI look: dark, gritty, cinema
 Use M09. Produce a premium wrestling alternate-history documentary using arena, ring, crowd, backstage, title, and timeline imagery. Use wrestling music, crowd ambience, and ring-bell SFX where appropriate. No burned captions. Produce exactly 3 Shorts from the approved master and use TikTok-safe encoding for @ringsiderw.
 
 ## RINGSIDE RECAP
-Use F06. The gate is mandatory and always in this order: **1) thumbnail, 2) picture storyboard approval.** Do not move to scripting or narration before those two visual steps are approved. Recap the relevant RAW, SmackDown, AEW, PLE/PPV, or wrestling event with fast premium pacing. Add wrestling music, ring-bell SFX, and crowd SFX. Voice must sound natural, never robotic. Shorts are cut only from the approved master.
+Use F06. The gate is mandatory and always in this order: **1) thumbnail, 2) picture storyboard approval.** Do not move to scripting or narration before those two visual steps are approved. Recap the relevant RAW, SmackDown, AEW, PLE/PPV, or wrestling event with fast premium pacing.
+
+The default music bed is permanently locked to **Ringside Recap Arena Rock Bed v1** at `assets/ringside-recap/Ringside_Recap_Arena_Rock_Bed.mp3`. Use this same bed in every Ringside Recap unless the owner explicitly changes it. The sound is aggressive modern arena rock / premium sports broadcast: real electric guitars, live-sounding punchy drums, bass, and restrained cinematic hits. **No video-game music, synthwave, chiptune, arcade tones, or EDM lead synths.** Duck the bed under F06 narration, and add ring-bell and crowd SFX where appropriate. Voice must sound natural, never robotic. Shorts are cut only from the approved master.
 
 ## THE CASE AGAINST
 Use M01. Preserve the prosecution-vs-defense courtroom format with opening case, exhibits, evidence, rebuttals, arguments, and decisive closing case. Visuals should be bold, premium, high-energy, and slightly cartoonish/editorial rather than plain. Use courtroom music and tasteful courtroom SFX. Keep the epic clickable thumbnail direction. No burned captions.
