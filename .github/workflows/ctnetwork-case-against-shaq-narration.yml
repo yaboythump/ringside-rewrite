@@ -20,106 +20,147 @@ jobs:
     timeout-minutes: 120
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-      CTN_VOLUME: xs4k4zrvn4
-      CTN_DC: EUR-IS-1
+      CTN_VOLUME: 9wjb3sa5zm
+      CTN_DC: EU-RO-1
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Create narration compute on original M01 storage
+      - name: Create M01 narration compute on current factory volume
         id: pod
         shell: bash
         run: |
           set -Eeuo pipefail
-          CMD_B64=$(base64 -w0 ctnetwork-case-against-shaq-narration-command.json)
-
           START_CMD=$(cat <<'BASH'
           set -u
+          ROOT=/workspace/ctnetwork-local
+          OUT=/workspace/The_Case_Against_Shaq_M01
           LOG=/workspace/the-case-against-shaq-m01.log
           STATUS=/workspace/the-case-against-shaq-m01-status.txt
-          OUT=/workspace/The_Case_Against_Shaq_M01
           rm -rf "$OUT"; rm -f "$LOG" "$STATUS"
-          mkdir -p "$OUT/sections"
+          mkdir -p "$OUT/chunks" "$OUT/sections"
 
           cd /workspace
           python3 -m http.server 8000 --bind 0.0.0.0 >/tmp/shaq-http.log 2>&1 &
-          HTTP_PID=$!
+          HPID=$!
 
           {
-            echo "THE CASE AGAINST SHAQ — ORIGINAL M01"
+            echo "THE CASE AGAINST SHAQ — EXACT M01 X-VECTOR"
             date -u +%FT%TZ
             export DEBIAN_FRONTEND=noninteractive
             command -v ffmpeg >/dev/null 2>&1 || { apt-get update -y && apt-get install -y --no-install-recommends ffmpeg curl ca-certificates; }
 
-            echo "__COMMAND_B64__" | base64 -d > "$OUT/command.json"
+            QPY="$ROOT/envs/qwen3-tts/bin/python"
+            MODEL="$ROOT/models/qwen3-tts/1.7B-Base"
+            [[ -x "$QPY" ]] || { echo "QWEN_ENV_MISSING:$QPY"; echo 20 > "$STATUS"; wait "$HPID"; exit 20; }
+            [[ -d "$MODEL" ]] || { echo "QWEN_MODEL_MISSING:$MODEL"; echo 21 > "$STATUS"; wait "$HPID"; exit 21; }
 
-            REF=$(find /workspace -maxdepth 14 -type f \( -iname 'M01.wav' -o -iname 'M01.mp3' -o -iname '*M01*.wav' -o -iname '*M01*.mp3' \) 2>/dev/null               | grep -Ei 'narr|voice|audition|casting|male|sample|reel|ref' | head -1 || true)
-            if [[ -z "$REF" ]]; then
-              REF=$(find /workspace -maxdepth 14 -type f \( -iname 'M01.wav' -o -iname 'M01.mp3' \) 2>/dev/null | head -1 || true)
-            fi
-            [[ -n "$REF" && -s "$REF" ]] || {
-              echo "M01_REFERENCE_NOT_FOUND_ON_ORIGINAL_VOLUME"
-              echo "=== AUDIO AROUND SEP17-18 ==="
-              find /workspace -maxdepth 12 -type f \( -iname '*.wav' -o -iname '*.mp3' \) -newermt '2026-09-17 00:00:00 UTC' ! -newermt '2026-09-19 00:00:00 UTC' -print 2>/dev/null | head -800
-              echo 21 > "$STATUS"; wait "$HTTP_PID"; exit 21;
-            }
-            echo "M01_REFERENCE=$REF"
+            curl -L --fail --retry 5               "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/production/narrators/M01_reference.wav"               -o "$OUT/M01_reference.wav"
+            curl -L --fail --retry 5               "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/ctnetwork-case-against-shaq-narration-command.json"               -o "$OUT/command.json"
+            [[ -s "$OUT/M01_reference.wav" ]] || { echo M01_DOWNLOAD_FAILED; echo 22 > "$STATUS"; wait "$HPID"; exit 22; }
 
-            QPY=$(find /workspace -maxdepth 8 -type f -path '*/qwen3-tts/bin/python' 2>/dev/null | head -1 || true)
-            [[ -x "$QPY" ]] || QPY=/workspace/ctnetwork-local/envs/qwen3-tts/bin/python
-            [[ -x "$QPY" ]] || { echo "QWEN_ENV_MISSING"; echo 20 > "$STATUS"; wait "$HTTP_PID"; exit 20; }
-            echo "QWEN_PYTHON=$QPY"
+            "$QPY" - "$MODEL" "$OUT/command.json" "$OUT/M01_reference.wav" "$OUT" <<'PY'
+          import json, pathlib, re, sys, torch, soundfile as sf
+          from qwen_tts import Qwen3TTSModel
 
-            ROOT=$(dirname "$(dirname "$(dirname "$QPY")")")
-            # Prefer the known CTNETWORK root when present because the helper's model path is locked there.
-            [[ -d /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base ]] && ROOT=/workspace/ctnetwork-local
-            echo "QWEN_ROOT=$ROOT"
+          model_dir, command_file, ref_audio, out_dir = sys.argv[1:]
+          out=pathlib.Path(out_dir)
+          sections=json.loads(pathlib.Path(command_file).read_text())['sections']
 
-            # Ensure helper sees its locked model path. If this volume used a different root, bridge it without copying the model.
-            if [[ "$ROOT" != "/workspace/ctnetwork-local" ]]; then
-              mkdir -p /workspace/ctnetwork-local/models/qwen3-tts /workspace/ctnetwork-local/envs
-              if [[ -d "$ROOT/models/qwen3-tts/1.7B-Base" && ! -e /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base ]]; then
-                ln -s "$ROOT/models/qwen3-tts/1.7B-Base" /workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base
-              fi
-            fi
+          model=Qwen3TTSModel.from_pretrained(
+              model_dir,
+              device_map='cuda:0',
+              dtype=torch.bfloat16,
+              attn_implementation='sdpa',
+          )
 
-            curl -L --fail --retry 5               "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/runpod/ctnetwork_qwen_narrate_batch.py"               -o "$OUT/ctnetwork_qwen_narrate_batch.py"
+          prompt=model.create_voice_clone_prompt(
+              ref_audio=ref_audio,
+              ref_text=None,
+              x_vector_only_mode=True,
+          )
 
-            ffmpeg -y -loglevel error -i "$REF" -ar 24000 -ac 1 "$OUT/M01_reference.wav"
-            ffmpeg -y -loglevel error -i "$OUT/M01_reference.wav" -b:a 192k "$OUT/M01_reference.mp3"
+          def split_text(text, max_chars=300):
+              sents=[s.strip() for s in re.split(r'(?<=[.!?])\s+', text.strip()) if s.strip()]
+              chunks=[]; cur=''
+              for s in sents:
+                  if not cur:
+                      cur=s
+                  elif len(cur)+1+len(s) <= max_chars:
+                      cur += ' ' + s
+                  else:
+                      chunks.append(cur); cur=s
+              if cur: chunks.append(cur)
+              final=[]
+              for c in chunks:
+                  if len(c)<=max_chars:
+                      final.append(c); continue
+                  parts=re.split(r'(?<=,)\s+',c)
+                  cur=''
+                  for p in parts:
+                      if not cur or len(cur)+1+len(p)<=max_chars:
+                          cur=(cur+' '+p).strip()
+                      else:
+                          final.append(cur); cur=p
+                  if cur: final.append(cur)
+              return final
 
-            "$QPY" - "$REF" "$OUT/ref.txt" "$OUT/command.json" "$OUT/sections.json" <<'PY'
-          import json, pathlib, sys
-          ref=pathlib.Path(sys.argv[1]); refout=pathlib.Path(sys.argv[2]); cmdp=pathlib.Path(sys.argv[3]); secout=pathlib.Path(sys.argv[4])
-          cmd=json.loads(cmdp.read_text())
-          secout.write_text(json.dumps(cmd['sections'],ensure_ascii=False,indent=2))
-          text=''
-          for p in [ref.parent, *list(ref.parents)[:6]]:
-              for name in ('manifest.json','voice_manifest.json','metadata.json'):
-                  m=p/name
-                  if m.exists():
-                      try:
-                          j=json.loads(m.read_text())
-                          text=(j.get('sample_text') or j.get('text') or j.get('transcript') or '').strip()
-                          if text: break
-                      except Exception: pass
-              if text: break
-          if not text:
-              text="Look, the headline is only the beginning. The real story is what happened next, why it mattered, and what everybody missed. This is C T Network, where the details hit different."
-          refout.write_text(text+'\n')
-          print('REFERENCE_TEXT='+text)
+          manifest=[]
+          for si,text in enumerate(sections,1):
+              parts=split_text(text)
+              chunk_files=[]
+              for ci,part in enumerate(parts,1):
+                  wavs,sr=model.generate_voice_clone(
+                      text=part,
+                      language='English',
+                      voice_clone_prompt=prompt,
+                      non_streaming_mode=True,
+                      do_sample=True,
+                      temperature=0.65,
+                      top_p=0.85,
+                      top_k=40,
+                      repetition_penalty=1.05,
+                  )
+                  p=out/'chunks'/f's{si:02d}_c{ci:02d}.wav'
+                  sf.write(p,wavs[0],sr)
+                  chunk_files.append(str(p))
+                  print(f'GENERATED section={si} chunk={ci}/{len(parts)} chars={len(part)}',flush=True)
+              manifest.append({'section':si,'chunks':chunk_files})
+          (out/'chunk_manifest.json').write_text(json.dumps(manifest,indent=2))
           PY
 
-            "$QPY" "$OUT/ctnetwork_qwen_narrate_batch.py"               --sections-json "$OUT/sections.json"               --ref-audio "$OUT/M01_reference.wav"               --ref-text-file "$OUT/ref.txt"               --output-dir "$OUT/sections" --language English
+            # Join short stable chunks into the 12 section files, adding a natural 100ms breath between chunks.
+            "$QPY" - "$OUT" <<'PY'
+          import json, pathlib, wave
+          root=pathlib.Path(__import__('sys').argv[1])
+          manifest=json.loads((root/'chunk_manifest.json').read_text())
+          for ent in manifest:
+              paths=[pathlib.Path(x) for x in ent['chunks']]
+              params=None; frames=[]
+              for p in paths:
+                  with wave.open(str(p),'rb') as w:
+                      cur=(w.getnchannels(),w.getsampwidth(),w.getframerate(),w.getcomptype())
+                      if params is None: params=cur
+                      if cur!=params: raise RuntimeError(f'format mismatch {p}')
+                      frames.append(w.readframes(w.getnframes()))
+              ch,sw,sr,comp=params
+              silence=b'\x00' * int(sr*0.10)*ch*sw
+              out=root/'sections'/f'section_{ent["section"]:02d}.wav'
+              with wave.open(str(out),'wb') as w:
+                  w.setnchannels(ch); w.setsampwidth(sw); w.setframerate(sr); w.setcomptype(comp,'not compressed')
+                  for i,f in enumerate(frames):
+                      if i: w.writeframes(silence)
+                      w.writeframes(f)
+          PY
 
             : > "$OUT/concat.txt"
             for f in "$OUT"/sections/section_*.wav; do
-              [[ -s "$f" ]] || continue
+              test -s "$f"
               printf "file '%s'\n" "$f" >> "$OUT/concat.txt"
             done
-            [[ $(wc -l < "$OUT/concat.txt") -eq 12 ]] || { echo "SECTION_COUNT_BAD"; echo 22 > "$STATUS"; wait "$HTTP_PID"; exit 22; }
+            [[ $(wc -l < "$OUT/concat.txt") -eq 12 ]] || { echo SECTION_COUNT_BAD; echo 23 > "$STATUS"; wait "$HPID"; exit 23; }
 
             ffmpeg -y -loglevel error -f concat -safe 0 -i "$OUT/concat.txt" -ar 48000 -ac 1 -c:a pcm_s16le "$OUT/narration_raw.wav"
             ffmpeg -y -loglevel error -i "$OUT/narration_raw.wav"               -af "highpass=f=65,acompressor=threshold=-18dB:ratio=2.2:attack=12:release=100,loudnorm=I=-16:TP=-1.5:LRA=8,alimiter=limit=0.95"               -ar 48000 -ac 1 -c:a pcm_s16le "$OUT/narration.wav"
@@ -127,94 +168,79 @@ jobs:
             ffprobe -v error -show_entries format=duration,size -of json "$OUT/narration.mp3" > "$OUT/qc.json"
             cat "$OUT/qc.json"
 
+            mkdir -p /workspace/ctnetwork-production/episodes/the-case-against-shaq-20260919/audio
+            cp "$OUT/narration.wav" /workspace/ctnetwork-production/episodes/the-case-against-shaq-20260919/audio/narration.wav
+            cp "$OUT/narration.mp3" /workspace/ctnetwork-production/episodes/the-case-against-shaq-20260919/audio/narration.mp3
+            cp "$OUT/qc.json" /workspace/ctnetwork-production/episodes/the-case-against-shaq-20260919/audio/qc.json
+
             tar -czf /workspace/The_Case_Against_Shaq_M01.tar.gz -C /workspace The_Case_Against_Shaq_M01
             echo 0 > "$STATUS"
-            echo "SHAQ_ORIGINAL_M01_NARRATION_READY"
+            echo SHAQ_EXACT_M01_NARRATION_READY
           } >"$LOG" 2>&1
 
-          wait "$HTTP_PID"
+          wait "$HPID"
           BASH
           )
-          START_CMD=${START_CMD/__COMMAND_B64__/$CMD_B64}
 
-          GPU_TYPES='["NVIDIA L4","NVIDIA RTX 4000 Ada Generation","NVIDIA GeForce RTX 4090","NVIDIA RTX A5000","NVIDIA A40"]'
-          BODY=$(jq -nc             --arg name "tca-shaq-original-m01-$(date +%s)"             --arg dc "$CTN_DC" --arg vol "$CTN_VOLUME" --arg cmd "$START_CMD" --argjson gpus "$GPU_TYPES"             '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:30,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8000/http"],dockerStartCmd:["bash","-lc",$cmd]}')
-
+          GPU_TYPES='["NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 4000 Blackwell","NVIDIA L4"]'
+          BODY=$(jq -nc             --arg n "tca-shaq-m01-$(date +%s)" --arg dc "$CTN_DC" --arg v "$CTN_VOLUME" --arg c "$START_CMD" --argjson g "$GPU_TYPES"             '{name:$n,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$g,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$v,volumeMountPath:"/workspace",ports:["8000/http"],dockerStartCmd:["bash","-lc",$c]}')
           HTTP=$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods             -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data "$BODY" || true)
           echo "create http=$HTTP"; cat /tmp/create.json
           [[ "$HTTP" =~ ^2 ]] || exit 2
-          POD_ID=$(jq -r '.id // empty' /tmp/create.json)
-          [[ -n "$POD_ID" ]] || exit 3
+          POD_ID=$(jq -r '.id // empty' /tmp/create.json); [[ -n "$POD_ID" ]] || exit 3
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
           echo "base_url=https://${POD_ID}-8000.proxy.runpod.net" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for narrator storage
+      - name: Wait for M01 narration
         env:
           BASE_URL: ${{ steps.pod.outputs.base_url }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          for i in $(seq 1 180); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$BASE_URL/" || true)
-            echo "http_check=$i code=$code"
-            [[ "$code" == 200 ]] && exit 0
-            sleep 5
-          done
-          exit 4
-
-      - name: Generate and download exact M01 narration
-        env:
-          BASE_URL: ${{ steps.pod.outputs.base_url }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          for i in $(seq 1 1200); do
+          for i in $(seq 1 1800); do
             status=$(curl -fsS --max-time 10 "$BASE_URL/the-case-against-shaq-m01-status.txt" 2>/dev/null || true)
             if [[ -n "$status" ]]; then
               curl -fsS --max-time 30 "$BASE_URL/the-case-against-shaq-m01.log" -o /tmp/shaq-m01.log || true
               cat /tmp/shaq-m01.log || true
-              if [[ "$status" == 0 ]]; then
-                curl -fL --retry 5 --max-time 900 "$BASE_URL/The_Case_Against_Shaq_M01.tar.gz" -o /tmp/The_Case_Against_Shaq_M01.tar.gz
-                mkdir -p /tmp/shaq-m01
-                tar -xzf /tmp/The_Case_Against_Shaq_M01.tar.gz -C /tmp/shaq-m01
-                test -s /tmp/shaq-m01/The_Case_Against_Shaq_M01/narration.mp3
-                exit 0
-              fi
-              exit "$status"
+              [[ "$status" == 0 ]] || exit "$status"
+              curl -fL --retry 5 --max-time 900 "$BASE_URL/The_Case_Against_Shaq_M01.tar.gz" -o /tmp/The_Case_Against_Shaq_M01.tar.gz
+              mkdir -p /tmp/shaq-m01
+              tar -xzf /tmp/The_Case_Against_Shaq_M01.tar.gz -C /tmp/shaq-m01
+              test -s /tmp/shaq-m01/The_Case_Against_Shaq_M01/narration.mp3
+              exit 0
             fi
             if (( i % 12 == 0 )); then
-              echo "M01 generation minute=$((i/12))"
-              curl -fsS --max-time 10 "$BASE_URL/the-case-against-shaq-m01.log" 2>/dev/null | tail -30 || true
+              echo "M01 narration minute=$((i/12))"
+              curl -fsS --max-time 10 "$BASE_URL/the-case-against-shaq-m01.log" 2>/dev/null | tail -25 || true
             fi
             sleep 5
           done
           exit 5
 
-      - name: Save exact M01 and Shaq narration
+      - name: Save Shaq narration
         shell: bash
         run: |
           set -Eeuo pipefail
           SRC=/tmp/shaq-m01/The_Case_Against_Shaq_M01
-          mkdir -p production/case-against/shaq-2026-09-19 production/narrators
+          mkdir -p production/case-against/shaq-2026-09-19
           cp "$SRC/narration.mp3" production/case-against/shaq-2026-09-19/narration.mp3
           cp "$SRC/qc.json" production/case-against/shaq-2026-09-19/narration-qc.json
-          cp "$SRC/M01_reference.mp3" production/narrators/M01_reference.mp3
           git config user.name 'ctnetwork-bot'
           git config user.email 'ctnetwork-bot@users.noreply.github.com'
-          git add production/case-against/shaq-2026-09-19/ production/narrators/M01_reference.mp3
-          git commit -m 'CTNETWORK: render Shaq with exact M01 narrator' || exit 0
+          git add production/case-against/shaq-2026-09-19/
+          git commit -m 'CTNETWORK: render Shaq exact M01 narration' || exit 0
           git pull --rebase origin main || true
           git push origin HEAD:main
 
       - name: Upload narration artifact
         uses: actions/upload-artifact@v4
         with:
-          name: The-Case-Against-Shaq-Exact-M01
+          name: The-Case-Against-Shaq-M01
           path: /tmp/The_Case_Against_Shaq_M01.tar.gz
           if-no-files-found: error
           retention-days: 7
 
-      - name: Terminate temporary narrator compute
+      - name: Terminate narration compute
         if: always()
         env:
           POD_ID: ${{ steps.pod.outputs.pod_id }}
@@ -222,4 +248,4 @@ jobs:
         run: |
           [[ -n "${POD_ID:-}" ]] || exit 0
           curl -sS -X DELETE "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
-          echo "Temporary narrator compute terminated; original narrator storage preserved."
+          echo "Narration compute terminated; persistent CTNETWORK volume preserved."
