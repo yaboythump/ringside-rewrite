@@ -16,7 +16,7 @@ concurrency:
 jobs:
   recover:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       CTN_VOLUME: xs4k4zrvn4
@@ -43,22 +43,12 @@ jobs:
             echo "CTNETWORK EXACT M01 RECOVERY"
             date -u +%FT%TZ
             REF=/workspace/ctn-voice-recovery-export/files/121_the-case-against-M01-final-test.wav
-            if [[ ! -s "$REF" ]]; then
-              REF=$(find /workspace -maxdepth 14 -type f \( -iname '*M01*.wav' -o -iname '*M01*.mp3' \) 2>/dev/null | grep -Ei 'case-against|case_against|narr|voice|audition|male' | head -1 || true)
-            fi
-            [[ -n "$REF" && -s "$REF" ]] || { echo M01_NOT_FOUND; echo 21 > "$STATUS"; wait "$HPID"; exit 21; }
+            [[ -s "$REF" ]] || { echo "M01_NOT_FOUND:$REF"; echo 21 > "$STATUS"; wait "$HPID"; exit 21; }
             echo "REFERENCE=$REF"
             cp -f "$REF" /workspace/M01_reference.wav
-            echo
-            echo "=== RECOVERY REPORT M01 LINES ==="
-            grep -Ein -C 6 'M01|Male 1|the-case-against-M01|case.against.*M01' /workspace/ctn-voice-recovery-export/report.txt 2>/dev/null | head -500 || true
-            echo
-            echo "=== M01 / CASE AGAINST PATHS ==="
-            find /workspace -maxdepth 14 -type f 2>/dev/null | grep -Ei 'M01|case.against|male.*(audition|voice)|audition.*male' | head -1000 || true
-            echo
-            echo "=== TEXT REFERENCES ==="
-            timeout 120 grep -RInE --binary-files=without-match --exclude-dir=models --exclude-dir=envs --exclude-dir=node_modules --exclude-dir=.cache               'M01|Male 1|the-case-against-M01|case.against.*M01' /workspace 2>/dev/null | head -1200 || true
+            stat /workspace/M01_reference.wav || true
             echo 0 > "$STATUS"
+            echo "M01_RECOVERED"
           } >"$LOG" 2>&1
           wait "$HPID"
           BASH
@@ -72,13 +62,13 @@ jobs:
           echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
           echo "base_url=https://${POD_ID}-8000.proxy.runpod.net" >> "$GITHUB_OUTPUT"
 
-      - name: Recover M01 files
+      - name: Recover M01 file
         env:
           BASE_URL: ${{ steps.pod.outputs.base_url }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          for i in $(seq 1 240); do
+          for i in $(seq 1 180); do
             status=$(curl -fsS --max-time 8 "$BASE_URL/m01-recovery-status.txt" 2>/dev/null || true)
             if [[ -n "$status" ]]; then
               curl -fsS --max-time 20 "$BASE_URL/m01-recovery-report.txt" -o /tmp/M01_recovery_report.txt || true
