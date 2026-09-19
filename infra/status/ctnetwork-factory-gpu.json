@@ -1,5 +1,5 @@
 {
-  "id": "hn0kc03bpibw3c",
+  "id": "6vinqiuolvv4dd",
   "name": "ctnetwork-factory-next",
   "desiredStatus": "RUNNING",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
@@ -14,7 +14,7 @@
   "portMappings": null,
   "costPerHr": 0.74,
   "adjustedCostPerHr": null,
-  "machineId": "y8im578a7li4",
+  "machineId": "58fvlou7acv1",
   "gpu": null,
   "machine": {
     "dataCenterId": null,
