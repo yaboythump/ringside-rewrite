@@ -1,0 +1,195 @@
+name: Ringside Recap F06 Narration Direct
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ringside-recap-f06-narration.yml'
+      - 'content/ringside_recap/smackdown_2026-09-18_narration.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ringside-recap-f06-narration
+  cancel-in-progress: true
+
+jobs:
+  narration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      CTN_VOLUME: 9wjb3sa5zm
+      CTN_DC: EU-RO-1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create narration pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          START_CMD=$(cat <<'BASH'
+          set -u
+          ROOT=/workspace/ctnetwork-local
+          LOG=/workspace/ringside-recap-f06.log
+          STATUS=/workspace/ringside-recap-f06-status.txt
+          OUT=/workspace/Ringside_Recap_SmackDown_2026-09-18_F06
+          rm -f "$STATUS" "$LOG"
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+
+          cd /workspace
+          python3 -m http.server 8000 --bind 0.0.0.0 >/tmp/ctn-http.log 2>&1 &
+          HTTP_PID=$!
+
+          {
+            echo "Ringside Recap F06 narration boot"
+            date -u +%FT%TZ
+            export DEBIAN_FRONTEND=noninteractive
+
+            if ! command -v ffmpeg >/dev/null 2>&1; then
+              apt-get update -y
+              apt-get install -y --no-install-recommends ffmpeg curl ca-certificates
+            fi
+
+            QPY="$ROOT/envs/qwen3-tts/bin/python"
+            REF="$ROOT/narrator-auditions/female-urban-10/F06.wav"
+            [[ -x "$QPY" ]] || { echo "QWEN_ENV_MISSING"; echo 20 > "$STATUS"; wait "$HTTP_PID"; exit 20; }
+            [[ -s "$REF" ]] || { echo "F06_REFERENCE_MISSING:$REF"; echo 21 > "$STATUS"; wait "$HTTP_PID"; exit 21; }
+
+            curl -L --fail --retry 5 \
+              "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/runpod/ctnetwork_qwen_narrate.py" \
+              -o /tmp/ctnetwork_qwen_narrate.py
+            curl -L --fail --retry 5 \
+              "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/content/ringside_recap/smackdown_2026-09-18_narration.txt" \
+              -o "$OUT/script.txt"
+
+            printf '%s\n' \
+              'This is C T Network. The real story starts where the headline ends. Stay with me.' \
+              > "$OUT/ref.txt"
+
+            "$QPY" /tmp/ctnetwork_qwen_narrate.py \
+              --text-file "$OUT/script.txt" \
+              --ref-audio "$REF" \
+              --ref-text-file "$OUT/ref.txt" \
+              --output "$OUT/narration_raw.wav"
+
+            ffmpeg -y -loglevel error -i "$OUT/narration_raw.wav" \
+              -af "highpass=f=65,acompressor=threshold=-18dB:ratio=2.2:attack=12:release=100,loudnorm=I=-16:TP=-1.5:LRA=8,alimiter=limit=0.95" \
+              -ar 48000 -ac 1 -c:a pcm_s16le "$OUT/Ringside_Recap_SmackDown_2026-09-18_F06.wav"
+
+            ffmpeg -y -loglevel error -i "$OUT/Ringside_Recap_SmackDown_2026-09-18_F06.wav" \
+              -b:a 192k "$OUT/Ringside_Recap_SmackDown_2026-09-18_F06.mp3"
+
+            rm -f "$OUT/narration_raw.wav"
+            tar -czf /workspace/Ringside_Recap_SmackDown_2026-09-18_F06.tar.gz -C /workspace "$(basename "$OUT")"
+
+            echo 0 > "$STATUS"
+            echo "NARRATION_READY"
+          } >"$LOG" 2>&1
+
+          wait "$HTTP_PID"
+          BASH
+          )
+
+          GPU_TYPES='["NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA L4"]'
+          BODY=$(jq -nc \
+            --arg name "ringside-recap-f06-$(date +%s)" \
+            --arg dc "$CTN_DC" \
+            --arg vol "$CTN_VOLUME" \
+            --arg cmd "$START_CMD" \
+            --argjson gpus "$GPU_TYPES" \
+            '{
+              name:$name,
+              imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+              cloudType:"SECURE",
+              computeType:"GPU",
+              gpuTypeIds:$gpus,
+              gpuTypePriority:"availability",
+              gpuCount:1,
+              dataCenterIds:[$dc],
+              dataCenterPriority:"availability",
+              containerDiskInGb:40,
+              networkVolumeId:$vol,
+              volumeMountPath:"/workspace",
+              ports:["8000/http"],
+              dockerStartCmd:["bash","-lc",$cmd]
+            }')
+
+          HTTP=$(curl -sS -o /tmp/create.json -w '%{http_code}' \
+            -X POST https://rest.runpod.io/v1/pods \
+            -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            -H 'Content-Type: application/json' \
+            --data "$BODY" || true)
+
+          echo "create http=$HTTP"
+          cat /tmp/create.json
+          [[ "$HTTP" =~ ^2 ]] || exit 2
+
+          POD_ID=$(jq -r '.id // empty' /tmp/create.json)
+          [[ -n "$POD_ID" ]] || exit 3
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "base_url=https://${POD_ID}-8000.proxy.runpod.net" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for server
+        env:
+          BASE_URL: ${{ steps.pod.outputs.base_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 180); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$BASE_URL/" || true)
+            echo "attempt=$i http=$code"
+            [[ "$code" == 200 ]] && exit 0
+            sleep 5
+          done
+          exit 4
+
+      - name: Wait for narration
+        env:
+          BASE_URL: ${{ steps.pod.outputs.base_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 1200); do
+            status=$(curl -fsS --max-time 10 "$BASE_URL/ringside-recap-f06-status.txt" 2>/dev/null || true)
+            if [[ -n "$status" ]]; then
+              curl -fsS --max-time 20 "$BASE_URL/ringside-recap-f06.log" -o /tmp/ringside-recap-f06.log || true
+              cat /tmp/ringside-recap-f06.log || true
+              if [[ "$status" == "0" ]]; then
+                curl -fL --retry 5 --max-time 900 \
+                  "$BASE_URL/Ringside_Recap_SmackDown_2026-09-18_F06.tar.gz" \
+                  -o /tmp/Ringside_Recap_SmackDown_2026-09-18_F06.tar.gz
+                test -s /tmp/Ringside_Recap_SmackDown_2026-09-18_F06.tar.gz
+                exit 0
+              fi
+              exit "$status"
+            fi
+            sleep 5
+          done
+          exit 5
+
+      - name: Upload narration
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ringside-Recap-SmackDown-2026-09-18-F06
+          path: /tmp/Ringside_Recap_SmackDown_2026-09-18_F06.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Terminate narration pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/${POD_ID}" \
+            -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
+          echo "Narration pod terminated: $POD_ID"
