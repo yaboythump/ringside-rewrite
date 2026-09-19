@@ -26,10 +26,17 @@ shorts:
   count_policy: cut_best_clips_from_approved_master
   target_seconds: 50-58
 audio:
-  wrestling_music_bed_required: true
+  music_bed_id: ringside_recap_arena_rock_bed_v1
+  music_bed_path: assets/ringside-recap/Ringside_Recap_Arena_Rock_Bed.mp3
+  music_style_locked: true
+  music_description: aggressive modern arena rock and premium sports-broadcast bed with real electric guitars, live-sounding drums, bass, and restrained cinematic hits
+  forbid_video_game_music: true
+  forbid_synthwave: true
+  forbid_chiptune: true
+  forbid_edm_leads: true
   ring_bell_sfx: true
   crowd_sfx: true
-  normalize_lufs: -16
+  normalize_lufs: -14
   music_ducking: true
 thumbnail:
   required_before_storyboard: true
@@ -37,7 +44,9 @@ thumbnail:
 qc:
   verify_narrator: F06
   verify_thumbnail: true
+  verify_music_bed_id: ringside_recap_arena_rock_bed_v1
   reject_robotic_voice: true
+  reject_video_game_or_arcade_music: true
 publish:
   require_manual_approval: true
   default_allowed: false
