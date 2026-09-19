@@ -66,11 +66,13 @@ ROOT=/workspace/ctnetwork-local
 QPY="$ROOT/envs/qwen3-tts/bin/python"
 test -x "$QPY" || { echo "QWEN_ENV_MISSING:$QPY"; exit 20; }
 
-if ! command -v ffmpeg >/dev/null 2>&1; then
+if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v sox >/dev/null 2>&1; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
-  apt-get install -y --no-install-recommends ffmpeg curl ca-certificates
+  apt-get install -y --no-install-recommends ffmpeg sox curl ca-certificates
 fi
+
+export HF_HUB_ENABLE_HF_TRANSFER=0
 
 curl -L --fail --retry 5   "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/tools/ctnetwork_generate_female_auditions_remote.py"   -o /tmp/ctnetwork_generate_female_auditions_remote.py
 
