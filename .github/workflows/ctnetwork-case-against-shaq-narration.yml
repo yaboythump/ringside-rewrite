@@ -1,0 +1,208 @@
+name: CTNETWORK Case Against Shaq M01 Narration
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-case-against-shaq-narration-command.json'
+      - '.github/workflows/ctnetwork-case-against-shaq-narration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ctn-case-against-shaq-narration
+  cancel-in-progress: true
+
+jobs:
+  narrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Start existing narrator pod
+        id: pod
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          POD_ID=$(jq -r '.pod_id' ctnetwork-case-against-shaq-narration-command.json)
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
+            for i in $(seq 1 120); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              echo "start_check=$i status=$STATUS"
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "Narrator pod did not start"; exit 2; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "Jupyter password missing"; exit 3; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Generate M01 narration
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, io, json, os, pathlib, re, sys, tarfile, time
+          import requests, websocket
+
+          repo=pathlib.Path.cwd()
+          cmd=repo/'ctnetwork-case-against-shaq-narration-command.json'
+          helper=repo/'runpod/ctnetwork_qwen_narrate_batch.py'
+          pid=os.environ['POD_ID']
+          pw=pathlib.Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
+          base=f'https://{pid}-8888.proxy.runpod.net'
+          s=requests.Session()
+
+          for i in range(120):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.ok:
+                      m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+                      if m:
+                          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=25,allow_redirects=False)
+                          if rr.status_code in (200,302,303):
+                              x=s.cookies.get('_xsrf'); h={'X-XSRFToken':x} if x else {}
+                              if s.get(base+'/api/status',headers=h,timeout=20).ok: break
+              except Exception: pass
+              time.sleep(4)
+          else: raise SystemExit('Jupyter unavailable')
+
+          bio=io.BytesIO()
+          with tarfile.open(fileobj=bio,mode='w:gz') as tf:
+              tf.add(cmd,arcname='incoming/command.json')
+              tf.add(helper,arcname='controller/ctnetwork_qwen_narrate_batch.py')
+          payload=base64.b64encode(bio.getvalue()).decode()
+
+          t=s.post(base+'/api/terminals',headers=h,json={},timeout=30); t.raise_for_status(); name=t.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pid}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=90)
+
+          shell=r'''set -Eeuo pipefail
+          ROOT=/workspace/ctnetwork-local
+          JOB=the-case-against-shaq-20260919
+          OUT="$ROOT/ready_for_approval/$JOB/audio"
+          mkdir -p "$ROOT/controller" "$ROOT/incoming" "$OUT"
+          echo __PAYLOAD__ | base64 -d >/tmp/tca-shaq.tgz
+          tar --no-same-owner -xzf /tmp/tca-shaq.tgz -C "$ROOT"
+          chmod +x "$ROOT/controller/ctnetwork_qwen_narrate_batch.py"
+          command -v ffmpeg >/dev/null || { apt-get update -y && apt-get install -y --no-install-recommends ffmpeg; }
+
+          REF=$(find /workspace -maxdepth 12 -type f \( -iname 'M01.wav' -o -iname 'M01.mp3' -o -iname '*M01*.wav' -o -iname '*M01*.mp3' \) 2>/dev/null \
+            | grep -Ei 'narr|voice|audition|casting|reference|ref' | head -1 || true)
+          if [ -z "$REF" ]; then
+            REF=$(find /workspace -maxdepth 12 -type f \( -iname 'M01.wav' -o -iname 'M01.mp3' \) 2>/dev/null | head -1 || true)
+          fi
+          [ -n "$REF" ] || { echo M01_REFERENCE_NOT_FOUND; exit 41; }
+          echo "M01_REFERENCE=$REF"
+
+          ffmpeg -y -loglevel error -i "$REF" -ar 24000 -ac 1 "$OUT/m01_ref.wav"
+
+          "$ROOT/envs/qwen3-tts/bin/python" - "$REF" "$OUT/m01_ref.txt" <<'PYREF'
+          import json, pathlib, sys
+          ref=pathlib.Path(sys.argv[1]); out=pathlib.Path(sys.argv[2])
+          text=''
+          for p in [ref.parent, *list(ref.parents)[:5]]:
+              m=p/'manifest.json'
+              if m.exists():
+                  try:
+                      j=json.loads(m.read_text())
+                      text=(j.get('sample_text') or j.get('text') or '').strip()
+                      if text: break
+                  except Exception: pass
+          if not text:
+              text="Look, the headline is only the beginning. The real story is what happened next, why it mattered, and what everybody missed. This is C T Network, where the details hit different."
+          out.write_text(text+'\n')
+          print('M01_REF_TEXT',text)
+          PYREF
+
+          "$ROOT/envs/qwen3-tts/bin/python" - <<'PYSEC'
+          import json, pathlib
+          root=pathlib.Path('/workspace/ctnetwork-local')
+          c=json.loads((root/'incoming/command.json').read_text())
+          (root/'incoming/shaq_sections.json').write_text(json.dumps(c['sections'],ensure_ascii=False,indent=2))
+          PYSEC
+
+          "$ROOT/envs/qwen3-tts/bin/python" "$ROOT/controller/ctnetwork_qwen_narrate_batch.py" \
+            --sections-json "$ROOT/incoming/shaq_sections.json" \
+            --ref-audio "$OUT/m01_ref.wav" \
+            --ref-text-file "$OUT/m01_ref.txt" \
+            --output-dir "$OUT/sections" --language English
+
+          : > "$OUT/concat.txt"
+          for f in "$OUT"/sections/section_*.wav; do
+            test -s "$f"
+            printf "file '%s'\n" "$f" >> "$OUT/concat.txt"
+          done
+          ffmpeg -y -loglevel error -f concat -safe 0 -i "$OUT/concat.txt" -ar 48000 -ac 1 -c:a pcm_s16le "$OUT/narration_raw.wav"
+          ffmpeg -y -loglevel error -i "$OUT/narration_raw.wav" \
+            -af "highpass=f=65,acompressor=threshold=-18dB:ratio=2.2:attack=12:release=100,loudnorm=I=-16:TP=-1.5:LRA=8,alimiter=limit=0.95" \
+            -ar 48000 -ac 1 -c:a pcm_s16le "$OUT/narration.wav"
+          ffmpeg -y -loglevel error -i "$OUT/narration.wav" -b:a 192k "$OUT/narration.mp3"
+          ffprobe -v error -show_entries format=duration,size -of json "$OUT/narration.mp3" > "$OUT/qc.json"
+          cat "$OUT/qc.json"
+          echo SHAQ_M01_NARRATION_READY
+          '''.replace('__PAYLOAD__',payload)
+
+          marker='__SHAQ_DONE__'+str(int(time.time()*1000))
+          enc=base64.b64encode(shell.encode()).decode()
+          ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d >/tmp/shaq-narr.sh; bash /tmp/shaq-narr.sh; rc=$?; echo {marker}:$rc\n"]))
+          buf=''; rc=None; deadline=time.time()+5400
+          try:
+              while time.time()<deadline:
+                  try: msg=ws.recv()
+                  except Exception: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]; buf+=txt; sys.stdout.write(txt); sys.stdout.flush()
+                      mm=re.search(re.escape(marker)+r':(\d+)',buf)
+                      if mm: rc=int(mm.group(1)); break
+          finally:
+              ws.close()
+              try:s.delete(base+f'/api/terminals/{name}',headers=h,timeout=10)
+              except Exception:pass
+          if rc != 0: raise SystemExit(f'remote narration failed rc={rc}')
+
+          outdir=pathlib.Path('/tmp/shaq-audio'); outdir.mkdir(parents=True,exist_ok=True)
+          for fn in ('narration.mp3','qc.json'):
+              rel=f'ctnetwork-local/ready_for_approval/the-case-against-shaq-20260919/audio/{fn}'
+              got=False
+              for url in (base+'/files/'+rel, base+'/files/workspace/'+rel):
+                  try:
+                      rr=s.get(url,headers=h,timeout=600)
+                      if rr.ok and len(rr.content)>100:
+                          (outdir/fn).write_bytes(rr.content); got=True; break
+                  except Exception: pass
+              if not got: raise SystemExit(f'download failed: {fn}')
+          PY
+
+      - name: Save narration to CTNETWORK repo
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p production/case-against/shaq-2026-09-19
+          cp /tmp/shaq-audio/narration.mp3 production/case-against/shaq-2026-09-19/narration.mp3
+          cp /tmp/shaq-audio/qc.json production/case-against/shaq-2026-09-19/narration-qc.json
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add production/case-against/shaq-2026-09-19/
+          git commit -m 'CTNETWORK: render Shaq M01 narration' || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
