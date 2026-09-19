@@ -1,29 +1,38 @@
 show: Whatever Happened To...?
 show_id: whatever_happened_to
-formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
-narrator: registry_current
-narrator_rules:
-  retired_voice_aliases_forbidden: [marcus, fenrir]
-  exact_current_registry_required: true
+formula_lock: Premium documentary / nostalgia series covering people, brands, products, trends, places, entertainment, companies, tech, and culture.
+narrator:
+  name: H05
+  voice_key: H05
+  provider: ctnetwork_local_qwen
+  status: locked
+workflow:
+  visuals_created_in_chatgpt: true
+  picture_storyboard_approval_required: true
+  server_role: narration_only
+  server_visual_generation_forbidden: true
+  server_video_assembly_forbidden: true
+  final_assembly: outside_server_from_approved_visuals_and_narration
+  shorts_source: approved_master_only
 visuals:
-  archival_first: true
-  local_generation_engine: ltx-2.5
-  production_quality_tier: dfr_when_generated
+  archival_and_documentary_first: true
+  nostalgia_editorial_style: true
+  premium_visual_floor_required: true
 captions:
   burned_in: false
 shorts:
-  count_policy: preserve_locked_show_cadence
+  count: 6
+  target_seconds: 50-58
 audio:
+  documentary_music_bed_required: true
   normalize_lufs: -16
-  noise_cleanup: true
   music_ducking: true
 thumbnail:
-  required: true
+  required_before_production: true
 qc:
-  auto_repair: true
-  narrator_registry_check_required: true
+  verify_narrator: H05
+  verify_thumbnail: true
+  reject_narrator_substitution: true
 publish:
   require_manual_approval: true
   default_allowed: false
-higgsfield:
-  allowed: false
