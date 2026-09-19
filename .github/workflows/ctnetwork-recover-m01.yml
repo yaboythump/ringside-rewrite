@@ -1,0 +1,117 @@
+name: CTNETWORK Recover Exact M01 Reference
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-recover-m01.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ctn-recover-m01
+  cancel-in-progress: true
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      CTN_VOLUME: xs4k4zrvn4
+      CTN_DC: EUR-IS-1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Mount original narrator storage
+        id: pod
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          START_CMD=$(cat <<'BASH'
+          set -u
+          STATUS=/workspace/m01-recovery-status.txt
+          LOG=/workspace/m01-recovery-report.txt
+          rm -f "$STATUS" "$LOG" /workspace/M01_reference.wav
+          cd /workspace
+          python3 -m http.server 8000 --bind 0.0.0.0 >/tmp/m01-http.log 2>&1 &
+          HPID=$!
+          {
+            echo "CTNETWORK EXACT M01 RECOVERY"
+            date -u +%FT%TZ
+            REF=/workspace/ctn-voice-recovery-export/files/121_the-case-against-M01-final-test.wav
+            if [[ ! -s "$REF" ]]; then
+              REF=$(find /workspace -maxdepth 14 -type f \( -iname '*M01*.wav' -o -iname '*M01*.mp3' \) 2>/dev/null | grep -Ei 'case-against|case_against|narr|voice|audition|male' | head -1 || true)
+            fi
+            [[ -n "$REF" && -s "$REF" ]] || { echo M01_NOT_FOUND; echo 21 > "$STATUS"; wait "$HPID"; exit 21; }
+            echo "REFERENCE=$REF"
+            cp -f "$REF" /workspace/M01_reference.wav
+            echo
+            echo "=== RECOVERY REPORT M01 LINES ==="
+            grep -Ein -C 6 'M01|Male 1|the-case-against-M01|case.against.*M01' /workspace/ctn-voice-recovery-export/report.txt 2>/dev/null | head -500 || true
+            echo
+            echo "=== M01 / CASE AGAINST PATHS ==="
+            find /workspace -maxdepth 14 -type f 2>/dev/null | grep -Ei 'M01|case.against|male.*(audition|voice)|audition.*male' | head -1000 || true
+            echo
+            echo "=== TEXT REFERENCES ==="
+            timeout 120 grep -RInE --binary-files=without-match --exclude-dir=models --exclude-dir=envs --exclude-dir=node_modules --exclude-dir=.cache               'M01|Male 1|the-case-against-M01|case.against.*M01' /workspace 2>/dev/null | head -1200 || true
+            echo 0 > "$STATUS"
+          } >"$LOG" 2>&1
+          wait "$HPID"
+          BASH
+          )
+          GPU_TYPES='["NVIDIA L4","NVIDIA RTX 4000 Ada Generation","NVIDIA RTX A5000","NVIDIA A40","NVIDIA GeForce RTX 4090"]'
+          BODY=$(jq -nc --arg n "ctn-recover-m01-$(date +%s)" --arg dc "$CTN_DC" --arg v "$CTN_VOLUME" --arg c "$START_CMD" --argjson g "$GPU_TYPES"             '{name:$n,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$g,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:20,networkVolumeId:$v,volumeMountPath:"/workspace",ports:["8000/http"],dockerStartCmd:["bash","-lc",$c]}')
+          HTTP=$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data "$BODY" || true)
+          echo "create http=$HTTP"; cat /tmp/create.json
+          [[ "$HTTP" =~ ^2 ]] || exit 2
+          POD_ID=$(jq -r '.id // empty' /tmp/create.json); [[ -n "$POD_ID" ]] || exit 3
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "base_url=https://${POD_ID}-8000.proxy.runpod.net" >> "$GITHUB_OUTPUT"
+
+      - name: Recover M01 files
+        env:
+          BASE_URL: ${{ steps.pod.outputs.base_url }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for i in $(seq 1 240); do
+            status=$(curl -fsS --max-time 8 "$BASE_URL/m01-recovery-status.txt" 2>/dev/null || true)
+            if [[ -n "$status" ]]; then
+              curl -fsS --max-time 20 "$BASE_URL/m01-recovery-report.txt" -o /tmp/M01_recovery_report.txt || true
+              cat /tmp/M01_recovery_report.txt || true
+              [[ "$status" == 0 ]] || exit "$status"
+              curl -fL --retry 5 --max-time 300 "$BASE_URL/M01_reference.wav" -o /tmp/M01_reference.wav
+              test -s /tmp/M01_reference.wav
+              exit 0
+            fi
+            sleep 4
+          done
+          exit 5
+
+      - name: Preserve exact M01 in repository
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p production/narrators
+          cp /tmp/M01_reference.wav production/narrators/M01_reference.wav
+          cp /tmp/M01_recovery_report.txt production/narrators/M01_recovery_report.txt
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add production/narrators/M01_reference.wav production/narrators/M01_recovery_report.txt
+          git commit -m 'CTNETWORK: preserve exact M01 narrator reference' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
+
+      - name: Terminate recovery compute
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
+          echo "Recovery compute terminated; original narrator volume preserved."
