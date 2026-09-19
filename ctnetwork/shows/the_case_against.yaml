@@ -1,26 +1,39 @@
 show: The Case Against
 show_id: the_case_against
-formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
-narrator: registry_current
+formula_lock: Premium high-energy courtroom prosecution-vs-defense format with exhibits, rebuttals, and a decisive final case.
+narrator:
+  name: Male 1
+  voice_key: M01
+  provider: ctnetwork_local_qwen
+  status: locked
+workflow:
+  visuals_created_in_chatgpt: true
+  picture_storyboard_approval_required: true
+  server_role: narration_only
+  server_visual_generation_forbidden: true
+  server_video_assembly_forbidden: true
+  final_assembly: outside_server_from_approved_visuals_and_narration
+  shorts_source: approved_master_only
 visuals:
-  local_generation_engine: ltx-2.5
-  production_quality_tier: dfr
+  courtroom_exhibits_evidence_graphics: true
+  bold_cartoonish_premium_energy: true
   premium_visual_floor_required: true
 captions:
   burned_in: false
 shorts:
   count_policy: preserve_locked_show_cadence
 audio:
+  courtroom_music_bed_required: true
+  courtroom_sfx_allowed: true
   normalize_lufs: -16
-  noise_cleanup: true
   music_ducking: true
 thumbnail:
-  required: true
+  required_before_production: true
+  epic_clickable_direction_locked: true
 qc:
-  auto_repair: true
+  verify_narrator: M01
+  verify_thumbnail: true
   premium_quality_review_required: true
 publish:
   require_manual_approval: true
   default_allowed: false
-higgsfield:
-  allowed: false
