@@ -1,0 +1,50 @@
+name: CTNETWORK Old Voice Pod Probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-old-voice-pod-probe.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Probe old voice pod
+        shell: bash
+        run: |
+          set +e
+          mkdir -p infra/status
+          code=$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/g7b6es3pvuuwqz" -H "Authorization: Bearer $RUNPOD_API_KEY")
+          echo "HTTP=$code"
+          if [[ "$code" =~ ^2 ]]; then
+            jq . /tmp/pod.json | tee infra/status/ctnetwork-old-voice-pod.json
+          else
+            {
+              echo "{"
+              echo "  \"pod_id\": \"g7b6es3pvuuwqz\","
+              echo "  \"http_status\": \"$code\","
+              echo "  \"found\": false"
+              echo "}"
+            } | tee infra/status/ctnetwork-old-voice-pod.json
+            echo "All current pods:"
+            curl -sS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" | jq '[.[]|{id,name,desiredStatus,networkVolumeId,imageName,lastStartedAt}]'
+          fi
+      - name: Save probe
+        shell: bash
+        run: |
+          git config user.name 'ctnetwork-bot'
+          git config user.email 'ctnetwork-bot@users.noreply.github.com'
+          git add infra/status/ctnetwork-old-voice-pod.json
+          git commit -m 'CTNETWORK: probe old voice pod' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
