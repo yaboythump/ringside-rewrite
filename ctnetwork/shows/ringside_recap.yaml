@@ -1,0 +1,43 @@
+show: Ringside Recap
+show_id: ringside_recap
+formula_lock: Fast premium wrestling recap show for RAW, SmackDown, AEW, PLE/PPV, and major wrestling events.
+narrator:
+  name: F06
+  voice_key: F06
+  provider: ctnetwork_local_qwen
+  status: locked
+workflow:
+  thumbnail_first: true
+  picture_storyboard_second: true
+  no_script_or_narration_before_visual_approval: true
+  visuals_created_in_chatgpt: true
+  server_role: narration_only
+  server_visual_generation_forbidden: true
+  server_video_assembly_forbidden: true
+  final_assembly: outside_server_from_approved_visuals_and_narration
+  shorts_source: approved_master_only
+visuals:
+  wrestling_event_recap: true
+  arena_ring_crowd_backstage_scorecards: true
+  premium_visual_floor_required: true
+captions:
+  burned_in: false
+shorts:
+  count_policy: cut_best_clips_from_approved_master
+  target_seconds: 50-58
+audio:
+  wrestling_music_bed_required: true
+  ring_bell_sfx: true
+  crowd_sfx: true
+  normalize_lufs: -16
+  music_ducking: true
+thumbnail:
+  required_before_storyboard: true
+  distinct_from_ringside_rewrite: true
+qc:
+  verify_narrator: F06
+  verify_thumbnail: true
+  reject_robotic_voice: true
+publish:
+  require_manual_approval: true
+  default_allowed: false
