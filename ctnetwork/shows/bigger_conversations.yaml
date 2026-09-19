@@ -1,0 +1,38 @@
+show: Bigger Conversations
+show_id: bigger_conversations
+formula_lock: Premium conversational/podcast visual experience with cinematic editorial imagery, people, environments, symbolic visuals, and useful graphics.
+narrator:
+  name: Female 4
+  voice_key: F04
+  provider: ctnetwork_local_qwen
+  status: locked
+workflow:
+  visuals_created_in_chatgpt: true
+  picture_storyboard_approval_required: true
+  server_role: narration_only
+  server_visual_generation_forbidden: true
+  server_video_assembly_forbidden: true
+  final_assembly: outside_server_from_approved_visuals_and_narration
+  shorts_source: approved_master_only
+visuals:
+  polished_cinematic_editorial: true
+  not_a_static_slideshow: true
+  people_environments_symbols_and_charts_allowed: true
+captions:
+  burned_in: false
+shorts:
+  count: 6
+  target_seconds: 50-58
+audio:
+  premium_podcast_music_bed: true
+  normalize_lufs: -16
+  music_ducking: true
+thumbnail:
+  required_before_production: true
+qc:
+  verify_narrator: F04
+  verify_short_count: 6
+  verify_thumbnail: true
+publish:
+  require_manual_approval: true
+  default_allowed: false
