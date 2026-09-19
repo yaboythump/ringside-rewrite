@@ -1,0 +1,177 @@
+name: CTNETWORK Female Narrator Auditions Direct
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-female-narrator-auditions-direct.yml'
+      - 'tools/ctnetwork_generate_female_auditions_remote.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctnetwork-female-narrator-auditions-direct
+  cancel-in-progress: true
+
+jobs:
+  audition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      CTN_VOLUME: 9wjb3sa5zm
+      CTN_DC: EU-RO-1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create direct narrator pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          START_CMD=$(cat <<'BASH'
+          set -u
+          ROOT=/workspace/ctnetwork-local
+          LOG=/workspace/ctn-female-auditions.log
+          STATUS=/workspace/ctn-female-auditions-status.txt
+          rm -f "$STATUS" "$LOG"
+
+          cd /workspace
+          python3 -m http.server 8000 --bind 0.0.0.0 >/tmp/ctn-http.log 2>&1 &
+          HTTP_PID=$!
+
+          {
+            echo "CTNETWORK female narrator direct audition boot"
+            date -u +%FT%TZ
+            export DEBIAN_FRONTEND=noninteractive
+            export HF_HUB_ENABLE_HF_TRANSFER=0
+
+            if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v sox >/dev/null 2>&1; then
+              apt-get update -y
+              apt-get install -y --no-install-recommends ffmpeg sox curl ca-certificates
+            fi
+
+            QPY="$ROOT/envs/qwen3-tts/bin/python"
+            if [ ! -x "$QPY" ]; then
+              echo "QWEN_ENV_MISSING:$QPY"
+              echo "20" > "$STATUS"
+              wait "$HTTP_PID"
+              exit 20
+            fi
+
+            curl -L --fail --retry 5               "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/tools/ctnetwork_generate_female_auditions_remote.py"               -o /tmp/ctnetwork_generate_female_auditions_remote.py
+
+            "$QPY" /tmp/ctnetwork_generate_female_auditions_remote.py
+            RC=$?
+            echo "$RC" > "$STATUS"
+            echo "AUDITION_RC=$RC"
+          } >"$LOG" 2>&1
+
+          wait "$HTTP_PID"
+          BASH
+          )
+
+          GPU_TYPES='["NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA L4"]'
+          BODY=$(jq -nc             --arg name "ctn-female-direct-$(date +%s)"             --arg dc "$CTN_DC"             --arg vol "$CTN_VOLUME"             --arg cmd "$START_CMD"             --argjson gpus "$GPU_TYPES"             '{
+              name:$name,
+              imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+              cloudType:"SECURE",
+              computeType:"GPU",
+              gpuTypeIds:$gpus,
+              gpuTypePriority:"availability",
+              gpuCount:1,
+              dataCenterIds:[$dc],
+              dataCenterPriority:"availability",
+              containerDiskInGb:40,
+              networkVolumeId:$vol,
+              volumeMountPath:"/workspace",
+              ports:["8000/http"],
+              dockerStartCmd:["bash","-lc",$cmd]
+            }')
+
+          HTTP=$(curl -sS -o /tmp/create.json -w '%{http_code}'             -X POST https://rest.runpod.io/v1/pods             -H "Authorization: Bearer $RUNPOD_API_KEY"             -H 'Content-Type: application/json'             --data "$BODY" || true)
+
+          echo "create http=$HTTP"
+          cat /tmp/create.json
+          [[ "$HTTP" =~ ^2 ]] || exit 2
+
+          POD_ID=$(jq -r '.id // empty' /tmp/create.json)
+          [[ -n "$POD_ID" ]] || exit 3
+
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "base_url=https://${POD_ID}-8000.proxy.runpod.net" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for direct HTTP server
+        env:
+          BASE_URL: ${{ steps.pod.outputs.base_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 180); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$BASE_URL/" || true)
+            echo "http attempt=$i code=$code"
+            [[ "$code" == "200" ]] && exit 0
+            sleep 5
+          done
+          echo "Direct HTTP server never became reachable"
+          exit 4
+
+      - name: Wait for auditions
+        env:
+          BASE_URL: ${{ steps.pod.outputs.base_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for i in $(seq 1 1200); do
+            status=$(curl -fsS --max-time 10 "$BASE_URL/ctn-female-auditions-status.txt" 2>/dev/null || true)
+
+            if [[ -n "$status" ]]; then
+              echo "remote status=$status"
+              curl -fsS --max-time 30 "$BASE_URL/ctn-female-auditions.log" -o /tmp/ctn-female-auditions.log || true
+              cat /tmp/ctn-female-auditions.log || true
+
+              if [[ "$status" == "0" ]]; then
+                curl -fL --retry 5 --max-time 900                   "$BASE_URL/CTNETWORK_F01-F10_Female_Auditions.tar.gz"                   -o /tmp/CTNETWORK_F01-F10_Female_Auditions.tar.gz
+                test -s /tmp/CTNETWORK_F01-F10_Female_Auditions.tar.gz
+                exit 0
+              fi
+
+              echo "Narrator generation failed with rc=$status"
+              exit "$status"
+            fi
+
+            if (( i % 12 == 0 )); then
+              echo "still generating... minute=$((i/12))"
+              curl -fsS --max-time 10 "$BASE_URL/ctn-female-auditions.log" 2>/dev/null | tail -25 || true
+            fi
+
+            sleep 5
+          done
+
+          echo "Narrator generation timed out"
+          curl -fsS --max-time 10 "$BASE_URL/ctn-female-auditions.log" 2>/dev/null | tail -100 || true
+          exit 5
+
+      - name: Upload narrator auditions
+        uses: actions/upload-artifact@v4
+        with:
+          name: CTNETWORK-F01-F10-Female-Auditions
+          path: /tmp/CTNETWORK_F01-F10_Female_Auditions.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Terminate direct narrator pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/${POD_ID}"             -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
+          echo "Narrator pod terminated: $POD_ID"
