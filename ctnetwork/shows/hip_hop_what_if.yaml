@@ -1,29 +1,43 @@
 show: Hip Hop What If
 show_id: hip_hop_what_if
-formula_lock: SAME SHOW. SAME FORMULA. SAME QUALITY. LESS WASTED SPEND.
-narrator: registry_current
+formula_lock: Wu-Tang / premium dark gritty cinematic HHWI formula. Do not change without owner approval.
+narrator:
+  name: Talia
+  provider: higgsfield
+  status: locked_exception
+  replace_only_with_owner_approval: true
+workflow:
+  visuals_created_in_chatgpt: true
+  picture_storyboard_approval_required: true
+  server_role: narration_only
+  server_visual_generation_forbidden: true
+  server_video_assembly_forbidden: true
+  final_assembly: outside_server_from_approved_visuals_and_narration
+  shorts_source: approved_master_only
 visuals:
-  archival_first: true
-  local_generation_engine: ltx-2.5
-  production_quality_tier: dfr_when_generated
+  style: dark gritty cinematic hip-hop documentary
+  timeline_and_evidence_graphics: true
+  premium_visual_floor_required: true
+  preserve_approved_storyboard_framing: true
 captions:
   burned_in: false
 shorts:
-  count_policy: preserve_locked_show_cadence
-  youtube_target_seconds: 50-58
-  facebook_target_seconds: 20-35
-  parent_episode_connection_required: true
+  count: 3
+  target_seconds: 50-58
+  hook_first_seconds: 1-2
 audio:
-  normalize_lufs: -16
-  noise_cleanup: true
+  hip_hop_documentary_music_bed_required: true
   music_ducking: true
+  normalize_lufs: -16
 thumbnail:
-  required: true
+  required_before_production: true
+  bold_clickable_premium: true
 qc:
-  auto_repair: true
+  verify_narrator: Talia
   verify_audio: true
   verify_video: true
   verify_thumbnail: true
+  reject_formula_drift: true
 publish:
   require_manual_approval: true
   default_allowed: false
