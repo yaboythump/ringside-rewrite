@@ -1,0 +1,182 @@
+name: Ringside Rewrite Stone Cold Production
+
+on:
+  push:
+    paths:
+      - 'ringside-austin-production-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ringside-austin-production
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve and start CTNETWORK factory
+        id: pod
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          CMD=ringside-austin-production-command.json
+          POD_ID=$(jq -r '.pod_id // empty' "$CMD")
+          TARGET=$(jq -r '.target_name // "ctnetwork-factory-next"' "$CMD")
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods "${AUTH[@]}")
+          if [[ -z "$POD_ID" ]]; then
+            POD_ID=$(printf '%s' "$PODS" | jq -r --arg target "$TARGET" '[.[]|select((.name//"")==$target)]|if length==1 then .[0].id else "" end')
+          fi
+          [[ -n "$POD_ID" ]] || { echo "Could not resolve target pod: $TARGET"; exit 3; }
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != RUNNING ]]; then
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" "${AUTH[@]}" >/dev/null || true
+            for i in $(seq 1 120); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == RUNNING ]] && break
+            done
+          fi
+          [[ "$STATUS" == RUNNING ]] || { echo "Pod failed to reach RUNNING: $STATUS"; exit 4; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "Jupyter password missing"; exit 5; }
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Produce episode on server
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+          PROD_FILE: ${{ github.workspace }}/runpod/ringside_austin_production.py
+          HELPER_FILE: ${{ github.workspace }}/runpod/ctnetwork_higgsfield_video.py
+          CMD_FILE: ${{ github.workspace }}/ringside-austin-production-command.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, pathlib, re, sys, time
+          import requests, websocket
+
+          pod=os.environ['POD_ID']
+          password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          prod=base64.b64encode(open(os.environ['PROD_FILE'],'rb').read()).decode()
+          helper=base64.b64encode(open(os.environ['HELPER_FILE'],'rb').read()).decode()
+          command=base64.b64encode(open(os.environ['CMD_FILE'],'rb').read()).decode()
+          base=f'https://{pod}-8888.proxy.runpod.net'
+          s=requests.Session()
+          for _ in range(120):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.status_code==200: break
+              except Exception: pass
+              time.sleep(4)
+          else: raise SystemExit('Jupyter not reachable')
+
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('No XSRF token')
+          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False)
+          if r.status_code not in (200,302,303): r.raise_for_status()
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          rr=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); rr.raise_for_status()
+          term=rr.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{term}',cookie=cookie,origin=base,timeout=60)
+
+          remote=f'''set -Eeuo pipefail
+          mkdir -p /workspace/ctnetwork-local/controller /workspace/ctnetwork-local/jobs
+          echo {helper} | base64 -d >/workspace/ctnetwork-local/controller/ctnetwork_higgsfield_video.py
+          echo {prod} | base64 -d >/workspace/ctnetwork-local/controller/ringside_austin_production.py
+          echo {command} | base64 -d >/workspace/ctnetwork-local/jobs/ringside-austin-production-command.json
+          chmod +x /workspace/ctnetwork-local/controller/ctnetwork_higgsfield_video.py /workspace/ctnetwork-local/controller/ringside_austin_production.py
+          /workspace/ctnetwork-local/envs/higgsfield/bin/python /workspace/ctnetwork-local/controller/ringside_austin_production.py --command /workspace/ctnetwork-local/jobs/ringside-austin-production-command.json
+          rc=$?
+          echo __RINGSIDE_AUSTIN_DONE__:$rc
+          '''
+          ws.send(json.dumps(['stdin',remote+'\n']))
+          output=''; rc=None; deadline=time.time()+6900
+          try:
+              while time.time()<deadline:
+                  try: msg=ws.recv()
+                  except Exception as exc:
+                      print('websocket',repr(exc),flush=True); continue
+                  if not msg: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]; output+=txt; sys.stdout.write(txt); sys.stdout.flush()
+                      mm=re.search(r'__RINGSIDE_AUSTIN_DONE__:(\d+)',output)
+                      if mm: rc=int(mm.group(1)); break
+          finally:
+              ws.close()
+              try: s.delete(base+f'/api/terminals/{term}',headers=headers,timeout=10)
+              except Exception: pass
+          if rc is None: raise SystemExit('Server production timed out')
+          if rc != 0: raise SystemExit(rc)
+
+          outdir=pathlib.Path('deliverables'); outdir.mkdir(exist_ok=True)
+          targets=[
+              ('Ringside_Rewrite_What_If_Stone_Cold_Never_Broke_His_Neck.mp4','ctnetwork-local/episodes/ringside_austin_neck/final/Ringside_Rewrite_What_If_Stone_Cold_Never_Broke_His_Neck.mp4'),
+              ('qc.json','ctnetwork-local/episodes/ringside_austin_neck/final/qc.json')
+          ]
+          for local,rel in targets:
+              ok=False
+              for candidate in (f'/files/{rel}',f'/files/workspace/{rel}'):
+                  resp=s.get(base+candidate,timeout=900,stream=True)
+                  if resp.status_code==200:
+                      dest=outdir/local
+                      with open(dest,'wb') as fh:
+                          for chunk in resp.iter_content(1024*1024):
+                              if chunk: fh.write(chunk)
+                      if dest.stat().st_size>100:
+                          print('DOWNLOADED',dest,dest.stat().st_size,flush=True)
+                          ok=True; break
+              if not ok: raise SystemExit(f'Could not download {rel}')
+          PY
+
+      - name: Runner QC
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          MASTER=deliverables/Ringside_Rewrite_What_If_Stone_Cold_Never_Broke_His_Neck.mp4
+          test -s "$MASTER"
+          test "$(jq -r '.pass' deliverables/qc.json)" = true
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,width,height,sample_rate -of json "$MASTER" | tee deliverables/ffprobe.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ringside-Austin-Neck-Final
+          path: deliverables/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Stop factory after delivery
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          for i in $(seq 1 60); do
+            sleep 2
+            S=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
+            echo "stop_check=$i status=$S"
+            [[ "$S" != RUNNING ]] && exit 0
+          done
+          exit 1
