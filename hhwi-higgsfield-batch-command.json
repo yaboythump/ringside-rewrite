@@ -1,0 +1,78 @@
+{
+  "pod_id": "2h03w8g398tq3u",
+  "request_id": "hhwi-scott-la-rock-motion-batch-01",
+  "scenes": [
+    {
+      "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/16346b06-9d16-4180-8710-7f18adcb410a.png",
+      "prompt": "Animate this late-1980s Bronx establishing scene into a premium 5-second hip-hop documentary shot. The elevated train moves naturally through frame while street traffic and pedestrians show subtle period-accurate motion. Wet pavement reflections shimmer, streetlights flicker softly, light mist drifts, and the camera performs a slow controlled cinematic push forward. Preserve the architecture, train geometry, signs, graffiti, cars, and period atmosphere. Dark gritty Hip Hop What If style, realistic motion, no captions, no generated audio.",
+      "negative_prompt": "warped train, bending buildings, melting cars, duplicated pedestrians, text morphing, changing signs, camera shake, fast motion, modern vehicles, modern clothing, distorted perspective, flickering geometry",
+      "model": "kling-video/v2.5-turbo/standard/image-to-video",
+      "duration": 5,
+      "cfg_scale": 0.5,
+      "output": "/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/hhwi_motion_01_bronx.mp4"
+    },
+    {
+      "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/a34ef77e-59d3-44fb-9982-7731a2bfd35f.png",
+      "prompt": "Animate this young Bronx rapper scene into a 5-second cinematic documentary shot. The young man walks slowly FORWARD beneath the elevated train with natural heel-to-toe steps and subtle body weight transfer, briefly looking toward the passing train. The camera slowly dollies backward to maintain framing as he advances. Rain continues naturally, street reflections move, distant cars and pedestrians remain subtle. Preserve face, anatomy, clothing, backpack, train, buildings, and period look. Moody gritty Hip Hop What If style, no captions, no generated audio.",
+      "negative_prompt": "walking backward, reverse gait, moonwalk, sliding feet, warped legs, extra limbs, face distortion, body distortion, changing clothing, camera shake, modern objects, text changes",
+      "model": "kling-video/v2.5-turbo/standard/image-to-video",
+      "duration": 5,
+      "cfg_scale": 0.5,
+      "output": "/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/hhwi_motion_02_young_krs.mp4"
+    },
+    {
+      "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/bbe6363c-e287-4dbe-9ed7-1c520fd752e1.png",
+      "prompt": "Animate this first-meeting Bronx scene into a 5-second premium documentary shot. The two men have a focused conversation with restrained natural hand gestures, slight head movement, and realistic eye contact while the camera makes a slow dramatic push-in. Background people shift subtly, rain and street reflections remain alive, and the elevated train moves gently in the distance. Preserve both faces, anatomy, clothing, jewelry, street geometry, and period atmosphere. No exaggerated mouth motion, no captions, no generated audio.",
+      "negative_prompt": "wild gestures, lip distortion, face morphing, extra fingers, fused hands, duplicated limbs, characters swapping positions, sliding, camera shake, changing clothes, warped street, text morphing",
+      "model": "kling-video/v2.5-turbo/standard/image-to-video",
+      "duration": 5,
+      "cfg_scale": 0.5,
+      "output": "/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/hhwi_motion_03_meeting.mp4"
+    },
+    {
+      "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/c753c266-ef44-4acc-b79d-798b9b9cd6b8.png",
+      "prompt": "Animate this gritty late-1980s hip-hop studio session into a 5-second cinematic shot. The DJ makes a subtle controlled record movement and mixer adjustment while the rapper performs into the microphone with restrained natural hand motion. The vinyl spins, small equipment lights glow, papers shift slightly, and the camera performs a slow side-to-center push. Preserve faces, hands, microphone, turntable, mixer, records, room geometry, posters, and all objects. Premium dark Hip Hop What If documentary style, no captions, no generated audio.",
+      "negative_prompt": "warped hands, extra fingers, microphone distortion, turntable melting, record changing shape, exaggerated rapping, wild gestures, face distortion, duplicated arms, text morphing, camera shake",
+      "model": "kling-video/v2.5-turbo/standard/image-to-video",
+      "duration": 5,
+      "cfg_scale": 0.5,
+      "output": "/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/hhwi_motion_04_studio.mp4"
+    },
+    {
+      "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/b9649df2-e4e3-4c0a-9404-17094dc713e0.png",
+      "prompt": "Animate this packed Boogie Down Productions performance into a 5-second premium concert-documentary shot. The rapper performs with one controlled microphone-hand motion and a restrained pointing gesture while the DJ works naturally behind him. The crowd moves rhythmically, a few hands rise, stage smoke drifts, spotlights sweep subtly, and the camera slowly pushes toward the performers. Preserve faces, anatomy, microphone, turntables, crowd, stage, and background artwork. Gritty iconic late-80s hip-hop energy, no captions, no generated audio.",
+      "negative_prompt": "warped hands, extra fingers, microphone disappearing, exaggerated dancing, crowd melting, face distortion, duplicated limbs, stage warping, backward motion, camera shake, text morphing",
+      "model": "kling-video/v2.5-turbo/standard/image-to-video",
+      "duration": 5,
+      "cfg_scale": 0.5,
+      "output": "/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/hhwi_motion_05_performance.mp4"
+    },
+    {
+      "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/0ab5ff57-02aa-4b7c-9b04-ed6e049f21f6.png",
+      "prompt": "Animate this alternate-history hospital recovery scene into a restrained 5-second cinematic documentary shot. The patient remains resting and alert while the visitor leans in slightly and their clasped hands tighten subtly in relief. Add gentle breathing, a small emotional head nod, soft monitor light movement, distant staff motion, and a very slow camera push-in. Preserve faces, anatomy, bandage, hands, bed, IV equipment, hospital geometry, and lighting. Emotional and realistic, not melodramatic. No captions, no generated audio.",
+      "negative_prompt": "graphic injury, blood, body distortion, extra fingers, fused hands, face morphing, exaggerated movement, patient standing up, medical equipment melting, changing bandage, camera shake, text changes",
+      "model": "kling-video/v2.5-turbo/standard/image-to-video",
+      "duration": 5,
+      "cfg_scale": 0.5,
+      "output": "/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/hhwi_motion_06_survival.mp4"
+    },
+    {
+      "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/4c2c9e67-2507-435d-ba93-b5b95a2a47d3.png",
+      "prompt": "Animate this Bronx unity rally and hip-hop performance into a 5-second cinematic alternate-history shot. The rapper speaks into the microphone with one measured gesture while his partner raises a fist naturally; the crowd responds with subtle raised hands and rhythmic movement. Stage lights glow, banners move slightly in the air, and the camera performs a slow heroic push-in. Preserve faces, anatomy, microphone, turntables, clothing, crowd, signs, and environment. Powerful but grounded community energy, no captions, no generated audio.",
+      "negative_prompt": "wild arm motion, extra limbs, warped fists, microphone distortion, face morphing, crowd melting, duplicated people, text morphing, banners changing, camera shake, exaggerated mouth motion",
+      "model": "kling-video/v2.5-turbo/standard/image-to-video",
+      "duration": 5,
+      "cfg_scale": 0.5,
+      "output": "/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/hhwi_motion_07_unity.mp4"
+    },
+    {
+      "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/81f5061b-5815-4415-83a4-2baaa1238bc6.png",
+      "prompt": "Animate this reflective Bronx rooftop legacy scene into a 5-second premium closing shot. The two men remain seated side by side, making only subtle breathing and small head movements as they look across the city. Their jackets move gently in the night breeze, distant train lights travel across the elevated track, city windows flicker softly, clouds drift, and the camera slowly pushes in from behind and slightly to the side. Preserve faces, bodies, clothing, jewelry, skyline, train, rooftop, and period mood. Emotional cinematic ending, no captions, no generated audio.",
+      "negative_prompt": "characters standing, exaggerated gestures, face distortion, body warping, extra limbs, city melting, train bending, camera shake, fast movement, clothing changing, text morphing",
+      "model": "kling-video/v2.5-turbo/standard/image-to-video",
+      "duration": 5,
+      "cfg_scale": 0.5,
+      "output": "/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/hhwi_motion_08_legacy.mp4"
+    }
+  ]
+}
