@@ -1,54 +1,120 @@
 {
-  "production_date": "2026-09-16",
+  "production_date": "2026-09-20",
   "manual_gate_required": true,
   "publish_allowed": false,
   "slate_state": "APPROVED_FOR_PRODUCTION_ONLY",
   "jobs": [
     {
-      "job_id": "tcwt-e05-elevator-came-down-empty-20260916",
-      "show": "True Crime With Thump",
-      "title": "The Elevator Came Down Empty | True Crime With Thump",
-      "description": "At 1:55 A.M., 29-year-old Nia Grant steps into Elevator B inside Westbridge Tower. Twenty-two minutes later, the elevator reaches the basement empty — but her tote, cracked phone and broken necklace are still inside. This original fictional True Crime With Thump case follows the access logs, emergency call, maintenance badge, inspection-mode clue and the question at the center of the disappearance: who had the key?",
+      "job_id": "hhwi-scott-la-rock-20260920",
+      "show": "Hip Hop What If",
+      "title": "What If Scott La Rock Never Died? | Would KRS-One Still Become The Teacher?",
+      "description": "A clearly labeled alternate-history Hip Hop What If episode exploring how Scott La Rock surviving 1987 might have changed Boogie Down Productions and KRS-One's path.",
       "tags": [
-        "True Crime With Thump",
-        "true crime documentary",
-        "fictional true crime",
-        "missing person mystery",
-        "elevator mystery",
-        "crime story",
-        "investigation",
-        "evidence timeline",
-        "unsolved mystery",
+        "Hip Hop What If",
+        "Scott La Rock",
+        "KRS-One",
+        "Boogie Down Productions",
+        "BDP",
+        "hip hop history",
+        "alternate history",
+        "Bronx hip hop",
         "CTNETWORK"
       ],
       "publish": false,
       "inputs": {
-        "narration_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/ad6a9bbb-995e-4b74-98b5-acfd202fc59f.mp3",
-        "visual_urls": [
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102633_f87c4740-846d-4682-a640-096dc39cd33d.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102715_cc094603-0af1-4fd9-b734-d28ed47a56b2.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102715_719ab8e1-36c0-4dab-b2ae-55cd9f17562a.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102714_5c2c45d5-9256-45ca-8130-3391c8c7e950.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102714_ed0184bf-654f-4c21-ac05-45837c051daf.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102714_ed8005d6-79fb-4c15-9585-a72f91623e24.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102757_cd389c21-6e0e-4059-b4af-7f238b2c73e9.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102757_0e1ae199-b706-4d95-87f0-3bd63070ea99.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102757_13f5b7f2-04d7-409a-a842-ce7bb24e44d2.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102757_fd51412f-3727-40b5-898e-e4aaa6a78c7b.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102758_23989083-d03b-4aeb-8de7-7d6bfdbc1eba.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102946_5f02a7d2-c8c8-468c-a89d-7f66ded06404.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102946_32314ab8-5449-4685-9fe0-de5c83f4106e.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102946_db38654b-7812-4918-a23a-f6c3fbf57904.png",
-          "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_102946_7b4cfeb7-21cb-4fa7-858d-be2ae5739aa5.png"
+        "scene_sequence": [
+          {
+            "type": "video",
+            "url": "https://d3u0tzju9qaucj.cloudfront.net/0a43c2d0-26c1-4ce1-9237-b6881af712fa/fc741c75-ead8-41ce-97b4-05c70d61ec12.mp4"
+          },
+          {
+            "type": "video",
+            "url": "https://d3u0tzju9qaucj.cloudfront.net/0a43c2d0-26c1-4ce1-9237-b6881af712fa/0f4587ab-ee8c-4b9e-a0ab-8be4230d2403.mp4"
+          },
+          {
+            "type": "video",
+            "url": "https://d3u0tzju9qaucj.cloudfront.net/0a43c2d0-26c1-4ce1-9237-b6881af712fa/90773183-7bdc-46e3-b430-216dca7e219a.mp4"
+          },
+          {
+            "type": "video",
+            "url": "https://d3u0tzju9qaucj.cloudfront.net/0a43c2d0-26c1-4ce1-9237-b6881af712fa/1110a4c2-be19-41a7-827f-0203562cd015.mp4"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204643_27953aef-aec1-4c3f-a7b3-038ec409aae7.png"
+          },
+          {
+            "type": "video",
+            "url": "https://d3u0tzju9qaucj.cloudfront.net/0a43c2d0-26c1-4ce1-9237-b6881af712fa/4a95c563-c68e-4eba-82fd-c3a865bec2f6.mp4"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204643_5a6e17f8-24ef-46d6-afe7-ac4c276a3000.png"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204643_f5d02999-5d1e-450e-a2ba-0d67ab9d874e.png"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204643_490ece9d-0505-4f95-b453-91eb2983c145.png"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204643_42ac890c-09da-4cca-84fb-08a6f823514a.png"
+          },
+          {
+            "type": "video",
+            "url": "https://d3u0tzju9qaucj.cloudfront.net/0a43c2d0-26c1-4ce1-9237-b6881af712fa/56eebb66-a5d1-46ec-9bac-87224a7fbaf4.mp4"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204643_50580f7d-d6e9-4e80-ac47-366027a5ed38.png"
+          },
+          {
+            "type": "video",
+            "url": "https://d3u0tzju9qaucj.cloudfront.net/0a43c2d0-26c1-4ce1-9237-b6881af712fa/0419ff70-a479-4079-91cf-e1356d949beb.mp4"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204716_4a164ed9-c440-4caf-8a4c-d892dc01fe2c.png"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204716_07fd810e-815a-4bfd-a099-bb2d288b71f6.png"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204716_6e2f7409-3e6c-4fdb-be11-35ff7a2ea99e.png"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204716_fcb42ecc-b728-484c-acc5-7f87644b4e17.png"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204716_ebbfa55f-f914-421a-b589-c282b50fe64a.png"
+          },
+          {
+            "type": "image",
+            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_204716_7815a750-ec8d-4f6e-871a-a619844d5aa4.png"
+          },
+          {
+            "type": "video",
+            "url": "https://d3u0tzju9qaucj.cloudfront.net/0a43c2d0-26c1-4ce1-9237-b6881af712fa/6ff0b2a3-eaf2-4549-bb7a-b552a70c0c86.mp4"
+          }
         ],
-        "thumbnail_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260916_103028_25be87bd-74f2-4e93-8b41-1697b1eabaae.png"
+        "music_url": "https://dnznrvs05pmza.cloudfront.net/lyria3-pro/c75412db-067a-44cd-ba93-b8d4d6edd409/HHWI_Scott_La_Rock_Documentary_Bed.mp3?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNWYyYWM0ZDYwMGRkZmIxNyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA4ODAyMn0.5JITsbaR2FH0ghOY0fRfJfrWIBvHUBZN49f_HCFAkkQ"
+      },
+      "narration": {
+        "engine": "qwen3-tts",
+        "text": "New York City, 1987. Before KRS-One became one of hip-hop's defining teachers, his path ran through the Franklin Armory Men's Shelter. That is where he met Scott La Rock, a youth counselor who also DJed. Scott helped channel KRS-One's energy into music, and together they formed Boogie Down Productions. Their early records helped put the South Bronx back at the center of the conversation, and Criminal Minded became an underground landmark.\n\nThen everything changed. In August 1987, Scott La Rock was shot and killed in the Bronx after trying to intervene in a dispute. KRS-One kept Boogie Down Productions alive. By All Means Necessary followed in 1988, with a stronger focus on politics, education and social commentary. Around this period, KRS-One increasingly embraced the role of \"The Teacher.\" He also became central to the Stop the Violence Movement, and the 1989 all-star record Self Destruction turned hip-hop's attention toward violence in the community.\n\nThat is the history we know. From here, this is an alternate timeline. What if Scott La Rock survived? The first change might not be KRS-One becoming less important. It could be the opposite: KRS-One would still have the talent, voice and hunger that made him unique, but he would be developing beside the mentor who helped start the journey. Boogie Down Productions might have stayed more visibly centered on the partnership between MC and DJ instead of becoming increasingly identified with KRS-One alone.\n\nScott surviving could also change the emotional route into conscious rap. In reality, loss and violence became part of the backdrop to KRS-One's transformation. In this alternate history, the message might still come, but through mentorship, community work and the experience of narrowly escaping tragedy rather than mourning a partner. The Stop the Violence idea could still emerge, especially as violence around rap shows became a wider concern, but Scott could have stood beside KRS-One as an organizer, DJ and respected community figure.\n\nBy the early 1990s, imagine Boogie Down Productions as both a recording group and a cultural institution: records, lectures, youth workshops and community events tied together under one banner. Scott's background working with young people gives that possibility some logic, while KRS-One's growing reputation as an educator gives it momentum. Their sound might have evolved differently too, with Scott's DJ identity remaining a visible part of the group's public image while KRS-One pushed deeper into philosophy, history and social criticism.\n\nSo would KRS-One still become \"The Teacher\"? Very possibly. But the meaning of that title might feel different. Instead of the teacher emerging after losing one of the people who first believed in him, he could have become the teacher while that mentor was still standing next to him. Scott La Rock's death is one of hip-hop's great unfinished stories. If he had lived, the biggest change may not have been whether KRS-One became a legend. It may have been what Boogie Down Productions could have become with both of its original forces still moving forward together.",
+        "voice_reference_text": "Brooklyn. Late 1990s. Two careers moving through the same city. In our timeline, one connection helped shape what came next. But what if that meeting never happened? No introduction. No cosign. No path into the same circle. One missed moment. And hip-hop history starts moving in a completely different direction.",
+        "language": "English"
       },
       "shorts": {
-        "clips": [
-          {"start": 0, "seconds": 55, "title": "THE ELEVATOR CAME DOWN EMPTY"},
-          {"start": 155, "seconds": 55, "title": "THE M-14 BADGE SHOULD NOT EXIST"},
-          {"start": 360, "seconds": 55, "title": "WHO HAD THE INSPECTION KEY?"}
-        ]
+        "count": 0,
+        "seconds": 55
       }
     }
   ]
