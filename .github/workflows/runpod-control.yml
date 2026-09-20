@@ -39,6 +39,13 @@ jobs:
             -H "Authorization: Bearer ${RUNPOD_API_KEY}")
 
           POD_ID=$(jq -r '.pod_id // empty' runpod-command.json)
+          TARGET_NAME=$(jq -r '.target // empty' runpod-command.json)
+          if [[ -z "$POD_ID" && -n "$TARGET_NAME" ]]; then
+            POD_ID=$(printf '%s' "$PODS" | jq -r --arg target "$TARGET_NAME" '
+              [ .[] | select((.name // "") == $target) ]
+              | if length == 1 then .[0].id else "" end
+            ')
+          fi
           if [[ -z "$POD_ID" ]]; then
             POD_ID="${RUNPOD_POD_ID:-}"
           fi
