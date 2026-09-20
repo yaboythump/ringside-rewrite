@@ -1,0 +1,191 @@
+name: CTNETWORK Higgsfield Batch Render
+
+on:
+  push:
+    paths:
+      - 'hhwi-higgsfield-batch-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctnetwork-higgsfield-batch
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve running pod and Jupyter credential
+        id: resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          CMD=hhwi-higgsfield-batch-command.json
+          POD_ID=$(jq -r '.pod_id // empty' "$CMD")
+          [[ -n "$POD_ID" ]] || { echo "pod_id missing"; exit 2; }
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" "${AUTH[@]}" >/dev/null
+            for i in $(seq 1 90); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 3; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "JUPYTER_PASSWORD missing"; exit 4; }
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Render HHWI motion batch
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+          HELPER_FILE: ${{ github.workspace }}/runpod/ctnetwork_higgsfield_video.py
+          CMD_FILE: ${{ github.workspace }}/hhwi-higgsfield-batch-command.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, re, shlex, sys, time
+          import requests, websocket
+
+          pod_id=os.environ['POD_ID']
+          password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          cmd=json.load(open(os.environ['CMD_FILE']))
+          scenes=cmd.get('scenes',[])
+          if not scenes:
+              raise SystemExit('No scenes in batch command')
+          if len(scenes) > 8:
+              raise SystemExit('Batch hard cap is 8 scenes')
+
+          helper=open(os.environ['HELPER_FILE'],'rb').read()
+          helper_b64=base64.b64encode(helper).decode()
+          base=f'https://{pod_id}-8888.proxy.runpod.net'
+          s=requests.Session()
+          for _ in range(90):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.ok:
+                      break
+              except Exception:
+                  pass
+              time.sleep(5)
+          else:
+              raise SystemExit('Jupyter did not become reachable')
+
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m:
+              raise SystemExit('Could not find Jupyter XSRF token')
+          xsrf=m.group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},
+                   timeout=30,allow_redirects=True)
+          r.raise_for_status()
+          xc=s.cookies.get('_xsrf')
+          headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30)
+          r.raise_for_status()
+          name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(
+              f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',
+              cookie=cookie,origin=base,timeout=60
+          )
+
+          helper_path='/workspace/ctnetwork-local/controller/ctnetwork_higgsfield_video.py'
+          lines=[
+              'set +e',
+              'mkdir -p /workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion',
+              f"echo {helper_b64} | base64 -d >{shlex.quote(helper_path)}",
+              f"chmod +x {shlex.quote(helper_path)}",
+              'overall=0'
+          ]
+
+          # Run four at a time to reduce API burst/rate-limit risk.
+          for start in range(0,len(scenes),4):
+              group=scenes[start:start+4]
+              pids=[]
+              for idx,sc in enumerate(group,start=start+1):
+                  image=sc['image_url']
+                  prompt=sc['prompt']
+                  neg=sc.get('negative_prompt','')
+                  model=sc.get('model','kling-video/v2.5-turbo/standard/image-to-video')
+                  duration=int(sc.get('duration',5))
+                  cfg=float(sc.get('cfg_scale',0.5))
+                  output=sc['output']
+                  log=f"/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/motion/scene_{idx:02d}.log"
+                  command=(
+                      f"/workspace/ctnetwork-local/envs/higgsfield/bin/python {shlex.quote(helper_path)} "
+                      f"--image {shlex.quote(image)} "
+                      f"--prompt {shlex.quote(prompt)} "
+                      f"--negative-prompt {shlex.quote(neg)} "
+                      f"--model {shlex.quote(model)} "
+                      f"--duration {duration} --cfg-scale {cfg} "
+                      f"--output {shlex.quote(output)} >{shlex.quote(log)} 2>&1 &"
+                  )
+                  lines.append(command)
+                  lines.append(f"p{idx}=$!")
+                  pids.append((idx,output,log))
+              for idx,output,log in pids:
+                  lines.append(f"wait $p{idx}; rc=$?; if [ $rc -ne 0 ]; then overall=1; fi")
+                  lines.append(f"echo '===== SCENE {idx:02d} ====='")
+                  lines.append(f"cat {shlex.quote(log)} || true")
+                  lines.append(
+                      f"if [ -s {shlex.quote(output)} ]; then "
+                      f"ffprobe -v error -show_entries format=duration,size -of json {shlex.quote(output)} || true; fi"
+                  )
+
+          lines.append("echo __CTN_HF_BATCH_DONE__:$overall")
+          remote='\n'.join(lines)+'\n'
+          ws.send(json.dumps(['stdin',remote]))
+
+          rc=None
+          deadline=time.time()+2100
+          try:
+              while time.time()<deadline:
+                  try:
+                      msg=ws.recv()
+                  except Exception as exc:
+                      print('websocket:',exc)
+                      continue
+                  if not msg:
+                      continue
+                  try:
+                      data=json.loads(msg)
+                  except Exception:
+                      continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]
+                      sys.stdout.write(txt)
+                      sys.stdout.flush()
+                      mm=re.search(r'__CTN_HF_BATCH_DONE__:(\d+)',txt)
+                      if mm:
+                          rc=int(mm.group(1))
+                          break
+          finally:
+              ws.close()
+              try:
+                  s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception:
+                  pass
+
+          if rc is None:
+              raise SystemExit('Batch render timed out')
+          raise SystemExit(rc)
+          PY
