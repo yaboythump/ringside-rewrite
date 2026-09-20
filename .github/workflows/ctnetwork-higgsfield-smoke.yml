@@ -77,6 +77,7 @@ jobs:
           image_url=cmd['image_url']
           prompt=cmd['prompt']
           negative_prompt=cmd.get('negative_prompt','')
+          model=cmd.get('model','kling-video/v2.5-turbo/std/image-to-video')
           duration=int(cmd.get('duration',5))
           cfg=float(cmd.get('cfg_scale',0.5))
           output=cmd.get('output','/workspace/ctnetwork-local/test_outputs/football_kling_test.mp4')
@@ -123,6 +124,7 @@ jobs:
               f"--image {shlex.quote(image_url)} "
               f"--prompt {shlex.quote(prompt)} "
               f"--negative-prompt {shlex.quote(negative_prompt)} "
+              f"--model {shlex.quote(model)} "
               f"--duration {duration} --cfg-scale {cfg} "
               f"--output {shlex.quote(output)}; rc=$?; "
               f"if [ $rc -eq 0 ]; then ffprobe -v error -show_entries format=duration,size -of json {shlex.quote(output)} || true; fi; "
