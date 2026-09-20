@@ -1,0 +1,48 @@
+name: Attach Shaq Custom Thumbnail
+
+on:
+  push:
+    paths:
+      - '.github/workflows/attach-shaq-thumbnail.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Attach approved thumbnail
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          THUMB_URL: 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-3d94-81f5-a043-74544aabfbe4/raw?se=2026-09-20T04%3A10%3A30Z&sp=r&sv=2026-02-06&sr=b&scid=520d9ffd-78d9-559a-8e8e-2afea48baa93&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-19T12%3A47%3A51Z&ske=2026-09-20T12%3A47%3A51Z&sks=b&skv=2026-02-06&sig=CWY4pzqvESAgwzzjtBGEAQiNtK6joHcMzNCDRzpMbAs%3D'
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet requests pillow
+          python - <<'PY'
+          import io, os, requests
+          from PIL import Image, ImageOps
+          src=requests.get(os.environ['THUMB_URL'],timeout=90)
+          src.raise_for_status()
+          img=Image.open(io.BytesIO(src.content)).convert('RGB')
+          img=ImageOps.fit(img,(1280,720),method=Image.Resampling.LANCZOS)
+          buf=io.BytesIO()
+          img.save(buf,format='JPEG',quality=92,optimize=True)
+          r=requests.post(
+              'https://api.upload-post.com/api/upload-video/youtube/thumbnail',
+              data={'video':'kw88ILe_0N8','user':'Case','apiKey':os.environ['UPLOAD_POST_API_KEY']},
+              files={'file':('shaq-custom-thumbnail.jpg',buf.getvalue(),'image/jpeg')},
+              timeout=180,
+          )
+          print('HTTP',r.status_code)
+          print(r.text[:4000])
+          r.raise_for_status()
+          try:
+              body=r.json()
+              if isinstance(body,dict) and body.get('success') is False:
+                  raise SystemExit(2)
+          except ValueError:
+              pass
+          PY
