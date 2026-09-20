@@ -1,0 +1,131 @@
+name: Deliver HHWI Scott La Rock Final
+
+on:
+  push:
+    paths:
+      - 'hhwi-scott-deliver-command.json'
+      - '.github/workflows/hhwi-scott-la-rock-deliver.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve pod and Jupyter
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' hhwi-scott-deliver-command.json)
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
+            for i in $(seq 1 90); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod not running: $STATUS"; exit 3; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "Jupyter password missing"; exit 4; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download final master from factory
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests
+          python3 - <<'PY'
+          import os,re,time,pathlib,requests
+          pod=os.environ['POD_ID']
+          pw=pathlib.Path(os.environ['JUPYTER_PASSWORD_FILE']).read_text().strip()
+          base=f'https://{pod}-8888.proxy.runpod.net'
+          s=requests.Session()
+          for _ in range(90):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.ok: break
+              except Exception: pass
+              time.sleep(4)
+          else: raise SystemExit('Jupyter unavailable')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('No XSRF token')
+          rr=s.post(base+'/login',data={'_xsrf':m.group(1),'password':pw,'next':'/'},timeout=30,allow_redirects=False)
+          if rr.status_code not in (200,302,303): rr.raise_for_status()
+          xs=s.cookies.get('_xsrf'); h={'X-XSRFToken':xs} if xs else {}
+          out=pathlib.Path('deliverables'); out.mkdir(exist_ok=True)
+          targets=[
+            ('HHWI_What_If_Scott_La_Rock_Never_Died.mp4','ctnetwork-local/episodes/hhwi_scott_la_rock/final/HHWI_What_If_Scott_La_Rock_Never_Died.mp4'),
+            ('qc.json','ctnetwork-local/episodes/hhwi_scott_la_rock/final/qc.json')
+          ]
+          for local,rel in targets:
+              ok=False
+              for p in (f'/files/workspace/{rel}',f'/files/{rel}'):
+                  z=s.get(base+p,headers=h,stream=True,timeout=900)
+                  if z.status_code==200:
+                      dest=out/local
+                      with open(dest,'wb') as f:
+                          for chunk in z.iter_content(4*1024*1024):
+                              if chunk:f.write(chunk)
+                      if dest.stat().st_size>100:
+                          print('DOWNLOADED',local,dest.stat().st_size)
+                          ok=True;break
+              if not ok: raise SystemExit(f'failed to download {rel}')
+          PY
+          test "$(jq -r '.pass' deliverables/qc.json)" = "true"
+          test "$(jq -r '.narrator' deliverables/qc.json)" = "F06"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HHWI-Scott-La-Rock-Final
+          path: deliverables/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish delivery release
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=hhwi-scott-la-rock-final-20260920
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" deliverables/HHWI_What_If_Scott_La_Rock_Never_Died.mp4 deliverables/qc.json --clobber
+          else
+            gh release create "$TAG" deliverables/HHWI_What_If_Scott_La_Rock_Never_Died.mp4 deliverables/qc.json --title "HHWI — What If Scott La Rock Never Died?" --notes "Final CTNETWORK master. F06 narration. 20 scenes, 8 animated, no burned captions. Remote QC passed."
+          fi
+          gh release view "$TAG" --json url,assets | tee deliverables/release.json
+
+      - name: Stop factory after delivery
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null
+          for i in $(seq 1 60); do
+            sleep 2
+            S=$(curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" | jq -r '.desiredStatus // "unknown"')
+            echo "stop_check=$i status=$S"
+            [[ "$S" != "RUNNING" ]] && exit 0
+          done
+          exit 1
