@@ -97,7 +97,7 @@ jobs:
             "https://rest.runpod.io/v1/pods/${POD_ID}/start" \
             -H "Authorization: Bearer ${RUNPOD_API_KEY}") || HTTP=000
           echo "REST HTTP: $HTTP"
-          cat /tmp/rest-start.json 2>/dev/null || true
+          jq '{id,name,desiredStatus,imageName,gpuCount,machineId,networkVolumeId,ports}' /tmp/rest-start.json 2>/dev/null || true
           echo
 
           if [[ "$HTTP" =~ ^2 ]]; then
