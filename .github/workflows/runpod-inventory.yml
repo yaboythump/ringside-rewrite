@@ -1,0 +1,37 @@
+name: RunPod Safe Inventory
+
+on:
+  push:
+    paths:
+      - 'runpod-inventory-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: List safe pod metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods             -H "Authorization: Bearer ${RUNPOD_API_KEY}"           | jq '[.[] | {
+              id,
+              name,
+              desiredStatus,
+              imageName,
+              networkVolumeId,
+              volumeMountPath,
+              volumeInGb,
+              containerDiskInGb,
+              lastStartedAt,
+              costPerHr,
+              ports,
+              env_keys: ((.env // {}) | keys)
+            }]'
