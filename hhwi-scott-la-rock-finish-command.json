@@ -1,5 +1,5 @@
 {
-  "request_id": "finish-hhwi-scott-la-rock-f06-2026-09-20",
+  "request_id": "finish-hhwi-scott-la-rock-f06-sfx-2026-09-20",
   "pod_id": "njbmq5wmkuxd85",
   "title": "What If Scott La Rock Never Died?",
   "narration_text": "Hip-hop history remembers Scott La Rock as the DJ and mentor who helped turn a homeless young MC named KRS-One into one half of Boogie Down Productions. But the real question is bigger than one record, one crew, or one tragic night.\n\nBefore the fame, Kris Parker spent years moving through New York’s streets, subways, parks, and shelters. At the Franklin Armory Men’s Shelter, he met Scott La Rock, a youth counselor who also deejayed. Scott saw something in him. He helped channel that energy into music, and by 1986 the two had formed Boogie Down Productions.\n\nThen came Criminal Minded in 1987. Raw drums. Battle rhymes. Street detail. A sound that felt dangerous because it felt real. The album became an underground landmark, and BDP suddenly looked like one of the most important new voices in New York hip-hop.\n\nThen everything changed.\n\nIn August 1987, Scott La Rock was shot and killed after trying to help settle a street dispute. For KRS-One, the loss was personal, professional, and permanent. But he did not stop. He rebuilt Boogie Down Productions and returned in 1988 with By All Means Necessary.\n\nThat album marked a major shift. KRS-One was no longer just the battle MC from Criminal Minded. He began calling himself “The Teacher,” and the music leaned harder into social commentary, history, violence, and responsibility. Tracks like “My Philosophy” and “Stop the Violence” helped define that new era.\n\nScott’s death was not the only reason KRS-One changed. His years in shelters, his reading, his experiences in New York, and the violence around hip-hop were already shaping him. A deadly incident at a later BDP and Public Enemy concert also helped push KRS toward the Stop the Violence Movement and the 1989 all-star single “Self Destruction.”\n\nBut what if Scott La Rock had survived?\n\nFrom here, we’re imagining one plausible alternate timeline.\n\nScott survives the shooting. He recovers. Boogie Down Productions stays centered on the partnership that built Criminal Minded. KRS still grows, but now he grows beside the man who first helped focus his talent.\n\nThat changes the pressure around him. Instead of becoming “The Teacher” partly in the shadow of loss, maybe that identity develops more gradually. The message can still get deeper. The social commentary can still arrive. But the tone might be less like a sudden transformation and more like an evolution inside a working duo.\n\nScott could also keep shaping the sound. Criminal Minded had a stripped-down, hard-edged feel. With Scott still behind the turntables and involved in production, BDP might hold onto more of that raw texture while KRS pushes the lyrics toward bigger ideas.\n\nAnd the Stop the Violence message? That still has a reason to exist. The violence around the culture did not disappear. But without Scott’s death as one of the deepest personal wounds in KRS-One’s life, the movement might arrive differently, at a different moment, or with Scott standing beside him.\n\nImagine BDP entering the early 1990s as both a crew and a community institution. Scott mentoring younger DJs and artists. KRS speaking in classrooms, youth centers, and on records. One man working the decks. The other working the microphone. Both pushing the idea that hip-hop could be more than entertainment.\n\nAnd that brings us back to the question: would KRS-One still become “The Teacher”?\n\nProbably in some form. The intelligence, curiosity, and social awareness were already there. But the version of The Teacher we know was shaped by grief, responsibility, and survival. If Scott La Rock lives, KRS-One may still become an educator through hip-hop — just by a different road.\n\nInstead of carrying Scott’s memory alone, he might have built that next chapter with Scott still in the room.\n\nAnd that is the real alternate history.\n\nScott La Rock surviving might not erase The Teacher.\n\nIt might completely change how The Teacher was born.",
@@ -66,5 +66,25 @@
   "music_url": "https://dnznrvs05pmza.cloudfront.net/lyria3-pro/c75412db-067a-44cd-ba93-b8d4d6edd409/HHWI_Scott_La_Rock_Documentary_Bed.mp3?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNWYyYWM0ZDYwMGRkZmIxNyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA4ODAyMn0.5JITsbaR2FH0ghOY0fRfJfrWIBvHUBZN49f_HCFAkkQ",
   "narrator": "F06",
   "narrator_reference_path": "/workspace/ctnetwork-local/narrator-auditions/female-urban-10/F06.wav",
-  "narrator_reference_text": "This is C T Network. The real story starts where the headline ends. Stay with me."
+  "narrator_reference_text": "This is C T Network. The real story starts where the headline ends. Stay with me.",
+  "sfx": [
+    {
+      "filename": "bronx_train.mp3",
+      "url": "https://dnznrvs05pmza.cloudfront.net/audio_sfx/22bfd5ec-1fbb-4aa8-bd61-0c3ddaed4b41/HHWI_Bronx_Train_SFX.mp3?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiMDk4YmI4ODg5OTMxYTc4MyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA4NzY4OH0.8Ws3KwxwdNozAXGD5XU1H8QNDIQH4IW1R2sFJycABDQ",
+      "delay_ms": 1200,
+      "volume": 0.16
+    },
+    {
+      "filename": "club_crowd.mp3",
+      "url": "https://dnznrvs05pmza.cloudfront.net/audio_sfx/02f69625-8f98-430f-b165-b27615a19cc6/HHWI_Club_Crowd_SFX.mp3?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiOTI2MDU5ODFkZmViZmFjNCIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA3NTkwNX0.kxt8f3MmsEhvJv-6AdihqeYv6e7cdojmzH_f07-XjWc",
+      "delay_ms": 65000,
+      "volume": 0.14
+    },
+    {
+      "filename": "vinyl.mp3",
+      "url": "https://dnznrvs05pmza.cloudfront.net/audio_sfx/d339c17d-2440-44a5-9839-0efdf4c97e4d/HHWI_Vinyl_SFX.mp3?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiYzdhNTA1MzBhM2E2ODZmNSIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA0NzE1Mn0.OphjNODq7ykqe08bhybbms2iCYt9NCCX7QaggxLWouE",
+      "delay_ms": 25000,
+      "volume": 0.18
+    }
+  ]
 }
