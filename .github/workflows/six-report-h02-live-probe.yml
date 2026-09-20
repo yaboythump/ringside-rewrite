@@ -18,7 +18,7 @@ jobs:
         shell: bash
         run: |
           set -u
-          BASE="https://nduo6efikiltvf-8000.proxy.runpod.net"
+          BASE="https://ve3nuau66hxjpj-8000.proxy.runpod.net"
           echo "=== STATUS ==="
           curl -sS --max-time 20 "$BASE/six-report-h02-status.txt" || true
           echo
@@ -28,4 +28,4 @@ jobs:
           echo "=== LOG ==="
           curl -sS --max-time 30 "$BASE/six-report-h02.log" | tail -120 || true
 
-# probe model download
+# probe run3
