@@ -15,7 +15,9 @@ from urllib.parse import urlparse
 import requests
 import higgsfield_client
 
-MODEL = "kling-video/v2.5-turbo/pro/image-to-video"
+PRO_MODEL = "kling-video/v2.5-turbo/pro/image-to-video"
+STANDARD_MODEL = "kling-video/v2.5-turbo/std/image-to-video"
+DEFAULT_MODEL = STANDARD_MODEL
 
 
 def normalize_credential_env() -> None:
@@ -70,7 +72,7 @@ def upload_or_url(image: str) -> str:
 
 
 def render(image: str, prompt: str, duration: int, cfg_scale: float,
-           negative_prompt: str, output: Path) -> Path:
+           negative_prompt: str, output: Path, model: str = DEFAULT_MODEL) -> Path:
     normalize_credential_env()
     if not credential_present():
         raise SystemExit(
@@ -79,7 +81,7 @@ def render(image: str, prompt: str, duration: int, cfg_scale: float,
         )
     image_url = upload_or_url(image)
     result = higgsfield_client.subscribe(
-        MODEL,
+        model,
         arguments={
             "prompt": prompt,
             "duration": duration,
@@ -104,7 +106,7 @@ def render(image: str, prompt: str, duration: int, cfg_scale: float,
     print(json.dumps({
         "status": "completed",
         "engine": "higgsfield",
-        "model": MODEL,
+        "model": model,
         "duration": duration,
         "output": str(output),
         "source_url": video_url,
@@ -118,6 +120,7 @@ def main() -> None:
     ap.add_argument("--image")
     ap.add_argument("--prompt")
     ap.add_argument("--duration", type=int, choices=(5, 10), default=5)
+    ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--cfg-scale", type=float, default=0.5)
     ap.add_argument("--negative-prompt", default="")
     ap.add_argument("--output", type=Path)
@@ -127,7 +130,7 @@ def main() -> None:
     if args.self_test:
         print(json.dumps({
             "status": "ready",
-            "model": MODEL,
+            "model": DEFAULT_MODEL,
             "credential_present": credential_present(),
             "billable_generation_submitted": False,
         }))
@@ -139,7 +142,7 @@ def main() -> None:
         ap.error("--cfg-scale must be between 0 and 1")
     render(
         args.image, args.prompt, args.duration, args.cfg_scale,
-        args.negative_prompt, args.output
+        args.negative_prompt, args.output, args.model
     )
 
 
