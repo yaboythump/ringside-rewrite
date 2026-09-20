@@ -90,7 +90,7 @@ jobs:
           ROOT=/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock
           mkdir -p "$ROOT"/assets "$ROOT"/motion "$ROOT"/stills "$ROOT"/clips "$ROOT"/final
           python3 - <<'RPY'
-          import base64, json, pathlib, subprocess, requests
+          import base64, json, pathlib, subprocess, requests, shutil
           ROOT=pathlib.Path('/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock')
           cmd=json.loads(base64.b64decode('__PAYLOAD__'))
           assets=ROOT/'assets'; stills=ROOT/'stills'; motion=ROOT/'motion'; clips=ROOT/'clips'; final=ROOT/'final'
@@ -116,8 +116,8 @@ jobs:
               return float(out)
 
           (assets/'narration.txt').write_text(cmd['narration_text'].strip()+'\n')
-          (assets/'talia_ref.txt').write_text(cmd['talia_ref_text'].strip()+'\n')
-          download(cmd['talia_ref_url'],assets/'talia_ref.wav')
+          (assets/'narrator_ref.txt').write_text(cmd['narrator_reference_text'].strip()+'\n')
+          ref_src=pathlib.Path(cmd['narrator_reference_path']);\n          if not ref_src.exists() or ref_src.stat().st_size<4096: raise RuntimeError(f'F06 reference missing: {ref_src}')\n          shutil.copy2(ref_src,assets/'narrator_ref.wav')
           download(cmd['music_url'],assets/'music.mp3')
 
           for i,url in enumerate(cmd['motion_urls'],1):
@@ -131,27 +131,27 @@ jobs:
           if not any(model_path.rglob('*.safetensors')) and not any(model_path.rglob('*.bin')):
               raise RuntimeError('Qwen model missing')
 
-          nar=assets/'talia_narration.wav'
-          narrate_py=assets/'make_talia_narration.py'
+          nar=assets/'f06_narration.wav'
+          narrate_py=assets/'make_f06_narration.py'
           narrate_py.write_text(r"""
 import pathlib, numpy as np, soundfile as sf, torch
 from qwen_tts import Qwen3TTSModel
 root=pathlib.Path('/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/assets')
 text=(root/'narration.txt').read_text().strip()
-ref_text=(root/'talia_ref.txt').read_text().strip()
+ref_text=(root/'narrator_ref.txt').read_text().strip()
 paras=[p.strip() for p in text.split('\n\n') if p.strip()]
 model=Qwen3TTSModel.from_pretrained('/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base',device_map='cuda:0',dtype=torch.bfloat16)
 parts=[]; sr=None
 for i,p in enumerate(paras,1):
     print(f'NARRATION_CHUNK {i}/{len(paras)} chars={len(p)}',flush=True)
-    wavs,this_sr=model.generate_voice_clone(text=p,language='English',ref_audio=str(root/'talia_ref.wav'),ref_text=ref_text)
+    wavs,this_sr=model.generate_voice_clone(text=p,language='English',ref_audio=str(root/'narrator_ref.wav'),ref_text=ref_text)
     x=np.asarray(wavs[0],dtype=np.float32).squeeze()
     if sr is None: sr=this_sr
     elif sr!=this_sr: raise RuntimeError('sample rate changed')
     parts.append(x)
     parts.append(np.zeros(int(sr*0.28),dtype=np.float32))
 out=np.concatenate(parts[:-1]) if len(parts)>1 else parts[0]
-sf.write(str(root/'talia_narration.wav'),out,sr)
+sf.write(str(root/'f06_narration.wav'),out,sr)
 print('NARRATION_READY',len(out)/sr,sr,flush=True)
 """)
           run([qpy,narrate_py])
