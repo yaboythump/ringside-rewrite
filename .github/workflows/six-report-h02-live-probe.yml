@@ -22,7 +22,10 @@ jobs:
           echo "=== STATUS ==="
           curl -sS --max-time 20 "$BASE/six-report-h02-status.txt" || true
           echo
+          echo "=== MODEL DIR ==="
+          curl -sS --max-time 20 "$BASE/ctnetwork-local/models/qwen3-tts/0.6B-Base/" | tail -60 || true
+          echo
           echo "=== LOG ==="
           curl -sS --max-time 30 "$BASE/six-report-h02.log" | tail -120 || true
 
-# probe run2 refresh
+# probe model download
