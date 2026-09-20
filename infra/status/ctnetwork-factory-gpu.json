@@ -1,5 +1,5 @@
 {
-  "id": "njbmq5wmkuxd85",
+  "id": "7wfzk7q43xsl0w",
   "name": "ctnetwork-factory-next",
   "desiredStatus": "RUNNING",
   "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
@@ -10,13 +10,11 @@
     "8888/http",
     "22/tcp"
   ],
-  "publicIp": "213.173.103.170",
-  "portMappings": {
-    "22": 49675
-  },
+  "publicIp": "",
+  "portMappings": null,
   "costPerHr": 0.74,
   "adjustedCostPerHr": null,
-  "machineId": "68csdfni3p4y",
+  "machineId": "c8ozdt18aqgv",
   "gpu": null,
   "machine": {
     "dataCenterId": null,
