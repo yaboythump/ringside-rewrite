@@ -198,7 +198,7 @@ jobs:
           done
 
           for I in 1 2 3; do
-            ffmpeg -y -loglevel error -i "$JOB/scene_$I.mp4" -an               -vf "crop=504:896:4:0,scale=720:1280:flags=lanczos,fps=24"               -c:v libx264 -preset veryfast -crf 19 -pix_fmt yuv420p "$JOB/scene_${I}_clean.mp4"
+            ffmpeg -y -loglevel error -i "$JOB/scene_$I.mp4" -an               -vf "crop=504:896:4:0,scale=720:1280:flags=lanczos,fps=24"               -c:v libx264 -preset veryfast -crf 19 -pix_fmt yuv420p "$JOB/scene_${{I}}_clean.mp4"
           done
           cat >"$JOB/concat.txt" <<EOF
           file '$JOB/scene_1_clean.mp4'
