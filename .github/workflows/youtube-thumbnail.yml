@@ -72,11 +72,12 @@ jobs:
               -F "video_id=$VIDEO_ID" \
               -F "thumbnail=@$THUMBNAIL_FILENAME")
           else
-            BODY=$(jq -n --arg user "$USER_NAME" --arg video_id "$VIDEO_ID" --arg thumbnail_url "$THUMBNAIL_URL" '{user:$user, video_id:$video_id, thumbnail_url:$thumbnail_url}')
+            curl -L --fail --retry 3 -sS "$THUMBNAIL_URL" -o "$THUMBNAIL_FILENAME"
             HTTP_CODE=$(curl -sS -o response.json -w '%{http_code}' -X POST 'https://api.upload-post.com/api/uploadposts/youtube/thumbnail' \
               -H "Authorization: Apikey $UPLOAD_POST_API_KEY" \
-              -H 'Content-Type: application/json' \
-              --data "$BODY")
+              -F "user=$USER_NAME" \
+              -F "video_id=$VIDEO_ID" \
+              -F "thumbnail=@$THUMBNAIL_FILENAME")
           fi
           cat response.json
           echo
