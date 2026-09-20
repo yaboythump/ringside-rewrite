@@ -1,10 +1,11 @@
 {
   "pod_id": "2h03w8g398tq3u",
-  "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/6c18bbf1-4a58-4119-a1da-c37025c62eb1.png",
-  "prompt": "Animate this premium courtroom confrontation into a 5-second 16:9 cinematic sequence for The Case Against. The prosecutor makes one controlled forward hand gesture while speaking, the defense attorney gives a restrained counter-gesture and slight head turn, and the judge reacts subtly with a measured glance. The camera performs a slow dramatic push-in toward the center of the courtroom. Keep movement deliberate, realistic, and premium; no exaggerated arguing. Add subtle screen glow, small audience reactions, gentle paper movement, and natural light flicker. Preserve faces, anatomy, courtroom geometry, labels, exhibit screen, and all readable text. Maintain the polished dramatic courtroom look. No captions, no generated audio.",
-  "negative_prompt": "wild gestures, flailing arms, duplicated hands, extra fingers, warped faces, deformed bodies, sliding feet, characters swapping positions, camera shake, text morphing, changing labels, moving courtroom furniture, melting objects, cartoon slapstick, exaggerated mouth motion",
+  "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/2bab2126-4b6f-4dc0-be16-16fd0a73bf31.png",
+  "prompt": "Animate this hip-hop performance scene into a 5-second 16:9 cinematic visual for Hip Hop What If. The rapper performs naturally toward the crowd with subtle realistic torso movement, one controlled microphone-hand motion, and restrained free-hand gestures. The camera makes a slow dramatic push-in while the crowd moves rhythmically in the background. Add drifting stage smoke, moody spotlight movement, subtle light flicker, and strong parallax depth. Keep the artist sharp, iconic, powerful, and documentary-cinematic. Preserve face, anatomy, microphone, jewelry, clothing, stage geometry, and background portrait. No captions, no generated audio, no text changes.",
+  "negative_prompt": "warped hands, fused fingers, extra fingers, duplicated arms, microphone distortion, microphone disappearing, face distortion, body distortion, exaggerated dancing, wild gestures, backwards walking, sliding, camera shake, crowd melting, changing background portrait, text morphing, lip distortion",
+  "model": "kling-video/v2.5-turbo/standard/image-to-video",
   "duration": 5,
   "cfg_scale": 0.5,
-  "output": "/workspace/ctnetwork-local/test_outputs/case_against_kling_test.mp4",
-  "request_id": "case-against-kling-smoke-2026-09-20-01"
+  "output": "/workspace/ctnetwork-local/test_outputs/hhwi_kling_720p_test.mp4",
+  "request_id": "hhwi-kling-720p-final-smoke-2026-09-20-01"
 }
