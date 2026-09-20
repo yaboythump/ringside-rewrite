@@ -1,9 +1,9 @@
 {
   "pod_id": "2h03w8g398tq3u",
-  "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/3aed8f49-66a1-4f47-9a20-dc267bf070da.jpg",
-  "prompt": "Animate this football scene into a 5-second cinematic sports promo. Use a dramatic forward camera push toward the lead athlete, realistic running motion in the lead athlete and defenders, strong parallax depth, subtle slow-motion athletic movement, flickering stadium lights, crowd energy, and polished action blur. Keep the lead athlete sharp and heroic while defenders close in behind him. Motion should be realistic, powerful, and high-end. No text, no captions.",
+  "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/679e31f2-77b5-474e-95e9-ba26cea57d3b.png",
+  "prompt": "Animate this wrestling entrance scene into a 5-second 16:9 cinematic promo. Use a slow dramatic forward camera push with slight low-angle parallax, realistic walking motion and subtle body tension in the wrestler, arena light flicker, active crowd movement, drifting smoke, brief pyrotechnic bursts, and polished cinematic motion blur. Keep the wrestler sharp and dominant while the background feels alive and high-stakes, like a premium wrestling broadcast promo. Preserve the face and body proportions. No text changes, no captions, no generated audio.",
   "duration": 5,
   "cfg_scale": 0.5,
-  "output": "/workspace/ctnetwork-local/test_outputs/football_kling_test.mp4",
-  "request_id": "football-kling-smoke-2026-09-20-01"
+  "output": "/workspace/ctnetwork-local/test_outputs/wrestling_kling_test.mp4",
+  "request_id": "wrestling-kling-smoke-2026-09-20-01"
 }
