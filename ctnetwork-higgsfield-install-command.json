@@ -1,5 +1,5 @@
 {
-  "action": "verify",
+  "action": "install",
   "pod_id": "2h03w8g398tq3u",
-  "request_id": "ctnetwork-higgsfield-verify-2026-09-20-02"
+  "request_id": "ctnetwork-higgsfield-reinstall-normalize-env-2026-09-20"
 }
