@@ -1,9 +1,8 @@
 {
   "pod_id": "njbmq5wmkuxd85",
-  "request_id": "hhwi-scott-la-rock-final-2026-09-20",
+  "request_id": "hhwi-scott-la-rock-final-f06-2026-09-20",
   "title": "What If Scott La Rock Never Died?",
   "subtitle": "Would KRS-One Still Become The Teacher?",
-  "talia_reference_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260912_092441_e49b5015-fe4c-4dbe-94b2-0fa1ef1853e1.wav",
   "music_url": "https://dnznrvs05pmza.cloudfront.net/lyria3-pro/c75412db-067a-44cd-ba93-b8d4d6edd409/HHWI_Scott_La_Rock_Documentary_Bed.mp3?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNWYyYWM0ZDYwMGRkZmIxNyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA4ODAyMn0.5JITsbaR2FH0ghOY0fRfJfrWIBvHUBZN49f_HCFAkkQ",
   "narration_chunks": [
     "New York City, 1987. Before KRS-One became one of hip-hop's defining teachers, his path ran through the Franklin Armory Men's Shelter. That is where he met Scott La Rock, a youth counselor who also DJed. Scott helped channel KRS-One's energy into music, and together they formed Boogie Down Productions. Their early records helped put the South Bronx back at the center of the conversation, and Criminal Minded became an underground landmark.",
@@ -144,5 +143,8 @@
       "type": "motion",
       "file": "hhwi_motion_08_legacy.mp4"
     }
-  ]
+  ],
+  "narrator": "F06",
+  "narrator_reference_path": "/workspace/ctnetwork-local/narrator-auditions/female-urban-10/F06.wav",
+  "narrator_reference_text": "This is C T Network. The real story starts where the headline ends. Stay with me."
 }
