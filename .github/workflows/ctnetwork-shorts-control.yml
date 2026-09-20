@@ -1,0 +1,65 @@
+name: CTNETWORK Shorts Control
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ctnetwork-shorts-control.json'
+      - 'scripts/ctnetwork_shorts_control.py'
+      - '.github/workflows/ctnetwork-shorts-control.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctnetwork-shorts-control
+  cancel-in-progress: false
+
+jobs:
+  cut-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install media tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install requests
+
+      - name: Validate control command
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s ctnetwork-shorts-control.json
+          jq -e '.approved == true' ctnetwork-shorts-control.json >/dev/null
+          jq -e '.master_url | type == "string" and length > 0' ctnetwork-shorts-control.json >/dev/null
+          jq -e '.profile | type == "string" and length > 0' ctnetwork-shorts-control.json >/dev/null
+          test "$(jq '.shorts | length' ctnetwork-shorts-control.json)" -eq 3
+          test "$(jq '[.shorts[] | select((.thumbnail_url // "") == "")] | length' ctnetwork-shorts-control.json)" -eq 0
+
+      - name: Cut approved Shorts and publish when enabled
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python scripts/ctnetwork_shorts_control.py
+
+      - name: Save rendered Shorts and receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctnetwork-shorts-control-output
+          path: |
+            ctnetwork-shorts-work/**/*.mp4
+            ctnetwork-shorts-work/**/*.jpg
+            ctnetwork-shorts-work/**/receipt.json
+          if-no-files-found: warn
+          retention-days: 30
