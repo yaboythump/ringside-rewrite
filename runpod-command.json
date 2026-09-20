@@ -1,5 +1,5 @@
 {
   "action": "start",
-  "target": "ctnetwork-factory-next",
-  "request_id": "najee-world-short001-start-2026-09-20"
+  "target": "ctnetwork-factory-gpu",
+  "request_id": "najee-world-short001-fallback-start-2026-09-20"
 }
