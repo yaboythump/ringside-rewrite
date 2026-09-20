@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
 
           START_CMD=$(cat <<'BASH'
-          set -u
+          set -Eeuo pipefail
           ROOT=/workspace/ctnetwork-local
           LOG=/workspace/six-report-h02.log
           STATUS=/workspace/six-report-h02-status.txt
@@ -53,6 +53,7 @@ jobs:
             echo "Six Report H02 narration boot"
             date -u +%FT%TZ
             export DEBIAN_FRONTEND=noninteractive
+            export HF_HUB_ENABLE_HF_TRANSFER=0
 
             if ! command -v ffmpeg >/dev/null 2>&1; then
               apt-get update -y
