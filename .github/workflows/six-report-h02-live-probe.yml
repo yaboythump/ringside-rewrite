@@ -24,3 +24,5 @@ jobs:
           echo
           echo "=== LOG ==="
           curl -sS --max-time 30 "$BASE/six-report-h02.log" | tail -120 || true
+
+# probe refresh 2
