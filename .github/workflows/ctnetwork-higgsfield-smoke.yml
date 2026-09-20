@@ -1,0 +1,150 @@
+name: CTNETWORK Higgsfield Smoke Test
+
+on:
+  push:
+    paths:
+      - 'higgsfield-smoke-command.json'
+      - 'runpod/ctnetwork_higgsfield_video.py'
+      - '.github/workflows/ctnetwork-higgsfield-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctnetwork-higgsfield-smoke
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve running pod and Jupyter credential
+        id: resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          CMD=higgsfield-smoke-command.json
+          POD_ID=$(jq -r '.pod_id // empty' "$CMD")
+          [[ -n "$POD_ID" ]] || { echo "pod_id missing"; exit 2; }
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" "${AUTH[@]}" >/dev/null
+            for i in $(seq 1 90); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 3; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "JUPYTER_PASSWORD missing"; exit 4; }
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Run 5-second Kling smoke test remotely
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+          HELPER_FILE: ${{ github.workspace }}/runpod/ctnetwork_higgsfield_video.py
+          CMD_FILE: ${{ github.workspace }}/higgsfield-smoke-command.json
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, re, sys, time
+          import requests, websocket
+
+          pod_id=os.environ['POD_ID']
+          password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          cmd=json.load(open(os.environ['CMD_FILE']))
+          helper=open(os.environ['HELPER_FILE'],'rb').read()
+          helper_b64=base64.b64encode(helper).decode()
+
+          image_url=cmd['image_url']
+          prompt=cmd['prompt']
+          duration=int(cmd.get('duration',5))
+          cfg=float(cmd.get('cfg_scale',0.5))
+          output=cmd.get('output','/workspace/ctnetwork-local/test_outputs/football_kling_test.mp4')
+
+          base=f'https://{pod_id}-8888.proxy.runpod.net'
+          s=requests.Session()
+          for _ in range(90):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.ok: break
+              except Exception:
+                  pass
+              time.sleep(5)
+          else:
+              raise SystemExit('Jupyter did not become reachable')
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('Could not find Jupyter XSRF token')
+          xsrf=m.group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},timeout=30,allow_redirects=True)
+          r.raise_for_status()
+          xc=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); r.raise_for_status(); name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',cookie=cookie,origin=base,timeout=60)
+
+          payload={
+              'image':image_url,'prompt':prompt,'duration':duration,
+              'cfg_scale':cfg,'output':output
+          }
+          p64=base64.b64encode(json.dumps(payload).encode()).decode()
+          shell_cmd=(
+              f"echo {helper_b64} | base64 -d >/workspace/ctnetwork-local/controller/ctnetwork_higgsfield_video.py && "
+              f"chmod +x /workspace/ctnetwork-local/controller/ctnetwork_higgsfield_video.py && "
+              f"PAYLOAD=$(echo {p64} | base64 -d); "
+              "IMAGE=$(python3 -c 'import json,os; print(json.loads(os.environ[\"PAYLOAD\"])[\"image\"])' PAYLOAD=\"$PAYLOAD\")"
+          )
+          # Build safely in Python rather than interpolating prompt into shell.
+          import shlex
+          remote=(
+              f"echo {helper_b64} | base64 -d >/workspace/ctnetwork-local/controller/ctnetwork_higgsfield_video.py && "
+              f"chmod +x /workspace/ctnetwork-local/controller/ctnetwork_higgsfield_video.py && "
+              f"/workspace/ctnetwork-local/envs/higgsfield/bin/python "
+              f"/workspace/ctnetwork-local/controller/ctnetwork_higgsfield_video.py "
+              f"--image {shlex.quote(image_url)} "
+              f"--prompt {shlex.quote(prompt)} "
+              f"--duration {duration} --cfg-scale {cfg} "
+              f"--output {shlex.quote(output)}; rc=$?; "
+              f"if [ $rc -eq 0 ]; then ffprobe -v error -show_entries format=duration,size -of json {shlex.quote(output)} || true; fi; "
+              f"echo __CTN_HF_SMOKE_DONE__:$rc\n"
+          )
+          ws.send(json.dumps(['stdin',remote]))
+          rc=None; deadline=time.time()+1500
+          try:
+              while time.time()<deadline:
+                  try: msg=ws.recv()
+                  except Exception as exc:
+                      print('websocket:',exc); continue
+                  if not msg: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]; sys.stdout.write(txt); sys.stdout.flush()
+                      mm=re.search(r'__CTN_HF_SMOKE_DONE__:(\d+)',txt)
+                      if mm:
+                          rc=int(mm.group(1)); break
+          finally:
+              ws.close()
+              try: s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception: pass
+          if rc is None: raise SystemExit('Smoke render timed out')
+          raise SystemExit(rc)
+          PY
