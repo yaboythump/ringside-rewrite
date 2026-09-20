@@ -1,0 +1,112 @@
+name: Ringside Austin F06 Narration
+
+on:
+  push:
+    paths:
+      - 'ringside-austin-f06-command.json'
+      - 'tools/ringside_austin_f06_remote.py'
+      - '.github/workflows/ringside-austin-f06.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ringside-austin-f06
+  cancel-in-progress: true
+
+jobs:
+  narrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      RUNPOD_API_KEY: \${{ secrets.RUNPOD_API_KEY }}
+      GH_TOKEN: \${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve active factory pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id // empty' ringside-austin-f06-command.json)
+          TARGET=$(jq -r '.target_name // "ctnetwork-factory-next"' ringside-austin-f06-command.json)
+          AUTH=(-H "Authorization: Bearer \${RUNPOD_API_KEY}")
+          if [[ -n "$POD_ID" ]]; then
+            HTTP=$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" "\${AUTH[@]}" || true)
+          else
+            HTTP=404
+          fi
+          if [[ "$HTTP" != 200 ]]; then
+            PODS=$(curl -fsS https://rest.runpod.io/v1/pods "\${AUTH[@]}")
+            POD_ID=$(printf '%s' "$PODS" | jq -r --arg target "$TARGET" '[.[]|select((.name//"")==$target)]|first|.id // empty')
+            [[ -n "$POD_ID" ]] || { echo "Factory pod not found"; exit 3; }
+            curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "\${AUTH[@]}" > /tmp/pod.json
+          fi
+          STATUS=$(jq -r '.desiredStatus // "unknown"' /tmp/pod.json)
+          if [[ "$STATUS" != RUNNING ]]; then
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" "\${AUTH[@]}" >/dev/null || true
+            for i in $(seq 1 120); do
+              sleep 5
+              HTTP=$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" "\${AUTH[@]}" || true)
+              [[ "$HTTP" == 200 ]] || continue
+              STATUS=$(jq -r '.desiredStatus // "unknown"' /tmp/pod.json)
+              [[ "$STATUS" == RUNNING ]] && break
+            done
+          fi
+          [[ "$STATUS" == RUNNING ]] || { echo "Pod failed to reach RUNNING: $STATUS"; exit 4; }
+          JPASS=$(jq -r '.env.JUPYTER_PASSWORD // empty' /tmp/pod.json)
+          [[ -n "$JPASS" ]] || { echo "Jupyter password missing"; exit 5; }
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Generate F06 narration only
+        env:
+          POD_ID: \${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: \${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 tools/ringside_austin_f06_remote.py
+
+      - name: Validate narration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s deliverables/F06_Austin.wav
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,sample_rate -of json deliverables/F06_Austin.wav | tee deliverables/f06_ffprobe.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ringside-Austin-F06
+          path: deliverables/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Deliver narration
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=ringside-austin-f06
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" deliverables/F06_Austin.wav deliverables/f06_ffprobe.json --clobber
+          else
+            gh release create "$TAG" deliverables/F06_Austin.wav deliverables/f06_ffprobe.json --title "Ringside Rewrite Austin F06 Narration" --notes "Narration-only delivery for What If Stone Cold Never Broke His Neck?"
+          fi
+          gh release view "$TAG" --json url,assets | tee deliverables/release.json
+
+      - name: Stop factory after narration
+        if: always()
+        env:
+          POD_ID: \${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ -n "\${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/\${POD_ID}/stop" -H "Authorization: Bearer \${RUNPOD_API_KEY}" >/dev/null
