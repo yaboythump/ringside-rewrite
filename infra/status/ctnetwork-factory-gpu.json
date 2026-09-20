@@ -10,8 +10,10 @@
     "8888/http",
     "22/tcp"
   ],
-  "publicIp": "",
-  "portMappings": null,
+  "publicIp": "213.173.103.170",
+  "portMappings": {
+    "22": 49675
+  },
   "costPerHr": 0.74,
   "adjustedCostPerHr": null,
   "machineId": "68csdfni3p4y",
