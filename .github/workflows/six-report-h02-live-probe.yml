@@ -1,0 +1,26 @@
+name: Six Report H02 Live Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/six-report-h02-live-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe H02 narration
+        shell: bash
+        run: |
+          set -u
+          BASE="https://i1iprmr7bn8vmp-8000.proxy.runpod.net"
+          echo "=== STATUS ==="
+          curl -sS --max-time 20 "$BASE/six-report-h02-status.txt" || true
+          echo
+          echo "=== LOG ==="
+          curl -sS --max-time 30 "$BASE/six-report-h02.log" | tail -120 || true
