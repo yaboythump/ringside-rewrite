@@ -1,6 +1,6 @@
 {
-  "action": "status",
+  "action": "start",
   "target": "ctnetwork-active-render",
   "pod_id": "2h03w8g398tq3u",
-  "request_id": "status-tcwt-active-render-2026-09-18-1504z"
+  "request_id": "start-ctnetwork-higgsfield-api-2026-09-20"
 }
