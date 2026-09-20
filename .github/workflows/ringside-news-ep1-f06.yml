@@ -1,0 +1,83 @@
+name: Ringside News Ep1 F06 Narration
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ringside-news-ep1-f06.yml'
+      - 'tools/ctnetwork_generate_ringside_news_f06_ep1_remote.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ringside-news-ep1-f06
+  cancel-in-progress: true
+
+jobs:
+  narrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      CTN_VOLUME: 9wjb3sa5zm
+      CTN_DC: EU-RO-1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create F06 narration pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          START_CMD=$(cat <<'BASH'
+          set -u
+          rm -f /workspace/ringside-news-f06-status.txt
+          cd /workspace
+          python3 -m http.server 8000 --bind 0.0.0.0 >/tmp/ctn-http.log 2>&1 &
+          HTTP_PID=$!
+          QPY="/workspace/ctnetwork-local/envs/qwen3-tts/bin/python"
+          curl -L --fail --retry 5 "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/tools/ctnetwork_generate_ringside_news_f06_ep1_remote.py" -o /tmp/ringside_news_f06.py
+          "$QPY" /tmp/ringside_news_f06.py > /workspace/ringside-news-f06.log 2>&1
+          RC=$?
+          echo "$RC" > /workspace/ringside-news-f06-status.txt
+          wait "$HTTP_PID"
+          BASH
+          )
+          GPU_TYPES='["NVIDIA GeForce RTX 4090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA GeForce RTX 5090","NVIDIA L4"]'
+          BODY=$(jq -nc --arg name "ringside-news-f06-$(date +%s)" --arg dc "$CTN_DC" --arg vol "$CTN_VOLUME" --arg cmd "$START_CMD" --argjson gpus "$GPU_TYPES" '{name:$name,imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",cloudType:"SECURE",computeType:"GPU",gpuTypeIds:$gpus,gpuTypePriority:"availability",gpuCount:1,dataCenterIds:[$dc],dataCenterPriority:"availability",containerDiskInGb:40,networkVolumeId:$vol,volumeMountPath:"/workspace",ports:["8000/http"],dockerStartCmd:["bash","-lc",$cmd]}')
+          curl -sS -o /tmp/create.json -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data "$BODY"
+          POD_ID=$(jq -r '.id // empty' /tmp/create.json)
+          test -n "$POD_ID"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "base_url=https://$POD_ID-8000.proxy.runpod.net" >> "$GITHUB_OUTPUT"
+      - name: Wait and download narration
+        env:
+          BASE_URL: ${{ steps.pod.outputs.base_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 1200); do
+            status=$(curl -fsS --max-time 10 "$BASE_URL/ringside-news-f06-status.txt" 2>/dev/null || true)
+            if [[ "$status" == "0" ]]; then
+              curl -fL --retry 5 --max-time 900 "$BASE_URL/ringside-news-ep1-f06/Ringside_News_Ep1_F06.wav" -o /tmp/Ringside_News_Ep1_F06.wav
+              exit 0
+            elif [[ -n "$status" ]]; then
+              curl -fsS "$BASE_URL/ringside-news-f06.log" || true
+              exit "$status"
+            fi
+            sleep 5
+          done
+          exit 5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ringside-News-Ep1-F06
+          path: /tmp/Ringside_News_Ep1_F06.wav
+          retention-days: 7
+      - name: Terminate narration pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          [[ -n "$POD_ID" ]] || exit 0
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
