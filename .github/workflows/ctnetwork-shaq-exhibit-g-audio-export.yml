@@ -1,0 +1,26 @@
+name: CTNETWORK Shaq Exhibit G Audio Export
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ctnetwork-shaq-exhibit-g-audio-export.yml'
+      - 'production/case-against/shaq-2026-09-19/exhibit_g.mp3'
+      - 'production/case-against/shaq-2026-09-19/shaq_fbi_short_narration.mp3'
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify audio
+        run: |
+          test -s production/case-against/shaq-2026-09-19/exhibit_g.mp3
+          test -s production/case-against/shaq-2026-09-19/shaq_fbi_short_narration.mp3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shaq-exhibit-g-audio
+          path: |
+            production/case-against/shaq-2026-09-19/exhibit_g.mp3
+            production/case-against/shaq-2026-09-19/shaq_fbi_short_narration.mp3
+          retention-days: 7
