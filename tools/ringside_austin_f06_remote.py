@@ -27,11 +27,28 @@ def connect():
     if rr.status_code not in (200,302,303): rr.raise_for_status()
     xs=s.cookies.get("_xsrf"); headers={"X-XSRFToken":xs} if xs else {}
     s.get(BASE+"/api/status",headers=headers,timeout=30).raise_for_status()
-    t=s.post(BASE+"/api/terminals",headers=headers,json={},timeout=30); t.raise_for_status()
-    name=t.json()["name"]
     cookie="; ".join(f"{c.name}={c.value}" for c in s.cookies)
-    ws=websocket.create_connection(f"wss://{POD_ID}-8888.proxy.runpod.net/terminals/websocket/{name}",cookie=cookie,origin=BASE,timeout=60)
-    return s,headers,name,ws
+    last_ws=None
+    name=None
+    for _ in range(40):
+        try:
+            t=s.post(BASE+"/api/terminals",headers=headers,json={},timeout=30)
+            t.raise_for_status()
+            name=t.json()["name"]
+            time.sleep(2)
+            ws=websocket.create_connection(
+                f"wss://{POD_ID}-8888.proxy.runpod.net/terminals/websocket/{name}",
+                cookie=cookie,origin=BASE,timeout=60
+            )
+            return s,headers,name,ws
+        except Exception as exc:
+            last_ws=repr(exc)
+            if name:
+                try: s.delete(BASE+f"/api/terminals/{name}",headers=headers,timeout=10)
+                except Exception: pass
+            name=None
+            time.sleep(4)
+    raise RuntimeError(f"Jupyter terminal websocket unavailable: {last_ws}")
 
 def remote_source():
     cmd_b64=base64.b64encode(json.dumps(CMD).encode()).decode()
