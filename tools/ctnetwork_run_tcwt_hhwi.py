@@ -94,6 +94,27 @@ def make_slideshow(images,narration,dest):
     subprocess.run(['ffmpeg','-y','-f','concat','-safe','0','-i',str(concat),'-c','copy',str(dest)],check=True)
     print('HHWI_STYLE_VISUAL_MASTER_READY',dest,flush=True)
 
+def make_sequence(items,narration,dest):
+    total=duration(narration); each=max(5.5,total/max(1,len(items)))
+    clips=[]; cdir=dest.parent/'sequence-clips'; cdir.mkdir(parents=True,exist_ok=True)
+    for n,item in enumerate(items,1):
+        src=pathlib.Path(item['path']); kind=item['type']; clip=cdir/f'{n:03d}.mp4'
+        if kind=='video':
+            vf="scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30,format=yuv420p"
+            subprocess.run(['ffmpeg','-y','-stream_loop','-1','-i',str(src),'-t',f'{each:.3f}','-vf',vf,'-an','-c:v','libx264','-preset','veryfast','-crf','18','-movflags','+faststart',str(clip)],check=True)
+        else:
+            mode=(n-1)%4
+            if mode==0: zoom="min(zoom+0.0008,1.08)"; x="iw/2-(iw/zoom/2)"; y="ih/2-(ih/zoom/2)"
+            elif mode==1: zoom="min(zoom+0.0007,1.07)"; x="0"; y="ih/2-(ih/zoom/2)"
+            elif mode==2: zoom="min(zoom+0.0007,1.07)"; x="iw-(iw/zoom)"; y="ih/2-(ih/zoom/2)"
+            else: zoom="min(zoom+0.0006,1.06)"; x="iw/2-(iw/zoom/2)"; y="0"
+            vf=f"scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,zoompan=z='{zoom}':x='{x}':y='{y}':d=1:s=1920x1080:fps=30,format=yuv420p"
+            subprocess.run(['ffmpeg','-y','-loop','1','-t',f'{each:.3f}','-i',str(src),'-vf',vf,'-an','-c:v','libx264','-preset','veryfast','-crf','18','-movflags','+faststart',str(clip)],check=True)
+        clips.append(clip)
+    concat=cdir/'concat.txt'; concat.write_text(''.join("file '"+str(c).replace("'","'\\''")+"'"+chr(10) for c in clips))
+    subprocess.run(['ffmpeg','-y','-f','concat','-safe','0','-i',str(concat),'-c','copy',str(dest)],check=True)
+    print('HHWI_20_SCENE_MASTER_READY',dest,'scene_count',len(items),flush=True)
+
 for i,j in enumerate(jobs,1):
     assert j.get('publish') is not True
     jid=j['job_id']; a=assets/jid; a.mkdir(parents=True,exist_ok=True); inputs=j.setdefault('inputs',{})
@@ -113,12 +134,29 @@ for i,j in enumerate(jobs,1):
         qpy=root/'envs/qwen3-tts/bin/python'; helper=root/'controller/ctnetwork_qwen_narrate.py'
         cmd=[str(qpy),str(helper),'--text-file',str(script_file),'--ref-audio',str(ref),'--ref-text-file',str(ref_text_file),'--output',str(narration),'--language','English']
         subprocess.run(cmd,check=True); inputs['narration']=str(narration); print('ONYX_REFERENCE_NARRATION_READY',flush=True)
-    urls=inputs.pop('visual_urls',None) or []
-    assert urls, f'{jid}: storyboard visual_urls required'
-    imgs=[]
-    for k,url in enumerate(urls,1):
-        p=a/f'image_{k:03d}'+suffix(url,'.png'); download(url,p); imgs.append(p)
-    visual=a/'hhwi-style-storyboard-master.mp4'; make_slideshow(imgs,pathlib.Path(inputs['narration']),visual); inputs['visual']=str(visual)
+    music_url=inputs.pop('music_url',None)
+    if music_url:
+        music=a/('music-bed'+suffix(music_url,'.mp3')); download(music_url,music)
+        raw_narr=pathlib.Path(inputs['narration']); mixed=a/'narration-with-music.wav'
+        subprocess.run(['ffmpeg','-y','-i',str(raw_narr),'-stream_loop','-1','-i',str(music),'-filter_complex',
+            '[0:a]loudnorm=I=-16:TP=-1.5:LRA=9[voice];[1:a]volume=0.11[music];[music][voice]sidechaincompress=threshold=0.035:ratio=8:attack=15:release=350[duck];[voice][duck]amix=inputs=2:duration=first:normalize=0[aout]',
+            '-map','[aout]','-ar','48000','-ac','2',str(mixed)],check=True)
+        inputs['narration']=str(mixed); print('HHWI_MUSIC_MIX_READY',mixed,flush=True)
+    seq=inputs.pop('scene_sequence',None) or []
+    if seq:
+        items=[]
+        for k,item in enumerate(seq,1):
+            kind=item.get('type','image'); url=item['url']
+            ext='.mp4' if kind=='video' else '.png'
+            p=a/(f'scene_{k:03d}'+suffix(url,ext)); download(url,p); items.append({'type':kind,'path':str(p)})
+        visual=a/'hhwi-20-scene-master.mp4'; make_sequence(items,pathlib.Path(inputs['narration']),visual); inputs['visual']=str(visual)
+    else:
+        urls=inputs.pop('visual_urls',None) or []
+        assert urls, f'{jid}: storyboard visual_urls or scene_sequence required'
+        imgs=[]
+        for k,url in enumerate(urls,1):
+            p=a/f'image_{k:03d}'+suffix(url,'.png'); download(url,p); imgs.append(p)
+        visual=a/'hhwi-style-storyboard-master.mp4'; make_slideshow(imgs,pathlib.Path(inputs['narration']),visual); inputs['visual']=str(visual)
     (out/f'{i:02d}-{jid}.json').write_text(json.dumps(j,indent=2)+chr(10))
 PY
 PY=python3; [ -x "$ROOT/envs/core/bin/python" ] && PY="$ROOT/envs/core/bin/python"
@@ -161,6 +199,19 @@ echo CTNETWORK_TCWT_HHWI_READY_FOR_APPROVAL
         try: SESSION.delete(BASE+f'/api/terminals/{term}',headers=headers,timeout=10)
         except Exception: pass
     if rc is None or rc!=0: raise RuntimeError(f'TCWT production failed rc={rc}')
+    manifest=json.loads(MANIFEST.read_text())
+    for j in manifest.get('jobs',[]):
+        jid=j['job_id']
+        targets=[
+            (f'/files/workspace/ctnetwork-local/ready_for_approval/{jid}/master.mp4', Path('/tmp')/f'{jid}-master.mp4'),
+            (f'/files/workspace/ctnetwork-local/ready_for_approval/{jid}/qc.json', Path('/tmp')/f'{jid}-qc.json'),
+        ]
+        for rel,dest in targets:
+            rr=SESSION.get(BASE+rel,headers=headers,stream=True,timeout=900); rr.raise_for_status()
+            with open(dest,'wb') as fh:
+                for chunk in rr.iter_content(4*1024*1024):
+                    if chunk: fh.write(chunk)
+            print('DELIVERY_DOWNLOADED',dest,dest.stat().st_size,flush=True)
 
 def main(): run_remote(login())
 if __name__=='__main__': main()
