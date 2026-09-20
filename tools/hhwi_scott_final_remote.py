@@ -215,9 +215,9 @@ print("TIMING", json.dumps({"narration": narr_dur, "motion_total": motion_total,
 # 12 premium still-motion clips.
 moves = [
     "zoompan=z='min(zoom+0.00035,1.075)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",
-    "zoompan=z='min(zoom+0.00030,1.065)':x='(iw-iw/zoom)*on/(d-1)':y='ih/2-(ih/zoom/2)'",
-    "zoompan=z='min(zoom+0.00030,1.065)':x='(iw-iw/zoom)*(1-on/(d-1))':y='ih/2-(ih/zoom/2)'",
-    "zoompan=z='min(zoom+0.00028,1.055)':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/(d-1)'",
+    "zoompan=z='min(zoom+0.00030,1.065)':x='0':y='ih/2-(ih/zoom/2)'",
+    "zoompan=z='min(zoom+0.00030,1.065)':x='iw-(iw/zoom)':y='ih/2-(ih/zoom/2)'",
+    "zoompan=z='min(zoom+0.00028,1.055)':x='iw/2-(iw/zoom/2)':y='0'",
 ]
 still_clips = {}
 for n, item in enumerate(cmd["stills"]):
