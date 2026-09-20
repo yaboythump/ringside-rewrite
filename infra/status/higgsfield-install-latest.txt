@@ -1,5 +1,5 @@
 CTNETWORK HIGGSFIELD INSTALL REPORT
-run_id=35512429573
+run_id=35512589126
 pod_id=2h03w8g398tq3u
 action=verify
 job_status=success
@@ -17,7 +17,7 @@ For detailed documentation and guides, please visit:
 [1;34mhttps://docs.runpod.io/[0m and [1;34mhttps://blog.runpod.io/[0m
 
 
-[?2004h]0;root@0c5afc81d3f4: /root@0c5afc81d3f4:/# /workspace/ctnetwork-local/bin/ctn-kling --self-test; rc=$?; cat /workspace/ctnetwork-local/status/higgsfield.status 2>/dev/null || true; echo __CTN_HF_DONE__:$rc
+[?2004h]0;root@17c1482faec8: /root@17c1482faec8:/# /workspace/ctnetwork-local/bin/ctn-kling --self-test; rc=$?; cat /workspace/ctnetwork-local/status/higgsfield.status 2>/dev/null || true; echo __CTN_HF_DONE__:$rc
 [?2004l{"status": "ready", "model": "kling-video/v2.5-turbo/pro/image-to-video", "credential_present": false, "billable_generation_submitted": false}
 PASS
 installed_at=2026-09-20T12:45:45Z
