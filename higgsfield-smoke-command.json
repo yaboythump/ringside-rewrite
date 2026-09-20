@@ -1,10 +1,10 @@
 {
   "pod_id": "2h03w8g398tq3u",
-  "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/6ec576ca-dc64-4d1a-9bf8-03dbed2cdbfe.png",
-  "prompt": "Animate this true-crime investigation scene into a 5-second 16:9 cinematic documentary shot. The investigator walks slowly FORWARD toward the apartment entrance with natural forward steps while the camera makes a very slow controlled push-in from behind. Keep all body motion subtle and realistic. Police lights softly pulse and reflect across the wet pavement, rain continues naturally, crime-scene tape flutters slightly, smoke or mist drifts gently, and officers near the doorway make restrained realistic movements. Preserve the composition, anatomy, faces, evidence markers, building geometry, and readable signs. The mood should feel tense, eerie, premium, and investigative, not action-heavy. No text changes, no captions, no generated audio.",
-  "negative_prompt": "walking backward, reverse motion, moonwalk, sliding, fast running, exaggerated gestures, violent action, warped legs, deformed hands, duplicated limbs, face distortion, body distortion, melting objects, moving evidence markers, changing text, changing signs, flickering anatomy, camera shake",
+  "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/6c18bbf1-4a58-4119-a1da-c37025c62eb1.png",
+  "prompt": "Animate this premium courtroom confrontation into a 5-second 16:9 cinematic sequence for The Case Against. The prosecutor makes one controlled forward hand gesture while speaking, the defense attorney gives a restrained counter-gesture and slight head turn, and the judge reacts subtly with a measured glance. The camera performs a slow dramatic push-in toward the center of the courtroom. Keep movement deliberate, realistic, and premium; no exaggerated arguing. Add subtle screen glow, small audience reactions, gentle paper movement, and natural light flicker. Preserve faces, anatomy, courtroom geometry, labels, exhibit screen, and all readable text. Maintain the polished dramatic courtroom look. No captions, no generated audio.",
+  "negative_prompt": "wild gestures, flailing arms, duplicated hands, extra fingers, warped faces, deformed bodies, sliding feet, characters swapping positions, camera shake, text morphing, changing labels, moving courtroom furniture, melting objects, cartoon slapstick, exaggerated mouth motion",
   "duration": 5,
   "cfg_scale": 0.5,
-  "output": "/workspace/ctnetwork-local/test_outputs/true_crime_kling_test.mp4",
-  "request_id": "true-crime-kling-smoke-2026-09-20-01"
+  "output": "/workspace/ctnetwork-local/test_outputs/case_against_kling_test.mp4",
+  "request_id": "case-against-kling-smoke-2026-09-20-01"
 }
