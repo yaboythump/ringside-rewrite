@@ -1,9 +1,10 @@
 {
   "pod_id": "2h03w8g398tq3u",
   "image_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/679e31f2-77b5-474e-95e9-ba26cea57d3b.png",
-  "prompt": "Animate this wrestling entrance scene into a 5-second 16:9 cinematic promo. Use a slow dramatic forward camera push with slight low-angle parallax, realistic walking motion and subtle body tension in the wrestler, arena light flicker, active crowd movement, drifting smoke, brief pyrotechnic bursts, and polished cinematic motion blur. Keep the wrestler sharp and dominant while the background feels alive and high-stakes, like a premium wrestling broadcast promo. Preserve the face and body proportions. No text changes, no captions, no generated audio.",
+  "prompt": "The wrestler walks FORWARD down the entrance ramp TOWARD the camera and foreground for the entire shot. His feet take natural forward heel-to-toe steps toward the viewer; his hips, torso, and shoulders advance in the same direction. He never retreats. Start with him slightly farther away, then he becomes subtly larger as he approaches. The camera slowly dollies backward to maintain framing while he continues advancing forward. Add realistic arm swing, body weight transfer, active crowd movement, drifting smoke, arena light flicker, and brief pyrotechnic bursts. Premium cinematic wrestling broadcast look, low-angle hero framing, realistic anatomy, preserve face and body proportions. No text changes, no captions, no generated audio.",
+  "negative_prompt": "walking backward, backward steps, retreating, reverse gait, moonwalk, sliding backward, feet moving opposite the body, reversed motion, unnatural leg motion, deformed legs, warped feet, duplicated limbs, face distortion, body distortion",
   "duration": 5,
   "cfg_scale": 0.5,
-  "output": "/workspace/ctnetwork-local/test_outputs/wrestling_kling_test.mp4",
-  "request_id": "wrestling-kling-smoke-2026-09-20-01"
+  "output": "/workspace/ctnetwork-local/test_outputs/wrestling_kling_forward_test.mp4",
+  "request_id": "wrestling-kling-forward-fix-2026-09-20-01"
 }
