@@ -1,4 +1,5 @@
 {
-  "action": "status",
-  "request_id": "resolve-current-ctnetwork-pod-2026-09-20"
+  "action": "start",
+  "target": "ctnetwork-factory-next",
+  "request_id": "hhwi-production-start"
 }
