@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ctnetwork-tcwt-approved-production
@@ -111,6 +111,32 @@ jobs:
         run: |
           set -Eeuo pipefail
           python3 tools/ctnetwork_run_tcwt_hhwi.py
+
+      - name: Deliver HHWI master
+        if: steps.gate.outputs.action == 'start'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          SHOW=$(jq -r '.jobs[0].show // empty' ctnetwork-production-manifest.json)
+          if [[ "$SHOW" != "Hip Hop What If" ]]; then
+            echo "Not an HHWI delivery run; skipping release."
+            exit 0
+          fi
+          JOB_ID=$(jq -r '.jobs[0].job_id' ctnetwork-production-manifest.json)
+          MASTER="/tmp/${JOB_ID}-master.mp4"
+          QC="/tmp/${JOB_ID}-qc.json"
+          test -s "$MASTER"
+          cp "$MASTER" /tmp/HHWI_What_If_Scott_La_Rock_Never_Died.mp4
+          TAG="hhwi-scott-la-rock-20260920"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" /tmp/HHWI_What_If_Scott_La_Rock_Never_Died.mp4 "$QC" --clobber
+          else
+            gh release create "$TAG" /tmp/HHWI_What_If_Scott_La_Rock_Never_Died.mp4 "$QC" --title "HHWI — What If Scott La Rock Never Died?" --notes "CTNETWORK production delivery. No external platform publishing performed."
+          fi
+          gh release view "$TAG" --json url,assets
+          echo "DELIVERY_RELEASE_READY tag=$TAG"
 
       - name: Stop exact production pod
         if: steps.gate.outputs.action == 'start' && always()
