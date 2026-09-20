@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 100
     env:
-      RUNPOD_API_KEY: \${{ secrets.RUNPOD_API_KEY }}
-      GH_TOKEN: \${{ github.token }}
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,24 +34,23 @@ jobs:
           set -euo pipefail
           POD_ID=$(jq -r '.pod_id // empty' ringside-austin-f06-command.json)
           TARGET=$(jq -r '.target_name // "ctnetwork-factory-next"' ringside-austin-f06-command.json)
-          AUTH=(-H "Authorization: Bearer \${RUNPOD_API_KEY}")
           if [[ -n "$POD_ID" ]]; then
-            HTTP=$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" "\${AUTH[@]}" || true)
+            HTTP=$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer ${RUNPOD_API_KEY}" || true)
           else
             HTTP=404
           fi
           if [[ "$HTTP" != 200 ]]; then
-            PODS=$(curl -fsS https://rest.runpod.io/v1/pods "\${AUTH[@]}")
+            PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
             POD_ID=$(printf '%s' "$PODS" | jq -r --arg target "$TARGET" '[.[]|select((.name//"")==$target)]|first|.id // empty')
             [[ -n "$POD_ID" ]] || { echo "Factory pod not found"; exit 3; }
-            curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "\${AUTH[@]}" > /tmp/pod.json
+            curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer ${RUNPOD_API_KEY}" > /tmp/pod.json
           fi
           STATUS=$(jq -r '.desiredStatus // "unknown"' /tmp/pod.json)
           if [[ "$STATUS" != RUNNING ]]; then
-            curl -sS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" "\${AUTH[@]}" >/dev/null || true
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null || true
             for i in $(seq 1 120); do
               sleep 5
-              HTTP=$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" "\${AUTH[@]}" || true)
+              HTTP=$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer ${RUNPOD_API_KEY}" || true)
               [[ "$HTTP" == 200 ]] || continue
               STATUS=$(jq -r '.desiredStatus // "unknown"' /tmp/pod.json)
               [[ "$STATUS" == RUNNING ]] && break
@@ -67,8 +66,8 @@ jobs:
 
       - name: Generate F06 narration only
         env:
-          POD_ID: \${{ steps.pod.outputs.pod_id }}
-          JUPYTER_PASSWORD_FILE: \${{ runner.temp }}/jupyter_password
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -104,9 +103,9 @@ jobs:
       - name: Stop factory after narration
         if: always()
         env:
-          POD_ID: \${{ steps.pod.outputs.pod_id }}
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
         shell: bash
         run: |
           set +e
-          [[ -n "\${POD_ID:-}" ]] || exit 0
-          curl -sS -X POST "https://rest.runpod.io/v1/pods/\${POD_ID}/stop" -H "Authorization: Bearer \${RUNPOD_API_KEY}" >/dev/null
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
