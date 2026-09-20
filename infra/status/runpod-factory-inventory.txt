@@ -20,7 +20,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": "Low"
+        "stockStatus": ""
       }
     ]
   },
@@ -56,7 +56,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": ""
+        "stockStatus": "Low"
       }
     ]
   }
@@ -71,7 +71,7 @@
       {
         "displayName": "RTX 5090",
         "gpuId": "NVIDIA GeForce RTX 5090",
-        "stockStatus": "Low"
+        "stockStatus": ""
       },
       {
         "displayName": "RTX 4090",
@@ -86,7 +86,7 @@
       {
         "displayName": "A100 PCIe",
         "gpuId": "NVIDIA A100 80GB PCIe",
-        "stockStatus": "Low"
+        "stockStatus": ""
       },
       {
         "displayName": "RTX PRO 6000",
@@ -106,7 +106,7 @@
       {
         "displayName": "RTX A4500",
         "gpuId": "NVIDIA RTX A4500",
-        "stockStatus": ""
+        "stockStatus": "Low"
       },
       {
         "displayName": "RTX 4000 Ada",
@@ -126,7 +126,7 @@
       {
         "displayName": "L4",
         "gpuId": "NVIDIA L4",
-        "stockStatus": "Low"
+        "stockStatus": ""
       },
       {
         "displayName": "A100 SXM",
@@ -187,7 +187,7 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-KS-2",
@@ -298,7 +298,7 @@
       },
       {
         "dataCenterId": "US-NC-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NE-1",
@@ -323,7 +323,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
@@ -352,7 +352,7 @@
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -401,7 +401,7 @@
       },
       {
         "dataCenterId": "EUR-NO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-CA-2",
@@ -438,7 +438,7 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
@@ -450,7 +450,7 @@
       },
       {
         "dataCenterId": "EUR-NO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -499,7 +499,7 @@
       },
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-GA-2",
@@ -652,7 +652,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
@@ -726,11 +726,11 @@
       },
       {
         "dataCenterId": "US-NC-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-TX-3",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-TX-4",
@@ -929,7 +929,7 @@
     "displayName": "RTX PRO 6000",
     "memoryInGb": 96,
     "available": true,
-    "stockStatus": "Medium",
+    "stockStatus": "Low",
     "secureCloud": true,
     "securePricePerHr": 2.09,
     "communityCloud": true,
@@ -957,7 +957,7 @@
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "Medium"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-CA-2",
@@ -973,7 +973,7 @@
       },
       {
         "dataCenterId": "US-NC-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-2",
@@ -1086,7 +1086,7 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
@@ -1098,7 +1098,7 @@
       },
       {
         "dataCenterId": "EUR-NO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ],
     "displayName": "RTX 5090",
@@ -1133,16 +1133,16 @@
 === PODS ===
 [
   {
-    "id": "i1iprmr7bn8vmp",
-    "name": "six-report-h02-1789871906",
+    "id": "nduo6efikiltvf",
+    "name": "six-report-h02-1789872643",
     "desiredStatus": "RUNNING",
     "imageName": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
     "gpu": null,
-    "machineId": "5c3wnstapavv",
+    "machineId": "rrdb0z8gv885",
     "networkVolumeId": "9wjb3sa5zm",
     "volumeInGb": 0,
     "containerDiskInGb": 40,
-    "costPerHr": 0.74,
+    "costPerHr": 0.72,
     "adjustedCostPerHr": null
   },
   {
