@@ -1,0 +1,201 @@
+name: CTNETWORK Higgsfield Install
+
+on:
+  push:
+    paths:
+      - 'ctnetwork-higgsfield-install-command.json'
+      - 'runpod/ctnetwork-higgsfield-install.sh'
+      - 'runpod/ctnetwork_higgsfield_video.py'
+      - '.github/workflows/ctnetwork-higgsfield-install.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ctnetwork-higgsfield-install
+  cancel-in-progress: true
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve pod and Jupyter credential
+        id: resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          CMD=ctnetwork-higgsfield-install-command.json
+          ACTION=$(jq -r '.action // "install"' "$CMD" | tr '[:upper:]' '[:lower:]')
+          POD_ID=$(jq -r '.pod_id // empty' "$CMD")
+          [[ "$ACTION" == "install" || "$ACTION" == "verify" ]] || { echo "Unsupported action=$ACTION"; exit 2; }
+          [[ -n "$POD_ID" ]] || { echo "pod_id missing"; exit 3; }
+
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != "RUNNING" ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" "${AUTH[@]}" >/dev/null
+            for i in $(seq 1 90); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" "${AUTH[@]}")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == "RUNNING" ]] && break
+            done
+          fi
+          [[ "$STATUS" == "RUNNING" ]] || { echo "pod failed to start: $STATUS"; exit 4; }
+
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "JUPYTER_PASSWORD missing from pod"; exit 5; }
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Jupyter
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID='${{ steps.resolve.outputs.pod_id }}'
+          for i in $(seq 1 90); do
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "https://${POD_ID}-8888.proxy.runpod.net/login" || true)
+            echo "jupyter attempt=$i http=$CODE"
+            [[ "$CODE" == "200" ]] && exit 0
+            sleep 5
+          done
+          exit 6
+
+      - name: Install or verify Higgsfield integration remotely
+        env:
+          ACTION: ${{ steps.resolve.outputs.action }}
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+          INSTALLER_FILE: ${{ github.workspace }}/runpod/ctnetwork-higgsfield-install.sh
+          HELPER_FILE: ${{ github.workspace }}/runpod/ctnetwork_higgsfield_video.py
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY' | tee /tmp/ctnetwork-higgsfield-install.txt
+          import base64, json, os, re, sys, time
+          import requests, websocket
+
+          pod_id=os.environ['POD_ID']
+          action=os.environ['ACTION']
+          password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          install_bytes=open(os.environ['INSTALLER_FILE'],'rb').read()
+          helper_bytes=open(os.environ['HELPER_FILE'],'rb').read()
+          install_b64=base64.b64encode(install_bytes).decode()
+          helper_b64=base64.b64encode(helper_bytes).decode()
+          base=f'https://{pod_id}-8888.proxy.runpod.net'
+
+          s=requests.Session()
+          for _ in range(90):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.ok:
+                      break
+              except Exception:
+                  pass
+              time.sleep(5)
+          else:
+              raise SystemExit('Jupyter did not become reachable')
+
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m:
+              raise SystemExit('Could not find Jupyter XSRF token')
+          xsrf=m.group(1)
+          r=s.post(base+'/login',data={'_xsrf':xsrf,'password':password,'next':'/lab'},timeout=30,allow_redirects=True)
+          r.raise_for_status()
+          xc=s.cookies.get('_xsrf')
+          headers={'X-XSRFToken':xc} if xc else {}
+          r=s.post(base+'/api/terminals',headers=headers,json={},timeout=30)
+          r.raise_for_status()
+          name=r.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(
+              f'wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{name}',
+              cookie=cookie, origin=base, timeout=60
+          )
+
+          if action == 'install':
+              cmd=(
+                  f"echo {helper_b64} | base64 -d >/tmp/ctnetwork_higgsfield_video.py && "
+                  f"echo {install_b64} | base64 -d >/tmp/ctnetwork-higgsfield-install.sh && "
+                  f"chmod +x /tmp/ctnetwork-higgsfield-install.sh && "
+                  f"export CTN_HF_HELPER_SRC=/tmp/ctnetwork_higgsfield_video.py; "
+                  f"bash /tmp/ctnetwork-higgsfield-install.sh; rc=$?; "
+                  f"echo __CTN_HF_DONE__:$rc\n"
+              )
+          else:
+              cmd=(
+                  "/workspace/ctnetwork-local/bin/ctn-kling --self-test; rc=$?; "
+                  "cat /workspace/ctnetwork-local/status/higgsfield.status 2>/dev/null || true; "
+                  "echo __CTN_HF_DONE__:$rc\n"
+              )
+
+          ws.send(json.dumps(['stdin',cmd]))
+          rc=None
+          deadline=time.time()+2400
+          try:
+              while time.time()<deadline:
+                  try:
+                      msg=ws.recv()
+                  except Exception as exc:
+                      print('websocket:',exc)
+                      continue
+                  if not msg:
+                      continue
+                  try:
+                      data=json.loads(msg)
+                  except Exception:
+                      continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]
+                      sys.stdout.write(txt)
+                      sys.stdout.flush()
+                      mm=re.search(r'__CTN_HF_DONE__:(\d+)',txt)
+                      if mm:
+                          rc=int(mm.group(1))
+                          break
+          finally:
+              ws.close()
+              try:
+                  s.delete(base+f'/api/terminals/{name}',headers=headers,timeout=10)
+              except Exception:
+                  pass
+
+          if rc is None:
+              raise SystemExit('Remote Higgsfield install timed out')
+          raise SystemExit(rc)
+          PY
+
+      - name: Save install report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p infra/status
+          REPORT=infra/status/higgsfield-install-latest.txt
+          {
+            echo 'CTNETWORK HIGGSFIELD INSTALL REPORT'
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "pod_id=${{ steps.resolve.outputs.pod_id }}"
+            echo "action=${{ steps.resolve.outputs.action }}"
+            echo "job_status=${{ job.status }}"
+            echo
+            tail -400 /tmp/ctnetwork-higgsfield-install.txt 2>/dev/null || echo 'remote_output_missing=true'
+          } > "$REPORT"
+          git config user.name ctnetwork-bot
+          git config user.email ctnetwork-bot@users.noreply.github.com
+          git add "$REPORT"
+          git commit -m 'CTNETWORK: record Higgsfield install status' || exit 0
+          git pull --rebase origin main || true
+          git push origin HEAD:main
