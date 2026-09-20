@@ -1,0 +1,40 @@
+{
+  "show": "Hip Hop What If",
+  "slug": "hhwi-scott-la-rock-never-died",
+  "approved": true,
+  "publish": true,
+  "profile": "HipHopWhatIf",
+  "facebook_page_id": "1305726102625399",
+  "platforms": [
+    "youtube",
+    "facebook",
+    "tiktok"
+  ],
+  "master_url": "https://github.com/yaboythump/ringside-rewrite/releases/download/hhwi-scott-la-rock-final-20260920/HHWI_What_If_Scott_La_Rock_Never_Died.mp4",
+  "shorts": [
+    {
+      "start": 52,
+      "duration": 56,
+      "title": "The Moment KRS-One Became “The Teacher” | Hip Hop What If #Shorts",
+      "description": "Scott La Rock’s death changed Boogie Down Productions forever — and KRS-One’s next chapter became something much bigger. #KRSOne #ScottLaRock #BoogieDownProductions #HipHopHistory #Shorts",
+      "privacy": "public",
+      "thumbnail_url": "https://d2jqrm6oza8nb6.cloudfront.net/datasets/2bb7763d-a8f0-4192-9b5b-b6d27445319b.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNWQwZGRkNjZmZTdhN2I3YiIsImJ1Y2tldCI6InJ1bndheS1kYXRhc2V0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA2MzMzNH0.6VRR4N8TlFpzsiUt13uuZBXtMOpF21vJ6QBFqAja9WA"
+    },
+    {
+      "start": 109.5,
+      "duration": 55,
+      "title": "What If Scott La Rock Survived? | Hip Hop What If #Shorts",
+      "description": "If Scott La Rock survived, would KRS-One still become “The Teacher” — or would BDP evolve down a completely different road? #KRSOne #ScottLaRock #BDP #HipHopWhatIf #Shorts",
+      "privacy": "public",
+      "thumbnail_url": "https://d2jqrm6oza8nb6.cloudfront.net/datasets/b5fb40c8-c19f-4137-a2ee-1c29bd464229.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiZWI5Mjk4ZTc4NjFmM2I3OSIsImJ1Y2tldCI6InJ1bndheS1kYXRhc2V0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA5MzE1OX0.WwHI84rA63ZEeF9cLRbxvMH-CFhr9lmD8G6DKQcHBYo"
+    },
+    {
+      "start": 182,
+      "duration": 57.5,
+      "title": "How BDP Could’ve Changed Hip-Hop Forever | Hip Hop What If #Shorts",
+      "description": "Imagine Scott La Rock and KRS-One carrying BDP into the 1990s together — music, mentorship and a completely different hip-hop timeline. #BoogieDownProductions #KRSOne #ScottLaRock #HipHopHistory #Shorts",
+      "privacy": "public",
+      "thumbnail_url": "https://d2jqrm6oza8nb6.cloudfront.net/datasets/f27fd84c-aa50-43f9-bccd-9885ff192b1c.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNjIyYzZkNTg4ZGNlMzNmMSIsImJ1Y2tldCI6InJ1bndheS1kYXRhc2V0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDA3MDc0NH0.uniemty-sh-FURGyPmsMN9_TnH9Tz-EVOV4lper_0dw"
+    }
+  ]
+}
