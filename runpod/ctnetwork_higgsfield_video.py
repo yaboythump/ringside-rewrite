@@ -18,7 +18,18 @@ import higgsfield_client
 MODEL = "kling-video/v2.5-turbo/pro/image-to-video"
 
 
+def normalize_credential_env() -> None:
+    """Normalize common RunPod key-name casing without printing secret values."""
+    if not os.environ.get("HF_KEY"):
+        for alias in ("Hf_key", "hf_key", "HF_Key"):
+            value = os.environ.get(alias)
+            if value:
+                os.environ["HF_KEY"] = value
+                break
+
+
 def credential_present() -> bool:
+    normalize_credential_env()
     return bool(
         os.environ.get("HF_KEY")
         or (os.environ.get("HF_API_KEY") and os.environ.get("HF_API_SECRET"))
@@ -60,6 +71,7 @@ def upload_or_url(image: str) -> str:
 
 def render(image: str, prompt: str, duration: int, cfg_scale: float,
            negative_prompt: str, output: Path) -> Path:
+    normalize_credential_env()
     if not credential_present():
         raise SystemExit(
             "Higgsfield API credential missing. Set HF_KEY=KEY_ID:KEY_SECRET "
