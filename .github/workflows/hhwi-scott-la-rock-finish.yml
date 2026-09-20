@@ -1,0 +1,303 @@
+name: Finish HHWI Scott La Rock Episode
+
+on:
+  push:
+    paths:
+      - 'hhwi-scott-la-rock-finish-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve active factory pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' hhwi-scott-la-rock-finish-command.json)
+          [[ -n "$POD_ID" && "$POD_ID" != null ]]
+          AUTH=(-H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" "${AUTH[@]}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          if [[ "$STATUS" != RUNNING ]]; then
+            curl -fsS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/start" "${AUTH[@]}" >/dev/null || true
+            for i in $(seq 1 90); do
+              sleep 5
+              POD=$(curl -fsS "https://rest.runpod.io/v1/pods/${POD_ID}" "${AUTH[@]}")
+              STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+              [[ "$STATUS" == RUNNING ]] && break
+            done
+          fi
+          [[ "$STATUS" == RUNNING ]] || { echo "pod failed to reach RUNNING: $STATUS"; exit 3; }
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          [[ -n "$JPASS" ]] || { echo "Jupyter password missing"; exit 4; }
+          echo "::add-mask::$JPASS"
+          umask 077
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble full episode on CTNETWORK factory
+        id: render
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, pathlib, re, sys, time
+          import requests, websocket
+
+          cmd=json.load(open('hhwi-scott-la-rock-finish-command.json'))
+          payload_b64=base64.b64encode(json.dumps(cmd).encode()).decode()
+          pod=os.environ['POD_ID']
+          password=open(os.environ['JUPYTER_PASSWORD_FILE']).read().strip()
+          base=f'https://{pod}-8888.proxy.runpod.net'
+          s=requests.Session()
+
+          for attempt in range(1,91):
+              try:
+                  r=s.get(base+'/login',timeout=15)
+                  if r.status_code==200: break
+              except Exception: pass
+              time.sleep(4)
+          else: raise SystemExit('Jupyter not reachable')
+
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text)
+          if not m: raise SystemExit('No XSRF token')
+          r=s.post(base+'/login',data={'_xsrf':m.group(1),'password':password,'next':'/'},timeout=30,allow_redirects=False)
+          if r.status_code not in (200,302,303): r.raise_for_status()
+          xs=s.cookies.get('_xsrf'); headers={'X-XSRFToken':xs} if xs else {}
+          s.get(base+'/api/status',headers=headers,timeout=30).raise_for_status()
+          rr=s.post(base+'/api/terminals',headers=headers,json={},timeout=30); rr.raise_for_status()
+          term=rr.json()['name']
+          cookie='; '.join(f'{c.name}={c.value}' for c in s.cookies)
+          ws=websocket.create_connection(f'wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{term}',cookie=cookie,origin=base,timeout=60)
+
+          remote = r'''set -Eeuo pipefail
+          ROOT=/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock
+          mkdir -p "$ROOT"/assets "$ROOT"/motion "$ROOT"/stills "$ROOT"/clips "$ROOT"/final
+          python3 - <<'RPY'
+          import base64, json, pathlib, subprocess, requests
+          ROOT=pathlib.Path('/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock')
+          cmd=json.loads(base64.b64decode('__PAYLOAD__'))
+          assets=ROOT/'assets'; stills=ROOT/'stills'; motion=ROOT/'motion'; clips=ROOT/'clips'; final=ROOT/'final'
+          for p in (assets,stills,motion,clips,final): p.mkdir(parents=True,exist_ok=True)
+
+          def run(args):
+              print('+',' '.join(map(str,args)),flush=True)
+              subprocess.run([str(x) for x in args],check=True)
+
+          def download(url,dest):
+              if dest.exists() and dest.stat().st_size>4096:
+                  print('reuse',dest,dest.stat().st_size,flush=True); return
+              with requests.get(url,stream=True,timeout=240) as r:
+                  r.raise_for_status()
+                  with open(dest,'wb') as f:
+                      for b in r.iter_content(1024*1024):
+                          if b: f.write(b)
+              if dest.stat().st_size<4096: raise RuntimeError(f'bad download {dest}')
+              print('downloaded',dest,dest.stat().st_size,flush=True)
+
+          def duration(p):
+              out=subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=nw=1:nk=1',str(p)],text=True).strip()
+              return float(out)
+
+          (assets/'narration.txt').write_text(cmd['narration_text'].strip()+'\n')
+          (assets/'talia_ref.txt').write_text(cmd['talia_ref_text'].strip()+'\n')
+          download(cmd['talia_ref_url'],assets/'talia_ref.wav')
+          download(cmd['music_url'],assets/'music.mp3')
+
+          for i,url in enumerate(cmd['motion_urls'],1):
+              download(url,motion/f'src_{i:02d}.mp4')
+          for item in cmd['stills']:
+              download(item['url'],stills/f"scene_{int(item['scene']):02d}.png")
+
+          qpy=pathlib.Path('/workspace/ctnetwork-local/envs/qwen3-tts/bin/python')
+          model_path=pathlib.Path('/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base')
+          if not qpy.exists(): raise RuntimeError('Qwen environment missing')
+          if not any(model_path.rglob('*.safetensors')) and not any(model_path.rglob('*.bin')):
+              raise RuntimeError('Qwen model missing')
+
+          nar=assets/'talia_narration.wav'
+          narrate_py=assets/'make_talia_narration.py'
+          narrate_py.write_text(r"""
+import pathlib, numpy as np, soundfile as sf, torch
+from qwen_tts import Qwen3TTSModel
+root=pathlib.Path('/workspace/ctnetwork-local/episodes/hhwi_scott_la_rock/assets')
+text=(root/'narration.txt').read_text().strip()
+ref_text=(root/'talia_ref.txt').read_text().strip()
+paras=[p.strip() for p in text.split('\n\n') if p.strip()]
+model=Qwen3TTSModel.from_pretrained('/workspace/ctnetwork-local/models/qwen3-tts/1.7B-Base',device_map='cuda:0',dtype=torch.bfloat16)
+parts=[]; sr=None
+for i,p in enumerate(paras,1):
+    print(f'NARRATION_CHUNK {i}/{len(paras)} chars={len(p)}',flush=True)
+    wavs,this_sr=model.generate_voice_clone(text=p,language='English',ref_audio=str(root/'talia_ref.wav'),ref_text=ref_text)
+    x=np.asarray(wavs[0],dtype=np.float32).squeeze()
+    if sr is None: sr=this_sr
+    elif sr!=this_sr: raise RuntimeError('sample rate changed')
+    parts.append(x)
+    parts.append(np.zeros(int(sr*0.28),dtype=np.float32))
+out=np.concatenate(parts[:-1]) if len(parts)>1 else parts[0]
+sf.write(str(root/'talia_narration.wav'),out,sr)
+print('NARRATION_READY',len(out)/sr,sr,flush=True)
+""")
+          run([qpy,narrate_py])
+          if not nar.exists() or nar.stat().st_size<100000: raise RuntimeError('narration missing')
+
+          norm_motion=[]
+          for i in range(1,9):
+              src=motion/f'src_{i:02d}.mp4'; out=clips/f'motion_{i:02d}.mp4'
+              run(['ffmpeg','-y','-i',src,'-an','-vf','scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30,format=yuv420p','-c:v','libx264','-preset','fast','-crf','18','-movflags','+faststart',out])
+              norm_motion.append(out)
+
+          narr_dur=duration(nar)
+          motion_total=sum(duration(p) for p in norm_motion)
+          still_seconds=max(8.0,(narr_dur-motion_total)/12.0)
+          print('TIMING',{'narration':narr_dur,'motion_total':motion_total,'still_seconds':still_seconds},flush=True)
+
+          motions=[
+              "zoompan=z='min(zoom+0.00035,1.075)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",
+              "zoompan=z='min(zoom+0.00030,1.065)':x='(iw-iw/zoom)*on/(d-1)':y='ih/2-(ih/zoom/2)'",
+              "zoompan=z='min(zoom+0.00030,1.065)':x='(iw-iw/zoom)*(1-on/(d-1))':y='ih/2-(ih/zoom/2)'",
+              "zoompan=z='min(zoom+0.00028,1.055)':x='iw/2-(iw/zoom/2)':y='(ih-ih/zoom)*on/(d-1)'"
+          ]
+          still_clips={}
+          for n,item in enumerate(cmd['stills']):
+              scene=int(item['scene']); src=stills/f'scene_{scene:02d}.png'; out=clips/f'still_{scene:02d}.mp4'
+              frames=max(1,int(round(still_seconds*30)))
+              vf=f"scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,{motions[n%len(motions)]}:d={frames}:s=1920x1080:fps=30,eq=contrast=1.03:saturation=0.94,format=yuv420p"
+              run(['ffmpeg','-y','-loop','1','-i',src,'-t',f'{still_seconds:.3f}','-vf',vf,'-an','-c:v','libx264','-preset','fast','-crf','18','-movflags','+faststart',out])
+              still_clips[scene]=out
+
+          seq=[
+              norm_motion[0],norm_motion[1],norm_motion[2],norm_motion[3],
+              still_clips[9],norm_motion[4],still_clips[10],still_clips[11],
+              still_clips[12],still_clips[13],norm_motion[5],still_clips[14],
+              norm_motion[6],still_clips[15],still_clips[16],still_clips[17],
+              still_clips[18],still_clips[19],still_clips[20],norm_motion[7]
+          ]
+          concat=clips/'sequence.txt'
+          concat.write_text(''.join("file '%s'\n"%str(p).replace("'","'\\''") for p in seq))
+          visual=final/'visual_master.mp4'
+          run(['ffmpeg','-y','-f','concat','-safe','0','-i',concat,'-c','copy',visual])
+
+          master=final/'HHWI_What_If_Scott_La_Rock_Never_Died.mp4'
+          run([
+              'ffmpeg','-y','-i',visual,'-i',nar,'-stream_loop','-1','-i',assets/'music.mp3',
+              '-filter_complex',
+              '[1:a]aresample=48000,volume=1.0[voice];[2:a]aresample=48000,volume=0.12[bed];[voice][bed]amix=inputs=2:duration=first:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11[a]',
+              '-map','0:v:0','-map','[a]','-t',f'{narr_dur:.3f}',
+              '-c:v','libx264','-preset','medium','-crf','18','-pix_fmt','yuv420p',
+              '-c:a','aac','-b:a','192k','-ar','48000','-movflags','+faststart',master
+          ])
+          if master.stat().st_size<5000000: raise RuntimeError('master unexpectedly small')
+
+          probe=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',master],text=True))
+          video=[s for s in probe['streams'] if s.get('codec_type')=='video']
+          audio=[s for s in probe['streams'] if s.get('codec_type')=='audio']
+          qc={
+              'path':str(master),'bytes':master.stat().st_size,
+              'duration':float(probe['format'].get('duration',0)),
+              'video_streams':len(video),'audio_streams':len(audio),
+              'width':int(video[0].get('width',0)) if video else 0,
+              'height':int(video[0].get('height',0)) if video else 0,
+              'scene_count':20,'animated_scene_count':8,'support_scene_count':12,
+              'burned_captions':False
+          }
+          qc['pass']=qc['duration']>180 and qc['video_streams']==1 and qc['audio_streams']==1 and qc['width']==1920 and qc['height']==1080
+          (final/'qc.json').write_text(json.dumps(qc,indent=2)+'\n')
+          print('QC_RESULT',json.dumps(qc),flush=True)
+          if not qc['pass']: raise RuntimeError('QC failed')
+          print('FINAL_READY',master,master.stat().st_size,flush=True)
+          RPY
+          '''.replace('__PAYLOAD__', payload_b64)
+
+          enc=base64.b64encode(remote.encode()).decode()
+          marker='__HHWI_SCOTT_FINISH__'
+          ws.send(json.dumps(['stdin',f"echo {enc} | base64 -d >/tmp/hhwi-scott-finish.sh; bash /tmp/hhwi-scott-finish.sh; rc=$?; echo {marker}:$rc\n"]))
+          output=''; rc=None; deadline=time.time()+6500
+          try:
+              while time.time()<deadline:
+                  try: msg=ws.recv()
+                  except Exception as exc:
+                      print('websocket',repr(exc),flush=True); continue
+                  if not msg: continue
+                  try: data=json.loads(msg)
+                  except Exception: continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=='stdout':
+                      txt=data[1]; output+=txt; sys.stdout.write(txt); sys.stdout.flush()
+                      mm=re.search(re.escape(marker)+r':(\d+)',output)
+                      if mm: rc=int(mm.group(1)); break
+          finally:
+              ws.close()
+              try: s.delete(base+f'/api/terminals/{term}',headers=headers,timeout=10)
+              except Exception: pass
+          if rc is None: raise SystemExit('remote render timed out')
+          if rc != 0: raise SystemExit(rc)
+
+          outdir=pathlib.Path('deliverables'); outdir.mkdir(exist_ok=True)
+          targets=[
+              ('HHWI_What_If_Scott_La_Rock_Never_Died.mp4','ctnetwork-local/episodes/hhwi_scott_la_rock/final/HHWI_What_If_Scott_La_Rock_Never_Died.mp4'),
+              ('qc.json','ctnetwork-local/episodes/hhwi_scott_la_rock/final/qc.json')
+          ]
+          for local,rel in targets:
+              ok=False
+              for candidate in (f'/files/{rel}',f'/files/workspace/{rel}'):
+                  resp=s.get(base+candidate,timeout=600,stream=True)
+                  if resp.status_code==200:
+                      dest=outdir/local
+                      with open(dest,'wb') as fh:
+                          for b in resp.iter_content(1024*1024):
+                              if b: fh.write(b)
+                      if dest.stat().st_size>100:
+                          print('DOWNLOADED',dest,dest.stat().st_size,'via',candidate)
+                          ok=True; break
+              if not ok: raise SystemExit(f'could not download {rel}')
+          PY
+
+      - name: Runner-side QC
+        shell: bash
+        run: |
+          set -euo pipefail
+          MASTER=deliverables/HHWI_What_If_Scott_La_Rock_Never_Died.mp4
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,width,height,sample_rate -of json "$MASTER" | tee deliverables/ffprobe.json
+          ffmpeg -hide_banner -i "$MASTER" -vf "blackdetect=d=1:pix_th=0.10" -an -f null - 2>deliverables/blackdetect.txt || true
+          test -s "$MASTER"
+          test "$(jq -r '.pass' deliverables/qc.json)" = true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HHWI-Scott-La-Rock-Final
+          path: deliverables/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Stop factory after delivery artifact
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/${POD_ID}/stop" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/dev/null
+          for i in $(seq 1 60); do
+            sleep 2
+            S=$(curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
+            echo "stop_check=$i status=$S"
+            [[ "$S" != RUNNING ]] && exit 0
+          done
+          exit 1
