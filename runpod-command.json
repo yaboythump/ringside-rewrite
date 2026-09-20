@@ -1,6 +1,6 @@
 {
-  "action": "start",
+  "action": "stop",
   "target": "ctnetwork-active-render",
   "pod_id": "2h03w8g398tq3u",
-  "request_id": "start-ctnetwork-higgsfield-api-2026-09-20"
+  "request_id": "restart-for-higgsfield-env-stop-2026-09-20"
 }
