@@ -1,5 +1,5 @@
 {
-  "request_id": "ringside-austin-neck-production-2026-09-20",
+  "request_id": "ringside-austin-neck-production-start-2026-09-20-1812",
   "target_name": "ctnetwork-factory-next",
   "title": "What If Stone Cold Never Broke His Neck?",
   "storyboard_url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/93518174-fe11-42d7-9f64-c20818d424ec.png",
@@ -80,5 +80,6 @@
       "duration": 5,
       "cfg_scale": 0.5
     }
-  ]
+  ],
+  "pod_id": "7wfzk7q43xsl0w"
 }
