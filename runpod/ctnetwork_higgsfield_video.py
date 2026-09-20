@@ -107,6 +107,7 @@ def render(image: str, prompt: str, duration: int, cfg_scale: float,
         "model": MODEL,
         "duration": duration,
         "output": str(output),
+        "source_url": video_url,
         "bytes": output.stat().st_size,
     }))
     return output
