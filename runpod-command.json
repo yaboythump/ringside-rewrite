@@ -1,5 +1,5 @@
 {
-  "action": "start",
+  "action": "stop",
   "target": "ctnetwork-factory-gpu",
-  "request_id": "najee-world-short001-fallback-start-2026-09-20"
+  "request_id": "server-off-2026-09-20-2304"
 }
