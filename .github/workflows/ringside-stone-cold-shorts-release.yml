@@ -1,0 +1,54 @@
+name: Ringside Stone Cold Shorts Release
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ringside-stone-cold-shorts-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-shorts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Download approved Stone Cold master
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-3090-81f5-923a-5a7c56548045/raw?se=2026-09-21T12%3A58%3A37Z&sp=r&sv=2026-02-06&sr=b&scid=a31427bc-8841-5863-aac7-88003427491b&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-21T11%3A10%3A41Z&ske=2026-09-22T11%3A10%3A41Z&sks=b&skv=2026-02-06&sig=tRamtsP1G%2BwutyQU3Mfc1yNt/awOH09pfCdH/TEra6w%3D' -o master.mp4
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 master.mp4
+
+      - name: Cut 3 vertical Shorts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p shorts
+          FILTER='[0:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,boxblur=18:1[bg];[0:v]scale=720:1280:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p[v]'
+          ffmpeg -y -ss 0 -t 56 -i master.mp4 -filter_complex "$FILTER" -map '[v]' -map 0:a:0 -r 30 -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 160k -movflags +faststart shorts/Ringside_Rewrite_Stone_Cold_Short_01.mp4
+          ffmpeg -y -ss 82 -t 55 -i master.mp4 -filter_complex "$FILTER" -map '[v]' -map 0:a:0 -r 30 -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 160k -movflags +faststart shorts/Ringside_Rewrite_Stone_Cold_Short_02.mp4
+          ffmpeg -y -ss 180 -t 56 -i master.mp4 -filter_complex "$FILTER" -map '[v]' -map 0:a:0 -r 30 -c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 160k -movflags +faststart shorts/Ringside_Rewrite_Stone_Cold_Short_03.mp4
+          for f in shorts/*.mp4; do
+            ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$f"
+          done
+
+      - name: Publish direct MP4 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=ringside-stone-cold-shorts
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" shorts/*.mp4 --clobber
+          else
+            gh release create "$TAG" shorts/*.mp4 --title "Ringside Rewrite - Stone Cold Shorts" --notes "Approved Shorts cut from the Stone Cold full episode."
+          fi
+          gh release view "$TAG" --json url,assets
