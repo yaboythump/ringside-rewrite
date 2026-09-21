@@ -1,0 +1,37 @@
+name: Ringside Austin Motion Pack
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ringside-austin-motion-pack.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download completed motion clips
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p deliverables
+          curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_222909_e0dd47e2-e88f-4a57-839c-21115918810f.mp4' -o deliverables/motion_01.mp4
+          curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_222909_346d69c7-cbc9-4aee-887c-e3cb0de2d675.mp4' -o deliverables/motion_02.mp4
+          curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_222909_860f062e-c0e2-4fa5-a5db-2bd8566f82bd.mp4' -o deliverables/motion_05.mp4
+          curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_222910_d7dd9b9b-a8f5-4777-8e14-f771f8160432.mp4' -o deliverables/motion_08.mp4
+          curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_222909_b9f71cfb-dbf1-437e-a3a1-01833e04ca9a.mp4' -o deliverables/motion_11.mp4
+          curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_222909_c2f9326a-f40c-41eb-8c86-cbfca6ffd27b.mp4' -o deliverables/motion_15.mp4
+          curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_222929_d8fd03f8-30ac-4feb-9241-e9765d5ecbe9.mp4' -o deliverables/motion_19.mp4
+          curl -L --fail --retry 3 'https://d8j0ntlcm91z4.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/hf_20260920_222929_6bebf3ad-278c-446f-a9d4-3742a60519d9.mp4' -o deliverables/motion_20.mp4
+          ls -lh deliverables
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ringside-Austin-Motion-Pack
+          path: deliverables/
+          if-no-files-found: error
+          retention-days: 30
