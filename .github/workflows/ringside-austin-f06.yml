@@ -79,7 +79,13 @@ jobs:
         run: |
           set -euo pipefail
           test -s deliverables/F06_Austin.wav
-          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,sample_rate -of json deliverables/F06_Austin.wav | tee deliverables/f06_ffprobe.json
+          python3 - <<'PY' | tee deliverables/f06_ffprobe.json
+import json, wave, os
+p='deliverables/F06_Austin.wav'
+with wave.open(p,'rb') as w:
+    sr=w.getframerate(); frames=w.getnframes(); channels=w.getnchannels()
+print(json.dumps({"duration":frames/sr,"size":os.path.getsize(p),"sample_rate":sr,"channels":channels},indent=2))
+PY
 
       - uses: actions/upload-artifact@v4
         with:
