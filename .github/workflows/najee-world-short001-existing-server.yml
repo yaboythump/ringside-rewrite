@@ -10,6 +10,10 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: najee-world-short001-render
+  cancel-in-progress: true
+
 jobs:
   render:
     runs-on: ubuntu-latest
@@ -43,9 +47,12 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${RUNPOD_API_KEY:-}" || { echo "RUNPOD_API_KEY_MISSING"; exit 10; }
-          TARGET=$(jq -r '.target_pod_name // "ctnetwork-factory-gpu"' najee-server-render-command.json)
-          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
-          POD_ID=$(printf '%s' "$PODS" | jq -r --arg target "$TARGET" '[.[] | select(.name==$target)] | first | .id // empty')
+          TARGET=$(jq -r '.target_pod_name // "ctnetwork-factory-next"' najee-server-render-command.json)
+          POD_ID=$(jq -r '.pod_id // empty' najee-server-render-command.json)
+          if [ -z "$POD_ID" ]; then
+            PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+            POD_ID=$(printf '%s' "$PODS" | jq -r --arg target "$TARGET" '[.[] | select(.name==$target)] | sort_by(.lastStartedAt // "") | reverse | first | .id // empty')
+          fi
           test -n "$POD_ID" || { echo "TARGET_POD_NOT_FOUND:$TARGET"; exit 11; }
           API="https://rest.runpod.io/v1/pods/$POD_ID"
           STATUS=$(curl -fsS "$API" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
