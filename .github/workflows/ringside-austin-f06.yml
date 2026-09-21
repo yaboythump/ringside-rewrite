@@ -74,6 +74,28 @@ jobs:
           python3 -m pip install --quiet requests websocket-client
           python3 tools/ringside_austin_f06_remote.py
 
+      - name: Preserve narration immediately
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ringside-Austin-F06
+          path: deliverables/F06_Austin.wav
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Deliver raw narration immediately
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s deliverables/F06_Austin.wav || exit 0
+          TAG=ringside-austin-f06
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" deliverables/F06_Austin.wav --clobber
+          else
+            gh release create "$TAG" deliverables/F06_Austin.wav --title "Ringside Rewrite Austin F06 Narration" --notes "Narration-only delivery for What If Stone Cold Never Broke His Neck?"
+          fi
+
       - name: Validate narration
         shell: bash
         run: |
@@ -81,24 +103,13 @@ jobs:
           test -s deliverables/F06_Austin.wav
           python3 -c "import json,wave,os; p='deliverables/F06_Austin.wav'; w=wave.open(p,'rb'); sr=w.getframerate(); frames=w.getnframes(); ch=w.getnchannels(); w.close(); print(json.dumps({'duration':frames/sr,'size':os.path.getsize(p),'sample_rate':sr,'channels':ch},indent=2))" | tee deliverables/f06_ffprobe.json
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Ringside-Austin-F06
-          path: deliverables/
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Deliver narration
+      - name: Attach validation report
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
-          TAG=ringside-austin-f06
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" deliverables/F06_Austin.wav deliverables/f06_ffprobe.json --clobber
-          else
-            gh release create "$TAG" deliverables/F06_Austin.wav deliverables/f06_ffprobe.json --title "Ringside Rewrite Austin F06 Narration" --notes "Narration-only delivery for What If Stone Cold Never Broke His Neck?"
-          fi
-          gh release view "$TAG" --json url,assets | tee deliverables/release.json
+          test -s deliverables/f06_ffprobe.json || exit 0
+          gh release upload ringside-austin-f06 deliverables/f06_ffprobe.json --clobber || true
 
       - name: Stop factory after narration
         if: always()
