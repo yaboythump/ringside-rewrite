@@ -1,0 +1,259 @@
+name: Najee World Short 001 Existing Server Render
+
+on:
+  push:
+    paths:
+      - 'najee-server-render-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      BRIDGE_BASE: https://najee-asset-bridge-production.up.railway.app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull Najee assets through private OIDC bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/najee-assets
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" || { echo "OIDC_REQUEST_TOKEN_MISSING"; exit 2; }
+          test -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" || { echo "OIDC_REQUEST_URL_MISSING"; exit 3; }
+          OIDC=$(curl -fsS -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}"             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=ctnetwork-najee-bridge" | jq -r '.value')
+          test -n "$OIDC" -a "$OIDC" != "null" || { echo "OIDC_TOKEN_MISSING"; exit 4; }
+          echo "::add-mask::$OIDC"
+          curl -fL --retry 6 --retry-delay 3             -H "Authorization: Bearer $OIDC"             "$BRIDGE_BASE/asset/reference" -o /tmp/najee-assets/najee_reference.jpg
+          curl -fL --retry 6 --retry-delay 3             -H "Authorization: Bearer $OIDC"             "$BRIDGE_BASE/asset/voice" -o /tmp/najee-assets/najee_voice_source.mp4
+          test -s /tmp/najee-assets/najee_reference.jpg
+          test -s /tmp/najee-assets/najee_voice_source.mp4
+          echo "NAJEE_PRIVATE_ASSETS_READY"
+
+      - name: Resolve existing CTNETWORK GPU
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "RUNPOD_API_KEY_MISSING"; exit 10; }
+          TARGET=$(jq -r '.target_pod_name // "ctnetwork-factory-gpu"' najee-server-render-command.json)
+          PODS=$(curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          POD_ID=$(printf '%s' "$PODS" | jq -r --arg target "$TARGET" '[.[] | select(.name==$target)] | first | .id // empty')
+          test -n "$POD_ID" || { echo "TARGET_POD_NOT_FOUND:$TARGET"; exit 11; }
+          API="https://rest.runpod.io/v1/pods/$POD_ID"
+          STATUS=$(curl -fsS "$API" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
+          if [ "$STATUS" != "RUNNING" ]; then
+            curl -fsS -X POST "$API/start" -H "Authorization: Bearer ${RUNPOD_API_KEY}" >/tmp/start.json || true
+            for i in $(seq 1 120); do
+              sleep 5
+              STATUS=$(curl -fsS "$API" -H "Authorization: Bearer ${RUNPOD_API_KEY}" | jq -r '.desiredStatus // "unknown"')
+              [ "$STATUS" = "RUNNING" ] && break
+            done
+          fi
+          [ "$STATUS" = "RUNNING" ] || { echo "POD_NOT_RUNNING:$STATUS"; exit 12; }
+          POD=$(curl -fsS "$API" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          test -n "$JPASS" || { echo "JUPYTER_PASSWORD_MISSING"; exit 13; }
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+          echo "CTNETWORK_GPU_READY:$POD_ID"
+
+      - name: Render Najee Short 001 clips and voice on server
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64, json, os, re, sys, time
+          from pathlib import Path
+          import requests, websocket
+
+          pod_id=os.environ["POD_ID"]
+          password=Path(os.environ["JUPYTER_PASSWORD_FILE"]).read_text().strip()
+          base=f"https://{pod_id}-8888.proxy.runpod.net"
+          s=requests.Session()
+
+          last=None
+          for _ in range(120):
+              try:
+                  last=s.get(base+"/login",timeout=15)
+                  if last.ok:
+                      break
+              except Exception:
+                  pass
+              time.sleep(5)
+          else:
+              raise SystemExit("JUPYTER_NOT_READY")
+          m=re.search(r'name="_xsrf" value="([^"]+)"',last.text)
+          if not m:
+              raise SystemExit("XSRF_MISSING")
+          xsrf=m.group(1)
+          r=s.post(base+"/login",data={"_xsrf":xsrf,"password":password,"next":"/"},timeout=30,allow_redirects=False)
+          if r.status_code not in (200,302,303):
+              r.raise_for_status()
+          cx=s.cookies.get("_xsrf")
+          headers={"X-XSRFToken":cx} if cx else {}
+          s.get(base+"/api/status",headers=headers,timeout=30).raise_for_status()
+
+          local_ref=Path("/tmp/najee-assets/najee_reference.jpg").read_bytes()
+          local_voice=Path("/tmp/najee-assets/najee_voice_source.mp4").read_bytes()
+          ref64=base64.b64encode(local_ref).decode()
+          voice64=base64.b64encode(local_voice).decode()
+
+          shell=r'''set -Eeuo pipefail
+          ROOT=/workspace/ctnetwork-local
+          JOB="$ROOT/productions/najee-world-short001"
+          SRC="$ROOT/src/LTX-2"
+          MODELS="$ROOT/models/ltx-2.5"
+          PY="$SRC/.venv/bin/python"
+          QENV="$ROOT/envs/qwen3-tts"
+          QMODEL="$ROOT/models/qwen3-tts/1.7B-Base"
+          mkdir -p "$JOB"
+          echo "__REF64__" | base64 -d > "$JOB/najee_reference.jpg"
+          echo "__VOICE64__" | base64 -d > "$JOB/najee_voice_source.mp4"
+          ffmpeg -y -loglevel error -i "$JOB/najee_voice_source.mp4" -vn -ac 1 -ar 24000 "$JOB/najee_voice_ref.wav"
+          test -s "$JOB/najee_reference.jpg"
+          test -s "$JOB/najee_voice_ref.wav"
+
+          test -x "$PY" || { echo LTX_RUNTIME_MISSING; exit 21; }
+          test -x "$QENV/bin/python" || { echo QWEN_RUNTIME_MISSING; exit 22; }
+
+          TRANS="$MODELS/diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors"
+          TEXT="$MODELS/text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors"
+          VVIDEO="$MODELS/vae/ltx-2.5-video-vae-bf16.safetensors"
+          VAUDIO="$MODELS/vae/ltx-2.5-audio-vae-bf16.safetensors"
+          UPSCALE="$MODELS/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+          for f in "$TRANS" "$TEXT" "$VVIDEO" "$VAUDIO" "$UPSCALE"; do
+            test -s "$f" || { echo "MODEL_FILE_MISSING:$f"; exit 23; }
+          done
+          find "$QMODEL" -type f \( -name '*.safetensors' -o -name '*.bin' \) -print -quit | grep -q . || { echo QWEN_MODEL_MISSING; exit 24; }
+
+          echo GENERATE_NAJEE_VOICE
+          MODEL_PATH="$QMODEL" REF_PATH="$JOB/najee_voice_ref.wav" OUT_PATH="$JOB/najee_narration.wav" "$QENV/bin/python" - <<'QPY'
+          import os, torch, soundfile as sf
+          from qwen_tts import Qwen3TTSModel
+          model=Qwen3TTSModel.from_pretrained(
+              os.environ["MODEL_PATH"],
+              device_map="cuda:0",
+              dtype=torch.bfloat16,
+          )
+          text="Whoa... what is that? Should I open it? Okay... here goes! No way! What's inside next?"
+          wavs,sr=model.generate_voice_clone(
+              text=text,
+              language="English",
+              ref_audio=os.environ["REF_PATH"],
+              x_vector_only_mode=True,
+          )
+          sf.write(os.environ["OUT_PATH"],wavs[0],sr)
+          print("VOICE_COMPLETE",sr)
+          QPY
+          test -s "$JOB/najee_narration.wav"
+
+          COMMON="Use the supplied reference image as the exact child character identity. Keep Najee's face, warm brown skin, braided cornrows, black rectangular glasses, blue-and-white varsity jacket, black smiley T-shirt, black cargo pants, blue-and-white crown sneakers, age and body proportions consistent. Premium colorful 3D children's animation, cinematic playful lighting, smooth believable child motion, expressive face, vertical composition, no captions, no text, no logos, no extra children, no identity changes."
+
+          render () {
+            N="$1"; SEED="$2"; PROMPT="$3"
+            OUT="$JOB/clip0$N.mp4"
+            echo "RENDER_CLIP_0$N START"
+            cd "$SRC"
+            "$PY" -m ltx_pipelines.distilled               --transformer-path "$TRANS"               --text-encoder-path "$TEXT"               --video-vae-path "$VVIDEO"               --audio-vae-path "$VAUDIO"               --spatial-upsampler-path "$UPSCALE"               --width 512 --height 768 --num-frames 121 --frame-rate 24               --seed "$SEED" --quantization fp8-cast --offload cpu               --image "$JOB/najee_reference.jpg" 0 1.0               --output-path "$OUT"               --prompt "$PROMPT"
+            test -s "$OUT" || { echo "CLIP_0$N_MISSING"; exit 30; }
+            echo "RENDER_CLIP_0$N DONE"
+          }
+
+          render 1 90101 "$COMMON Najee is in his colorful bedroom and suddenly notices a mysterious deep-blue toy-sized box decorated with small yellow stars, question marks and a crown. The box begins glowing with warm golden magical light. Najee leans closer in curious surprise. Gentle camera push-in, natural eye and hand motion, playful suspense."
+          render 2 90102 "$COMMON Najee carefully crouches by the same glowing mystery box, reaches forward and opens the lid. Golden magical light and sparkling particles burst upward. Najee jumps back slightly and reacts with a huge amazed grin. Dynamic but controlled camera move, child-friendly magic."
+          render 3 90103 "$COMMON The open glowing mystery box releases a playful swirl of magical toy shapes, colorful light and sparkles around Najee. Najee reacts with wide-eyed amazement, then looks toward the viewer as the glow intensifies. End on a clean dramatic cliffhanger reaction suitable for looping."
+
+          ffmpeg -y -loglevel error -i "$JOB/clip01.mp4" -t 5 "$JOB/clip01_5s.mp4"
+          ffmpeg -y -loglevel error -i "$JOB/clip02.mp4" -t 5 "$JOB/clip02_5s.mp4"
+          ffmpeg -y -loglevel error -i "$JOB/clip03.mp4" -t 5 "$JOB/clip03_5s.mp4"
+          echo NAJEE_SERVER_RENDER_COMPLETE
+          '''.replace("__REF64__",ref64).replace("__VOICE64__",voice64)
+
+          payload=base64.b64encode(shell.encode()).decode()
+          r=s.post(base+"/api/terminals",headers=headers,json={},timeout=30)
+          r.raise_for_status()
+          terminal=r.json()["name"]
+          cookie="; ".join(f"{c.name}={c.value}" for c in s.cookies)
+          ws=websocket.create_connection(
+              f"wss://{pod_id}-8888.proxy.runpod.net/terminals/websocket/{terminal}",
+              cookie=cookie,
+              origin=base,
+              timeout=60,
+          )
+          ws.send(json.dumps(["stdin",f"echo {payload} | base64 -d >/tmp/najee-render.sh; bash /tmp/najee-render.sh; rc=$?; echo __NAJEE_DONE__:$rc\n"]))
+          deadline=time.time()+6900
+          buf=""
+          rc=None
+          try:
+              while time.time()<deadline:
+                  try:
+                      msg=ws.recv()
+                  except Exception:
+                      continue
+                  if not msg:
+                      continue
+                  try:
+                      data=json.loads(msg)
+                  except Exception:
+                      continue
+                  if isinstance(data,list) and len(data)>=2 and data[0]=="stdout":
+                      txt=data[1]
+                      buf+=txt
+                      sys.stdout.write(txt)
+                      sys.stdout.flush()
+                      mm=re.search(r"__NAJEE_DONE__:(\d+)",buf)
+                      if mm:
+                          rc=int(mm.group(1))
+                          break
+          finally:
+              ws.close()
+              try:
+                  s.delete(base+f"/api/terminals/{terminal}",headers=headers,timeout=15)
+              except Exception:
+                  pass
+          if rc is None:
+              raise SystemExit("REMOTE_RENDER_TIMEOUT")
+          if rc != 0:
+              raise SystemExit(rc)
+
+          out=Path("najee-artifacts")
+          out.mkdir(exist_ok=True)
+          for name in ["clip01_5s.mp4","clip02_5s.mp4","clip03_5s.mp4","najee_narration.wav","najee_reference.jpg"]:
+              ok=False
+              for rel in (
+                  f"/files/ctnetwork-local/productions/najee-world-short001/{name}",
+                  f"/files/workspace/ctnetwork-local/productions/najee-world-short001/{name}",
+              ):
+                  try:
+                      rr=s.get(base+rel,timeout=300)
+                      if rr.ok and len(rr.content)>1024:
+                          (out/name).write_bytes(rr.content)
+                          print("DOWNLOADED",name,len(rr.content))
+                          ok=True
+                          break
+                  except Exception:
+                      pass
+              if not ok:
+                  raise SystemExit(f"DOWNLOAD_FAILED:{name}")
+          PY
+
+      - name: Upload Najee render package
+        uses: actions/upload-artifact@v4
+        with:
+          name: najee-world-short001-server-render
+          path: najee-artifacts/
+          if-no-files-found: error
+          retention-days: 7
