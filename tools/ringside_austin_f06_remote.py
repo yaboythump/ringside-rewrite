@@ -26,7 +26,6 @@ def connect():
     rr=s.post(BASE+"/login",data={"_xsrf":m.group(1),"password":PASSWORD,"next":"/"},timeout=30,allow_redirects=False)
     if rr.status_code not in (200,302,303): rr.raise_for_status()
     xs=s.cookies.get("_xsrf"); headers={"X-XSRFToken":xs} if xs else {}
-    s.get(BASE+"/api/status",headers=headers,timeout=30).raise_for_status()
     cookie="; ".join(f"{c.name}={c.value}" for c in s.cookies)
     last_ws=None
     name=None
