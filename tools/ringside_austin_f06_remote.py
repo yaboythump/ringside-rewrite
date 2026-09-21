@@ -105,8 +105,12 @@ sf.write(str(root/"F06_Austin.wav"),out,sr)
 print("F06_READY",len(out)/sr,sr,flush=True)
 """))
 qpy=ROOT/"envs/qwen3-tts/bin/python"
-subprocess.run([str(qpy),str(script)],check=True)
-print("F06_PATH",OUT/"F06_Austin.wav",flush=True)
+outwav=OUT/"F06_Austin.wav"
+if outwav.exists() and outwav.stat().st_size>4096:
+    print("F06_REUSE",outwav,outwav.stat().st_size,flush=True)
+else:
+    subprocess.run([str(qpy),str(script)],check=True)
+print("F06_PATH",outwav,flush=True)
 '''.replace("__CMD__",cmd_b64)
     return src
 
