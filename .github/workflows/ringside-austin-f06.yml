@@ -79,13 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s deliverables/F06_Austin.wav
-          python3 - <<'PY' | tee deliverables/f06_ffprobe.json
-import json, wave, os
-p='deliverables/F06_Austin.wav'
-with wave.open(p,'rb') as w:
-    sr=w.getframerate(); frames=w.getnframes(); channels=w.getnchannels()
-print(json.dumps({"duration":frames/sr,"size":os.path.getsize(p),"sample_rate":sr,"channels":channels},indent=2))
-PY
+          python3 -c "import json,wave,os; p='deliverables/F06_Austin.wav'; w=wave.open(p,'rb'); sr=w.getframerate(); frames=w.getnframes(); ch=w.getnchannels(); w.close(); print(json.dumps({'duration':frames/sr,'size':os.path.getsize(p),'sample_rate':sr,'channels':ch},indent=2))" | tee deliverables/f06_ffprobe.json
 
       - uses: actions/upload-artifact@v4
         with:
