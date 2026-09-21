@@ -1,5 +1,5 @@
 {
   "job": "najee-world-short001",
-  "target_pod_name": "ctnetwork-factory-gpu",
-  "requested_at": "2026-09-21T01:36:00Z"
+  "target_pod_name": "ctnetwork-factory-next",
+  "requested_at": "2026-09-21T01:42:00Z"
 }
