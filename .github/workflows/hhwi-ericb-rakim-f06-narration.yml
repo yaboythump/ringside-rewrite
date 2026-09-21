@@ -1,0 +1,173 @@
+name: HHWI Eric B Rakim F06 Narration Only
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hhwi-ericb-rakim-f06-narration.yml'
+      - 'tools/hhwi_ericb_rakim_f06_narration.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hhwi-ericb-rakim-f06-narration
+  cancel-in-progress: false
+
+jobs:
+  narrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      CTN_VOLUME: 9wjb3sa5zm
+      CTN_DC: EU-RO-1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create isolated F06 narration pod
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          START_CMD=$(cat <<'BASH'
+          set -u
+          ROOT=/workspace/ctnetwork-local
+          LOG=/workspace/hhwi-ericb-rakim-f06.log
+          STATUS=/workspace/hhwi-ericb-rakim-f06-status.txt
+          rm -f "$STATUS" "$LOG"
+
+          cd /workspace
+          python3 -m http.server 8000 --bind 0.0.0.0 >/tmp/ctn-f06-http.log 2>&1 &
+          HTTP_PID=$!
+
+          {
+            echo "HHWI Eric B/Rakim isolated F06 narration boot"
+            date -u +%FT%TZ
+            export DEBIAN_FRONTEND=noninteractive
+
+            if ! command -v ffmpeg >/dev/null 2>&1; then
+              apt-get update -y
+              apt-get install -y --no-install-recommends ffmpeg curl ca-certificates
+            fi
+
+            QPY="$ROOT/envs/qwen3-tts/bin/python"
+            REF="$ROOT/narrator-auditions/female-urban-10/F06.wav"
+            [[ -x "$QPY" ]] || { echo "QWEN_ENV_MISSING:$QPY"; echo 20 > "$STATUS"; wait "$HTTP_PID"; exit 20; }
+            [[ -s "$REF" ]] || { echo "F06_REFERENCE_MISSING:$REF"; echo 21 > "$STATUS"; wait "$HTTP_PID"; exit 21; }
+
+            curl -L --fail --retry 5               "https://raw.githubusercontent.com/yaboythump/ringside-rewrite/main/tools/hhwi_ericb_rakim_f06_narration.py"               -o /tmp/hhwi_ericb_rakim_f06_narration.py
+
+            "$QPY" /tmp/hhwi_ericb_rakim_f06_narration.py
+            RC=$?
+            echo "$RC" > "$STATUS"
+            echo "NARRATION_RC=$RC"
+          } >"$LOG" 2>&1
+
+          wait "$HTTP_PID"
+          BASH
+          )
+
+          GPU_TYPES='["NVIDIA GeForce RTX 4090","NVIDIA GeForce RTX 5090","NVIDIA RTX PRO 4500 Blackwell","NVIDIA L4"]'
+          BODY=$(jq -nc             --arg name "hhwi-ericb-f06-$(date +%s)"             --arg dc "$CTN_DC"             --arg vol "$CTN_VOLUME"             --arg cmd "$START_CMD"             --argjson gpus "$GPU_TYPES"             '{
+              name:$name,
+              imageName:"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+              cloudType:"SECURE",
+              computeType:"GPU",
+              gpuTypeIds:$gpus,
+              gpuTypePriority:"availability",
+              gpuCount:1,
+              dataCenterIds:[$dc],
+              dataCenterPriority:"availability",
+              containerDiskInGb:40,
+              networkVolumeId:$vol,
+              volumeMountPath:"/workspace",
+              ports:["8000/http"],
+              dockerStartCmd:["bash","-lc",$cmd]
+            }')
+
+          for attempt in 1 2 3; do
+            HTTP=$(curl -sS -o /tmp/create.json -w '%{http_code}'               -X POST https://rest.runpod.io/v1/pods               -H "Authorization: Bearer $RUNPOD_API_KEY"               -H 'Content-Type: application/json'               --data "$BODY" || true)
+            echo "create attempt=$attempt http=$HTTP"
+            cat /tmp/create.json || true
+            if [[ "$HTTP" =~ ^2 ]]; then
+              POD_ID=$(jq -r '.id // empty' /tmp/create.json)
+              if [[ -n "$POD_ID" ]]; then
+                echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+                echo "base_url=https://${POD_ID}-8000.proxy.runpod.net" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          exit 3
+
+      - name: Wait for narration service
+        env:
+          BASE_URL: ${{ steps.pod.outputs.base_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 180); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$BASE_URL/" || true)
+            echo "service attempt=$i http=$code"
+            [[ "$code" == "200" ]] && exit 0
+            sleep 5
+          done
+          exit 4
+
+      - name: Wait for resume-safe F06 narration
+        env:
+          BASE_URL: ${{ steps.pod.outputs.base_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for i in $(seq 1 1200); do
+            status=$(curl -fsS --max-time 10 "$BASE_URL/hhwi-ericb-rakim-f06-status.txt" 2>/dev/null || true)
+
+            if (( i % 6 == 0 )); then
+              echo "---- progress ----"
+              curl -fsS --max-time 10 "$BASE_URL/hhwi-ericb-rakim-f06-progress.json" 2>/dev/null || true
+              echo
+              curl -fsS --max-time 10 "$BASE_URL/hhwi-ericb-rakim-f06.log" 2>/dev/null | tail -20 || true
+            fi
+
+            if [[ -n "$status" ]]; then
+              echo "remote status=$status"
+              curl -fsS --max-time 20 "$BASE_URL/hhwi-ericb-rakim-f06.log" -o /tmp/hhwi-ericb-rakim-f06.log || true
+              cat /tmp/hhwi-ericb-rakim-f06.log || true
+
+              if [[ "$status" == "0" ]]; then
+                curl -fL --retry 5 --max-time 900                   "$BASE_URL/HHWI_EricB_Never_Met_Rakim_F06.tar.gz"                   -o /tmp/HHWI_EricB_Never_Met_Rakim_F06.tar.gz
+                test -s /tmp/HHWI_EricB_Never_Met_Rakim_F06.tar.gz
+                exit 0
+              fi
+              exit "$status"
+            fi
+
+            sleep 5
+          done
+          exit 5
+
+      - name: Upload F06 narration master
+        uses: actions/upload-artifact@v4
+        with:
+          name: HHWI-EricB-Never-Met-Rakim-F06-Narration
+          path: /tmp/HHWI_EricB_Never_Met_Rakim_F06.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Terminate narration pod
+        if: always()
+        env:
+          POD_ID: ${{ steps.pod.outputs.pod_id }}
+        shell: bash
+        run: |
+          [[ -n "${POD_ID:-}" ]] || exit 0
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/${POD_ID}"             -H "Authorization: Bearer $RUNPOD_API_KEY" >/dev/null || true
+          echo "Narration pod terminated: $POD_ID"
