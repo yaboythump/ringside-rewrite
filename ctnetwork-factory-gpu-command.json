@@ -1,5 +1,5 @@
 {
-  "action": "recycle",
+  "action": "start",
   "name": "ctnetwork-factory-next",
   "network_volume_id": "9wjb3sa5zm",
   "data_center_id": "EU-RO-1",
@@ -11,5 +11,5 @@
     "NVIDIA L4"
   ],
   "image_name": "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
-  "request_id": "ringside-austin-f06-factory-recycle-2026-09-20-1918"
+  "request_id": "ringside-austin-f06-restart-existing-2026-09-20-2026"
 }
