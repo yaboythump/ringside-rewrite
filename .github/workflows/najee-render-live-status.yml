@@ -1,0 +1,72 @@
+name: Najee Render Live Status
+
+on:
+  push:
+    paths:
+      - 'najee-render-status-command.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve pod and Jupyter
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID=$(jq -r '.pod_id' najee-render-status-command.json)
+          POD=$(curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer ${RUNPOD_API_KEY}")
+          STATUS=$(printf '%s' "$POD" | jq -r '.desiredStatus // "unknown"')
+          JPASS=$(printf '%s' "$POD" | jq -r '.env.JUPYTER_PASSWORD // empty')
+          echo "POD_STATUS=$STATUS"
+          [ "$STATUS" = "RUNNING" ] || exit 2
+          [ -n "$JPASS" ] || exit 3
+          echo "::add-mask::$JPASS"
+          printf '%s' "$JPASS" > "$RUNNER_TEMP/jupyter_password"
+          echo "pod_id=$POD_ID" >> "$GITHUB_OUTPUT"
+      - name: Inspect live Najee render
+        env:
+          POD_ID: ${{ steps.resolve.outputs.pod_id }}
+          JUPYTER_PASSWORD_FILE: ${{ runner.temp }}/jupyter_password
+        shell: bash
+        run: |
+          python3 -m pip install --quiet requests websocket-client
+          python3 - <<'PY'
+          import base64,json,os,re,time,requests,websocket
+          pod=os.environ["POD_ID"]
+          pw=open(os.environ["JUPYTER_PASSWORD_FILE"]).read().strip()
+          base=f"https://{pod}-8888.proxy.runpod.net"
+          s=requests.Session()
+          r=s.get(base+"/login",timeout=30); r.raise_for_status()
+          m=re.search(r'name="_xsrf" value="([^"]+)"',r.text); assert m
+          xsrf=m.group(1)
+          r=s.post(base+"/login",data={"_xsrf":xsrf,"password":pw,"next":"/"},timeout=30,allow_redirects=False)
+          cx=s.cookies.get("_xsrf"); headers={"X-XSRFToken":cx} if cx else {}
+          r=s.post(base+"/api/terminals",headers=headers,json={},timeout=30); r.raise_for_status()
+          term=r.json()["name"]
+          cookie="; ".join(f"{c.name}={c.value}" for c in s.cookies)
+          ws=websocket.create_connection(f"wss://{pod}-8888.proxy.runpod.net/terminals/websocket/{term}",cookie=cookie,origin=base,timeout=60)
+          sh=r'''echo ===GPU===; nvidia-smi || true; echo ===PROCESSES===; ps -eo pid,etimes,%cpu,%mem,cmd | grep -E 'ltx_pipelines|qwen|najee|python' | grep -v grep || true; echo ===FILES===; ls -lh /workspace/ctnetwork-local/productions/najee-world-short001 2>/dev/null || true; echo ===DONE===;'''
+          enc=base64.b64encode(sh.encode()).decode()
+          ws.send(json.dumps(["stdin",f"echo {enc} | base64 -d >/tmp/najee_status.sh; bash /tmp/najee_status.sh; echo __DONE__\n"]))
+          buf=""
+          end=time.time()+180
+          while time.time()<end:
+              try: msg=ws.recv()
+              except Exception: continue
+              if not msg: continue
+              try: data=json.loads(msg)
+              except Exception: continue
+              if isinstance(data,list) and len(data)>=2 and data[0]=="stdout":
+                  txt=data[1]; buf+=txt; print(txt,end="",flush=True)
+                  if "__DONE__" in buf: break
+          ws.close()
+          PY
