@@ -112,7 +112,7 @@ jobs:
           gh release upload ringside-austin-f06 deliverables/f06_ffprobe.json --clobber || true
 
       - name: Stop factory after narration
-        if: always()
+        if: success()
         env:
           POD_ID: ${{ steps.pod.outputs.pod_id }}
         shell: bash
