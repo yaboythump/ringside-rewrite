@@ -105,6 +105,12 @@ print("F06_READY",len(out)/sr,sr,flush=True)
 """))
 qpy=ROOT/"envs/qwen3-tts/bin/python"
 outwav=OUT/"F06_Austin.wav"
+if cmd.get("force_regenerate"):
+    try:
+        outwav.unlink()
+        print("F06_FORCE_REGENERATE",outwav,flush=True)
+    except FileNotFoundError:
+        pass
 if outwav.exists() and outwav.stat().st_size>4096:
     print("F06_REUSE",outwav,outwav.stat().st_size,flush=True)
 else:
