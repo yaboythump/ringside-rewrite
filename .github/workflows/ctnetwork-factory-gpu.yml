@@ -36,6 +36,17 @@ jobs:
 
           case "$ACTION" in provision|start|status|stop|delete|recycle) ;; *) echo "Unsupported action: $ACTION"; exit 2;; esac
 
+          # Temporary production lock: protect an active long-running render from
+          # unrelated stop/recycle/delete commands that share this factory pod.
+          if [[ -f infra/status/ctnetwork-factory-lock.json ]]; then
+            LOCK_ACTIVE=$(jq -r '.active // false' infra/status/ctnetwork-factory-lock.json)
+            LOCK_OWNER=$(jq -r '.owner // ""' infra/status/ctnetwork-factory-lock.json)
+            if [[ "$LOCK_ACTIVE" == "true" && "$ACTION" =~ ^(stop|delete|recycle)$ ]]; then
+              echo "FACTORY_LOCKED owner=$LOCK_OWNER action=$ACTION blocked"
+              exit 0
+            fi
+          fi
+
           find_factory() {
             curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer ${RUNPOD_API_KEY}" \
               | jq -c --arg n "$NAME" --arg v "$VOLUME_ID" '[.[] | select(.name==$n and ((.networkVolumeId // .networkVolume.id // "") == $v))] | first // empty'
