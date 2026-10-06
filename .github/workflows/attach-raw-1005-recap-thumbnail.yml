@@ -1,0 +1,49 @@
+name: Attach Raw 1005 Recap Thumbnail
+
+on:
+  push:
+    paths:
+      - '.github/workflows/attach-raw-1005-recap-thumbnail.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Attach approved Raw recap thumbnail
+        env:
+          UPLOAD_POST_API_KEY: ${{ secrets.UPLOAD_POST_API_KEY }}
+          THUMB_URL: 'https://d2ol7oe51mr4n9.cloudfront.net/user_3FizZ6bh2NS9JMdxemkwXokQMsk/5a96f07f-2ca1-4e8b-be4e-fd0b5d4b0268.jpg'
+        run: |
+          set -euo pipefail
+          test -n "$UPLOAD_POST_API_KEY"
+          python -m pip install --quiet requests pillow
+          python - <<'PY'
+          import io, os, requests
+          from PIL import Image, ImageOps
+          src=requests.get(os.environ['THUMB_URL'],timeout=90)
+          src.raise_for_status()
+          img=Image.open(io.BytesIO(src.content)).convert('RGB')
+          img=ImageOps.fit(img,(1280,720),method=Image.Resampling.LANCZOS)
+          buf=io.BytesIO()
+          img.save(buf,format='JPEG',quality=92,optimize=True)
+          r=requests.post(
+              'https://api.upload-post.com/api/upload-video/youtube/thumbnail',
+              data={'video':'rwJJ27munhk','user':'Ringsiderewrite','apiKey':os.environ['UPLOAD_POST_API_KEY']},
+              files={'file':('raw-1005-recap-thumbnail.jpg',buf.getvalue(),'image/jpeg')},
+              timeout=180,
+          )
+          print('HTTP',r.status_code)
+          print(r.text[:4000])
+          r.raise_for_status()
+          try:
+              body=r.json()
+              if isinstance(body,dict) and body.get('success') is False:
+                  raise SystemExit(2)
+          except ValueError:
+              pass
+          PY
