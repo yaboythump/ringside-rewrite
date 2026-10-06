@@ -21,29 +21,34 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$UPLOAD_POST_API_KEY"
-          python -m pip install --quiet requests pillow
           python - <<'PY'
-          import io, os, requests
-          from PIL import Image, ImageOps
-          src=requests.get(os.environ['THUMB_URL'],timeout=90)
-          src.raise_for_status()
-          img=Image.open(io.BytesIO(src.content)).convert('RGB')
-          img=ImageOps.fit(img,(1280,720),method=Image.Resampling.LANCZOS)
-          buf=io.BytesIO()
-          img.save(buf,format='JPEG',quality=92,optimize=True)
-          r=requests.post(
-              'https://api.upload-post.com/api/upload-video/youtube/thumbnail',
-              data={'video':'rwJJ27munhk','user':'Ringsiderewrite','apiKey':os.environ['UPLOAD_POST_API_KEY']},
-              files={'file':('raw-1005-recap-thumbnail.jpg',buf.getvalue(),'image/jpeg')},
-              timeout=180,
+          import json, os, urllib.request, urllib.error
+          body=json.dumps({
+              "user":"Ringsiderewrite",
+              "video_id":"rwJJ27munhk",
+              "thumbnail_url":os.environ["THUMB_URL"],
+          }).encode("utf-8")
+          req=urllib.request.Request(
+              "https://api.upload-post.com/api/uploadposts/youtube/thumbnail",
+              data=body,
+              headers={
+                  "Authorization":"Apikey "+os.environ["UPLOAD_POST_API_KEY"],
+                  "Content-Type":"application/json",
+                  "Accept":"application/json",
+              },
+              method="POST",
           )
-          print('HTTP',r.status_code)
-          print(r.text[:4000])
-          r.raise_for_status()
           try:
-              body=r.json()
-              if isinstance(body,dict) and body.get('success') is False:
-                  raise SystemExit(2)
-          except ValueError:
-              pass
+              with urllib.request.urlopen(req,timeout=180) as r:
+                  raw=r.read().decode("utf-8")
+                  print("HTTP",r.status)
+                  print(raw[:4000])
+                  data=json.loads(raw)
+                  if data.get("success") is False:
+                      raise SystemExit(2)
+          except urllib.error.HTTPError as e:
+              raw=e.read().decode("utf-8","replace")
+              print("HTTP",e.code)
+              print(raw[:4000])
+              raise
           PY
