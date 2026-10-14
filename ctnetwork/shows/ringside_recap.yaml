@@ -33,8 +33,34 @@ visuals:
 captions:
   burned_in: false
 shorts:
-  count_policy: cut_best_clips_from_approved_master
+  count_policy: at_least_one_short_per_covered_match
+  minimum_count: match_count_from_verified_results
+  major_nonmatch_segments: optional_additional_shorts
+  main_event_fallout: optional_extra_short
+  all_short_video_sources: exact_approved_master_only
   target_seconds: 50-58
+  default_hashtag_count: 5
+  content_gate:
+    match_manifest_required: true
+    every_match_must_have_a_matching_short: true
+    title_must_match_actual_wrestlers_and_result: true
+    block_publish_if_match_missing_or_title_inaccurate: true
+    no_generic_vague_clickbait: true
+  youtube:
+    title_pattern: "[Wrestler A] vs [Wrestler B] — [Accurate Result/Hook] | Ringside Recap"
+    multiperson_title_pattern: "[Match Participants or Match Type] — [Actual Result] | Ringside Recap"
+    label: "match names first, outcome second"
+  facebook:
+    title_pattern: "[Accurate Result/Hook] — [Actual Match] | Ringside Recap"
+    description_first_line: actual_corresponding_full_youtube_episode_url
+    upload_type: REELS
+  tiktok:
+    caption_pattern: "Short hook. Actual match and result. Exactly five relevant hashtags."
+    default_hashtags: ["#RingsideRecap", promotion_tag, event_tag, wrestler_tag, matchup_or_result_tag]
+  qc:
+    verify_each_short_covers_its_named_match: true
+    verify_match_count_equals_short_coverage: true
+    verify_youtube_facebook_tiktok_titles_and_captions: true
 audio:
   music_bed_id: ringside_recap_arena_rock_bed_v1
   music_bed_path: assets/ringside-recap/Ringside_Recap_Arena_Rock_Bed.mp3
