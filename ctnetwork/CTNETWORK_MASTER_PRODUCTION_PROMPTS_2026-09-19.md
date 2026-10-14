@@ -46,6 +46,16 @@ Every full Ringside Recap must run **4–5 minutes** and use **at least 16 disti
 
 The default music bed is permanently locked to **Ringside Recap Arena Rock Bed v1** at `assets/ringside-recap/Ringside_Recap_Arena_Rock_Bed.mp3`. Use this same bed in every Ringside Recap unless the owner explicitly changes it. The sound is aggressive modern arena rock / premium sports broadcast: real electric guitars, live-sounding punchy drums, bass, and restrained cinematic hits. **No video-game music, synthwave, chiptune, arcade tones, or EDM lead synths.** Duck the bed under F06 narration, and add ring-bell and crowd SFX where appropriate. F06 stays at native speed and must sound natural, never robotic. Shorts are cut only from the approved master.
 
+**PERMANENT MATCH-BY-MATCH SHORTS PRODUCTION LAW (owner-approved):** Create a match manifest for every recap and cut at least **one distinct Short for every match covered**, rather than choosing a fixed total of 3. If the full recap contains four matches, produce four match-specific Shorts minimum. Major segments or main-event fallout can earn additional separate Shorts. Before publishing, compare the output to the manifest; block upload if any match has no Short or if a Short's title misidentifies a participant, finish, or winner.
+
+**Titles/captions must be platform-specific, accurate and match-specific:**
+- **YouTube Shorts:** `[Wrestler A] vs [Wrestler B] — [Accurate Result/Hook] | Ringside Recap`. For multi-person/tag matches, name all participants or both teams when length allows; use an accurate match-type/result variant when needed.
+- **Facebook Reels:** `[Accurate Hook/Result] — [Match Participants] | Ringside Recap`. The first line of the Facebook Reel description must be the actual corresponding published full-episode YouTube URL, when one exists, followed by the recap caption.
+- **TikTok:** A punchy true hook, a clear sentence identifying the match and result, and exactly five relevant hashtags by default (brand, promotion, show, wrestler, result/topic).
+- Never use vague/false/clickbait headlines or unrelated hooks, and do not claim a result not depicted by the Short.
+- All Shorts are cut directly from the exact approved master. Perform title/participant/result, hashtag and video-content QC for **each platform** before posting.
+
+
 ## THE CASE AGAINST
 Use M01. Preserve the prosecution-vs-defense courtroom format with opening case, exhibits, evidence, rebuttals, arguments, and decisive closing case. Visuals should be bold, premium, high-energy, and slightly cartoonish/editorial rather than plain. Use courtroom music and tasteful courtroom SFX. Keep the epic clickable thumbnail direction. No burned captions.
 
