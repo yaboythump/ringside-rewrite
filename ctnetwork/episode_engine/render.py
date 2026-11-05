@@ -33,7 +33,10 @@ import soundfile as sf
 
 SR = 48000
 FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-ENGINE_VERSION = 'ctn-episode-engine-dev-2026-11-05'
+ENGINE_VERSION = 'ctn-episode-engine-dev-2026-11-05b'
+# Broadcast-range BT.709 tags. ffmpeg 8 decodes JPEG stills as full-range (yuvj420p) and
+# would otherwise flag the master full-range, which some players render with crushed blacks.
+BT709 = ['-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709']
 
 
 # --------------------------------------------------------------------- utils
@@ -274,13 +277,13 @@ def render_clip(item, frames, W, H, fps, out: Path, log: Path, threads=2):
     sw, sh = 2 * W, 2 * H  # oversample so zoompan's integer crop steps are sub-pixel in the output
     focus = item.get('focus')
     if focus is None:
-        pre = f'scale={sw}:{sh}:force_original_aspect_ratio=increase,crop={sw}:{sh}'
+        pre = f'scale={sw}:{sh}:force_original_aspect_ratio=increase:out_range=tv,crop={sw}:{sh}'
     else:  # vertical reframing of a 16:9 still, centred on the approved focus point
-        pre = f'scale=-2:{sh},crop={sw}:{sh}:x=(iw-ow)*{float(focus)}:y=0'
+        pre = f'scale=-2:{sh}:out_range=tv,crop={sw}:{sh}:x=(iw-ow)*{float(focus)}:y=0'
     z, x, y = zoompan_expr(move, frames, zoom)
     vf = f"{pre},setsar=1,zoompan=z='{z}':x='{x}':y='{y}':d={frames}:s={W}x{H}:fps={fps},format=yuv420p"
     run(['ffmpeg', '-y', '-v', 'error', '-i', item['image'], '-vf', vf, '-frames:v', frames, '-an',
-         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', 10, '-threads', threads, '-pix_fmt', 'yuv420p', out], log)
+         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', 10, '-threads', threads, '-pix_fmt', 'yuv420p', *BT709, out], log)
 
 
 def frame_plan(timeline, fps, total_seconds, xfade_s):
@@ -375,7 +378,7 @@ def render_video(spec, mix: Path, total_s: float, work: Path, out: Path, threads
             for i in idx:
                 cmd += ['-i', clip_paths[i]]
             cmd += ['-filter_complex', graph, '-map', last, '-an', '-c:v', 'libx264', '-preset', 'veryfast',
-                    '-crf', 10, '-threads', threads, '-pix_fmt', 'yuv420p', p]
+                    '-crf', 10, '-threads', threads, '-pix_fmt', 'yuv420p', *BT709, p]
             run(cmd, work / f'chunk_{c0 // chunk:02}.log')
         expected = sum(nom) + (0 if is_last_chunk else T)
         got = int(round(duration(p) * fps))
@@ -387,7 +390,7 @@ def render_video(spec, mix: Path, total_s: float, work: Path, out: Path, threads
     # level 2: chain chunks, add branding, mux audio, final encode at show profile settings
     graph, last = xfade_graph(len(chunk_paths), chunk_nominal, T, fps, transition)
     ov = drawtext_chain(spec.get('overlays', []))
-    graph += f';{last}{ov or "null"},format=yuv420p[body]'
+    graph += f';{last}{ov or "null"},scale=out_range=tv,format=yuv420p[body]'
     cmd = ['ffmpeg', '-y', '-v', 'warning']
     for p in chunk_paths:
         cmd += ['-i', p]
@@ -397,7 +400,7 @@ def render_video(spec, mix: Path, total_s: float, work: Path, out: Path, threads
     if intro:
         cmd += ['-i', intro['video']]
         i_idx = a_idx + 1
-        graph += (f';[{i_idx}:v]scale={W}:{H}:force_original_aspect_ratio=decrease,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2,'
+        graph += (f';[{i_idx}:v]scale={W}:{H}:force_original_aspect_ratio=decrease:out_range=tv,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2,'
                   f'setsar=1,fps={fps},format=yuv420p[iv]'
                   f';[{i_idx}:a]aresample={SR},aformat=sample_fmts=fltp:channel_layouts=stereo[ia]'
                   f';[{a_idx}:a]aformat=sample_fmts=fltp:channel_layouts=stereo[ba]'
@@ -410,7 +413,7 @@ def render_video(spec, mix: Path, total_s: float, work: Path, out: Path, threads
     enc = spec.get('encode', {})
     cmd += ['-filter_complex', graph, '-map', vmap, '-map', amap, '-r', fps,
             '-c:v', 'libx264', '-preset', enc.get('preset', 'slow'), '-crf', enc.get('crf', 18),
-            '-tune', enc.get('tune', 'film'), '-threads', threads, '-pix_fmt', 'yuv420p',
+            '-tune', enc.get('tune', 'film'), '-threads', threads, '-pix_fmt', 'yuv420p', *BT709,
             '-c:a', 'aac', '-b:a', '192k', '-ar', SR, '-ac', 2, '-t', f'{total_out:.3f}',
             '-movflags', '+faststart', out]
     run(cmd, work / 'final_encode.log')
