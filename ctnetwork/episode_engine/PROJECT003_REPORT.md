@@ -30,6 +30,65 @@ All of this is in `ctnetwork/episode_engine/` on branch `claude/cinematic-produc
 | `formulas/hhwi.json`, `formulas/hip_hop_rewind.json` (drafts) | Same engine and QC for the other two shows. HHWI is limited to gentle wide/medium reframes (its profile says *preserve approved storyboard framing*) and keeps its locked intro prepended with its baked audio. Hip Hop Rewind is footage-first: QC plus ledger checks now, with photo-plate coverage available. |
 | `project003/` | Server runbook, summary and private review staging script. |
 
-Tests: **24/24 pass** locally (ffmpeg 6.1), 14 of them new. Server results: see §4.
+Tests: **26/26 pass** locally (ffmpeg 6.1), 16 of them new; **24/24** passed on the server (ffmpeg 8) before the final two fixes.
 
-RESULTS_PLACEHOLDER
+## 3. Proof of concept: Raven's Flock, cold open + "the real timeline" (73.1 s)
+
+Rendered on the server from the **existing** Raven assets only: the approved stills for segments 1–2, the existing narration, the approved music bed, the bell cue and the thumbnail outro. Render time 2.8 min at idle priority. It passed preflight, delivery QC and visual QC.
+
+- Proof of concept: `/srv/ctnetwork-dev/project003/renders/raven-poc/Ringside_Rewrite_Raven_POC_Cinematic.mp4` (1920×1080, -13.9 LUFS, -4.6 dBTP)
+- Before/after side-by-side: `…/raven-poc/Raven_POC_Before_After.mp4`
+- Private review page (unlisted, DEV, same mechanism as Project 002): the URL is in `/srv/ctnetwork-dev/project003/review_url.txt`. It is kept out of the repo because the link itself grants access. Rollback: delete the `dev-project003-cinematic-*` folder under `/srv/ctnetwork/review/`.
+
+Same 73 s window, measured by the same visual QC:
+
+| | Published 2026-11-04 | Project 002 dev | **Project 003** |
+|---|---|---|---|
+| Distinct visuals on screen | 4 | 8 | **11** |
+| Repeats within 90 s | 5 | 4 | **0** |
+| Static (frozen) picture | 73.2 s (100 %) | 0 s | **0 s** |
+| Shots / transitions | 9 shots, hard holds | 15 shots, all 0.6 s fades | **11 shots: 9 pause-timed cuts, 1 dip-to-black (act break), 1 dissolve to outro** |
+| Delivery QC | FAIL (static, repetition) | FAIL (repetition) | **PASS** |
+
+## 4. Full-episode comparison (Raven, 567 s)
+
+The plan for the full episode was built with `--plan-only` against the real job (no render). The published and Project 002 masters were measured with `visual_qc.py`.
+
+| Metric | Published | Project 002 | **Project 003 plan** |
+|---|---|---|---|
+| Shots | 61 | 61 (same edit) | **82** |
+| Same still back-to-back | 2 | 2 | **0** |
+| Identical frame re-shown within 90 s | 37 | 37 | **0** |
+| Shot length | flat ~9.3 s | flat ~9.3 s | **4–10 s on narration pauses** (one 14.1 s where segment 7 is short of stills) |
+| Transitions | hard holds | 61 identical fades | **67 cuts / 14 dissolves / 1 dip-to-black** |
+| Visual QC (measured) | FAIL: 35 repeats < 90 s, one visual ×7, 58 static runs, 567 s static | FAIL: 33 repeats < 90 s, one visual ×7 | full render not run (POC passes) |
+
+The planner also files **asset requests**: segments 3, 6 and 7 would each benefit from **one more approved still** to reach the target pacing. That is 3 extra chat-made images, at no generation credits, requested *before* production instead of fixed after.
+
+**Other shows (measured, read-only):**
+- Published Raven Shorts: all 3 have 6 frozen holds of 3 s or more. Short 2 shows one image twice.
+- Hip Hop Rewind E001: 11 repeats within 120 s and one visual ×7. The ledger finds **76.9 s of reused archive ranges** (e.g. `riot` 20–23 s used three times) and photo plates #1 ×5 and #4 ×5. These go to the producer as findings; the published episode was not touched.
+
+Server test run: **24/24 passed** (ffmpeg 8). Locally after the final fixes: **26/26**.
+
+## 5. Rule check
+
+- Same show and formula: the same narration files at native speed, the same music bed and levels, the same bell cue, the same CTNETWORK watermark and the same thumbnail outro. Only the approved stills each segment already had are used. Shorts formula unchanged.
+- Yesterday's Raven episode, its job folder and its review page were read, never written.
+- Credits spent: **0**. Nothing published. No service, cron, profile or approval gate changed. `publishing_authorized: false` in every report.
+- Dev isolation: code runs from `/srv/ctnetwork-dev/project003/src/<commit>/` and outputs go to `/srv/ctnetwork-dev/project003/`. Project 002's install is untouched. Rollback: `rm -rf /srv/ctnetwork-dev/project003` plus the review folder above.
+- iPhone prompts: about 15 device calls in total, by batching each inventory, install-and-run and readback into one call.
+
+## 6. Ready to deploy (each needs Thump's approval)
+
+| # | Change | Risk |
+|---|---|---|
+| D1 | Next Ringside Rewrite episode: `run_job.py <job> --planner coverage` in place of job-local scripts (with `--plan-only` first, so asset requests reach the chat-image step). | Low. Writes only to `--out`. |
+| D2 | Add `visual_qc.py` to the final review gate, report-only at first, with the contact sheet attached to the review page. | None (read-only). |
+| D3 | Hip Hop Rewind: run `visual_qc.py --ledger` before approval, to catch reused archive ranges. | None. |
+| D4 | HHWI: confirm the music bed and intro paths in `formulas/hhwi.json` (draft), then render the next episode with gentle reframes only. | Low. |
+
+**Decisions for Thump:**
+1. **Punch-in strength.** Close-ups crop to about 62 % of frame width on the 1672 px stills, which adds visible softening. Approve, or ask for medium-only.
+2. **Act breaks.** The cold open dips to black into "the real timeline". Should there be a second dip where the rewrite begins (pass `--act-breaks 2,<n>`)?
+3. **HHWI close-ups.** They stay off unless approved.
