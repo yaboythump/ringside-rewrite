@@ -1,0 +1,54 @@
+{
+  "show_slug": "ringside_rewrite",
+  "source": "Extracted verbatim from the approved/published Raven (2026-11-04) and ECW (2026-10-30) render scripts so the formula lives in one place instead of being copied into every job.",
+  "narrator": {
+    "note": "Reuse the job's existing narration files. Approved runtime: qwen_f06_native with voices/ringside_recap_f06_cpu.bin (same as ECW 20261030 and Raven 20261104). Engine never synthesizes.",
+    "speech_db": -20.0
+  },
+  "music": {
+    "bed": "/srv/ctnetwork/jobs/ringside-rewrite-no-attitude-era-20261021/inputs/audio/music_bed.wav",
+    "under_db": -32.0,
+    "gap_db": -26.0,
+    "duck": true,
+    "fade_in": 1.0,
+    "fade_out": 2.0,
+    "loop_crossfade": 2.0
+  },
+  "sfx_assets": {
+    "bell": {"file": "/srv/ctnetwork/assets/ringside-recap/real_ring_bell.wav", "db": -25.0, "fade": 0.0},
+    "crowd": {"file": "/srv/ctnetwork/assets/ringside-recap/crowd_medium.wav", "db": -34.0, "fade": 0.5}
+  },
+  "sfx_cues_default": [
+    {"sfx": "bell", "at": {"t": 0.25}},
+    {"sfx": "bell", "at": {"segment": 4}},
+    {"sfx": "bell", "at": {"segment": 11}},
+    {"sfx": "bell", "at": {"segment": 14}},
+    {"sfx": "crowd", "at": {"segment": 6}},
+    {"sfx": "crowd", "at": {"segment": 11}},
+    {"sfx": "crowd", "at": {"segment": 14}}
+  ],
+  "episode": {
+    "width": 1920, "height": 1080, "fps": 30,
+    "outro_hold": 4.0,
+    "overlays": [
+      {"text": "RINGSIDE REWRITE / WHAT IF", "size": 25, "alpha": 0.88, "x": "48", "y": "36"},
+      {"text": "CTNETWORK", "size": 19, "alpha": 0.65, "x": "w-tw-40", "y": "h-45"}
+    ],
+    "motion": {"enabled": true, "zoom": 0.07, "transition": "fade", "transition_seconds": 0.6},
+    "encode": {"preset": "slow", "crf": 18, "tune": "film"},
+    "min_seconds": 480, "max_seconds": 1500
+  },
+  "shorts": {
+    "width": 1080, "height": 1920, "fps": 30,
+    "cover_seconds": 2.5,
+    "min_seconds": 45.0, "max_seconds": 60.0,
+    "overlays": [
+      {"text": "RINGSIDE REWRITE", "size": 32, "alpha": 0.9, "x": "55", "y": "70"},
+      {"text": "WHAT IF / {SUBJECT}", "size": 30, "alpha": 0.9, "x": "55", "y": "h-220"},
+      {"text": "CTNETWORK", "size": 24, "alpha": 0.65, "x": "55", "y": "h-175"}
+    ],
+    "motion": {"enabled": true, "zoom": 0.06, "transition": "fade", "transition_seconds": 0.4},
+    "encode": {"preset": "slow", "crf": 18, "tune": "film"}
+  },
+  "loudness": {"I": -14.0, "TP": -1.5, "LRA": 11}
+}
