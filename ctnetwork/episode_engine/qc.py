@@ -21,6 +21,7 @@ DEFAULTS = {
     'max_freeze_seconds': 6.0, 'freeze_noise': 0.0015,
     'max_black_seconds': 0.2, 'silence_db': -50, 'max_silence_seconds': 2.0,
     'av_tolerance': 0.15,
+    'allowed_black': [],   # [start, end] windows of intentional dips to black (from the shot plan)
 }
 
 
@@ -86,8 +87,13 @@ def video_qc(path, **limits):
     peak = re.findall(r'Peak:\s*([-0-9.]+) dBFS', log)
     lufs = float(lufs[-1]) if lufs else None
     peak = float(peak[-1]) if peak else None
-    if black:
-        errors.append(f'black_frames_{len(black)}')
+    allowed = L.get('allowed_black') or []
+    planned = [b for b in black if any(a0 <= b[0] and (b[1] if b[1] is not None else dur) <= a1 for a0, a1 in allowed)]
+    unplanned = [b for b in black if b not in planned]
+    if unplanned:
+        errors.append(f'black_frames_{len(unplanned)}')
+    if planned:
+        warnings.append(f'planned_dip_to_black_{len(planned)}')
     if freeze:
         held = sum(((e if e is not None else dur) - s) for s, e in freeze)
         errors.append(f'static_holds_{len(freeze)}_totalling_{held:.0f}s_slideshow_feel')

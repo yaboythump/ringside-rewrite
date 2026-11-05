@@ -19,9 +19,9 @@ LOG=$P/run.log
 step(){ echo "== $(date -Is) $*" | tee -a $LOG; }
 step START engine=$ENG
 
-step TESTS
+if [ "${ONLY_POC:-0}" != "1" ]; then step TESTS
 PYTHONPATH=$DEV/pylib $LOW $PY -m pytest -q $ENG/tests > $P/test_results.txt 2>&1; echo "tests_rc=$?" >> $LOG
-tail -3 $P/test_results.txt >> $LOG
+tail -3 $P/test_results.txt >> $LOG; fi
 
 step POC_RENDER
 $LOW $PY $ENG/run_job.py $JOB --out $POC --planner coverage --excerpt 60-90 \
@@ -39,6 +39,7 @@ if [ -n "$OUTV" ]; then
   echo "sbs_rc=$?" >> $LOG
 fi
 
+if [ "${ONLY_POC:-0}" != "1" ]; then
 step FULL_EPISODE_PLANS
 $LOW $PY $ENG/run_job.py $JOB --out $P/renders/raven-plan-coverage --planner coverage --episode-only --plan-only >> $LOG 2>&1
 $LOW $PY $ENG/run_job.py $JOB --out $P/renders/raven-plan-approved --planner approved --episode-only --plan-only >> $LOG 2>&1
@@ -49,6 +50,7 @@ $LOW $PY $ENG/visual_qc.py "$PUBLISHED" --formula $ENG/formulas/ringside_rewrite
 $LOW $PY $ENG/visual_qc.py $JOB/outputs/Raven_Short_1.mp4 $JOB/outputs/Raven_Short_2.mp4 $JOB/outputs/Raven_Short_3.mp4 --formula $ENG/formulas/ringside_rewrite.json --shorts --out $P/qc/published_raven_shorts.json >> $LOG 2>&1
 $LOW $PY $ENG/visual_qc.py $HHR/outputs/Hip_Hop_Rewind_E001_Stack_Bundles.mp4 --formula $ENG/formulas/hip_hop_rewind.json --contact-dir $P/qc --ledger $HHR/outputs/Editing_Source/episode_edit.json --out $P/qc/hip_hop_rewind_e001.json >> $LOG 2>&1
 
+fi
 step HHWI_ASSET_SCAN
 { ls /srv/ctnetwork/assets; find /srv/ctnetwork/assets /srv/ctnetwork/jobs/hhwi-* -maxdepth 3 \( -iname '*hiphop*what*' -o -iname '*hhwi*' -o -iname 'music_bed*' -o -iname '*Intro_Recent*' \) 2>/dev/null | head -40; } > $P/hhwi_asset_scan.txt
 

@@ -272,3 +272,25 @@ def test_ledger_reuse_finds_repeated_archive_ranges():
     r = visual_qc.ledger_reuse(rows)
     assert not r['pass'] and len(r['reused_ranges']) == 1 and r['reused_ranges'][0]['overlap_seconds'] == 2.47
     assert r['photo_uses'] == {1: 2}
+
+
+def test_outro_image_not_reshown_just_before_outro(job, formula):
+    thumb = str(job / 'graphics/thumbnail.jpg')
+    x = speech_with_pauses(20, 5)
+    segs = [coverage.Segment(len(x) / SR, [str(job / 'graphics/scene_01.jpg'), thumb], coverage.speech_pauses(x, SR))]
+    P = {**formula['coverage'], 'shot_min': 2.0, 'shot_target': 3.0, 'shot_max': 5.0, 'min_source_px': 500}
+    plan = coverage.plan_timeline(segs, 640, 360, P, outro={'image': thumb, 'duration': 2.0})
+    assert [t['image'] for t in plan['timeline']].count(thumb) == 1  # only the outro hold
+    assert plan['report']['identical_repeats_within_90s'] == 0
+
+
+def test_planned_dip_to_black_is_not_missing_media(tmp_path):
+    out = tmp_path / 'dip.mp4'
+    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc2=s=320x180:r=30:d=3', '-f', 'lavfi', '-i',
+                    'testsrc2=s=320x180:r=30:d=3', '-f', 'lavfi', '-i', 'sine=f=300:d=5:sample_rate=48000',
+                    '-filter_complex', '[0:v][1:v]xfade=transition=fadeblack:duration=1:offset=2[v];[2:a]aformat=channel_layouts=stereo[a]',
+                    '-map', '[v]', '-map', '[a]', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', str(out)], check=True)
+    loose = dict(width=320, height=180, lufs=-20, lufs_tolerance=50, true_peak_max=10)
+    assert any('black_frames' in e for e in qc.video_qc(out, **loose)['errors'])
+    r = qc.video_qc(out, allowed_black=[[1.9, 3.1]], **loose)
+    assert not any('black_frames' in e for e in r['errors']) and any('planned_dip' in w for w in r['warnings'])

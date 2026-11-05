@@ -31,6 +31,19 @@ import thumbnail  # noqa: E402
 import visual_qc  # noqa: E402
 
 
+def planned_dips(spec) -> list[list[float]]:
+    """Time windows of the plan's intentional dip-to-black transitions (QC must not call them missing media)."""
+    out, t = [], 0.0
+    if spec.get('intro'):
+        t += render.duration(Path(spec['intro']['video']))
+    for i, it in enumerate(spec['timeline']):
+        tr = it.get('transition_in') or {}
+        if i and tr.get('type') == 'fadeblack':
+            out.append([round(t - 0.1, 3), round(t + float(tr.get('seconds', 1.0)) + 0.1, 3)])
+        t += float(it['duration'])
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('job')
@@ -97,7 +110,7 @@ def main():
         q = spec['qc']
         vqc = qc.video_qc(rec['output'], width=q['width'], height=q['height'], min_seconds=q['min_seconds'],
                           max_seconds=q['max_seconds'], lufs=spec['loudness']['I'],
-                          true_peak_max=spec['loudness']['TP'] + 0.5)
+                          true_peak_max=spec['loudness']['TP'] + 0.5, allowed_black=planned_dips(spec))
         is_short = spec['height'] > spec['width']
         limits = f.get('visual_qc_shorts' if is_short else 'visual_qc', {})
         vis = visual_qc.analyze_video(rec['output'], limits, contact_sheet=out / f"{spec['id']}_contact.jpg")

@@ -355,6 +355,12 @@ def plan_timeline(segments: list[Segment], out_w: int, out_h: int, policy: dict 
     prev_move = None
     act_breaks = set(int(a) for a in P.get('act_breaks', []))
     seg_start = np.concatenate([[0.0], np.cumsum([sg.duration for sg in segments])])
+    if outro:
+        # The outro holds the thumbnail; don't also show it inside the reuse window before the outro.
+        for j, sg in enumerate(segments):
+            if outro['image'] in sg.pool and seg_start[-1] - seg_start[j] < P['framing_reuse_after_seconds'] \
+                    and len(set(sg.pool)) > 1:
+                sg.pool = [x for x in sg.pool if x != outro['image']]
     for si, seg in enumerate(segments, 1):
         pool = list(dict.fromkeys(seg.pool))
         # Lookahead: a still that later segments also need (within the reuse window) is shared fairly,
