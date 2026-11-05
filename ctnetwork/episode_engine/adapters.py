@@ -32,12 +32,98 @@ def _sfx(formula, cues):
     return out
 
 
-def rewrite_episode(job: Path, formula: dict, *, cues=None, music_bed=None, intro=None):
+def approved_pools(job: Path, n_segments: int) -> list[list[str]]:
+    """Per-segment still pools from the approved edit (storyboard stays the source of truth).
+
+    Uses work/edit/timeline.json `segment` tags when present; otherwise each
+    segment's own scene image from production_plan_v2.json.
+    """
+    job = Path(job)
+    tl_file = job / 'work/edit/timeline.json'
+    plan = json.loads((job / 'production_plan_v2.json').read_text())
+    scenes = plan['outputs'][0]['scenes']
+    pools = [[str(job / scenes[i]['image'])] if i < len(scenes) and scenes[i].get('image') else [] for i in range(n_segments)]
+    if tl_file.exists():
+        tl = json.loads(tl_file.read_text())
+        if any(isinstance(t.get('segment'), int) for t in tl):
+            pools = [[] for _ in range(n_segments)]
+            for t in tl:
+                seg = t.get('segment')
+                if isinstance(seg, int) and 1 <= seg <= n_segments and t['image'] not in pools[seg - 1]:
+                    pools[seg - 1].append(t['image'])
+    return pools
+
+
+def coverage_timeline(segments: list[dict], pools: list[list[str]], formula: dict, width: int, height: int,
+                      outro: dict | None, act_breaks=None, seed=7):
+    """Plan a cinematic timeline (coverage.py) over the approved per-segment pools."""
+    import coverage
+    import render
+    segs = []
+    for s, pool in zip(segments, pools):
+        x = render.load_audio(Path(s['audio']))
+        segs.append(coverage.Segment(duration=len(x) / render.SR, pool=pool,
+                                     pauses=coverage.speech_pauses(x, render.SR)))
+    policy = dict(formula.get('coverage', {}))
+    if act_breaks is not None:
+        policy['act_breaks'] = act_breaks
+    return coverage.plan_timeline(segs, width, height, policy, outro=outro, seed=seed)
+
+
+def _filter_cues(cues, first, last, offsets_needed=True):
+    """Keep SFX cues that fall inside a segment excerpt and re-base their segment numbers."""
+    out = []
+    for c in cues:
+        at = c['at']
+        if 'segment' in at:
+            k = int(at['segment'])
+            if first <= k <= last:
+                out.append({**c, 'at': {**at, 'segment': k - first + 1}})
+        elif first == 1:
+            out.append(c)
+    return out
+
+
+def rewrite_episode(job: Path, formula: dict, *, cues=None, music_bed=None, intro=None, planner='approved',
+                    segment_range=None, act_breaks=None, output_name=None):
     job = Path(job)
     plan = json.loads((job / 'production_plan_v2.json').read_text())
     out = plan['outputs'][0]
     segments = [{'audio': str(job / s['audio']), 'speech_db': formula['narrator']['speech_db']} for s in out['scenes']]
     ep = formula['episode']
+    if planner == 'coverage':
+        pools = approved_pools(job, len(segments))
+        first, last = segment_range or (1, len(segments))
+        segs, pools = segments[first - 1:last], pools[first - 1:last]
+        outro_hold = ep['outro_hold']
+        if act_breaks is not None:
+            ab = [a - first + 1 for a in act_breaks if first < a <= last]
+        else:
+            ab = [a - first + 1 for a in formula.get('coverage', {}).get('act_breaks', []) if first < a <= last]
+        planned = coverage_timeline(segs, pools, formula, ep['width'], ep['height'],
+                                    outro={'image': str(job / 'graphics/thumbnail.jpg'), 'duration': outro_hold},
+                                    act_breaks=ab)
+        music = dict(formula['music'])
+        if music_bed:
+            music['bed'] = music_bed
+        all_cues = cues or formula['sfx_cues_default']
+        excerpt = segment_range is not None and (first, last) != (1, len(segments))
+        qc_min, qc_max = (ep['min_seconds'], ep['max_seconds']) if not excerpt else (formula.get('excerpt', {}).get('min_seconds', 30), formula.get('excerpt', {}).get('max_seconds', 120))
+        spec = {
+            'id': 'episode' if not excerpt else f'excerpt_s{first:02}-s{last:02}', 'job_dir': str(job),
+            'show': formula['show_slug'], 'output': output_name or Path(out['file']).name,
+            'width': ep['width'], 'height': ep['height'], 'fps': ep['fps'],
+            'segments': segs, 'timeline': planned['timeline'], 'outro_hold': outro_hold,
+            'music': music, 'sfx': _sfx(formula, _filter_cues(all_cues, first, last)),
+            'overlays': ep['overlays'], 'motion': ep['motion'], 'encode': ep['encode'],
+            'loudness': formula['loudness'], 'thumbnail': str(job / 'graphics/thumbnail.jpg'),
+            'plan_report': planned['report'],
+            'qc': {'width': ep['width'], 'height': ep['height'], 'min_seconds': qc_min, 'max_seconds': qc_max},
+            'visual_qc': formula.get('visual_qc', {}),
+        }
+        if intro:
+            spec['intro'] = {'video': intro}
+        return spec
     tl_file = job / 'work/edit/timeline.json'
     if tl_file.exists():  # preserve the approved edit exactly: same images, same order, same cut points
         timeline = [{'image': t['image'], 'duration': float(t['duration'])} for t in json.loads(tl_file.read_text())]
@@ -71,7 +157,34 @@ def rewrite_episode(job: Path, formula: dict, *, cues=None, music_bed=None, intr
     }
     if intro:
         spec['intro'] = {'video': intro}
+    import coverage
+    spec['plan_report'] = coverage.plan_report(timeline)
     return spec
+
+
+def segment_durations(job: Path) -> list[float]:
+    import subprocess
+    plan = json.loads((Path(job) / 'production_plan_v2.json').read_text())
+    return [float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0',
+                                           str(Path(job) / s['audio'])]).decode()) for s in plan['outputs'][0]['scenes']]
+
+
+def choose_excerpt(durs: list[float], lo: float, hi: float, tail: float) -> tuple[int, int]:
+    """Contiguous segment window whose runtime (+ outro hold) lands in [lo, hi]; prefer the cold open."""
+    best = None
+    for a in range(len(durs)):
+        t = tail
+        for b in range(a, len(durs)):
+            t += durs[b]
+            if lo <= t <= hi:
+                score = (a != 0, abs(t - (lo + hi) / 2))
+                if best is None or score < best[0]:
+                    best = (score, (a + 1, b + 1))
+            if t > hi:
+                break
+    if best is None:
+        raise ValueError(f'no contiguous segment window fits {lo}-{hi}s')
+    return best[1]
 
 
 def rewrite_shorts(job: Path, formula: dict, *, covers_dir=None, subject='', music_bed=None):

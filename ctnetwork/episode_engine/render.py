@@ -33,7 +33,7 @@ import soundfile as sf
 
 SR = 48000
 FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-ENGINE_VERSION = 'ctn-episode-engine-dev-2026-11-05b'
+ENGINE_VERSION = 'ctn-episode-engine-dev-2026-11-05c-coverage'
 # Broadcast-range BT.709 tags. ffmpeg 8 decodes JPEG stills as full-range (yuvj420p) and
 # would otherwise flag the master full-range, which some players render with crushed blacks.
 BT709 = ['-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709']
@@ -271,19 +271,59 @@ def zoompan_expr(move: str, frames: int, zoom: float):
     raise ValueError(move)
 
 
+def rect_expr(r0, r1, frames: int):
+    """zoompan expressions that glide the visible window from rect r0 to r1 (x, y, w normalised).
+
+    The canvas is already cover-fitted to the output aspect, so a window of width
+    w has height w as well. Smoothstep easing gives no abrupt starts or stops.
+    """
+    last = max(frames - 1, 1)
+    p = f'(on/{last})'
+    e = f'({p}*{p}*(3-2*{p}))'
+    (x0, y0, w0), (x1, y1, w1) = r0, r1
+    z = f'1/({w0:.5f}+({w1 - w0:.5f})*{e})'
+    x = f'({x0:.5f}+({x1 - x0:.5f})*{e})*iw'
+    y = f'({y0:.5f}+({y1 - y0:.5f})*{e})*ih'
+    return z, x, y
+
+
 def render_clip(item, frames, W, H, fps, out: Path, log: Path, threads=2):
     move = item.get('move', 'push_in')
     zoom = float(item.get('zoom', 0.07))
     sw, sh = 2 * W, 2 * H  # oversample so zoompan's integer crop steps are sub-pixel in the output
     focus = item.get('focus')
     if focus is None:
-        pre = f'scale={sw}:{sh}:force_original_aspect_ratio=increase:out_range=tv,crop={sw}:{sh}'
+        pre = f'scale={sw}:{sh}:force_original_aspect_ratio=increase:flags=lanczos:out_range=tv,crop={sw}:{sh}'
     else:  # vertical reframing of a 16:9 still, centred on the approved focus point
-        pre = f'scale=-2:{sh}:out_range=tv,crop={sw}:{sh}:x=(iw-ow)*{float(focus)}:y=0'
-    z, x, y = zoompan_expr(move, frames, zoom)
-    vf = f"{pre},setsar=1,zoompan=z='{z}':x='{x}':y='{y}':d={frames}:s={W}x{H}:fps={fps},format=yuv420p"
+        pre = f'scale=-2:{sh}:flags=lanczos:out_range=tv,crop={sw}:{sh}:x=(iw-ow)*{float(focus)}:y=0'
+    post = ''
+    if item.get('rect0') and item.get('rect1'):
+        z, x, y = rect_expr(item['rect0'], item['rect1'], frames)
+        tightest = min(item['rect0'][2], item['rect1'][2])
+        if tightest < 0.8:  # a punch-in magnifies the source: restore a little edge acuity
+            post = ',unsharp=5:5:0.35:5:5:0'
+    else:
+        z, x, y = zoompan_expr(move, frames, zoom)
+    vf = f"{pre},setsar=1,zoompan=z='{z}':x='{x}':y='{y}':d={frames}:s={W}x{H}:fps={fps}{post},format=yuv420p"
     run(['ffmpeg', '-y', '-v', 'error', '-i', item['image'], '-vf', vf, '-frames:v', frames, '-an',
          '-c:v', 'libx264', '-preset', 'veryfast', '-crf', 10, '-threads', threads, '-pix_fmt', 'yuv420p', *BT709, out], log)
+
+
+def boundary_plan(timeline, nominal, fps, default_type, default_seconds):
+    """Per-cut transition (type, frames). Boundary b sits between shot b-1 and shot b.
+
+    A shot's own `transition_in` wins; otherwise the spec default applies (the
+    Project 002 behaviour: uniform crossfades). 'cut' is a frame-exact hard cut.
+    Fades are capped at a third of either neighbouring shot.
+    """
+    out = [None]
+    for b in range(1, len(timeline)):
+        tr = timeline[b].get('transition_in') or {'type': default_type, 'seconds': default_seconds}
+        kind = tr.get('type', default_type)
+        T = 0 if kind == 'cut' else int(round(float(tr.get('seconds', default_seconds)) * fps))
+        T = max(0, min(T, nominal[b - 1] // 3, nominal[b] // 3))
+        out.append(('cut' if T == 0 else kind, T))
+    return out
 
 
 def frame_plan(timeline, fps, total_seconds, xfade_s):
@@ -301,24 +341,30 @@ def frame_plan(timeline, fps, total_seconds, xfade_s):
     return nominal, T
 
 
-def xfade_graph(n_inputs, nominal, T, fps, transition):
-    """filter_complex chaining inputs with xfade at frame-exact offsets.
+def xfade_graph(n_inputs, nominal, T, fps, transition, bounds=None):
+    """filter_complex chaining inputs with per-boundary transitions at frame-exact offsets.
 
-    Input i (except the last) is rendered T frames longer than its nominal slot,
-    so each crossfade starts exactly on the shot's original cut time and the
-    picture never drifts against the narration.
+    Input i (except the last) is rendered T_(i+1) frames longer than its nominal
+    slot, so each transition starts exactly on the shot's original cut time and
+    the picture never drifts against the narration. Hard cuts (T=0) are joined
+    with concat. `bounds[i]` = (type, frames) for the boundary before input i;
+    without it every boundary uses (transition, T): the Project 002 behaviour.
     """
-    if n_inputs == 1 or T == 0:
-        if n_inputs == 1:
-            return '[0:v]null[vout]', '[vout]'
-        ins = ''.join(f'[{i}:v]' for i in range(n_inputs))
-        return f'{ins}concat=n={n_inputs}:v=1:a=0[vout]', '[vout]'
+    if bounds is None:
+        bounds = [None] + [(transition if T else 'cut', T)] * (n_inputs - 1)
+    if n_inputs == 1:
         return '[0:v]null[vout]', '[vout]'
-    parts, prev, acc = [], '[0:v]', 0
+    # concat emits the AV_TIME_BASE timebase; put every input on it so xfade and concat can mix freely.
+    parts = [f'[{i}:v]settb=AVTB,setpts=PTS-STARTPTS[n{i}]' for i in range(n_inputs)]
+    prev, acc = '[n0]', 0
     for i in range(1, n_inputs):
         acc += nominal[i - 1]
+        kind, Ti = bounds[i]
         lab = f'[x{i}]'
-        parts.append(f'{prev}[{i}:v]xfade=transition={transition}:duration={T / fps:.6f}:offset={acc / fps:.6f}{lab}')
+        if Ti == 0:
+            parts.append(f'{prev}[n{i}]concat=n=2:v=1:a=0{lab}')
+        else:
+            parts.append(f'{prev}[n{i}]xfade=transition={kind}:duration={Ti / fps:.6f}:offset={acc / fps:.6f}{lab}')
         prev = lab
     return ';'.join(parts), prev
 
@@ -338,20 +384,29 @@ def render_video(spec, mix: Path, total_s: float, work: Path, out: Path, threads
     W, H, fps = spec['width'], spec['height'], spec.get('fps', 30)
     motion = spec.get('motion', {})
     timeline = spec['timeline']
-    nominal, T = frame_plan(timeline, fps, total_s, motion.get('transition_seconds', 0.6) if motion.get('enabled', True) else 0)
-    if not motion.get('enabled', True):
+    enabled = motion.get('enabled', True)
+    nominal, T = frame_plan(timeline, fps, total_s, motion.get('transition_seconds', 0.6) if enabled else 0)
+    if not enabled:
         T = 0
+    bounds = boundary_plan(timeline, nominal, fps, motion.get('transition', 'fade'),
+                           motion.get('transition_seconds', 0.6) if enabled else 0)
+    if not enabled or not any(t.get('transition_in') for t in timeline):
+        bounds = [None] + [((motion.get('transition', 'fade') if T else 'cut'), T)] * (len(timeline) - 1)
+    tail = [bounds[i + 1][1] if i + 1 < len(timeline) else 0 for i in range(len(timeline))]
     clips_dir = work / 'clips'
     clips_dir.mkdir(exist_ok=True)
     clip_paths, lengths = [], []
     for i, it in enumerate(timeline):
         it = dict(it)
-        if not motion.get('enabled', True):
+        if not enabled:
             it['move'] = 'static'
+            it.pop('rect0', None)
+            it.pop('rect1', None)
         it.setdefault('move', MOVES[i % len(MOVES)])
         it.setdefault('zoom', motion.get('zoom', 0.07))
-        frames = nominal[i] + (T if i < len(timeline) - 1 else 0)
+        frames = nominal[i] + tail[i]
         key = hashlib.sha256(json.dumps([sha256(Path(it['image'])), it['move'], it['zoom'], it.get('focus'),
+                                         it.get('rect0'), it.get('rect1'),
                                          frames, W, H, fps, ENGINE_VERSION]).encode()).hexdigest()[:16]
         p = clips_dir / f'{i:03}_{key}.mp4'
         if not p.exists():  # resume-safe: identical inputs are never re-rendered
@@ -363,32 +418,33 @@ def render_video(spec, mix: Path, total_s: float, work: Path, out: Path, threads
         print(f'CLIP {i + 1}/{len(timeline)} {it["move"]} {frames}f', flush=True)
 
     transition = motion.get('transition', 'fade')
-    # level 1: chunks of clips joined with xfade
-    chunk_paths, chunk_nominal = [], []
+    # level 1: chunks of clips joined with their own transitions
+    chunk_paths, chunk_nominal, chunk_first = [], [], []
     for c0 in range(0, len(clip_paths), chunk):
         idx = list(range(c0, min(c0 + chunk, len(clip_paths))))
         nom = [nominal[i] for i in idx]
-        is_last_chunk = idx[-1] == len(clip_paths) - 1
         p = work / f'chunk_{c0 // chunk:02}.mp4'
         if len(idx) == 1:
             shutil.copyfile(clip_paths[idx[0]], p)
         else:
-            graph, last = xfade_graph(len(idx), nom, T, fps, transition)
+            graph, last = xfade_graph(len(idx), nom, T, fps, transition, bounds=[None] + [bounds[i] for i in idx[1:]])
             cmd = ['ffmpeg', '-y', '-v', 'error']
             for i in idx:
                 cmd += ['-i', clip_paths[i]]
             cmd += ['-filter_complex', graph, '-map', last, '-an', '-c:v', 'libx264', '-preset', 'veryfast',
                     '-crf', 10, '-threads', threads, '-pix_fmt', 'yuv420p', *BT709, p]
             run(cmd, work / f'chunk_{c0 // chunk:02}.log')
-        expected = sum(nom) + (0 if is_last_chunk else T)
+        expected = sum(nom) + tail[idx[-1]]
         got = int(round(duration(p) * fps))
         if abs(got - expected) > 1:
             raise RuntimeError(f'chunk {p.name} length {got}f != expected {expected}f')
         chunk_paths.append(p)
         chunk_nominal.append(sum(nom))
+        chunk_first.append(idx[0])
 
     # level 2: chain chunks, add branding, mux audio, final encode at show profile settings
-    graph, last = xfade_graph(len(chunk_paths), chunk_nominal, T, fps, transition)
+    graph, last = xfade_graph(len(chunk_paths), chunk_nominal, T, fps, transition,
+                              bounds=[None] + [bounds[i] for i in chunk_first[1:]])
     ov = drawtext_chain(spec.get('overlays', []))
     graph += f';{last}{ov or "null"},scale=out_range=tv,format=yuv420p[body]'
     cmd = ['ffmpeg', '-y', '-v', 'warning']

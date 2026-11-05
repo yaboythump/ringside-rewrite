@@ -1,0 +1,51 @@
+{
+  "show_slug": "hip_hop_rewind",
+  "source": "DRAFT (Project 003) from the approved E001 Stack Bundles package (jobs/hip-hop-rewind-e001-stack-bundles-network-logo-r8). Hip Hop Rewind is footage-first: archival ranges plus brief photo plates, full theme intro first. The engine's reusable parts here are visual QC (repetition and ledger range reuse) and the coverage planner for photo plates; footage assembly stays in the existing build_footage_cut.py until a formula is approved.",
+  "intro": {
+    "video": "/srv/ctnetwork/jobs/hip-hop-rewind-e001-stack-bundles-full-theme-r5/outputs/Hip_Hop_Rewind_Full_Song_Intro.mp4",
+    "prepend_once": true,
+    "preserve_baked_audio": true,
+    "seconds": 37
+  },
+  "episode": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "min_seconds": 480,
+    "max_seconds": 720
+  },
+  "loudness": {
+    "I": -14.0,
+    "TP": -1.5,
+    "LRA": 11
+  },
+  "coverage": {
+    "framings": [
+      "wide",
+      "medium",
+      "close"
+    ],
+    "shot_min": 4.0,
+    "shot_target": 6.0,
+    "shot_max": 9.0,
+    "min_source_px": 1040
+  },
+  "visual_qc": {
+    "max_appearances_per_visual": 2,
+    "repeat_window_seconds": 120,
+    "max_repeats_in_window": 0,
+    "max_static_seconds": 6.0,
+    "max_hold_seconds": 16.0
+  },
+  "visual_qc_shorts": {
+    "max_appearances_per_visual": 1,
+    "repeat_window_seconds": 60,
+    "max_repeats_in_window": 0,
+    "max_static_seconds": 3.0,
+    "max_hold_seconds": 12.0
+  },
+  "archive_ledger": {
+    "max_reused_seconds": 0,
+    "note": "The same source range should not appear twice; reused ranges are listed by visual_qc.ledger_reuse."
+  }
+}

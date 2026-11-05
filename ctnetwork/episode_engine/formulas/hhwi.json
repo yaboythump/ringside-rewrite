@@ -1,0 +1,145 @@
+{
+  "show_slug": "hip_hop_what_if",
+  "source": "DRAFT (Project 003) from config/show_profiles/hhwi.json and ctnetwork/shows/hip_hop_what_if.yaml. Narrator Talia (Higgsfield, locked exception) is reused from the job; the engine never synthesizes. Music bed and intro paths must be confirmed against the last approved HHWI render before first use; preflight blocks the render if any asset is missing.",
+  "narrator": {
+    "note": "Talia via Higgsfield, locked. Reuse existing job narration only.",
+    "speech_db": -20.0
+  },
+  "music": {
+    "bed": "/srv/ctnetwork/assets/hhwi/music_bed.wav",
+    "under_db": -30.0,
+    "gap_db": -24.0,
+    "duck": true,
+    "fade_in": 1.0,
+    "fade_out": 2.0,
+    "loop_crossfade": 2.0
+  },
+  "sfx_assets": {},
+  "sfx_cues_default": [],
+  "episode": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "outro_hold": 4.0,
+    "overlays": [
+      {
+        "text": "CTNETWORK",
+        "size": 19,
+        "alpha": 0.65,
+        "x": "w-tw-40",
+        "y": "h-45"
+      }
+    ],
+    "motion": {
+      "enabled": true,
+      "zoom": 0.07,
+      "transition": "fade",
+      "transition_seconds": 0.6
+    },
+    "encode": {
+      "preset": "slow",
+      "crf": 18,
+      "tune": "film"
+    },
+    "min_seconds": 480,
+    "max_seconds": 1500,
+    "branding_note": "Thump 2026-11-05: no show text in the top-left of the full episode; the only overlay is the CTNETWORK watermark, bottom-right, for the entire runtime (including the outro hold)."
+  },
+  "shorts": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "cover_seconds": 2.5,
+    "min_seconds": 45.0,
+    "max_seconds": 60.0,
+    "overlays": [
+      {
+        "text": "HIP HOP WHAT IF",
+        "size": 32,
+        "alpha": 0.9,
+        "x": "55",
+        "y": "70"
+      },
+      {
+        "text": "CTNETWORK",
+        "size": 24,
+        "alpha": 0.65,
+        "x": "55",
+        "y": "h-175"
+      }
+    ],
+    "motion": {
+      "enabled": true,
+      "zoom": 0.06,
+      "transition": "fade",
+      "transition_seconds": 0.4
+    },
+    "encode": {
+      "preset": "slow",
+      "crf": 18,
+      "tune": "film"
+    }
+  },
+  "loudness": {
+    "I": -14.0,
+    "TP": -1.5,
+    "LRA": 11
+  },
+  "coverage": {
+    "note": "HHWI profile: preserve_approved_storyboard_framing. Only gentle reframes (wide + medium >= ~78%) until Thump approves close-ups for this show.",
+    "shot_min": 4.0,
+    "shot_target": 7.0,
+    "shot_max": 10.0,
+    "min_source_px": 1300,
+    "framings": [
+      "wide",
+      "medium"
+    ],
+    "max_uses_per_still": 10,
+    "cut_on_pauses": true,
+    "pause_min_seconds": 0.22,
+    "segment_transition": {
+      "type": "fade",
+      "seconds": 0.6
+    },
+    "act_break_transition": {
+      "type": "fadeblack",
+      "seconds": 1.0
+    },
+    "outro_transition": {
+      "type": "fade",
+      "seconds": 0.8
+    },
+    "act_breaks": [
+      2
+    ],
+    "act_breaks_note": "Segment 1 is always the cold open ending on 'This is Ringside Rewrite...'; a dip-to-black opens the documented-history act. Pass --act-breaks per job for the 'rewrite begins' turn.",
+    "move_speed_px_s": 22.0,
+    "zoom_rate": 0.012,
+    "framing_reuse_after_seconds": 90.0,
+    "max_uses_per_framing": 3
+  },
+  "visual_qc": {
+    "max_appearances_per_visual": 3,
+    "repeat_window_seconds": 90,
+    "max_repeats_in_window": 0,
+    "max_static_seconds": 6.0,
+    "max_hold_seconds": 14.0
+  },
+  "visual_qc_shorts": {
+    "max_appearances_per_visual": 1,
+    "repeat_window_seconds": 60,
+    "max_repeats_in_window": 0,
+    "max_static_seconds": 3.0,
+    "max_hold_seconds": 12.0
+  },
+  "excerpt": {
+    "min_seconds": 60,
+    "max_seconds": 90
+  },
+  "intro": {
+    "video": "/srv/ctnetwork/jobs/hhwi-wayne-no-drake-nicki-20261011/assets/Hip_Hop_What_If_Intro_Recent_Episodes_v2.mp4",
+    "prepend_once": true,
+    "preserve_baked_audio": true
+  }
+}

@@ -145,5 +145,59 @@
     "I": -14.0,
     "TP": -1.5,
     "LRA": 11
+  },
+  "coverage": {
+    "note": "Project 003 virtual-coverage planner. Uses ONLY the stills the approved edit gave each segment; reframes them (wide/medium/close) instead of re-showing the same frame. Narration, music, SFX, branding, outro unchanged.",
+    "shot_min": 4.0,
+    "shot_target": 6.5,
+    "shot_max": 9.5,
+    "min_source_px": 1040,
+    "framings": [
+      "wide",
+      "medium",
+      "close",
+      "close_alt"
+    ],
+    "max_uses_per_still": 10,
+    "cut_on_pauses": true,
+    "pause_min_seconds": 0.22,
+    "segment_transition": {
+      "type": "fade",
+      "seconds": 0.6
+    },
+    "act_break_transition": {
+      "type": "fadeblack",
+      "seconds": 1.0
+    },
+    "outro_transition": {
+      "type": "fade",
+      "seconds": 0.8
+    },
+    "act_breaks": [
+      2
+    ],
+    "act_breaks_note": "Segment 1 is always the cold open ending on 'This is Ringside Rewrite...'; a dip-to-black opens the documented-history act. Pass --act-breaks per job for the 'rewrite begins' turn.",
+    "move_speed_px_s": 22.0,
+    "zoom_rate": 0.012,
+    "framing_reuse_after_seconds": 90.0,
+    "max_uses_per_framing": 3
+  },
+  "visual_qc": {
+    "max_appearances_per_visual": 3,
+    "repeat_window_seconds": 90,
+    "max_repeats_in_window": 0,
+    "max_static_seconds": 6.0,
+    "max_hold_seconds": 14.0
+  },
+  "visual_qc_shorts": {
+    "max_appearances_per_visual": 1,
+    "repeat_window_seconds": 60,
+    "max_repeats_in_window": 0,
+    "max_static_seconds": 3.0,
+    "max_hold_seconds": 12.0
+  },
+  "excerpt": {
+    "min_seconds": 60,
+    "max_seconds": 90
   }
 }
