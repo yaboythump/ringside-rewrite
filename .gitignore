@@ -11,3 +11,4 @@ output/*
 
 tiny_turn_up/episodes/*/build/
 secrets/tiny_turn_up_token.json
+*.egg-info/
