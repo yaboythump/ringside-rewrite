@@ -5,6 +5,8 @@ Channel is **Made for Kids**, so comments/notifications/merch shelf are off — 
 search titles, bright thumbnails, series playlists, compilations and steady uploads.
 
 ## Files
+- `HOW_TO_MAKE_A_VIDEO.md` — **start here**: Suno song → `tinyturnup make` → `tinyturnup upload`
+- `episodes/` — one folder per video (drop `song.mp3` in, videos come out in `build/`)
 - `CHARACTERS.md` — the cast + style guide (use in EVERY image prompt)
 - `songs/01-turkey-wobble.md` … `songs/04-snowman-shake.md` — lyrics with dance cues, music style, title, description, tags, thumbnail + scene prompts, Shorts
 - `EXISTING_VIDEO_FIXES.md` — retitles for the 3 videos already live

@@ -1,0 +1,26 @@
+{
+  "title": "Kids Dance Party 🎉 Brain Break Dance Songs | Freeze Dance & Christmas | Tiny Turn Up",
+  "description": "Non-stop kids dance party! 🎉 Freeze dances, a Thanksgiving turkey wobble and Christmas dance songs for kids ages 3–7 with Jojo, Kiki and Waddles. Press play for classroom brain breaks, indoor recess and holiday parties.\n\nNew Tiny Turn Up dance songs every week!\n#kidsdance #brainbreak #freezedance",
+  "tags": [
+    "kids dance party",
+    "brain break",
+    "brain breaks for kids",
+    "freeze dance",
+    "kids dance songs",
+    "christmas songs for kids",
+    "movement songs",
+    "indoor recess",
+    "preschool songs",
+    "dance along for kids",
+    "tiny turn up"
+  ],
+  "thumbnail_prompt": "Jojo, Kiki and Waddles all mid-jump together in a burst of confetti; left half autumn leaves, right half snowy with Christmas lights. Bold text 'DANCE PARTY!' in yellow with thick black outline, small text 'TINY TURN UP' with a gold crown.",
+  "compile_from": [
+    "01-gobble-gobble-wobble",
+    "02-freeze-like-ice",
+    "03-jingle-jingle-freeze",
+    "04-snowman-shake",
+    "02-freeze-like-ice",
+    "03-jingle-jingle-freeze"
+  ]
+}

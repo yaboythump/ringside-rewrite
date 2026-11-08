@@ -9,3 +9,5 @@ output/*
 *.log
 .DS_Store
 
+tiny_turn_up/episodes/*/build/
+secrets/tiny_turn_up_token.json

@@ -1,0 +1,3 @@
+[console_scripts]
+ringside = ringside.cli:main
+tinyturnup = tiny_turn_up.cli:main
