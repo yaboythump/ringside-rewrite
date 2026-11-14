@@ -46,6 +46,13 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .fighter .portrait{width:84px}
 .fighter .name{font-family:var(--display);font-weight:800;font-size:24px;line-height:1;text-transform:uppercase;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .fighter .name small{font-family:var(--label);font-weight:500;font-size:12px;letter-spacing:.12em;color:var(--muted)}
+.fighter.me{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(216,178,90,.12)}
+.fighter.them{border:2px solid rgba(196,36,58,.55)}
+.side{position:absolute;top:-10px;left:12px;padding:1px 9px;border-radius:4px;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.me .side{background:var(--gold);color:var(--bg)}
+.them .side{background:var(--crimson);color:var(--fg)}
+.fighter{margin-top:6px}
+.vs{font-family:var(--display);font-weight:800;color:var(--muted);font-size:13px;letter-spacing:.2em;text-align:center}
 .bars{display:grid;gap:6px;min-width:0}
 .bar{height:14px;background:var(--panel-2);border-radius:3px;overflow:hidden;position:relative}
 .bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--crimson),#e04a52);transition:width .35s ease}
@@ -390,10 +397,10 @@ function fighterHTML(f,who){
   const pips=Array.from({length:HYPE_MAX},(_,i)=>`<span class="${i<f.hype?"on":""}"></span>`).join("");
   const chips=[f.block?`<span class="chip block">Block ${f.block}</span>`:"",f.weak?`<span class="chip weak">Weakened ${f.weak}</span>`:"",f.reversal?`<span class="chip rev">Reversal ready</span>`:"",f.kicked?`<span class="chip">Kick-out used</span>`:""].join("");
   const intent= who==="o" ? `<div class="intent"><span class="k">Next</span><span class="v ${G.intent.type}">${esc(G.intent.label)}</span></div>` : "";
-  return `<section class="fighter" id="f-${who}">
+  return `<section class="fighter ${who==="p"?"me":"them"}" id="f-${who}"><span class="side">${who==="p"?"You":"Opponent"}</span>
     ${portrait(f.w,false)}
     <div class="bars">
-      <div class="name">${esc(f.w.name)} <small>${who==="p"?"You":esc(f.w.style)}</small></div>
+      <div class="name">${esc(f.w.name)} <small>${esc(f.w.style)}</small></div>
       <div class="bar"><i style="width:${(f.hp/f.max*100).toFixed(1)}%"></i><b>${f.hp} / ${f.max}</b></div>
       <div class="hype ${f.hype>=HYPE_MAX?"full":""}" title="Hype ${f.hype}/10">${pips}</div>
       ${intent}
@@ -407,7 +414,9 @@ function render(){
   const ladder=G.ladder.map((k,i)=>`<span class="${i<G.round?"done":i===G.round?"cur":""}">${WRESTLERS[k].name}</span>`).join("");
   app.innerHTML=`
   <header class="brand"><h1>Ringside <span>Card Clash</span></h1><div class="ladder">${ladder}</div></header>
+  <div class="eyebrow">You are ${esc(p.w.name)} · vs ${esc(o.w.name)}</div>
   ${fighterHTML(o,"o")}
+  <div class="vs">Your cards play against the opponent above</div>
   <div class="call"><div class="now">${esc(G.log[0]||"")}</div>${G.log[1]?`<div class="prev">${esc(G.log[1])}</div>`:""}</div>
   ${fighterHTML(p,"p")}
   <div class="meta"><div class="energy">${Array.from({length:ENERGY},(_,i)=>`<i class="${i<p.energy?"on":""}"></i>`).join("")}<span>&nbsp;${p.energy} energy</span></div>
