@@ -247,6 +247,17 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .deck{display:flex;flex-wrap:wrap;gap:6px}
 .deck button,.deck span{font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;background:rgba(255,255,255,.06);border-left:3px solid var(--c)}
 .deck button:hover{background:rgba(209,33,59,.35)}
+.mutebtn{font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);padding:5px 12px;background:rgba(255,255,255,.06);clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}
+.tip{font-size:13px;line-height:1.4;color:var(--steel);padding:8px 12px;background:rgba(95,168,255,.1);border-left:3px solid var(--defense)}
+.tip b{color:var(--defense)}
+.stars{font-family:var(--display);font-weight:900;font-size:38px;letter-spacing:.06em;line-height:1;color:var(--gold);text-shadow:0 0 18px rgba(226,189,98,.5)}
+.stars small{display:block;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-shadow:none}
+.card .combo{position:absolute;left:8px;bottom:7px;font-family:var(--label);font-weight:700;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#1a1405;background:var(--metal);padding:1px 6px}
+.stip{display:inline-block;padding:2px 10px;background:var(--crimson);color:#fff;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.goals{margin:0;padding:0;list-style:none;display:grid;gap:5px;font-family:var(--label);font-weight:600;font-size:14px;letter-spacing:.04em;color:var(--muted)}
+.goals li::before{content:"\25CB  "}
+.goals li.done{color:var(--fg)}
+.goals li.done::before{content:"\2605  ";color:var(--gold)}
 @media (max-width:440px){.hubtop{grid-template-columns:84px 1fr}.hubtop .portrait{width:84px}}
 @media (max-width:440px){.fighter{grid-template-columns:70px 1fr;gap:10px}.fighter .portrait{width:70px}.hand{grid-template-columns:repeat(2,minmax(0,1fr))}.btn{font-size:19px;padding:12px 16px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
@@ -335,7 +346,7 @@ const cv=$("#arena"), cx=cv.getContext("2d");
 let W=0,H=0,DPR=1,bulbs=[],burst=0,tint=null;
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);if(RM)drawArena(0);}
 addEventListener("resize",resize);
-function crowd(n=40,color){burst=Math.max(burst,n);tint=color||null;}
+function crowd(n=40,color){burst=Math.max(burst,n);tint=color||null;if(n>=60)SFX.crowd();}
 function drawArena(t){
   const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0d0c10");g.addColorStop(.55,"#060608");g.addColorStop(1,"#0a0708");
   cx.fillStyle=g;cx.fillRect(0,0,W,H);
@@ -375,6 +386,27 @@ resize(); if(!RM) requestAnimationFrame(loop);
 function flash(){const f=$("#flash");f.classList.remove("go");void f.offsetWidth;f.classList.add("go");}
 function quake(){app.classList.remove("quake");void app.offsetWidth;app.classList.add("quake");}
 
+/* ---------- sound (synthesized, no files) ---------- */
+let AC=null,muted=false,lastCrowd=0;
+try{muted=localStorage.getItem("rcc-mute")==="1"}catch(e){}
+function actx(){if(muted)return null;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();}catch(e){return null}return AC;}
+function tone(f,dur,gain,type="sine",to){const a=actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+.02);}
+function noise(dur,freq,gain,type="lowpass",attack=0){const a=actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(a.destination);s.start(t);}
+const SFX={
+  card(){noise(.05,2500,.12,"highpass")},
+  hit(){noise(.14,800,.5);tone(120,.14,.4,"sine",50)},
+  big(){noise(.4,500,.8);tone(80,.45,.7,"sine",28)},
+  block(){tone(240,.08,.22,"square",160)},
+  hype(){tone(440,.12,.12,"triangle",880)},
+  heal(){tone(330,.2,.12,"sine",660)},
+  count(){noise(.1,350,.7);tone(150,.12,.5,"sine",70)},
+  bell(){tone(1320,1.1,.2);tone(1985,.8,.09);tone(2640,.5,.04)},
+  crowd(){const n=Date.now();if(n-lastCrowd<900)return;lastCrowd=n;noise(1.4,1100,.2,"bandpass",.25)},
+  boo(){tone(140,.7,.12,"sawtooth",95)},
+};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-mute]");if(!b)return;muted=!muted;try{localStorage.setItem("rcc-mute",muted?"1":"0")}catch(e){}document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");if(!muted)SFX.bell();});
+const muteBtn=()=>`<button class="mutebtn" data-mute>${muted?"Sound off":"Sound on"}</button>`;
+
 /* ---------- pieces ---------- */
 function portrait(w,note){
   if(w.img) return `<div class="portrait"><img src="${w.img}" alt="${esc(w.name)}"></div>`;
@@ -394,7 +426,8 @@ function titleScreen(){
     <button class="mode ${saved?"":"primary"}" id="m-career"><span class="go">${saved?"New career":"Career mode"}</span><h3 class="${saved?"":"metal"}">Career</h3><p>Start at the bottom of the rankings. Cut promos, call out the names above you, train new moves into your deck, and fight your way to the Rewrite Championship.</p></button>
     <button class="mode" id="m-quick"><span class="go">Quick match</span><h3>Ladder</h3><p>Pick a wrestler and win three matches in a row for the title. No saves, no strings.</p></button>
   </div>
-  <div class="foot">Original fictional wrestlers. Unofficial and fan-made. Brick Malone's portrait was generated on RunPod with MiniMax H3.</div>`;
+  <div class="foot">Original fictional wrestlers. Unofficial and fan-made. Brick Malone's portrait was generated on RunPod with MiniMax H3.</div>
+  <div class="actions">${muteBtn()}</div>`;
   $("#m-cont")?.addEventListener("click",()=>{C=saved;hub();});
   $("#m-career").onclick=()=>selectScreen("career");
   $("#m-quick").onclick=()=>selectScreen("quick");
@@ -415,15 +448,15 @@ function selectScreen(mode){
       ${best[w.id]?`<div class="chip rev" style="justify-self:start">Champion ×${best[w.id]}</div>`:""}
     </button>`).join("")}
   </div>
-  <p class="howto"><b>How a match works.</b> Each turn you get 3 energy and 5 cards. Strikes and grapples do damage, defense keeps you standing, hype fills your meter. You can always see your opponent's next move, so block the big hits and save Reversal for their grapples. Fill hype to 10 to unleash your finisher. Drop them to 0 stamina for the pin, but anyone with 5 hype can kick out at two, once per match.</p>
+  <p class="howto"><b>How a match works.</b> Each turn you get 3 energy and 5 cards. Strikes and grapples do damage, defense keeps you standing, hype fills your meter. You can always see your opponent's next move, so block the big hits and save Reversal for their grapples. Land a strike and then a grapple in the same turn for a +3 combo. Fill hype to 10 to unleash your finisher. Drop them to 0 stamina for the pin, but anyone with 5 hype can kick out at two, once per match.</p>
   <div class="actions"><button class="btn" id="back">Back</button></div>`;
   app.querySelectorAll(".pick").forEach(b=>b.onclick=()=>mode==="career"?newCareer(b.dataset.w):startRun(b.dataset.w));
   $("#back").onclick=titleScreen;
 }
 
 function makeFighter(id,opt={}){
-  const w=WRESTLERS[id], lvl=opt.level||0, hp=w.hp+lvl*3;
-  return {w,hp,max:hp,hype:Math.min(HYPE_MAX,(id==="kid"?4:0)+(opt.hype||0)),block:0,weak:0,kicked:false,
+  const w=WRESTLERS[id], lvl=opt.level||0, hp=w.hp+lvl*8+(opt.hpPlus||0);
+  return {w,hp:Math.max(10,hp+(opt.hpMod||0)),max:hp,hype:Math.min(HYPE_MAX,(id==="kid"?4:0)+(opt.hype||0)),block:0,weak:0,kicked:false,
     deck:shuffle(opt.deck?[...opt.deck]:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)]),hand:[],discard:[],energy:ENERGY,reversal:false};
 }
 function startRun(id){
@@ -432,15 +465,17 @@ function startRun(id){
 }
 async function startMatch(){
   if(G.mode==="career"){
-    G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus}); G.o=makeFighter(G.oid,{level:G.level});
+    const plus=G.stip==="lastman"?15:0;
+    G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus+(C.hypeMod||0),hpMod:C.hpMod||0,hpPlus:plus}); G.o=makeFighter(G.oid,{level:G.level,hpPlus:plus});
     G.log=[G.title?`${G.title}. The Rewrite Championship is on the line.`:`${showName()}. ${G.o.w.name} is waiting in the ring.`];
     if(C.hypeBonus) G.log.unshift(`Your promo has the crowd buzzing. +${C.hypeBonus} hype to start.`);
+    if(G.stip) G.log.unshift(`${STIPS[G.stip][0]}! ${STIPS[G.stip][1]}`);
   } else {
     G.level=Math.min(G.round,2);
     G.p=makeFighter(G.pid); G.o=makeFighter(G.ladder[G.round],{level:G.level});
     G.log=[`Round ${G.round+1} of 3. ${G.o.w.name} is waiting in the ring.`];
   }
-  G.turn=1; G.busy=true; G.over=false; G.bars={};
+  G.turn=1; G.busy=true; G.over=false; G.bars={}; G.stats={fin:0,kicks:0,rev:0}; G.lastType=null;
   pickIntent(); dealHand(); render();
   await vsSplash();
   G.busy=false; render();
@@ -448,14 +483,14 @@ async function startMatch(){
 function vsSplash(){
   return new Promise(res=>{
     const ov=document.createElement("div");ov.className="overlay";
-    const sub=G.mode==="career"?(G.title?"Championship match":showName()):`Round ${G.round+1} of 3`;
+    const sub=G.mode==="career"?((G.stip?STIPS[G.stip][0]+" · ":"")+(G.title?"Championship match":showName())):`Round ${G.round+1} of 3`;
     ov.innerHTML=`<div class="vs">
       <div class="who side-l">${portrait(G.p.w)}<small class="metal">You</small><h3>${esc(G.p.w.name)}</h3></div>
       <div class="x metal">VS</div>
       <div class="who side-r">${portrait(G.o.w)}<small style="color:var(--crimson)">${esc(sub)}</small><h3>${esc(G.o.w.name)}</h3></div>
       <div class="vs-foot skip">Tap to fight</div></div>`;
     document.body.appendChild(ov); crowd(70);
-    let done=false;const end=()=>{if(done)return;done=true;ov.remove();res();};
+    let done=false;const end=()=>{if(done)return;done=true;ov.remove();SFX.bell();res();};
     ov.onclick=end; setTimeout(end,RM?600:2200);
   });
 }
@@ -467,7 +502,7 @@ function draw(f,n){
     f.hand.push(f.deck.pop());
   }
 }
-function dealHand(){const p=G.p;p.block=0;p.reversal=false;p.energy=ENERGY;p.discard.push(...p.hand);p.hand=[];draw(p,HAND);G.dealt=true;}
+function dealHand(){const p=G.p;G.lastType=null;p.block=0;p.reversal=false;p.energy=ENERGY;p.discard.push(...p.hand);p.hand=[];draw(p,HAND);G.dealt=true;}
 function startTurn(){dealHand();render();}
 function say(t){G.log.unshift(t);G.log=G.log.slice(0,2);G.fresh=true;}
 function gainHype(f,n){f.hype=Math.min(HYPE_MAX,f.hype+n);}
@@ -478,11 +513,20 @@ function pickIntent(){
   const bag=[];for(const [k,v] of Object.entries(w.ai)) for(let i=0;i<v;i++) bag.push(k);
   if(o.hp<o.max*.35) bag.push("defense","defense");
   const t=bag[rnd(bag.length)], lvl=G.level||0;
-  if(t==="strike"){const d=[5,6,7,8][rnd(4)]+lvl;G.intent={type:"strike",label:`Strike ${d}`,dmg:d};}
-  else if(t==="grapple"){let d=[7,8,9,10][rnd(4)]+lvl;if(w.id==="brick")d+=2;G.intent={type:"grapple",label:`Grapple ${d}`,dmg:d};}
-  else if(t==="defense"){const b=6+rnd(4);G.intent={type:"defense",label:`Block ${b}`,block:b};}
+  if(t==="strike"){const d=[7,8,9,10][rnd(4)]+lvl*2+stipBonus("strike");G.intent={type:"strike",label:`Strike ${d}`,dmg:d};}
+  else if(t==="grapple"){let d=[9,10,11,12][rnd(4)]+lvl*2+stipBonus("grapple");if(w.id==="brick")d+=2;G.intent={type:"grapple",label:`Grapple ${d}`,dmg:d};}
+  else if(t==="defense"){const b=6+rnd(4)+lvl*2;G.intent={type:"defense",label:`Block ${b}`,block:b};}
   else G.intent={type:"hype",label:"Play to the crowd",hype:3+(w.id==="kid"?1:0)};
 }
+const STIPS={cage:["Steel Cage","No kick-outs. A pin is a pin."],street:["Street Fight","Every strike hits 2 harder, for both of you."],submission:["Submission Match","Every grapple hits 2 harder, for both of you."],lastman:["Last Man Standing","Both wrestlers get 15 extra stamina."]};
+function stipBonus(type){return (G.stip==="street"&&type==="strike")||(G.stip==="submission"&&type==="grapple")?2:0;}
+function cardDmg(c){let d=c.dmg+stipBonus(c.type);if(c.type==="grapple"&&G.pid==="brick")d+=2;if(c.type==="grapple"&&G.lastType==="strike")d+=3;return d;}
+function matchRating(won){
+  const s=G.stats||{fin:0,kicks:0,rev:0},win=won?G.p:G.o;
+  const r=1+Math.min(1,Math.max(0,G.turn-4)*.25)+Math.min(1,s.fin*.5)+Math.min(1.5,s.kicks*.75)+(s.rev?.25:0)+(win.hp<=win.max*.35?.5:0);
+  return Math.min(5,Math.round(r*4)/4);
+}
+function starsHTML(r){const full=Math.floor(r),fr=r-full;return `<div class="stars">${"★".repeat(full)}${fr>=.75?"¾":fr>=.5?"½":fr>=.25?"¼":""}<small>${r.toFixed(2)} star match</small></div>`;}
 function damage(t,amount,{ignoreBlock=false}={}){
   let d=amount;
   if(!ignoreBlock&&t.block>0){const u=Math.min(t.block,d);t.block-=u;d-=u;}
@@ -490,6 +534,7 @@ function damage(t,amount,{ignoreBlock=false}={}){
 }
 function impact(who,amount,big){
   fx(who,amount,big);
+  if(big)SFX.big();else if(amount>0)SFX.hit();else SFX.block();
   if(amount>=8||big){quake();crowd(big?90:30);}
   if(big) flash();
 }
@@ -498,23 +543,23 @@ function playCard(i){
   if(G.busy||G.over) return;
   const p=G.p,o=G.o,id=p.hand[i],c=CARDS[id];
   if(c.cost>p.energy) return;
-  p.energy-=c.cost;p.hand.splice(i,1);p.discard.push(id);G.dealt=false;
+  p.energy-=c.cost;p.hand.splice(i,1);p.discard.push(id);G.dealt=false;SFX.card();
   let msg=`${c.name}!`;
   if(c.dmg){
-    let d=c.dmg;
-    if(c.type==="grapple"&&G.pid==="brick") d+=2;
+    const combo=c.type==="grapple"&&G.lastType==="strike";
+    let d=cardDmg(c);
     if(p.weak>0) d=Math.max(0,d-3);
     const dealt=damage(o,d);
-    msg=`${c.name} for ${dealt}${dealt<d?` (${d-dealt} blocked)`:""}!`;
-    impact("o",dealt,false);
+    msg=`${combo?"COMBO! ":""}${c.name} for ${dealt}${dealt<d?` (${d-dealt} blocked)`:""}!`;
+    impact("o",dealt,false);G.lastType=c.type;if(combo)crowd(60);
     gainHype(p,(c.hype||0)+(c.type==="strike"&&G.pid==="raven"?1:0));
     gainHype(o,1);
   }
   if(c.self){p.hp=Math.max(1,p.hp-c.self);fx("p",c.self);}
-  if(c.block){p.block+=c.block;msg+=` Blocking ${p.block}.`;}
+  if(c.block){p.block+=c.block;msg+=` Blocking ${p.block}.`;SFX.block();}
   if(c.weak){o.weak=Math.max(o.weak,c.weak);}
-  if(c.heal){p.hp=Math.min(p.max,p.hp+c.heal);msg=`Second wind! +${c.heal} stamina.`;}
-  if(c.hypeGain){gainHype(p,c.hypeGain+(G.pid==="kid"?1:0));crowd(25);}
+  if(c.heal){p.hp=Math.min(p.max,p.hp+c.heal);msg=`${c.name}! +${c.heal} stamina.`;SFX.heal();}
+  if(c.hypeGain){gainHype(p,c.hypeGain+(G.pid==="kid"?1:0));crowd(25);SFX.hype();}
   if(c.reversal){p.reversal=true;msg="Reversal ready.";}
   if(c.energy){p.energy+=c.energy;msg=`${c.name}! +${c.energy} energy.`;}
   if(c.draw) draw(p,c.draw);
@@ -536,7 +581,7 @@ async function useFinisher(){
   if(G.busy||G.over||p.hype<HYPE_MAX) return;
   G.busy=true;render();
   await finisherSplash(p.w,true);
-  p.hype=0;
+  p.hype=0;G.stats.fin++;
   const dealt=damage(o,f.dmg,{ignoreBlock:G.pid==="raven"});
   if(G.pid==="dutch") o.weak=Math.max(o.weak,2);
   if(G.pid==="kid") p.hp=Math.min(p.max,p.hp+5);
@@ -557,8 +602,9 @@ async function endTurn(){
 function oppAct(){
   const p=G.p,o=G.o,it=G.intent;
   o.block=0;let msg="";
+  if((G.level||0)>=2&&it.type!=="finisher") gainHype(o,1);
   if(it.type==="finisher"){
-    o.hype=0;let d=it.dmg;if(o.weak>0)d=Math.max(0,d-3);
+    o.hype=0;G.stats.fin++;let d=it.dmg;if(o.weak>0)d=Math.max(0,d-3);
     const dealt=damage(p,d,{ignoreBlock:o.w.id==="raven"});
     if(o.w.id==="dutch") p.weak=Math.max(p.weak,2);
     if(o.w.id==="kid") o.hp=Math.min(o.max,o.hp+5);
@@ -567,7 +613,7 @@ function oppAct(){
     const back=5+(G.pid==="dutch"?3:0);
     if(G.pid==="dutch") p.block+=3;
     const dealt=damage(o,back);impact("o",dealt,false);crowd(60);
-    gainHype(p,2);msg=`REVERSED! You counter for ${dealt}!`;
+    gainHype(p,2);G.stats.rev++;msg=`REVERSED! You counter for ${dealt}!`;
   } else if(it.type==="strike"||it.type==="grapple"){
     if(p.reversal&&it.type==="strike") p.block+=3;
     let d=it.dmg;if(o.weak>0)d=Math.max(0,d-3);
@@ -590,10 +636,10 @@ function oppAct(){
 function checkPin(down,up){
   if(down.hp>0) return false;
   G.busy=true;render();
-  const canKick=!down.kicked&&down.hype>=5;
+  const canKick=!down.kicked&&down.hype>=5&&G.stip!=="cage";
   pinCount(canKick).then(()=>{
     if(canKick){
-      down.kicked=true;down.hype-=5;down.hp=5;crowd(120);
+      down.kicked=true;down.hype-=5;down.hp=5;G.stats.kicks++;crowd(120);
       say(`${down.w.name} KICKS OUT AT TWO!`);
       G.busy=false;
       if(down===G.o) render(); else {G.turn++;pickIntent();startTurn();}
@@ -606,6 +652,7 @@ async function pinCount(kick){
   const steps=kick?["1","2","KICK OUT!"]:["1","2","3"];
   for(const s of steps){
     ov.innerHTML=`<div><div class="ref">The referee counts</div><div class="count ${s==="3"?"three":""} ${s.length>2?"out":""}">${s}</div></div>`;
+    SFX.count();if(s==="3"){SFX.bell();setTimeout(SFX.bell,260);setTimeout(SFX.bell,520);}
     if(s==="3"||s.length>2){flash();crowd(140);quake();}
     await wait(s.length>2||s==="3"?1000:700);
   }
@@ -625,6 +672,7 @@ function finishMatch(won){
     ${champ?`<div class="belt"></div>`:""}
     <h2 class="${won?"metal":""}" ${won?"":'style="color:var(--crimson)"'}>${champ?"Rewrite Champion":won?`${esc(G.p.w.name)} wins`:`${esc(G.o.w.name)} wins`}</h2>
     <div class="ladder">${ladder}</div>
+    ${starsHTML(matchRating(won))}
     <p>${champ?`Three straight wins. ${esc(G.p.w.name)} walks out with the gold.`:won?`Next up: ${esc(WRESTLERS[G.ladder[G.round+1]].name)}. You start the next match fresh.`:`You lasted ${G.turn} turns. Run it back or pick someone new.`}</p>
     <div class="actions">${won&&!champ?`<button class="btn primary" id="next">Next match</button>`:`<button class="btn primary" id="again">Run it back</button>`}<button class="btn" id="roster">Pick wrestler</button></div>
   </div>`;
@@ -641,17 +689,17 @@ const isPPV=()=>C.week%4===0;
 const showName=()=>isPPV()?PPVS[(C.week/4-1)%PPVS.length]:"Monday Rewrite";
 function loadCareer(){try{const c=JSON.parse(localStorage.getItem("rcc-career")||"null");return c&&WRESTLERS[c.wid]?c:null}catch(e){return null}}
 function saveCareer(){try{localStorage.setItem("rcc-career",JSON.stringify(C))}catch(e){}}
-function fameTier(f){return f>=120?"Legend":f>=60?"Main eventer":f>=25?"Rising star":"Rookie";}
+function fameTier(f){return f>=200?"Legend":f>=100?"Main eventer":f>=40?"Rising star":"Rookie";}
 function alignName(a){return a>=2?"Fan favorite":a<=-2?"Villain":"Tweener";}
 const isChamp=()=>C.champ===C.wid;
 const myRank=()=>C.contenders.indexOf(C.wid);
-function levelOf(id){if(C.champ===id)return 3;const i=C.contenders.indexOf(id);return Math.max(0,3-Math.floor(i/2));}
+function levelOf(id){if(C.champ===id)return 4;const i=C.contenders.indexOf(id);return Math.max(0,3-Math.floor(i/2));}
 
 function newCareer(wid){
   const others=shuffle(Object.keys(WRESTLERS).filter(k=>k!==wid&&k!=="silas"));
   const w=WRESTLERS[wid];
   C={wid,week:1,fame:0,w:0,l:0,align:0,deck:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)],
-     champ:"silas",contenders:[...others,wid],rival:null,booked:null,hypeBonus:0,segDone:false,defenses:0,reigns:0,
+     champ:"silas",contenders:[...others,wid],rival:null,booked:null,hypeBonus:0,hpMod:0,hypeMod:0,best:0,peak:99,segDone:false,defenses:0,reigns:0,
      news:[`${w.name} signs with Ringside Rewrite and starts at the bottom of the rankings.`,`Silas Crowe holds the Rewrite Championship.`]};
   saveCareer();hub();
 }
@@ -666,13 +714,14 @@ function book(){
     else if(r>0) id=C.contenders[r-1];
     else id=C.contenders[1];
   }
-  C.booked={id,title};saveCareer();return C.booked;
+  C.booked={id,title,stip:ppv?["cage","street","submission","lastman"][rnd(4)]:null};saveCareer();return C.booked;
 }
 function news(t){C.news.unshift(t);C.news=C.news.slice(0,5);}
 
 function hub(){
-  G=null;const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
-  const r=myRank();
+  G=null;normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
+  const r=myRank();C.peak=Math.min(C.peak,isChamp()?0:r+1);
+  const goals=[["Win your first match",C.w>=1],["Crack the top 3",C.peak<=3],["Have a 4-star match",C.best>=4],["Win the Rewrite Championship",C.reigns>0],["Defend the title 3 times",C.defenses>=3],["Have a 5-star classic",C.best>=5]];
   const rankRows=[`<li class="champ ${isChamp()?"me":""}"><span class="n">C</span><span>${esc(WRESTLERS[C.champ].name)} <span class="s">Champion</span></span><span></span></li>`]
     .concat(C.contenders.map((id,i)=>{
       const canCall=!isChamp()&&!C.segDone&&r>i&&r-i<=3&&id!==C.rival;
@@ -692,8 +741,9 @@ function hub(){
     <div class="eyebrow">${b.title?"Championship match tonight":isPPV()?`${esc(showName())} · big event`:"Tonight's main event"}</div>
     <div class="tonight">${portrait(o)}<div style="display:grid;gap:4px;min-width:0">
       <div class="vsline">vs ${esc(o.name)}</div>
-      <div class="stats"><span>${esc(o.style)}</span><span>${C.champ===b.id?"Champion":"Rank #"+(C.contenders.indexOf(b.id)+1)}</span>${C.hypeBonus?`<span style="color:var(--gold)">+${C.hypeBonus} hype from your promo</span>`:""}</div>
+      <div class="stats"><span>${esc(o.style)}</span><span>${C.champ===b.id?"Champion":"Rank #"+(C.contenders.indexOf(b.id)+1)}</span>${C.hypeBonus?`<span style="color:var(--gold)">+${C.hypeBonus} hype from your promo</span>`:""}${C.hypeMod?`<span style="color:var(--gold)">+${C.hypeMod} hype, crowd support</span>`:""}${C.hpMod?`<span style="color:var(--strike)">${C.hpMod} stamina, banged up</span>`:""}</div>
     </div></div>
+    ${b.stip?`<div><span class="stip">${STIPS[b.stip][0]}</span> <span style="color:var(--steel);font-size:13px">${STIPS[b.stip][1]}</span></div>`:""}
     ${C.segDone?`<p class="howto" style="padding:10px 14px">Segment done for the week. Head to the ring.</p>`:`<div class="eyebrow" style="color:var(--steel)">Pick one segment before the match</div>
     <div class="segs">
       <button class="seg" id="s-promo" style="--c:#5fa8ff"><b>Cut a promo</b><span>Talk about ${esc(o.name)}. Win the crowd and start the match with extra hype.</span></button>
@@ -705,8 +755,9 @@ function hub(){
   <div class="cols">
     <section class="panel"><h3>Rankings</h3><ol class="ranks">${rankRows}</ol></section>
     <section class="panel"><h3>Around the promotion</h3><ul class="news">${C.news.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></section>
+    <section class="panel"><h3>Career goals</h3><ul class="goals">${goals.map(g=>`<li class="${g[1]?"done":""}">${g[0]}</li>`).join("")}</ul><div class="stats"><span>Best match<b>${C.best?C.best.toFixed(2)+" ★":"-"}</b></span><span>Title defenses<b>${C.defenses}</b></span></div></section>
   </div>
-  <div class="actions"><button class="btn" id="quit">Main menu</button></div>`;
+  <div class="actions"><button class="btn" id="quit">Main menu</button><span class="grow"></span>${muteBtn()}</div>`;
   $("#fight").onclick=careerMatch;
   $("#quit").onclick=titleScreen;
   $("#s-promo")?.addEventListener("click",()=>promo(b.id));
@@ -746,7 +797,7 @@ function promo(oid){
         t=k==="heel"?(pts>0?"Massive heat. They hate you.":"Mild boos. Nobody's buying it."):(pts>0?"The crowd roars with you!":"Polite applause. They don't believe you.");
         shift+=k==="face"?1:-1;
       }
-      score+=pts;round++;if(pts>=2)crowd(80);else if(pts>0)crowd(30);
+      score+=pts;round++;if(pts>=2)crowd(80);else if(pts>0)crowd(30);else if(pts<0)SFX.boo();
       step({t,c:""});
     });
   };
@@ -796,17 +847,50 @@ function callOut(id){
   ov.querySelector("#ok").onclick=()=>{ov.remove();hub();};
 }
 
+function normC(){C.hpMod=C.hpMod||0;C.hypeMod=C.hypeMod||0;C.best=C.best||0;C.peak=C.peak||99;}
+const up=n=>{C.align=Math.max(-5,Math.min(5,C.align+n));};
+function weeklyEvent(){
+  normC();
+  if(Math.random()>.55) return hub();
+  const pool=C.contenders.filter(x=>x!==C.wid),other=WRESTLERS[pool[rnd(pool.length)]];
+  const EV=[
+    {t:"Backstage ambush",d:`${other.name} jumps you in the parking lot before the show.`,
+     a:["Fight back",()=>Math.random()<.55?(C.fame+=5,`You send ${other.name} running. +5 fame.`):(C.hpMod-=8,`${other.name} gets the better of you. You start this week's match down 8 stamina.`)],
+     b:["Walk away",()=>(up(1),"You keep your cool. The fans respect it.")]},
+    {t:"Sponsor offer",d:"An energy drink wants you in a commercial. The script is embarrassing.",
+     a:["Take the money",()=>(C.fame+=6,up(-1),"Sellout! But a famous one. +6 fame.")],
+     b:["Sign autographs instead",()=>(C.fame+=3,up(1),"The line goes around the block. +3 fame.")]},
+    {t:"Veteran's advice",d:"A retired champion offers you an hour in the ring.",
+     a:["Learn a new move",()=>{const id=TRAIN_POOL[rnd(TRAIN_POOL.length)];C.deck.push(id);return `You pick up the ${CARDS[id].name}. It's in your deck now.`}],
+     b:["Ask about working the crowd",()=>(C.hypeMod+=3,"He teaches you to work the room. +3 hype to start this week's match.")]},
+    {t:"Tweaked knee",d:"You landed wrong in training. The doctor says you can work, but carefully.",
+     a:["Work through it",()=>(C.hpMod-=6,C.fame+=2,"Tough as nails. You start this week's match down 6 stamina. +2 fame.")],
+     b:["Rest up",()=>(C.segDone=true,"You skip this week's segment to heal. Straight to the match.")]},
+    {t:"Sign in the crowd",d:"A kid in the front row holds up a sign with your name on it.",
+     a:["Hand over your wristband",()=>(C.hypeMod+=2,up(1),"The whole section is behind you. +2 hype to start this week's match.")],
+     b:["Tear the sign up",()=>(C.fame+=4,up(-2),"The building boos you out of it. +4 fame.")]},
+  ];
+  const ev=EV[rnd(EV.length)];
+  const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
+  ov.innerHTML=`<div class="result"><div class="eyebrow">Week ${C.week} · before the show</div><h2 style="font-size:clamp(36px,10vw,60px)">${esc(ev.t)}</h2><p>${esc(ev.d)}</p>
+    <div class="actions" style="justify-content:center"><button class="btn primary" id="ev-a">${esc(ev.a[0])}</button><button class="btn" id="ev-b">${esc(ev.b[0])}</button></div></div>`;
+  const pick=k=>{const out=ev[k][1]();saveCareer();
+    ov.innerHTML=`<div class="result"><div class="eyebrow">${esc(ev.t)}</div><p style="font-size:17px;color:var(--fg)">${esc(out)}</p><div class="actions"><button class="btn primary" id="ev-ok">Continue</button></div></div>`;
+    ov.querySelector("#ev-ok").onclick=()=>{ov.remove();hub();};};
+  ov.querySelector("#ev-a").onclick=()=>pick("a");ov.querySelector("#ev-b").onclick=()=>pick("b");
+}
+
 /* matches */
 function careerMatch(){
   const b=book();
-  G={mode:"career",pid:C.wid,oid:b.id,level:levelOf(b.id),title:b.title?`${showName()}`:null,log:[]};
+  G={mode:"career",pid:C.wid,oid:b.id,level:levelOf(b.id),title:b.title?`${showName()}`:null,stip:b.stip||null,log:[]};
   startMatch();
 }
 function careerResult(won){
   const b=C.booked,oid=b.id,o=WRESTLERS[oid],me=WRESTLERS[C.wid];
-  const r=myRank(),or=C.contenders.indexOf(oid);let fame=0,lines=[];
+  const r=myRank(),or=C.contenders.indexOf(oid);let fame=0,lines=[];const rating=matchRating(won);C.best=Math.max(C.best||0,rating);
   if(won){
-    C.w++;fame=5+levelOf(oid)*3;
+    C.w++;fame=2+levelOf(oid)*2+Math.round(rating*1.5);
     if(b.title&&!isChamp()){ // win the title
       C.contenders=C.contenders.filter(x=>x!==C.wid);C.contenders.unshift(C.champ);C.champ=C.wid;C.reigns++;fame+=20;
       lines.push(`${me.name} defeats ${o.name} to become Rewrite Champion!`);
@@ -816,7 +900,7 @@ function careerResult(won){
       C.contenders.splice(r,1);C.contenders.splice(or,0,C.wid);lines.push(`${me.name} beats ${o.name} and climbs to #${or+1}.`);
     } else lines.push(`${me.name} beats ${o.name}.`);
   } else {
-    C.l++;fame=G.o.hp<=G.o.max*.3?1:-2;
+    C.l++;fame=Math.round(rating)-3;
     if(b.title&&isChamp()){
       C.champ=oid;C.contenders=C.contenders.filter(x=>x!==oid);C.contenders.splice(1,0,C.wid);
       lines.push(`${o.name} pins ${me.name}. We have a new Rewrite Champion.`);
@@ -830,18 +914,31 @@ function careerResult(won){
   if(others.length&&Math.random()<.7){const i=others[rnd(others.length)];const up=C.contenders[i+1],dn=C.contenders[i];[C.contenders[i],C.contenders[i+1]]=[up,dn];news(`${WRESTLERS[up].name} upsets ${WRESTLERS[dn].name} and moves to #${i+1}.`);}
   lines.forEach(news);
   const champNow=isChamp(), wonTitle=won&&b.title&&C.reigns&&C.champ===C.wid&&lines[0].includes("become");
-  C.week++;C.booked=null;C.rival=null;C.hypeBonus=0;C.segDone=false;saveCareer();
+  C.week++;C.booked=null;C.rival=null;C.hypeBonus=0;C.hpMod=0;C.hypeMod=0;C.segDone=false;saveCareer();
   const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
   if(won) crowd(wonTitle?240:120);
   ov.innerHTML=`<div class="result">
     <div class="eyebrow">${won?"Winner by pinfall":"Pinned, one two three"}</div>
     ${wonTitle?`<div class="belt"></div>`:""}
     <h2 class="${won?"metal":""}" ${won?"":'style="color:var(--crimson)"'}>${wonTitle?"New Champion":won?"Victory":"Defeat"}</h2>
+    ${starsHTML(rating)}
     <p>${esc(lines[0])}</p>
     <div class="stats" style="justify-content:center"><span>Fame<b>${fame>=0?"+":""}${fame}</b></span><span>Record<b>${C.w}-${C.l}</b></span><span>Rank<b>${champNow?"Champ":"#"+(myRank()+1)}</b></span></div>
     <div class="actions"><button class="btn primary" id="next">Week ${C.week}</button></div></div>`;
   if(wonTitle) flash();
-  ov.querySelector("#next").onclick=()=>{ov.remove();hub();};
+  ov.querySelector("#next").onclick=()=>{ov.remove();weeklyEvent();};
+}
+
+function tipHTML(){
+  const novice=G.mode==="career"?(C.w+C.l<2):G.round===0;
+  if(!novice||G.busy) return "";
+  const it=G.intent,h=G.p.hand.map(id=>CARDS[id]);let t="";
+  if(G.p.hype>=HYPE_MAX) t="Your hype is full. Hit your <b>finisher</b>. It costs no energy.";
+  else if(it.type==="grapple"&&h.some(c=>c.reversal)&&!G.p.reversal) t="They're going for a grapple. Play <b>Reversal</b> to cancel it and hit back.";
+  else if((it.type==="finisher"||it.dmg>=9)&&h.some(c=>c.block)&&G.p.block<it.dmg&&!G.p.reversal) t=`A big hit is coming (${it.dmg}). Play a <b>block</b> card before you end your turn.`;
+  else if(G.lastType==="strike"&&h.some(c=>c.type==="grapple"&&c.dmg)) t="You just landed a strike. Follow with a <b>grapple</b> for a +3 combo.";
+  else if(it.type==="defense"||it.type==="hype") t="They're not attacking this turn. Spend everything on offense.";
+  return t?`<div class="tip"><b>Tip.</b> ${t}</div>`:"";
 }
 
 /* ---------- render ---------- */
@@ -869,16 +966,17 @@ function fighterHTML(f,who){
 function cardHTML(id,i,p){
   const c=CARDS[id];
   let big=c.big||"";
-  if(c.dmg){let d=c.dmg+(c.type==="grapple"&&G.pid==="brick"?2:0);big=`${d} DMG`;}
+  if(c.dmg){big=`${cardDmg(c)} DMG`;}
+  const combo=c.dmg&&c.type==="grapple"&&G.lastType==="strike";
   return `<button class="card t-${c.type}${c.sig?" sig":""}" style="--i:${G.dealt?i:0}" data-i="${i}" ${c.cost>p.energy||G.busy?"disabled":""}>
     <div class="top"><span class="type">${c.type}</span><span class="cost"><b>${c.cost}</b></span></div>
-    <h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p>${c.sig?`<span class="seal">Signature</span>`:""}</button>`;
+    <h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p>${c.sig?`<span class="seal">Signature</span>`:""}${combo?`<span class="combo">Combo +3</span>`:""}</button>`;
 }
 function render(){
   if(!G||!G.p) return;
   const p=G.p,o=G.o;
   const ladder=G.mode==="career"
-    ? `<span class="cur">Week ${C.week}</span><span>${esc(G.title||showName())}</span>`
+    ? `<span class="cur">Week ${C.week}</span><span>${esc(G.title||showName())}</span>${G.stip?`<span style="color:#ff6b7c">${STIPS[G.stip][0]}</span>`:""}`
     : G.ladder.map((k,i)=>`<span class="${i<G.round?"done":i===G.round?"cur":""}">${WRESTLERS[k].name}</span>`).join("");
   app.innerHTML=`
   <header class="brand">${logo()}<div class="ladder">${ladder}</div></header>
@@ -887,7 +985,8 @@ function render(){
   <div class="ticker"><div class="now ${G.fresh?"pop":""}">${esc(G.log[0]||"")}</div>${G.log[1]?`<div class="prev">${esc(G.log[1])}</div>`:""}</div>
   ${fighterHTML(o,"o")}
   <div class="meta"><div class="energy">${Array.from({length:ENERGY},(_,i)=>`<i class="${i<p.energy?"on":""}"></i>`).join("")}<span>${p.energy} energy</span></div>
-    <span>Turn ${G.turn} · Deck ${p.deck.length} · Discard ${p.discard.length}</span></div>
+    <span>Turn ${G.turn} · Deck ${p.deck.length} · Discard ${p.discard.length}</span><span style="display:flex;gap:6px">${muteBtn()}<button class="mutebtn" id="menu">Quit</button></span></div>
+  ${tipHTML()}
   <div class="hand">${p.hand.map((id,i)=>cardHTML(id,i,p)).join("")||`<p class="howto">No cards left. End your turn.</p>`}</div>
   <div class="actions">
     <button class="btn fin" id="fin" ${p.hype<HYPE_MAX||G.busy?"disabled":""}>${esc(p.w.fin.name)}</button>
@@ -896,7 +995,7 @@ function render(){
   </div>`;
   G.fresh=false; G.dealt=false;
   app.querySelectorAll(".card").forEach(b=>b.onclick=()=>playCard(+b.dataset.i));
-  $("#end").onclick=endTurn;$("#fin").onclick=useFinisher;
+  $("#end").onclick=endTurn;$("#fin").onclick=useFinisher;$("#menu").onclick=()=>{if(!G.busy)titleScreen();};
   // animate bars from previous to new values
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     app.querySelectorAll(".bar .ghost,.bar .fill").forEach(el=>el.style.width=el.dataset.to+"%");
