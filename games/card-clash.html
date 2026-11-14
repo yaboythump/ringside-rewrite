@@ -61,7 +61,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .portrait .note{position:absolute;bottom:6px;left:6px;right:6px;z-index:1;font-family:var(--label);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.7);text-align:center}
 
 /* fighter panels */
-.fighter{position:relative;display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:26px 14px 12px;margin-top:8px;
+.fighter{position:relative;display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:14px 14px 12px;margin-top:8px;
   background:linear-gradient(100deg,rgba(28,28,34,.92),rgba(10,10,12,.85));clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px))}
 .fighter::before{content:"";position:absolute;inset:0;padding:2px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
   clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px))}
@@ -194,6 +194,60 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .howto b{color:var(--gold)}
 .foot{color:var(--muted);font-size:11px;font-family:var(--label);letter-spacing:.08em}
 .skip{font-family:var(--label);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+/* title + career */
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.mode{position:relative;text-align:left;display:grid;gap:8px;padding:18px 18px 20px;background:linear-gradient(160deg,rgba(40,40,48,.9),rgba(10,10,12,.92));
+  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%);transition:transform .2s,filter .2s}
+.mode:hover{transform:translateY(-4px);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}
+.mode h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:40px;line-height:.85;text-transform:uppercase}
+.mode p{margin:0;color:var(--steel);line-height:1.45;font-size:14px}
+.mode .go{font-family:var(--label);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--gold)}
+.mode.primary::before{content:"";position:absolute;inset:0;padding:2px;background:linear-gradient(120deg,var(--gold-hi),var(--gold),var(--gold-deep));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%)}
+.panel{position:relative;padding:14px 16px;background:linear-gradient(160deg,rgba(28,28,34,.9),rgba(10,10,12,.88));display:grid;gap:10px;min-width:0}
+.panel h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:24px;line-height:.9;text-transform:uppercase}
+.hubtop{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:center}
+.hubtop .portrait{width:110px}
+.hubtop h2{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(30px,8vw,44px);line-height:.85;text-transform:uppercase}
+.stats{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.stats b{display:block;font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.02em;color:var(--fg);font-variant-numeric:tabular-nums}
+.align{display:grid;gap:4px}
+.align .track{position:relative;height:8px;background:linear-gradient(90deg,var(--crimson),#3a3a44 45%,#3a3a44 55%,#2f7fd1);transform:skewX(-18deg)}
+.align .mark{position:absolute;top:-5px;width:6px;height:18px;background:var(--fg);box-shadow:0 0 8px #fff;transition:left .4s}
+.align .ends{display:flex;justify-content:space-between;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.tonight{display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:center}
+.tonight .portrait{width:70px}
+.tonight .vsline{font-family:var(--display);font-weight:900;font-style:italic;font-size:26px;line-height:.9;text-transform:uppercase}
+.belt-chip{display:inline-block;padding:2px 10px;background:var(--metal);color:#1a1405;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.segs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.seg{text-align:left;display:grid;gap:4px;padding:12px 14px;background:rgba(255,255,255,.05);border-left:3px solid var(--c,var(--gold));transition:background .15s,transform .15s}
+.seg:hover:not(:disabled){background:rgba(255,255,255,.1);transform:translateX(3px)}
+.seg:disabled{opacity:.35;cursor:not-allowed}
+.seg b{font-family:var(--display);font-weight:900;font-style:italic;font-size:22px;line-height:.9;text-transform:uppercase}
+.seg span{font-size:12.5px;color:var(--steel);line-height:1.35}
+.ranks{display:grid;gap:4px;margin:0;padding:0;list-style:none;font-variant-numeric:tabular-nums}
+.ranks li{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:6px 10px;background:rgba(255,255,255,.04);font-family:var(--label);font-weight:600;font-size:14px;letter-spacing:.04em}
+.ranks li .n{font-family:var(--display);font-weight:900;font-style:italic;font-size:18px;color:var(--muted)}
+.ranks li.champ{background:linear-gradient(90deg,rgba(226,189,98,.22),rgba(226,189,98,.04))}
+.ranks li.champ .n{color:var(--gold)}
+.ranks li.me{outline:2px solid var(--gold);outline-offset:-2px}
+.ranks li .s{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.ranks li button{font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:4px 10px;background:var(--crimson);color:#fff;clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.news{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:13px;color:var(--steel)}
+.news li::before{content:"› ";color:var(--gold)}
+.promo-lines{display:grid;gap:10px}
+.line{text-align:left;padding:14px 16px;background:rgba(255,255,255,.05);border-left:3px solid var(--c);display:grid;gap:4px;transition:background .15s,transform .15s}
+.line:hover{background:rgba(255,255,255,.1);transform:translateX(4px)}
+.line q{font-family:var(--display);font-weight:800;font-style:italic;font-size:21px;line-height:1.1;quotes:"“" "”"}
+.line small{font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--c)}
+.l-face{--c:#5fa8ff} .l-heel{--c:#ff4d63} .l-wild{--c:var(--hype)}
+.crowdbar{height:12px;background:#0a0a0c;transform:skewX(-18deg);position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.crowdbar i{position:absolute;inset:0 auto 0 0;background:var(--metal);transition:width .5s}
+.react{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(28px,8vw,44px);line-height:.95;text-transform:uppercase;text-align:center;animation:slam .4s cubic-bezier(.2,1.6,.4,1)}
+.deck{display:flex;flex-wrap:wrap;gap:6px}
+.deck button,.deck span{font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;background:rgba(255,255,255,.06);border-left:3px solid var(--c)}
+.deck button:hover{background:rgba(209,33,59,.35)}
+@media (max-width:440px){.hubtop{grid-template-columns:84px 1fr}.hubtop .portrait{width:84px}}
 @media (max-width:440px){.fighter{grid-template-columns:70px 1fr;gap:10px}.fighter .portrait{width:70px}.hand{grid-template-columns:repeat(2,minmax(0,1fr))}.btn{font-size:19px;padding:12px 16px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
@@ -219,7 +273,16 @@ const WRESTLERS = {
   kid:{id:"kid",name:"Kid Voltage",tag:"Lights Up When He Walks In",style:"Showman",hp:50,color:"#d19a1f",
     passive:"Starts with 4 hype. Hype cards give 1 extra.",fin:{name:"Voltage Drop",dmg:15,text:"15 damage. Heal 5."},
     sig:["pose","showstopper"],ai:{strike:3,grapple:2,defense:2,hype:4}},
+  silas:{id:"silas",cpu:true,name:"Silas Crowe",tag:"The Last Word",style:"Ring General",hp:60,color:"#8f6a22",
+    passive:"",fin:{name:"Crowe's Nest",dmg:17,text:"17 damage."},sig:[],ai:{strike:3,grapple:4,defense:3,hype:2}},
+  tank:{id:"tank",cpu:true,name:"Tank Ferro",tag:"Built Like A Bridge",style:"Brawler",hp:62,color:"#5a6470",
+    passive:"",fin:{name:"Ferro Crusher",dmg:18,text:"18 damage."},sig:[],ai:{strike:5,grapple:3,defense:1,hype:1}},
+  jett:{id:"jett",cpu:true,name:"Jett Romano",tag:"Faster Than The Replay",style:"Cruiserweight",hp:48,color:"#1fa39a",
+    passive:"",fin:{name:"Jett Stream",dmg:15,text:"15 damage. Ignores block."},sig:[],ai:{strike:5,grapple:1,defense:1,hype:3}},
+  ox:{id:"ox",cpu:true,name:"Big Ox Duggan",tag:"Back Roads Bruiser",style:"Giant",hp:66,color:"#7a3f1c",
+    passive:"",fin:{name:"Ox Yoke Slam",dmg:19,text:"19 damage."},sig:[],ai:{strike:2,grapple:5,defense:2,hype:1}},
 };
+const PLAYABLE=Object.values(WRESTLERS).filter(w=>!w.cpu);
 
 const CARDS = {
   chop:{name:"Chop",type:"strike",cost:1,dmg:4,hype:1,text:"+1 hype."},
@@ -240,7 +303,19 @@ const CARDS = {
   chain:{name:"Chain Wrestling",type:"defense",cost:1,block:3,draw:2,sig:true,big:"DRAW 2",text:"Block 3 and draw 2."},
   pose:{name:"Pose",type:"hype",cost:0,hypeGain:3,sig:true,big:"+3",text:"Hype. Free."},
   showstopper:{name:"Showstopper",type:"strike",cost:2,dmg:7,hype:3,sig:true,text:"+3 hype."},
+  // earned in career training
+  spear:{name:"Spear",type:"strike",cost:2,dmg:12,train:true,text:"Pure velocity."},
+  elbow:{name:"Top Rope Elbow",type:"strike",cost:2,dmg:10,hype:2,self:1,train:true,text:"You take 1. +2 hype."},
+  haymaker:{name:"Haymaker",type:"strike",cost:1,dmg:7,self:1,train:true,text:"You take 1."},
+  powerslam:{name:"Powerslam",type:"grapple",cost:2,dmg:10,hype:1,train:true,text:"+1 hype."},
+  sleeper:{name:"Sleeper Hold",type:"grapple",cost:2,dmg:6,weak:2,train:true,text:"Weakens for 2 turns."},
+  fortress:{name:"Fortress",type:"defense",cost:2,block:14,big:"BLOCK 14",train:true,text:"Absorbs damage this turn."},
+  comeback:{name:"Comeback",type:"defense",cost:2,heal:10,big:"+10",train:true,text:"Recover 10 stamina."},
+  ropebreak:{name:"Rope Break",type:"defense",cost:0,block:4,big:"BLOCK 4",train:true,text:"Free block."},
+  adrenaline:{name:"Adrenaline",type:"hype",cost:0,hypeGain:2,energy:1,big:"+1 ENERGY",train:true,text:"+1 energy and +2 hype."},
+  entrance:{name:"Big Entrance",type:"hype",cost:1,hypeGain:5,big:"+5",train:true,text:"Hype."},
 };
+const TRAIN_POOL=Object.keys(CARDS).filter(k=>CARDS[k].train);
 const BASE_DECK=["chop","chop","dropkick","clothesline","suplex","headlock","block","block","reversal","secondwind","taunt","crowdpop"];
 const HAND=5, ENERGY=3, HYPE_MAX=10;
 
@@ -309,12 +384,27 @@ function portrait(w,note){
 const logo=()=>`<h1 class="logo"><span class="l1">Ringside</span><span class="l2 metal">Card Clash</span></h1>`;
 
 /* ---------- screens ---------- */
-function selectScreen(){
-  const best=loadBest();
+function titleScreen(){
+  G=null;
+  const saved=loadCareer();
   app.innerHTML=`
   <header class="brand">${logo()}<span class="tag">Wrestling history. Booked differently.</span></header>
+  <div class="modes">
+    ${saved?`<button class="mode primary" id="m-cont"><span class="go">Continue career</span><h3 class="metal">${esc(WRESTLERS[saved.wid].name)}</h3><p>Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?"Rewrite Champion":`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</p></button>`:""}
+    <button class="mode ${saved?"":"primary"}" id="m-career"><span class="go">${saved?"New career":"Career mode"}</span><h3 class="${saved?"":"metal"}">Career</h3><p>Start at the bottom of the rankings. Cut promos, call out the names above you, train new moves into your deck, and fight your way to the Rewrite Championship.</p></button>
+    <button class="mode" id="m-quick"><span class="go">Quick match</span><h3>Ladder</h3><p>Pick a wrestler and win three matches in a row for the title. No saves, no strings.</p></button>
+  </div>
+  <div class="foot">Original fictional wrestlers. Unofficial and fan-made. Brick Malone's portrait was generated on RunPod with MiniMax H3.</div>`;
+  $("#m-cont")?.addEventListener("click",()=>{C=saved;hub();});
+  $("#m-career").onclick=()=>selectScreen("career");
+  $("#m-quick").onclick=()=>selectScreen("quick");
+}
+function selectScreen(mode){
+  const best=loadBest();
+  app.innerHTML=`
+  <header class="brand">${logo()}<span class="tag">${mode==="career"?"New career":"Quick match"}</span></header>
   <div class="eyebrow">Choose your wrestler</div>
-  <div class="roster">${Object.values(WRESTLERS).map(w=>`
+  <div class="roster">${PLAYABLE.map(w=>`
     <button class="pick" data-w="${w.id}">
       ${portrait(w,true)}
       <div class="tape">${esc(w.tag)}</div>
@@ -325,24 +415,32 @@ function selectScreen(){
       ${best[w.id]?`<div class="chip rev" style="justify-self:start">Champion ×${best[w.id]}</div>`:""}
     </button>`).join("")}
   </div>
-  <p class="howto"><b>How a match works.</b> Each turn you get 3 energy and 5 cards. Strikes and grapples do damage, defense keeps you standing, hype fills your meter. You can always see your opponent's next move, so block the big hits and save Reversal for their grapples. Fill hype to 10 to unleash your finisher. Drop them to 0 stamina for the pin, but anyone with 5 hype can kick out at two, once per match. Win three in a row to take the Rewrite Championship.</p>
-  <div class="foot">Original fictional wrestlers. Unofficial and fan-made. Brick Malone's portrait was generated on RunPod with MiniMax H3.</div>`;
-  app.querySelectorAll(".pick").forEach(b=>b.onclick=()=>startRun(b.dataset.w));
+  <p class="howto"><b>How a match works.</b> Each turn you get 3 energy and 5 cards. Strikes and grapples do damage, defense keeps you standing, hype fills your meter. You can always see your opponent's next move, so block the big hits and save Reversal for their grapples. Fill hype to 10 to unleash your finisher. Drop them to 0 stamina for the pin, but anyone with 5 hype can kick out at two, once per match.</p>
+  <div class="actions"><button class="btn" id="back">Back</button></div>`;
+  app.querySelectorAll(".pick").forEach(b=>b.onclick=()=>mode==="career"?newCareer(b.dataset.w):startRun(b.dataset.w));
+  $("#back").onclick=titleScreen;
 }
 
-function makeFighter(id){
-  const w=WRESTLERS[id];
-  return {w,hp:w.hp,max:w.hp,hype:id==="kid"?4:0,block:0,weak:0,kicked:false,
-    deck:shuffle([...BASE_DECK,...w.sig,...w.sig.slice(0,1)]),hand:[],discard:[],energy:ENERGY,reversal:false};
+function makeFighter(id,opt={}){
+  const w=WRESTLERS[id], lvl=opt.level||0, hp=w.hp+lvl*3;
+  return {w,hp,max:hp,hype:Math.min(HYPE_MAX,(id==="kid"?4:0)+(opt.hype||0)),block:0,weak:0,kicked:false,
+    deck:shuffle(opt.deck?[...opt.deck]:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)]),hand:[],discard:[],energy:ENERGY,reversal:false};
 }
 function startRun(id){
-  G={pid:id,ladder:shuffle(Object.keys(WRESTLERS).filter(k=>k!==id)),round:0,log:[]};
+  G={mode:"quick",pid:id,ladder:shuffle(PLAYABLE.map(w=>w.id).filter(k=>k!==id)),round:0,log:[]};
   startMatch();
 }
 async function startMatch(){
-  G.p=makeFighter(G.pid); G.o=makeFighter(G.ladder[G.round]);
+  if(G.mode==="career"){
+    G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus}); G.o=makeFighter(G.oid,{level:G.level});
+    G.log=[G.title?`${G.title}. The Rewrite Championship is on the line.`:`${showName()}. ${G.o.w.name} is waiting in the ring.`];
+    if(C.hypeBonus) G.log.unshift(`Your promo has the crowd buzzing. +${C.hypeBonus} hype to start.`);
+  } else {
+    G.level=Math.min(G.round,2);
+    G.p=makeFighter(G.pid); G.o=makeFighter(G.ladder[G.round],{level:G.level});
+    G.log=[`Round ${G.round+1} of 3. ${G.o.w.name} is waiting in the ring.`];
+  }
   G.turn=1; G.busy=true; G.over=false; G.bars={};
-  G.log=[`Round ${G.round+1} of 3. ${G.o.w.name} is waiting in the ring.`];
   pickIntent(); dealHand(); render();
   await vsSplash();
   G.busy=false; render();
@@ -350,10 +448,11 @@ async function startMatch(){
 function vsSplash(){
   return new Promise(res=>{
     const ov=document.createElement("div");ov.className="overlay";
+    const sub=G.mode==="career"?(G.title?"Championship match":showName()):`Round ${G.round+1} of 3`;
     ov.innerHTML=`<div class="vs">
       <div class="who side-l">${portrait(G.p.w)}<small class="metal">You</small><h3>${esc(G.p.w.name)}</h3></div>
       <div class="x metal">VS</div>
-      <div class="who side-r">${portrait(G.o.w)}<small style="color:var(--crimson)">Round ${G.round+1} of 3</small><h3>${esc(G.o.w.name)}</h3></div>
+      <div class="who side-r">${portrait(G.o.w)}<small style="color:var(--crimson)">${esc(sub)}</small><h3>${esc(G.o.w.name)}</h3></div>
       <div class="vs-foot skip">Tap to fight</div></div>`;
     document.body.appendChild(ov); crowd(70);
     let done=false;const end=()=>{if(done)return;done=true;ov.remove();res();};
@@ -378,7 +477,7 @@ function pickIntent(){
   if(o.hype>=HYPE_MAX){G.intent={type:"finisher",label:w.fin.name,dmg:w.fin.dmg};return;}
   const bag=[];for(const [k,v] of Object.entries(w.ai)) for(let i=0;i<v;i++) bag.push(k);
   if(o.hp<o.max*.35) bag.push("defense","defense");
-  const t=bag[rnd(bag.length)], lvl=Math.min(G.round,2);
+  const t=bag[rnd(bag.length)], lvl=G.level||0;
   if(t==="strike"){const d=[5,6,7,8][rnd(4)]+lvl;G.intent={type:"strike",label:`Strike ${d}`,dmg:d};}
   else if(t==="grapple"){let d=[7,8,9,10][rnd(4)]+lvl;if(w.id==="brick")d+=2;G.intent={type:"grapple",label:`Grapple ${d}`,dmg:d};}
   else if(t==="defense"){const b=6+rnd(4);G.intent={type:"defense",label:`Block ${b}`,block:b};}
@@ -417,6 +516,7 @@ function playCard(i){
   if(c.heal){p.hp=Math.min(p.max,p.hp+c.heal);msg=`Second wind! +${c.heal} stamina.`;}
   if(c.hypeGain){gainHype(p,c.hypeGain+(G.pid==="kid"?1:0));crowd(25);}
   if(c.reversal){p.reversal=true;msg="Reversal ready.";}
+  if(c.energy){p.energy+=c.energy;msg=`${c.name}! +${c.energy} energy.`;}
   if(c.draw) draw(p,c.draw);
   say(msg);
   if(checkPin(o,p)) return;
@@ -514,6 +614,7 @@ async function pinCount(kick){
 
 function finishMatch(won){
   G.over=true;
+  if(G.mode==="career"){ careerResult(won); return; }
   const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
   const champ=won&&G.round===2;
   if(champ){const b=loadBest();b[G.pid]=(b[G.pid]||0)+1;saveBest(b);}
@@ -530,7 +631,217 @@ function finishMatch(won){
   const close=()=>ov.remove();
   ov.querySelector("#next")?.addEventListener("click",()=>{close();G.round++;startMatch();});
   ov.querySelector("#again")?.addEventListener("click",()=>{close();startRun(G.pid);});
-  ov.querySelector("#roster").addEventListener("click",()=>{close();G=null;selectScreen();});
+  ov.querySelector("#roster").addEventListener("click",()=>{close();G=null;selectScreen("quick");});
+}
+
+/* ---------- career ---------- */
+let C=null;
+const PPVS=["Breaking Point","Gold Rush","Collision Course","Final Draft"];
+const isPPV=()=>C.week%4===0;
+const showName=()=>isPPV()?PPVS[(C.week/4-1)%PPVS.length]:"Monday Rewrite";
+function loadCareer(){try{const c=JSON.parse(localStorage.getItem("rcc-career")||"null");return c&&WRESTLERS[c.wid]?c:null}catch(e){return null}}
+function saveCareer(){try{localStorage.setItem("rcc-career",JSON.stringify(C))}catch(e){}}
+function fameTier(f){return f>=120?"Legend":f>=60?"Main eventer":f>=25?"Rising star":"Rookie";}
+function alignName(a){return a>=2?"Fan favorite":a<=-2?"Villain":"Tweener";}
+const isChamp=()=>C.champ===C.wid;
+const myRank=()=>C.contenders.indexOf(C.wid);
+function levelOf(id){if(C.champ===id)return 3;const i=C.contenders.indexOf(id);return Math.max(0,3-Math.floor(i/2));}
+
+function newCareer(wid){
+  const others=shuffle(Object.keys(WRESTLERS).filter(k=>k!==wid&&k!=="silas"));
+  const w=WRESTLERS[wid];
+  C={wid,week:1,fame:0,w:0,l:0,align:0,deck:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)],
+     champ:"silas",contenders:[...others,wid],rival:null,booked:null,hypeBonus:0,segDone:false,defenses:0,reigns:0,
+     news:[`${w.name} signs with Ringside Rewrite and starts at the bottom of the rankings.`,`Silas Crowe holds the Rewrite Championship.`]};
+  saveCareer();hub();
+}
+function book(){
+  if(C.booked) return C.booked;
+  const ppv=isPPV();let id,title=false;
+  if(C.rival&&C.rival!==C.champ){id=C.rival;}
+  else if(isChamp()){id=ppv?C.contenders[0]:C.contenders[rnd(Math.min(3,C.contenders.length))];title=ppv;}
+  else{
+    const r=myRank();
+    if(ppv&&r===0){id=C.champ;title=true;}
+    else if(r>0) id=C.contenders[r-1];
+    else id=C.contenders[1];
+  }
+  C.booked={id,title};saveCareer();return C.booked;
+}
+function news(t){C.news.unshift(t);C.news=C.news.slice(0,5);}
+
+function hub(){
+  G=null;const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
+  const r=myRank();
+  const rankRows=[`<li class="champ ${isChamp()?"me":""}"><span class="n">C</span><span>${esc(WRESTLERS[C.champ].name)} <span class="s">Champion</span></span><span></span></li>`]
+    .concat(C.contenders.map((id,i)=>{
+      const canCall=!isChamp()&&!C.segDone&&r>i&&r-i<=3&&id!==C.rival;
+      return `<li class="${id===C.wid?"me":""}"><span class="n">#${i+1}</span><span>${esc(WRESTLERS[id].name)}${id===C.wid?' <span class="s">You</span>':""}${id===C.rival?' <span class="s">Rival</span>':""}</span><span>${canCall?`<button data-call="${id}">Call out</button>`:""}</span></li>`;})).join("");
+  const markLeft=((C.align+5)/10*100).toFixed(0);
+  app.innerHTML=`
+  <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>${esc(showName())}</span></div></header>
+  <section class="panel">
+    <div class="hubtop">${portrait(me)}<div style="display:grid;gap:8px;min-width:0">
+      <div class="eyebrow">${fameTier(C.fame)}${isChamp()?` · <span class="belt-chip">Rewrite Champion</span>`:""}</div>
+      <h2>${esc(me.name)}</h2>
+      <div class="stats"><span>Record<b>${C.w}-${C.l}</b></span><span>Fame<b>${C.fame}</b></span><span>Rank<b>${isChamp()?"Champ":"#"+(r+1)}</b></span><span>Deck<b>${C.deck.length}</b></span></div>
+    </div></div>
+    <div class="align"><div class="ends"><span>Villain</span><span style="color:var(--fg)">You: ${alignName(C.align)}</span><span>Fan favorite</span></div><div class="track"><span class="mark" style="left:calc(${markLeft}% - 3px)"></span></div></div>
+  </section>
+  <section class="panel">
+    <div class="eyebrow">${b.title?"Championship match tonight":isPPV()?`${esc(showName())} · big event`:"Tonight's main event"}</div>
+    <div class="tonight">${portrait(o)}<div style="display:grid;gap:4px;min-width:0">
+      <div class="vsline">vs ${esc(o.name)}</div>
+      <div class="stats"><span>${esc(o.style)}</span><span>${C.champ===b.id?"Champion":"Rank #"+(C.contenders.indexOf(b.id)+1)}</span>${C.hypeBonus?`<span style="color:var(--gold)">+${C.hypeBonus} hype from your promo</span>`:""}</div>
+    </div></div>
+    ${C.segDone?`<p class="howto" style="padding:10px 14px">Segment done for the week. Head to the ring.</p>`:`<div class="eyebrow" style="color:var(--steel)">Pick one segment before the match</div>
+    <div class="segs">
+      <button class="seg" id="s-promo" style="--c:#5fa8ff"><b>Cut a promo</b><span>Talk about ${esc(o.name)}. Win the crowd and start the match with extra hype.</span></button>
+      <button class="seg" id="s-train" style="--c:var(--good)"><b>Train</b><span>Learn a new move for your deck, or cut a weak card.</span></button>
+      <button class="seg" id="s-call" style="--c:var(--crimson)" ${isChamp()||r===0?"disabled":""}><b>Call out</b><span>${isChamp()?"Champions get called out, not the other way around.":"Use the Call out button next to anyone up to 3 spots above you in the rankings."}</span></button>
+    </div>`}
+    <div class="actions"><button class="btn primary grow" id="fight">${b.title?"Title match":"To the ring"}</button></div>
+  </section>
+  <div class="cols">
+    <section class="panel"><h3>Rankings</h3><ol class="ranks">${rankRows}</ol></section>
+    <section class="panel"><h3>Around the promotion</h3><ul class="news">${C.news.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></section>
+  </div>
+  <div class="actions"><button class="btn" id="quit">Main menu</button></div>`;
+  $("#fight").onclick=careerMatch;
+  $("#quit").onclick=titleScreen;
+  $("#s-promo")?.addEventListener("click",()=>promo(b.id));
+  $("#s-train")?.addEventListener("click",train);
+  $("#s-call")?.addEventListener("click",()=>{app.querySelector(".ranks button")?.focus();app.querySelector(".ranks")?.scrollIntoView({behavior:"smooth",block:"center"});});
+  app.querySelectorAll("[data-call]").forEach(bt=>bt.onclick=()=>callOut(bt.dataset.call));
+}
+
+/* promos */
+const LINES={
+  face:["These people paid to see a fight, {o}. I'm giving them one.","Every bruise I've got, I earned in front of you.","{o}, I respect you. That's exactly why I'm not holding back.","I don't need shortcuts. I've got this whole building behind me.","When the bell rings, it's you, me and every fan who believed in me.","Win or lose, {o}, you'll know you were in a fight."],
+  heel:["Look around, {o}. Half these people couldn't lace my boots.","{o}, you're a stepping stone with a theme song.","Cheer all you want. It won't save him.","I'm the best thing that ever happened to this building, and you know it.","Boo me louder. I get paid either way.","{o} has a lot of heart. I'm going to take that too."],
+  wild:["I'd call you a legend, {o}, but legends usually win.","I trained for this match by fighting a vending machine. I won.","{o}'s entrance music is the scariest thing about him.","Somebody get this man a map. He's about to get lost in my offense.","I've got two words for you, {o}. Actually I've got about forty.","Mama, if you're watching: sorry about the language later."],
+};
+function promo(oid){
+  const o=WRESTLERS[oid];let round=0,score=0,shift=0;
+  const pick=k=>LINES[k][rnd(LINES[k].length)].replaceAll("{o}",o.name.split(" ")[0]);
+  const step=(react)=>{
+    if(round===3) return promoDone();
+    const opts=shuffle(["face","heel","wild"]).map(k=>({k,t:pick(k)}));
+    const pct=Math.max(0,Math.min(100,50+score*8));
+    app.innerHTML=`
+    <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>Promo segment</span></div></header>
+    <section class="panel"><div class="eyebrow">You have the mic · line ${round+1} of 3</div><h3>Talking about ${esc(o.name)}</h3>
+      <div class="lbl"><span>Crowd</span><span class="num">${score>0?"+":""}${score}</span></div><div class="crowdbar"><i style="width:${pct}%"></i></div>
+      ${react?`<div class="react ${react.c}">${esc(react.t)}</div>`:""}
+    </section>
+    <div class="promo-lines">${opts.map((x,i)=>`<button class="line l-${x.k}" data-i="${i}"><small>${x.k==="face"?"Fan favorite":x.k==="heel"?"Villain":"Off the cuff"}</small><q>${esc(x.t)}</q></button>`).join("")}</div>
+    <p class="howto" style="padding:10px 14px">You're a ${alignName(C.align).toLowerCase()}. Lines that fit your character land harder. Off-the-cuff lines are a gamble.</p>`;
+    app.querySelectorAll(".line").forEach(bt=>bt.onclick=()=>{
+      const k=opts[+bt.dataset.i].k;let pts,t,c;
+      if(k==="wild"){pts=[-1,0,2,3][rnd(4)];t=pts>=2?"The place comes unglued!":pts===0?"A few chuckles.":"Crickets. Brutal.";}
+      else{
+        const fits=(k==="face"&&C.align>=2)||(k==="heel"&&C.align<=-2);
+        const clash=(k==="face"&&C.align<=-2)||(k==="heel"&&C.align>=2);
+        pts=fits?2:clash?-1:1;
+        t=k==="heel"?(pts>0?"Massive heat. They hate you.":"Mild boos. Nobody's buying it."):(pts>0?"The crowd roars with you!":"Polite applause. They don't believe you.");
+        shift+=k==="face"?1:-1;
+      }
+      score+=pts;round++;if(pts>=2)crowd(80);else if(pts>0)crowd(30);
+      step({t,c:""});
+    });
+  };
+  const promoDone=()=>{
+    const bonus=Math.max(0,Math.min(5,score)), fame=Math.max(0,score*2);
+    C.hypeBonus=bonus;C.fame+=fame;C.align=Math.max(-5,Math.min(5,C.align+Math.sign(shift)*Math.min(2,Math.abs(shift))));
+    C.segDone=true;news(`${WRESTLERS[C.wid].name} cut a promo on ${o.name}. ${score>=4?"The crowd ate it up.":score>=1?"It landed.":"It fell flat."}`);saveCareer();
+    app.innerHTML=`<header class="brand">${logo()}</header><section class="panel" style="text-align:center;justify-items:center">
+      <div class="eyebrow">Promo over</div><div class="react">${score>=4?"Electric!":score>=1?"Solid promo":"Tough crowd"}</div>
+      <div class="stats" style="justify-content:center"><span>Start hype<b>+${bonus}</b></span><span>Fame<b>+${fame}</b></span><span>Now<b>${alignName(C.align)}</b></span></div>
+      <div class="actions"><button class="btn primary" id="go">Back to the show</button></div></section>`;
+    if(score>=4){flash();crowd(140);}
+    $("#go").onclick=hub;
+  };
+  step(null);
+}
+
+/* training */
+function train(){
+  const offer=shuffle([...TRAIN_POOL]).slice(0,3);
+  const counts={};C.deck.forEach(k=>counts[k]=(counts[k]||0)+1);
+  app.innerHTML=`
+  <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>Training</span></div></header>
+  <section class="panel"><div class="eyebrow">Learn one new move</div><h3>Pick a card to add to your deck</h3>
+    <div class="hand">${offer.map((id,i)=>{const c=CARDS[id];const big=c.dmg?`${c.dmg} DMG`:(c.big||"");return `<button class="card t-${c.type}" style="--i:${i}" data-add="${id}"><div class="top"><span class="type">${c.type}</span><span class="cost"><b>${c.cost}</b></span></div><h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p></button>`}).join("")}</div>
+  </section>
+  <section class="panel"><div class="eyebrow">Or cut a card instead</div><h3>Your deck · ${C.deck.length} cards</h3>
+    <div class="deck">${Object.entries(counts).map(([id,n])=>`<button class="t-${CARDS[id].type}" data-cut="${id}" ${C.deck.length<=10?"disabled":""}>${esc(CARDS[id].name)} ×${n}</button>`).join("")}</div>
+    <p class="howto" style="padding:10px 14px">A thinner deck draws your best cards more often. Decks can't go below 10 cards.</p>
+  </section>
+  <div class="actions"><button class="btn" id="back">Back</button></div>`;
+  app.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{C.deck.push(b.dataset.add);C.segDone=true;news(`${WRESTLERS[C.wid].name} spent the week learning the ${CARDS[b.dataset.add].name}.`);saveCareer();hub();});
+  app.querySelectorAll("[data-cut]").forEach(b=>b.onclick=()=>{const i=C.deck.indexOf(b.dataset.cut);if(i>=0&&C.deck.length>10){C.deck.splice(i,1);C.segDone=true;news(`${WRESTLERS[C.wid].name} cut the ${CARDS[b.dataset.cut].name} from the playbook.`);saveCareer();hub();}});
+  $("#back").onclick=hub;
+}
+
+/* call outs */
+function callOut(id){
+  const o=WRESTLERS[id];
+  const line=shuffle([...LINES[C.align<=-2?"heel":"face"]])[0].replaceAll("{o}",o.name.split(" ")[0]);
+  C.rival=id;C.booked=null;C.segDone=true;C.fame+=3;
+  news(`${WRESTLERS[C.wid].name} called out ${o.name}: "${line}" ${o.name.split(" ")[0]} accepted.`);
+  saveCareer();
+  const ov=document.createElement("div");ov.className="overlay";
+  ov.innerHTML=`<div class="result"><div class="eyebrow">Call out</div><h2 class="metal">${esc(o.name)}</h2><p>"${esc(line)}"</p><p>${esc(o.name)} accepts. Beat a wrestler ranked above you and you take their spot.</p><div class="actions"><button class="btn primary" id="ok">Book it</button></div></div>`;
+  document.body.appendChild(ov);crowd(90);flash();
+  ov.querySelector("#ok").onclick=()=>{ov.remove();hub();};
+}
+
+/* matches */
+function careerMatch(){
+  const b=book();
+  G={mode:"career",pid:C.wid,oid:b.id,level:levelOf(b.id),title:b.title?`${showName()}`:null,log:[]};
+  startMatch();
+}
+function careerResult(won){
+  const b=C.booked,oid=b.id,o=WRESTLERS[oid],me=WRESTLERS[C.wid];
+  const r=myRank(),or=C.contenders.indexOf(oid);let fame=0,lines=[];
+  if(won){
+    C.w++;fame=5+levelOf(oid)*3;
+    if(b.title&&!isChamp()){ // win the title
+      C.contenders=C.contenders.filter(x=>x!==C.wid);C.contenders.unshift(C.champ);C.champ=C.wid;C.reigns++;fame+=20;
+      lines.push(`${me.name} defeats ${o.name} to become Rewrite Champion!`);
+    } else if(b.title&&isChamp()){
+      C.defenses++;fame+=12;lines.push(`${me.name} retains the Rewrite Championship against ${o.name}.`);
+    } else if(!isChamp()&&or>=0&&or<r){
+      C.contenders.splice(r,1);C.contenders.splice(or,0,C.wid);lines.push(`${me.name} beats ${o.name} and climbs to #${or+1}.`);
+    } else lines.push(`${me.name} beats ${o.name}.`);
+  } else {
+    C.l++;fame=G.o.hp<=G.o.max*.3?1:-2;
+    if(b.title&&isChamp()){
+      C.champ=oid;C.contenders=C.contenders.filter(x=>x!==oid);C.contenders.splice(1,0,C.wid);
+      lines.push(`${o.name} pins ${me.name}. We have a new Rewrite Champion.`);
+    } else if(!isChamp()&&r<C.contenders.length-1&&!(or>=0&&or<r)){
+      [C.contenders[r],C.contenders[r+1]]=[C.contenders[r+1],C.contenders[r]];lines.push(`${me.name} loses to ${o.name} and slips to #${r+2}.`);
+    } else lines.push(`${o.name} pins ${me.name}.`);
+  }
+  C.fame=Math.max(0,C.fame+fame);
+  // the rest of the roster moves too
+  const others=C.contenders.map((x,i)=>i).filter(i=>i<C.contenders.length-1&&C.contenders[i]!==C.wid&&C.contenders[i+1]!==C.wid);
+  if(others.length&&Math.random()<.7){const i=others[rnd(others.length)];const up=C.contenders[i+1],dn=C.contenders[i];[C.contenders[i],C.contenders[i+1]]=[up,dn];news(`${WRESTLERS[up].name} upsets ${WRESTLERS[dn].name} and moves to #${i+1}.`);}
+  lines.forEach(news);
+  const champNow=isChamp(), wonTitle=won&&b.title&&C.reigns&&C.champ===C.wid&&lines[0].includes("become");
+  C.week++;C.booked=null;C.rival=null;C.hypeBonus=0;C.segDone=false;saveCareer();
+  const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
+  if(won) crowd(wonTitle?240:120);
+  ov.innerHTML=`<div class="result">
+    <div class="eyebrow">${won?"Winner by pinfall":"Pinned, one two three"}</div>
+    ${wonTitle?`<div class="belt"></div>`:""}
+    <h2 class="${won?"metal":""}" ${won?"":'style="color:var(--crimson)"'}>${wonTitle?"New Champion":won?"Victory":"Defeat"}</h2>
+    <p>${esc(lines[0])}</p>
+    <div class="stats" style="justify-content:center"><span>Fame<b>${fame>=0?"+":""}${fame}</b></span><span>Record<b>${C.w}-${C.l}</b></span><span>Rank<b>${champNow?"Champ":"#"+(myRank()+1)}</b></span></div>
+    <div class="actions"><button class="btn primary" id="next">Week ${C.week}</button></div></div>`;
+  if(wonTitle) flash();
+  ov.querySelector("#next").onclick=()=>{ov.remove();hub();};
 }
 
 /* ---------- render ---------- */
@@ -566,13 +877,15 @@ function cardHTML(id,i,p){
 function render(){
   if(!G||!G.p) return;
   const p=G.p,o=G.o;
-  const ladder=G.ladder.map((k,i)=>`<span class="${i<G.round?"done":i===G.round?"cur":""}">${WRESTLERS[k].name}</span>`).join("");
+  const ladder=G.mode==="career"
+    ? `<span class="cur">Week ${C.week}</span><span>${esc(G.title||showName())}</span>`
+    : G.ladder.map((k,i)=>`<span class="${i<G.round?"done":i===G.round?"cur":""}">${WRESTLERS[k].name}</span>`).join("");
   app.innerHTML=`
   <header class="brand">${logo()}<div class="ladder">${ladder}</div></header>
   <div class="eyebrow">You are ${esc(p.w.name)} · vs ${esc(o.w.name)}</div>
-  ${fighterHTML(o,"o")}
-  <div class="ticker"><div class="now ${G.fresh?"pop":""}">${esc(G.log[0]||"")}</div>${G.log[1]?`<div class="prev">${esc(G.log[1])}</div>`:""}</div>
   ${fighterHTML(p,"p")}
+  <div class="ticker"><div class="now ${G.fresh?"pop":""}">${esc(G.log[0]||"")}</div>${G.log[1]?`<div class="prev">${esc(G.log[1])}</div>`:""}</div>
+  ${fighterHTML(o,"o")}
   <div class="meta"><div class="energy">${Array.from({length:ENERGY},(_,i)=>`<i class="${i<p.energy?"on":""}"></i>`).join("")}<span>${p.energy} energy</span></div>
     <span>Turn ${G.turn} · Deck ${p.deck.length} · Discard ${p.discard.length}</span></div>
   <div class="hand">${p.hand.map((id,i)=>cardHTML(id,i,p)).join("")||`<p class="howto">No cards left. End your turn.</p>`}</div>
@@ -600,8 +913,9 @@ function render(){
 
 /* ---------- boot ---------- */
 function start(data){
-  if(data&&data.G&&data.G.p){G=data.G;G.busy=false;render();} else selectScreen();
+  if(data&&data.C) C=data.C;
+  if(data&&data.G&&data.G.p){G=data.G;G.busy=false;render();} else titleScreen();
 }
-window.claude?.hot?.snapshot?.(()=>({G}));
+window.claude?.hot?.snapshot?.(()=>({G,C}));
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
 </script>
