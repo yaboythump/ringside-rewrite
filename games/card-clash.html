@@ -1,0 +1,440 @@
+<title>Ringside Card Clash</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Extra+Condensed:wght@600;800&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: one fight-night column. Opponent on top, ring call in the middle, you below, your hand at the bottom. Single dark arena look by choice. */
+:root{
+  --bg:#0b0b0d; --panel:#16161a; --panel-2:#1f1f25; --line:#2c2c34;
+  --fg:#ecebe6; --muted:#9a9aa4; --steel:#b9bcc4;
+  --gold:#d8b25a; --gold-deep:#a8822e; --crimson:#c4243a; --good:#5fbf7a;
+  --strike:#d9663b; --grapple:#c4243a; --defense:#7f98b8; --hype:#d8b25a; --finisher:#f1d27a;
+  --display:"Saira Extra Condensed","Arial Narrow",Impact,sans-serif;
+  --body:Barlow,system-ui,sans-serif;
+  --label:"Barlow Condensed","Arial Narrow",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;
+  background-image:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(216,178,90,.10),transparent 70%)}
+.app{max-width:760px;margin:0 auto;display:grid;gap:14px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,7vw,46px);letter-spacing:.01em;line-height:.9;margin:0;text-transform:uppercase}
+.brand h1 span{color:var(--gold)}
+.tag{font-family:var(--label);letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:var(--muted)}
+.eyebrow{font-family:var(--label);letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:var(--gold)}
+
+/* select screen */
+.roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.pick{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:left;display:grid;gap:8px;transition:border-color .15s,transform .15s}
+.pick:hover{border-color:var(--gold);transform:translateY(-2px)}
+.pick h3{font-family:var(--display);font-weight:800;font-size:26px;line-height:1;margin:0;text-transform:uppercase}
+.pick p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
+.pick .fin{font-family:var(--label);font-size:13px;color:var(--gold)}
+.statline{display:flex;gap:10px;font-family:var(--label);font-size:13px;color:var(--steel);font-variant-numeric:tabular-nums}
+
+.portrait{aspect-ratio:1;width:100%;max-width:100%;border-radius:8px;overflow:hidden;position:relative;background:var(--panel-2);display:grid;place-items:center}
+.portrait img{width:100%;height:100%;object-fit:cover;display:block}
+.mono{font-family:var(--display);font-weight:800;font-size:clamp(34px,9vw,56px);letter-spacing:.02em;color:var(--bg);line-height:1}
+.portrait .plate{position:absolute;inset:0;display:grid;place-items:center}
+.portrait .note{position:absolute;bottom:6px;left:6px;right:6px;font-family:var(--label);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(11,11,13,.75);text-align:center}
+
+/* match */
+.fighter{display:grid;grid-template-columns:84px 1fr;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;position:relative}
+.fighter .portrait{width:84px}
+.fighter .name{font-family:var(--display);font-weight:800;font-size:24px;line-height:1;text-transform:uppercase;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.fighter .name small{font-family:var(--label);font-weight:500;font-size:12px;letter-spacing:.12em;color:var(--muted)}
+.bars{display:grid;gap:6px;min-width:0}
+.bar{height:14px;background:var(--panel-2);border-radius:3px;overflow:hidden;position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--crimson),#e04a52);transition:width .35s ease}
+.bar b{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-family:var(--label);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--fg)}
+.hype{display:flex;gap:3px;align-items:center}
+.hype span{flex:1;height:7px;border-radius:2px;background:var(--panel-2);transition:background .2s}
+.hype span.on{background:var(--gold)}
+.hype.full span.on{background:var(--finisher);box-shadow:0 0 6px rgba(241,210,122,.6)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;font-family:var(--label);font-size:12px}
+.chip{padding:2px 8px;border-radius:99px;background:var(--panel-2);color:var(--steel);letter-spacing:.04em}
+.chip.block{color:var(--defense)} .chip.weak{color:var(--strike)} .chip.rev{color:var(--good)}
+.intent{display:flex;align-items:center;gap:8px;margin-top:2px;font-family:var(--label);font-size:14px}
+.intent .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.intent .v{padding:3px 10px;border-radius:4px;font-weight:600;background:var(--panel-2)}
+.intent .v.strike{color:var(--strike)} .intent .v.grapple{color:#ff6b7c} .intent .v.defense{color:var(--defense)} .intent .v.hype{color:var(--hype)}
+.intent .v.finisher{color:var(--bg);background:var(--finisher);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(241,210,122,.25)}}
+.hit{animation:shake .35s}
+@keyframes shake{20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+.float{position:absolute;right:14px;top:6px;font-family:var(--display);font-weight:800;font-size:30px;pointer-events:none;animation:rise .9s ease-out forwards}
+@keyframes rise{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-26px)}}
+
+.call{background:var(--panel-2);border-left:3px solid var(--gold);border-radius:4px;padding:8px 12px;min-height:44px;display:grid;gap:2px}
+.call .now{font-family:var(--label);font-size:16px;font-weight:600}
+.call .prev{color:var(--muted);font-size:13px}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-family:var(--label);font-size:13px;color:var(--muted)}
+.energy{display:flex;gap:5px;align-items:center}
+.energy i{width:16px;height:16px;border-radius:50%;border:2px solid var(--gold);display:block}
+.energy i.on{background:var(--gold)}
+
+.hand{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--c,var(--steel));border-radius:8px;padding:8px 9px;text-align:left;display:grid;gap:4px;align-content:start;min-height:122px;transition:transform .12s,border-color .12s,opacity .12s;position:relative}
+.card:hover:not(:disabled){transform:translateY(-3px);border-color:var(--c)}
+.card:disabled{opacity:.38;cursor:not-allowed}
+.card .top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.card .cost{width:22px;height:22px;border-radius:50%;background:var(--gold);color:var(--bg);display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:16px;flex:none}
+.card .type{font-family:var(--label);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--c)}
+.card h4{margin:0;font-family:var(--display);font-weight:800;font-size:20px;line-height:1;text-transform:uppercase}
+.card p{margin:0;font-size:12.5px;line-height:1.35;color:var(--steel)}
+.card.sig::after{content:"Signature";position:absolute;right:8px;bottom:6px;font-family:var(--label);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep)}
+.t-strike{--c:var(--strike)} .t-grapple{--c:#ff6b7c} .t-defense{--c:var(--defense)} .t-hype{--c:var(--hype)}
+
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{padding:12px 18px;border-radius:6px;font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.03em;background:var(--panel-2);border:1px solid var(--line)}
+.btn.primary{background:var(--gold);color:var(--bg);border-color:var(--gold)}
+.btn.fin{background:var(--finisher);color:var(--bg);border-color:var(--finisher);animation:pulse 1s ease-in-out infinite}
+.btn:disabled{opacity:.35;cursor:not-allowed;animation:none}
+.grow{flex:1}
+
+.overlay{position:fixed;inset:0;background:rgba(5,5,7,.86);display:grid;place-items:center;z-index:20;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.count{font-family:var(--display);font-weight:800;font-size:clamp(90px,30vw,180px);line-height:1;color:var(--fg);text-align:center}
+.count.three{color:var(--gold)}
+.count.out{color:var(--crimson);font-size:clamp(48px,14vw,96px)}
+.result{max-width:440px;text-align:center;display:grid;gap:12px;justify-items:center}
+.result h2{font-family:var(--display);font-weight:800;font-size:clamp(40px,11vw,64px);line-height:.95;margin:0;text-transform:uppercase}
+.result p{margin:0;color:var(--steel);line-height:1.5}
+.ladder{display:flex;gap:6px;font-family:var(--label);font-size:12px;letter-spacing:.06em}
+.ladder span{padding:3px 8px;border-radius:4px;background:var(--panel-2);color:var(--muted)}
+.ladder span.done{color:var(--good)} .ladder span.cur{color:var(--bg);background:var(--gold)}
+.howto{color:var(--muted);font-size:13px;line-height:1.5;margin:0;max-width:65ch}
+.howto b{color:var(--steel)}
+.foot{color:var(--muted);font-size:11px;font-family:var(--label);letter-spacing:.06em}
+@media (max-width:420px){.fighter{grid-template-columns:64px 1fr}.fighter .portrait{width:64px}.hand{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="app" id="app"></div>
+
+<script>
+const BRICK_IMG = "data:image/jpeg;base64,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";
+
+const WRESTLERS = {
+  brick:{id:"brick",name:"Brick Malone",tag:"The Wrecking Yard",style:"Powerhouse",hp:60,color:"#c4243a",img:BRICK_IMG,
+    passive:"Grapples hit 2 harder.",fin:{name:"Brick Wall Bomb",dmg:18,text:"18 damage."},
+    sig:["pounce","ironchin"],ai:{strike:3,grapple:4,defense:2,hype:2}},
+  raven:{id:"raven",name:"Raven Vega",tag:"Gravity Is Optional",style:"High-Flyer",hp:50,color:"#3a3a44",
+    passive:"Strikes build 1 extra hype.",fin:{name:"Raven's Fall",dmg:16,text:"16 damage. Ignores block."},
+    sig:["springboard","moonsault"],ai:{strike:5,grapple:2,defense:1,hype:3}},
+  dutch:{id:"dutch",name:"Dutch Harlan",tag:"Forty Minutes Of Pain",style:"Technician",hp:55,color:"#7f98b8",
+    passive:"Reversals also give 3 block and hit 3 harder.",fin:{name:"Harlan Lock",dmg:14,text:"14 damage. Weakens for 2 turns."},
+    sig:["anklelock","chain"],ai:{strike:2,grapple:5,defense:3,hype:1}},
+  kid:{id:"kid",name:"Kid Voltage",tag:"Lights Up When He Walks In",style:"Showman",hp:50,color:"#d8b25a",
+    passive:"Starts with 4 hype. Hype cards give 1 extra.",fin:{name:"Voltage Drop",dmg:15,text:"15 damage. Heal 5."},
+    sig:["pose","showstopper"],ai:{strike:3,grapple:2,defense:2,hype:4}},
+};
+
+const CARDS = {
+  chop:{name:"Chop",type:"strike",cost:1,dmg:4,hype:1,text:"4 damage. +1 hype."},
+  dropkick:{name:"Dropkick",type:"strike",cost:1,dmg:5,text:"5 damage."},
+  clothesline:{name:"Clothesline",type:"strike",cost:2,dmg:8,hype:1,text:"8 damage. +1 hype."},
+  suplex:{name:"Suplex",type:"grapple",cost:2,dmg:9,hype:2,text:"9 damage. +2 hype."},
+  headlock:{name:"Headlock",type:"grapple",cost:1,dmg:3,weak:1,text:"3 damage. Their next attack does 3 less."},
+  block:{name:"Block",type:"defense",cost:1,block:6,text:"Block 6 this turn."},
+  reversal:{name:"Reversal",type:"defense",cost:1,reversal:true,text:"If they grapple, cancel it and hit back for 5. Otherwise block 3."},
+  secondwind:{name:"Second Wind",type:"defense",cost:1,heal:6,text:"Recover 6 stamina."},
+  taunt:{name:"Taunt",type:"hype",cost:1,hypeGain:3,text:"+3 hype."},
+  crowdpop:{name:"Crowd Pop",type:"hype",cost:0,hypeGain:2,draw:1,text:"+2 hype. Draw a card."},
+  // signatures
+  pounce:{name:"Pounce",type:"grapple",cost:2,dmg:11,hype:1,sig:true,text:"11 damage. +1 hype."},
+  ironchin:{name:"Iron Chin",type:"defense",cost:1,block:9,sig:true,text:"Block 9 this turn."},
+  springboard:{name:"Springboard Kick",type:"strike",cost:1,dmg:6,hype:2,sig:true,text:"6 damage. +2 hype."},
+  moonsault:{name:"Moonsault",type:"strike",cost:2,dmg:11,self:2,hype:2,sig:true,text:"11 damage. You take 2. +2 hype."},
+  anklelock:{name:"Ankle Lock",type:"grapple",cost:2,dmg:7,weak:2,sig:true,text:"7 damage. Weakens for 2 turns."},
+  chain:{name:"Chain Wrestling",type:"defense",cost:1,block:3,draw:2,sig:true,text:"Block 3. Draw 2 cards."},
+  pose:{name:"Pose",type:"hype",cost:0,hypeGain:3,sig:true,text:"+3 hype."},
+  showstopper:{name:"Showstopper",type:"strike",cost:2,dmg:7,hype:3,sig:true,text:"7 damage. +3 hype."},
+};
+const BASE_DECK=["chop","chop","dropkick","clothesline","suplex","headlock","block","block","reversal","secondwind","taunt","crowdpop"];
+const HAND=5, ENERGY=3, HYPE_MAX=10;
+
+let G=null; // game state
+const $=s=>document.querySelector(s);
+const app=$("#app");
+const rnd=n=>Math.floor(Math.random()*n);
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function loadBest(){try{return JSON.parse(localStorage.getItem("rcc-best")||"{}")}catch(e){return {}}}
+function saveBest(b){try{localStorage.setItem("rcc-best",JSON.stringify(b))}catch(e){}}
+
+function portrait(w,note){
+  if(w.img) return `<div class="portrait"><img src="${w.img}" alt="${esc(w.name)}"></div>`;
+  const ini=w.name.split(" ").map(s=>s[0]).join("");
+  const fg = w.id==="raven" ? "var(--steel)" : "var(--bg)";
+  return `<div class="portrait" style="background:${w.color}"><div class="plate"><span class="mono" style="color:${fg}">${ini}</span></div>${note?`<span class="note" style="color:${fg}">Art pending</span>`:""}</div>`;
+}
+
+/* ---------- screens ---------- */
+function selectScreen(){
+  const best=loadBest();
+  app.innerHTML=`
+  <header class="brand"><h1>Ringside <span>Card Clash</span></h1><span class="tag">Wrestling history. Booked differently.</span></header>
+  <div class="eyebrow">Pick your wrestler</div>
+  <div class="roster">${Object.values(WRESTLERS).map(w=>`
+    <button class="pick" data-w="${w.id}">
+      ${portrait(w,true)}
+      <h3>${esc(w.name)}</h3>
+      <div class="statline"><span>${w.style}</span><span>${w.hp} stamina</span></div>
+      <p>${esc(w.passive)}</p>
+      <div class="fin">Finisher: ${esc(w.fin.name)}</div>
+      ${best[w.id]?`<div class="chip rev" style="justify-self:start">Champion ×${best[w.id]}</div>`:""}
+    </button>`).join("")}
+  </div>
+  <p class="howto"><b>How a match works.</b> Each turn you get 3 energy and 5 cards. Strikes and grapples do damage, defense keeps you standing, hype fills your meter. You can always see what your opponent will do next, so block the big hits and save Reversal for their grapples. Fill hype to 10 to unlock your finisher. Drop them to 0 stamina for the pin, but anyone with 5 hype can kick out at two, once per match. Win three matches in a row to take the Rewrite Championship.</p>
+  <div class="foot">Original fictional wrestlers. Unofficial and fan-made. Brick Malone's portrait was generated on RunPod with MiniMax H3.</div>`;
+  app.querySelectorAll(".pick").forEach(b=>b.onclick=()=>startRun(b.dataset.w));
+}
+
+function makeFighter(id){
+  const w=WRESTLERS[id];
+  return {w,hp:w.hp,max:w.hp,hype:id==="kid"?4:0,block:0,weak:0,kicked:false,
+    deck:shuffle([...BASE_DECK,...w.sig,...w.sig.slice(0,1)]),hand:[],discard:[],energy:ENERGY,reversal:false};
+}
+
+function startRun(id){
+  const others=shuffle(Object.keys(WRESTLERS).filter(k=>k!==id));
+  G={pid:id,ladder:others,round:0,log:[]};
+  startMatch();
+}
+
+function startMatch(){
+  G.p=makeFighter(G.pid);
+  G.o=makeFighter(G.ladder[G.round]);
+  G.turn=1; G.busy=false; G.over=false;
+  G.log=[`Round ${G.round+1} of 3. ${G.o.w.name} is waiting in the ring.`];
+  pickIntent();
+  startTurn();
+}
+
+/* ---------- core ---------- */
+function draw(f,n){
+  for(let i=0;i<n;i++){
+    if(!f.deck.length){ if(!f.discard.length) return; f.deck=shuffle(f.discard); f.discard=[]; }
+    f.hand.push(f.deck.pop());
+  }
+}
+function startTurn(){
+  const p=G.p;
+  p.block=0; p.reversal=false; p.energy=ENERGY;
+  p.discard.push(...p.hand); p.hand=[];
+  draw(p,HAND);
+  render();
+}
+function say(t){G.log.unshift(t); G.log=G.log.slice(0,2);}
+function gainHype(f,n){f.hype=Math.min(HYPE_MAX,f.hype+n);}
+
+function pickIntent(){
+  const o=G.o, w=o.w;
+  if(o.hype>=HYPE_MAX){G.intent={type:"finisher",label:w.fin.name,dmg:w.fin.dmg};return;}
+  const bag=[];
+  for(const [k,v] of Object.entries(w.ai)) for(let i=0;i<v;i++) bag.push(k);
+  if(o.hp<o.max*0.35) bag.push("defense","defense");
+  const t=bag[rnd(bag.length)];
+  const lvl=Math.min(G.round,2);
+  if(t==="strike"){const d=[5,6,7,8][rnd(4)]+lvl; G.intent={type:"strike",label:`Strike ${d}`,dmg:d};}
+  else if(t==="grapple"){let d=[7,8,9,10][rnd(4)]+lvl; if(w.id==="brick")d+=2; G.intent={type:"grapple",label:`Grapple ${d}`,dmg:d};}
+  else if(t==="defense"){const b=6+rnd(4); G.intent={type:"defense",label:`Block ${b}`,block:b};}
+  else G.intent={type:"hype",label:"Play to the crowd",hype:3+(w.id==="kid"?1:0)};
+}
+
+function damage(target,amount,{ignoreBlock=false}={}){
+  let d=amount;
+  if(!ignoreBlock && target.block>0){const used=Math.min(target.block,d); target.block-=used; d-=used;}
+  target.hp=Math.max(0,target.hp-d);
+  return d;
+}
+
+function playCard(i){
+  if(G.busy||G.over) return;
+  const p=G.p, o=G.o, id=p.hand[i], c=CARDS[id];
+  if(c.cost>p.energy) return;
+  p.energy-=c.cost; p.hand.splice(i,1); p.discard.push(id);
+  let msg=`${c.name}.`;
+  if(c.dmg){
+    let d=c.dmg;
+    if(c.type==="grapple"&&G.pid==="brick") d+=2;
+    if(p.weak>0) d=Math.max(0,d-3);
+    const dealt=damage(o,d);
+    msg=`${c.name} for ${dealt}${dealt<d?` (${d-dealt} blocked)`:""}.`;
+    fx("o",dealt);
+    gainHype(p,(c.hype||0)+(c.type==="strike"&&G.pid==="raven"?1:0));
+    if(c.dmg) gainHype(o,1);
+  } else if(c.hype){gainHype(p,c.hype);}
+  if(c.self){p.hp=Math.max(1,p.hp-c.self); fx("p",c.self);}
+  if(c.block){p.block+=c.block; msg+=` Blocking ${p.block}.`;}
+  if(c.weak){o.weak=Math.max(o.weak,c.weak);}
+  if(c.heal){p.hp=Math.min(p.max,p.hp+c.heal); msg=`Second wind. +${c.heal} stamina.`;}
+  if(c.hypeGain){gainHype(p,c.hypeGain+(G.pid==="kid"?1:0));}
+  if(c.reversal){p.reversal=true; msg="Reversal ready.";}
+  if(c.draw) draw(p,c.draw);
+  say(msg);
+  if(checkPin(o,p)) return;
+  render();
+}
+
+function useFinisher(){
+  const p=G.p,o=G.o,f=p.w.fin;
+  if(G.busy||G.over||p.hype<HYPE_MAX) return;
+  p.hype=0;
+  const dealt=damage(o,f.dmg,{ignoreBlock:G.pid==="raven"});
+  if(G.pid==="dutch") o.weak=Math.max(o.weak,2);
+  if(G.pid==="kid") p.hp=Math.min(p.max,p.hp+5);
+  fx("o",dealt,true);
+  say(`${f.name.toUpperCase()}! ${dealt} damage.`);
+  gainHype(o,1);
+  if(checkPin(o,p)) return;
+  render();
+}
+
+function endTurn(){
+  if(G.busy||G.over) return;
+  G.busy=true; render();
+  setTimeout(oppAct,450);
+}
+
+function oppAct(){
+  const p=G.p,o=G.o,it=G.intent;
+  o.block=0;
+  let msg="";
+  if(it.type==="finisher"){
+    o.hype=0;
+    let d=it.dmg; if(o.weak>0) d=Math.max(0,d-3);
+    const dealt=damage(p,d,{ignoreBlock:o.w.id==="raven"});
+    if(o.w.id==="dutch") p.weak=Math.max(p.weak,2);
+    if(o.w.id==="kid") o.hp=Math.min(o.max,o.hp+5);
+    fx("p",dealt,true); msg=`${o.w.name} hits the ${it.label}! ${dealt} damage.`;
+  } else if(it.type==="grapple" && p.reversal){
+    const back=5+(G.pid==="dutch"?3:0);
+    if(G.pid==="dutch") p.block+=3;
+    const dealt=damage(o,back); fx("o",dealt);
+    gainHype(p,2);
+    msg=`Reversed! You counter the grapple for ${dealt}.`;
+  } else if(it.type==="strike"||it.type==="grapple"){
+    if(p.reversal && it.type==="strike") p.block+=3;
+    let d=it.dmg; if(o.weak>0) d=Math.max(0,d-3);
+    const dealt=damage(p,d); fx("p",dealt);
+    gainHype(o,it.type==="grapple"?2:1); gainHype(p,1);
+    msg=`${o.w.name}: ${it.type} for ${dealt}${dealt<d?` (${d-dealt} blocked)`:""}.`;
+  } else if(it.type==="defense"){
+    o.block=it.block; msg=`${o.w.name} covers up. Blocking ${it.block} on your turn.`;
+  } else {
+    gainHype(o,it.hype); msg=`${o.w.name} plays to the crowd. +${it.hype} hype.`;
+  }
+  if(o.weak>0 && it.type!=="defense" && it.type!=="hype") o.weak--;
+  say(msg);
+  if(p.weak>0) p.weak--;
+  if(checkPin(p,o)) return;
+  G.turn++; pickIntent(); G.busy=false; startTurn();
+}
+
+/* ---------- pinfall ---------- */
+function checkPin(down,up){
+  if(down.hp>0) return false;
+  G.busy=true; render();
+  const canKick = !down.kicked && down.hype>=5;
+  pinCount(canKick, ()=>{
+    if(canKick){
+      down.kicked=true; down.hype-=5; down.hp=5;
+      say(`${down.w.name} KICKS OUT AT TWO!`);
+      G.busy=false;
+      if(down===G.o){render();} else {G.turn++; pickIntent(); startTurn();}
+    } else finishMatch(up===G.p);
+  });
+  return true;
+}
+function pinCount(kick,done){
+  const ov=document.createElement("div"); ov.className="overlay"; document.body.appendChild(ov);
+  const steps=kick?["1","2","KICK OUT!"]:["1","2","3"];
+  let i=0;
+  const tick=()=>{
+    if(i>=steps.length){ setTimeout(()=>{ov.remove();done();}, kick?500:350); return; }
+    const s=steps[i]; ov.innerHTML=`<div class="count ${s==="3"?"three":""} ${s.length>2?"out":""}">${s}</div>`;
+    i++; setTimeout(tick, i===steps.length?900:650);
+  };
+  tick();
+}
+
+function finishMatch(won){
+  G.over=true;
+  const ov=document.createElement("div"); ov.className="overlay"; document.body.appendChild(ov);
+  const champ = won && G.round===2;
+  if(champ){const b=loadBest(); b[G.pid]=(b[G.pid]||0)+1; saveBest(b);}
+  const ladder=G.ladder.map((k,i)=>`<span class="${i<G.round||(won&&i===G.round)?"done":i===G.round?"cur":""}">${WRESTLERS[k].name}</span>`).join("");
+  ov.innerHTML=`<div class="result">
+    <div class="eyebrow">${won?"Winner by pinfall":"Pinned"}</div>
+    <h2>${champ?"Rewrite Champion":won?`${esc(G.p.w.name)} wins`:`${esc(G.o.w.name)} wins`}</h2>
+    <div class="ladder">${ladder}</div>
+    <p>${champ?`Three straight wins. ${esc(G.p.w.name)} walks out with the gold.`:won?`Next up: ${esc(WRESTLERS[G.ladder[G.round+1]].name)}. You start the next match fresh.`:`You lasted ${G.turn} turns. Run it back or pick someone new.`}</p>
+    <div class="actions">${won&&!champ?`<button class="btn primary" id="next">Next match</button>`:`<button class="btn primary" id="again">Run it back</button>`}<button class="btn" id="roster">Pick wrestler</button></div>
+  </div>`;
+  const close=()=>ov.remove();
+  ov.querySelector("#next")?.addEventListener("click",()=>{close();G.round++;startMatch();});
+  ov.querySelector("#again")?.addEventListener("click",()=>{close();startRun(G.pid);});
+  ov.querySelector("#roster").addEventListener("click",()=>{close();G=null;selectScreen();});
+}
+
+/* ---------- render ---------- */
+let pendingFx=[];
+function fx(who,amount,big){pendingFx.push({who,amount,big});}
+
+function fighterHTML(f,who){
+  const pips=Array.from({length:HYPE_MAX},(_,i)=>`<span class="${i<f.hype?"on":""}"></span>`).join("");
+  const chips=[f.block?`<span class="chip block">Block ${f.block}</span>`:"",f.weak?`<span class="chip weak">Weakened ${f.weak}</span>`:"",f.reversal?`<span class="chip rev">Reversal ready</span>`:"",f.kicked?`<span class="chip">Kick-out used</span>`:""].join("");
+  const intent= who==="o" ? `<div class="intent"><span class="k">Next</span><span class="v ${G.intent.type}">${esc(G.intent.label)}</span></div>` : "";
+  return `<section class="fighter" id="f-${who}">
+    ${portrait(f.w,false)}
+    <div class="bars">
+      <div class="name">${esc(f.w.name)} <small>${who==="p"?"You":esc(f.w.style)}</small></div>
+      <div class="bar"><i style="width:${(f.hp/f.max*100).toFixed(1)}%"></i><b>${f.hp} / ${f.max}</b></div>
+      <div class="hype ${f.hype>=HYPE_MAX?"full":""}" title="Hype ${f.hype}/10">${pips}</div>
+      ${intent}
+      ${chips?`<div class="chips">${chips}</div>`:""}
+    </div></section>`;
+}
+
+function render(){
+  if(!G||!G.p) return;
+  const p=G.p,o=G.o;
+  const ladder=G.ladder.map((k,i)=>`<span class="${i<G.round?"done":i===G.round?"cur":""}">${WRESTLERS[k].name}</span>`).join("");
+  app.innerHTML=`
+  <header class="brand"><h1>Ringside <span>Card Clash</span></h1><div class="ladder">${ladder}</div></header>
+  ${fighterHTML(o,"o")}
+  <div class="call"><div class="now">${esc(G.log[0]||"")}</div>${G.log[1]?`<div class="prev">${esc(G.log[1])}</div>`:""}</div>
+  ${fighterHTML(p,"p")}
+  <div class="meta"><div class="energy">${Array.from({length:ENERGY},(_,i)=>`<i class="${i<p.energy?"on":""}"></i>`).join("")}<span>&nbsp;${p.energy} energy</span></div>
+    <span>Turn ${G.turn} · Deck ${p.deck.length} · Discard ${p.discard.length}</span></div>
+  <div class="hand">${p.hand.map((id,i)=>{const c=CARDS[id];return `<button class="card t-${c.type}${c.sig?" sig":""}" data-i="${i}" ${c.cost>p.energy||G.busy?"disabled":""}>
+      <div class="top"><span class="type">${c.type}</span><span class="cost">${c.cost}</span></div>
+      <h4>${esc(c.name)}</h4><p>${esc(c.text)}</p></button>`}).join("")||`<p class="howto">No cards left. End your turn.</p>`}</div>
+  <div class="actions">
+    <button class="btn fin" id="fin" ${p.hype<HYPE_MAX||G.busy?"disabled":""}>${esc(p.w.fin.name)}</button>
+    <span class="grow"></span>
+    <button class="btn primary" id="end" ${G.busy?"disabled":""}>End turn</button>
+  </div>`;
+  app.querySelectorAll(".card").forEach(b=>b.onclick=()=>playCard(+b.dataset.i));
+  $("#end").onclick=endTurn; $("#fin").onclick=useFinisher;
+  for(const e of pendingFx){
+    const el=$(`#f-${e.who}`); if(!el) continue;
+    el.classList.add("hit");
+    const n=document.createElement("span"); n.className="float"; n.textContent=e.amount?`-${e.amount}`:"0";
+    n.style.color=e.big?"var(--finisher)":"var(--crimson)"; el.appendChild(n);
+  }
+  pendingFx=[];
+}
+
+/* ---------- boot ---------- */
+function start(data){
+  if(data&&data.G&&data.G.p){G=data.G;G.busy=false;render();} else selectScreen();
+}
+window.claude?.hot?.snapshot?.(()=>({G}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
