@@ -54,7 +54,9 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .fighter{margin-top:6px}
 .vs{font-family:var(--display);font-weight:800;color:var(--muted);font-size:13px;letter-spacing:.2em;text-align:center}
 .bars{display:grid;gap:6px;min-width:0}
-.bar{height:14px;background:var(--panel-2);border-radius:3px;overflow:hidden;position:relative}
+.lbl{display:flex;justify-content:space-between;gap:8px;font-family:var(--label);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:-3px}
+.lbl .num{color:var(--fg);font-size:13px;letter-spacing:.04em;font-weight:600;font-variant-numeric:tabular-nums}
+.bar{height:10px;background:var(--panel-2);border-radius:3px;overflow:hidden;position:relative}
 .bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--crimson),#e04a52);transition:width .35s ease}
 .bar b{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-family:var(--label);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--fg)}
 .hype{display:flex;gap:3px;align-items:center}
@@ -401,7 +403,9 @@ function fighterHTML(f,who){
     ${portrait(f.w,false)}
     <div class="bars">
       <div class="name">${esc(f.w.name)} <small>${esc(f.w.style)}</small></div>
-      <div class="bar"><i style="width:${(f.hp/f.max*100).toFixed(1)}%"></i><b>${f.hp} / ${f.max}</b></div>
+      <div class="lbl"><span>Stamina</span><span class="num">${f.hp} left of ${f.max}</span></div>
+      <div class="bar"><i style="width:${(f.hp/f.max*100).toFixed(1)}%"></i></div>
+      <div class="lbl"><span>Hype</span><span class="num">${f.hype>=HYPE_MAX?"FINISHER READY":`${f.hype} / ${HYPE_MAX}`}</span></div>
       <div class="hype ${f.hype>=HYPE_MAX?"full":""}" title="Hype ${f.hype}/10">${pips}</div>
       ${intent}
       ${chips?`<div class="chips">${chips}</div>`:""}
