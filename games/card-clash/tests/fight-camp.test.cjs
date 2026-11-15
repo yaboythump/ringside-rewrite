@@ -421,3 +421,9 @@ test("rehab uses a segment and injuries otherwise fade after two singles bouts",
   assert.equal(run("C.segDone"),true);
   assert.equal(run("injuryPenalty(C)"),0);
 });
+
+test("embedded portrait assets bind to both the original and expanded rosters", () => {
+  const loaded=script.slice(start,end).replace("/*__PORTRAITS__*/",'raven:"original",hana:"expanded"');
+  const result=vm.runInNewContext(loaded+'\n[WRESTLERS.raven.img,WRESTLERS.hana.img].join(",")');
+  assert.equal(result,"original,expanded");
+});

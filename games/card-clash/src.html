@@ -367,7 +367,7 @@ const WRESTLERS = {
     passive:"",fin:{name:"Ox Yoke Slam",dmg:19,text:"19 damage."},sig:[],ai:{strike:2,grapple:5,defense:2,hype:1}},
 };
 const BELT_IMG="__BELT__";
-const PORTRAITS={/*__PORTRAITS__*/};for(const k in PORTRAITS) if(WRESTLERS[k]) WRESTLERS[k].img=PORTRAITS[k];
+const PORTRAITS={/*__PORTRAITS__*/};
 const STYLES = {
   power:{name:"Powerhouse",hp:60,move:"powerslam",trait:"Grapples deal +2 damage.",ai:[2,5,2,1]},
   aerial:{name:"High-Flyer",hp:50,move:"elbow",trait:"Strikes generate +1 hype.",ai:[5,2,1,3]},
@@ -491,6 +491,9 @@ Object.assign(WRESTLERS.jett.fin,{pierce:true});
 Object.assign(WRESTLERS.dutch.fin,{weak:2});
 Object.assign(WRESTLERS.kid.fin,{heal:5});
 for(const [id,sig] of Object.entries({silas:["sleeper","chain"],tank:["haymaker","ironchin"],jett:["springboard","crossbody"],ox:["pounce","fortress"]})) WRESTLERS[id].sig=sig;
+for(const [id,uri] of Object.entries(PORTRAITS)){
+  if(Object.hasOwn(WRESTLERS,id))WRESTLERS[id].img=uri;
+}
 const rarity=c=>c.rarity||(c.sig?"signature":c.train?"uncommon":"common");
 Object.assign(CARDS,{
   turnbuckle:{name:"Turnbuckle Blitz",type:"strike",cost:2,dmg:10,hype:2,rarity:"epic",text:"+2 hype. Win Streak contract reward."},
