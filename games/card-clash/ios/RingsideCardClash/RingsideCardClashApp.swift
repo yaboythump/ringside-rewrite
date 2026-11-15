@@ -56,7 +56,7 @@ struct GameView: UIViewRepresentable {
 final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     static let bridgeName = "ringsideGame"
     private static let keys: Set<String> = [
-        "rcc-career", "rcc-best", "rcc-cup", "rcc-tag", "rcc-mute", "rcc-low-motion"
+        "rcc-career", "rcc-best", "rcc-cup", "rcc-tag", "rcc-mute", "rcc-low-motion", "rcc-music-off"
     ]
     private static let maximumSaveBytes = 512 * 1024
     let gameURL = Bundle.main.url(forResource: "index", withExtension: "html")

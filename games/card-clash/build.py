@@ -44,6 +44,14 @@ def build_page(src, dest, assets):
         .replace("__BELT__", find_image("belt", assets))
         .replace("__ARENA__", find_image("arena", assets))
     )
+    if "/*__PIN_VOICE__*/" in src:
+        clips = []
+        for number in (1, 2, 3):
+            name = f"sound/ref-{number}.mp3"
+            if name not in assets:
+                sys.exit(f"Missing audio: assets/{name}")
+            clips.append(f'"{base64.b64encode(assets[name]).decode()}"')
+        out = out.replace("/*__PIN_VOICE__*/", ",".join(clips))
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(out, encoding="utf-8")
     print(f"wrote {dest} ({len(out.encode('utf-8')) // 1024} KB)")

@@ -76,6 +76,16 @@ const legacy={
       assert.equal(await button("#m-cont").count(),isPreview?0:1);
       if(!isPreview){
         await click("#m-cont");
+        await click("#move-shop");
+        await p.getByText("Career balance · $360",{exact:true}).waitFor();
+        await click('[data-buy="shopPalm"]');
+        await p.getByText("Career balance · $315",{exact:true}).waitFor();
+        await click("#shop-camp");
+        await click('[data-swap="shopPalm"]');
+        await p.locator('#camp-swap select').selectOption("chop");
+        await click('#camp-swap [type="submit"]');
+        assert.equal(await p.locator('[data-unequip="shopPalm"]').count(),1);
+        await click("#camp-back");
         await click("#fight-camp");
         assert.match(await button(".camp-summary").textContent(),/Equipped 15/);
         await click("#camp-back");await click("#quit");
@@ -121,6 +131,7 @@ const legacy={
       await click("#fight");
       await ring();
       if(label==="iPhone"&&!mode){
+        await p.waitForFunction(()=>pinVoice.length===3&&musicTimer!==0);
         const original=p.viewportSize();
         const positions=()=>p.evaluate(()=>{
           const bounds=selector=>document.querySelector(selector).getBoundingClientRect();
@@ -168,6 +179,7 @@ const legacy={
       const result=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
       assert.equal(result.week,2);
       assert.equal(result.w+result.l,1);
+      assert.equal(result.cash,result.w*45);
       assert.equal(result.office.active.id,"wins");
       assert.equal(result.office.active.progress,result.w);
       console.log(label,"career",career,"saved week",result.week);

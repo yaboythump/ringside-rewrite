@@ -406,7 +406,7 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
   .battle .fighter .portrait{width:38px}
   .battle .fighter .name{margin-right:40px}
   .battle .intent{flex-direction:row;align-items:center;gap:5px}
-  .battle .ticker{position:sticky;bottom:0;z-index:4;background:#121217}
+  .battle .ticker{grid-row:5;position:sticky;bottom:0;z-index:4;background:#121217}
   .battle .ticker .now{font-size:19px}
   .battle .ticker .prev{display:block;font-size:12px}
   .battle-hand{grid-column:2;grid-row:1}
@@ -425,46 +425,33 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
   .ring-apron{position:absolute;bottom:5%;left:6%;right:6%;height:8%;background:#2c2133;border-top:2px solid #b78957}
   .ring-call{position:absolute;z-index:3;top:5px;left:8px;right:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     color:var(--gold-hi);font:700 11px var(--label);letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 4px #000}
-  .ring-actor{--sign:1;--reach:42cqh;position:absolute;bottom:15%;left:calc(50% - 54cqh);width:43cqh;height:61cqh;
-    transform-origin:50% 94%;z-index:2;filter:drop-shadow(0 4px 4px #100812a8)}
-  .ring-actor.opponent{--sign:-1;left:auto;right:calc(50% - 54cqh)}
-  .ring-body{position:absolute;inset:0;transform:scaleX(var(--sign))}
-  .ring-part{position:absolute;display:block;border:1px solid #17101b;background:linear-gradient(115deg,#fff4,transparent 42%,#0006),var(--skin);box-sizing:border-box}
-  .ring-body .portrait{position:absolute;z-index:3;top:0;left:30%;width:40%;aspect-ratio:1.03;border-radius:48%;clip-path:none;outline:1px solid #120d15}
-  .ring-body .portrait img{position:absolute;inset:0 auto auto -32%;width:164%;height:164%;object-fit:cover;object-position:center top}
-  .ring-body .portrait::after,.ring-body .crest{display:none}
-  .ring-torso{z-index:2;left:23%;right:23%;top:21%;height:37%;border-radius:36% 36% 24% 24%;
-    background:linear-gradient(125deg,#fff5,transparent 40%,#0008),var(--gear);border-bottom:3px solid #d7ae68}
-  .ring-arm{top:26%;height:29%;width:20%;border-radius:45%;transform-origin:50% 19%}
-  .ring-arm.rear{left:16%;transform:rotate(24deg)}
-  .ring-arm.lead{right:12%;z-index:3;transform:rotate(-37deg);border-bottom:4px solid var(--gear)}
-  .ring-leg{top:54%;width:20%;height:45%;border-radius:24%;transform-origin:50% 10%;
-    background:linear-gradient(115deg,#fff3,transparent 40%,#0007),var(--gear);border-bottom:7px solid #17131d}
-  .ring-leg.rear{left:27%;transform:rotate(18deg)}.ring-leg.lead{right:27%;transform:rotate(-20deg)}
+  .ring-actor{--sign:1;--reach:15cqh;position:absolute;bottom:6%;left:calc(50% - 103cqh);width:94cqh;height:84cqh;
+    transform-origin:50% 94%;z-index:2;isolation:isolate}
+  .ring-actor.opponent{--sign:-1;left:auto;right:calc(50% - 103cqh)}
+  .ring-actor .portrait{width:100%;height:100%;aspect-ratio:auto;clip-path:none;background:transparent;
+    mask-image:radial-gradient(ellipse 51% 74% at 50% 59%,#000 57%,transparent 100%)}
+  .ring-actor .portrait img{object-position:center 31%;filter:contrast(1.16) saturate(.93)}
+  .ring-actor .portrait::after{background:linear-gradient(0deg,#0b0913 0%,transparent 47%)}
+  .ring-actor::after{content:"";position:absolute;inset:auto 13% 0;height:20%;z-index:-1;
+    background:radial-gradient(ellipse,color-mix(in srgb,var(--gear) 60%,transparent),transparent 73%);filter:blur(7px)}
   .ring-actor[data-reaction="hit"]{animation:ring-recoil .58s ease-out}
   .ring-actor[data-reaction="throw"]{animation:ring-thrown .73s ease-out}
   .ring-actor[data-reaction="held"]{animation:ring-held .72s ease-out}
-  .ring-actor[data-reaction="guard"] .ring-arm.lead{animation:ring-guard .6s ease-out}
-  .ring-actor[data-action="strike"],.ring-actor[data-action="grapple"],.ring-actor[data-action="hold"],.ring-actor[data-action="finisher"]{animation:ring-step .65s ease-out}
-  .ring-actor[data-action="strike"] .ring-arm.lead{animation:ring-strike .58s ease-out}
-  .ring-actor[data-action="grapple"] .ring-arm,.ring-actor[data-action="hold"] .ring-arm,.ring-actor[data-action="finisher"] .ring-arm{animation:ring-grab .65s ease-out}
-  .ring-actor[data-action="air"]{animation:ring-dive .73s ease-out}
-  .ring-actor[data-action="air"] .ring-leg.lead{animation:ring-kick .73s ease-out}
-  .ring-actor[data-action="defense"] .ring-arm.lead{animation:ring-guard .62s ease-out}
-  .ring-actor[data-action="hype"] .ring-arm{animation:ring-cheer .68s ease-out}
+  .ring-actor[data-reaction="guard"],.ring-actor[data-action="defense"]{animation:ring-guard .62s ease-out}
+  .ring-actor[data-action="strike"],.ring-actor[data-action="grapple"],.ring-actor[data-action="hold"]{animation:ring-step .65s ease-out;z-index:3}
+  .ring-actor[data-action="air"],.ring-actor[data-action="finisher"]{animation:ring-dive .73s ease-out;z-index:3}
+  .ring-actor[data-action="hype"]{animation:ring-cheer .68s ease-out}
   .ring-actor[data-action="tag"]{animation:ring-entry .62s ease-out}
-  .live-ring[data-still] .ring-actor,.live-ring[data-still] .ring-part{animation:none!important}
-  @keyframes ring-step{35%,55%{transform:translateX(calc(var(--reach)*var(--sign))) rotate(calc(11deg*var(--sign)))}}
-  @keyframes ring-strike{37%,52%{transform:rotate(-94deg) scaleY(1.42)}}
-  @keyframes ring-grab{32%,58%{transform:rotate(-83deg) scaleY(1.25)}}
-  @keyframes ring-dive{42%{transform:translate(calc(var(--reach)*var(--sign)),-27%) rotate(calc(40deg*var(--sign)))}}
-  @keyframes ring-kick{42%{transform:rotate(-77deg)}}
-  @keyframes ring-recoil{38%,58%{transform:translateX(calc(-14px*var(--sign))) rotate(calc(-21deg*var(--sign)))}}
-  @keyframes ring-thrown{40%{transform:translate(calc(-28px*var(--sign)),-18%) rotate(calc(-75deg*var(--sign)))}65%{transform:translateX(calc(-22px*var(--sign))) rotate(calc(-55deg*var(--sign)))}}
-  @keyframes ring-held{35%,65%{transform:translateX(calc(9px*var(--sign))) rotate(calc(32deg*var(--sign))) scaleY(.78)}}
-  @keyframes ring-guard{25%,67%{transform:translateY(-13%) rotate(-146deg)}}
-  @keyframes ring-cheer{25%,65%{transform:rotate(-159deg)}}
+  .live-ring[data-still] .ring-actor{animation:none!important}
+  @keyframes ring-step{35%,55%{transform:translateX(calc(var(--reach)*var(--sign))) scale(1.13) rotate(calc(7deg*var(--sign)))}}
+  @keyframes ring-dive{42%{transform:translate(calc(var(--reach)*var(--sign)),-14%) scale(1.16) rotate(calc(22deg*var(--sign)))}}
+  @keyframes ring-recoil{38%,58%{transform:translateX(calc(-14px*var(--sign))) rotate(calc(-18deg*var(--sign)));filter:brightness(1.38)}}
+  @keyframes ring-thrown{42%{transform:translate(calc(-22px*var(--sign)),-12%) rotate(calc(-63deg*var(--sign)))}}
+  @keyframes ring-held{35%,65%{transform:translateX(calc(9px*var(--sign))) rotate(calc(19deg*var(--sign))) scale(.88)}}
+  @keyframes ring-guard{34%,66%{transform:translateY(9%) scale(.91);filter:brightness(.79)}}
+  @keyframes ring-cheer{33%,61%{transform:translateY(-7%) scale(1.1);filter:brightness(1.2)}}
   @keyframes ring-entry{from{opacity:.2;transform:translateX(calc(-45px*var(--sign)))}}
+
 }
 @media(min-width:820px) and (min-height:510px) and (pointer:coarse){
   .battle .hand{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -488,6 +475,7 @@ const BEST_KEY=PREVIEW?"rcc-preview-best":"rcc-best";
 const CUP_KEY=PREVIEW?"rcc-preview-cup":"rcc-cup";
 const TAG_KEY=PREVIEW?"rcc-preview-tag":"rcc-tag";
 const MUTE_KEY=PREVIEW?"rcc-preview-mute":"rcc-mute";
+const MUSIC_KEY=PREVIEW?"rcc-preview-music-off":"rcc-music-off";
 const MOTION_KEY=PREVIEW?"rcc-preview-low-motion":"rcc-low-motion";
 let lowMotion=false;
 try{lowMotion=gameStorage.getItem(MOTION_KEY)==="1";}catch(e){}
@@ -651,7 +639,18 @@ Object.assign(CARDS,{
   popUp:{name:"Standing Ovation",type:"hype",cost:1,hypeGain:4,draw:1,big:"+4 HYPE",rarity:"epic",text:"+4 hype. Draw one card. Show Stealer contract reward."},
   counterClutch:{name:"Grudge Clutch",type:"defense",cost:1,reversal:true,block:2,big:"COUNTER",rarity:"epic",text:"Block 2. Cancel the next grapple and counter for 5. Settle the Score contract reward."},
   goldRush:{name:"Gold Rush Driver",type:"grapple",cost:2,dmg:11,hype:1,rarity:"epic",text:"+1 hype. Fight for Gold contract reward."},
+  shopPalm:{name:"Corner Palm Strike",type:"strike",cost:1,dmg:5,pierce:true,rarity:"uncommon",text:"Ignores block."},
+  shopLariat:{name:"Railroad Lariat",type:"strike",cost:2,dmg:10,expose:1,rarity:"rare",text:"The next attack that hits deals +3 damage."},
+  shopHammer:{name:"Hammerlock Takedown",type:"grapple",cost:1,dmg:5,weak:1,rarity:"uncommon",text:"Weakens their next attack by 3."},
+  shopBomb:{name:"Sit-Out Powerbomb",type:"grapple",cost:3,dmg:15,hype:2,rarity:"epic",text:"+2 hype. Uses all 3 starting energy."},
+  shopCradle:{name:"Inside Cradle",type:"grapple",cost:2,dmg:7,draw:1,pierce:true,rarity:"rare",text:"Ignores block. Draw one card."},
+  shopShell:{name:"High Shell",type:"defense",cost:1,block:8,cleanse:true,rarity:"rare",text:"Block 8. Clear Weakened and Exposed."},
+  shopBreather:{name:"Corner Breather",type:"defense",cost:1,heal:5,draw:1,rarity:"uncommon",text:"Recover 5 stamina. Draw one card."},
+  shopChant:{name:"Start the Chant",type:"hype",cost:0,hypeGain:2,draw:1,rarity:"rare",text:"Free. +2 hype. Draw one card."},
 });
+const CARD_SHOP={shopPalm:45,shopLariat:75,shopHammer:45,shopBomb:105,shopCradle:75,shopShell:65,shopBreather:55,shopChant:70};
+const CASH_CAP=9999999;
+const cashLabel=n=>`$${n.toLocaleString("en-US")}`;
 const TRAIN_POOL=Object.keys(CARDS).filter(k=>CARDS[k].train);
 const BASE_DECK=["chop","chop","dropkick","clothesline","suplex","headlock","block","block","reversal","secondwind","taunt","crowdpop"];
 const HAND=5, ENERGY=3, HYPE_MAX=10;
@@ -695,6 +694,25 @@ function unlockCard(save,id){
   normalizeLoadout(save);
   save.collection.push(id);
   if(save.deck.length<MAX_CAMP_DECK) save.deck.push(id);
+  return true;
+}
+function awardPurse(save,won,special=false,title=false){
+  const earned=won?(title?85:special?65:45):0;
+  const credited=Math.min(earned,CASH_CAP-save.cash);
+  save.cash+=credited;
+  return credited;
+}
+function buyCard(save,id){
+  if(!Object.hasOwn(CARD_SHOP,id)||save.collection.includes(id)||save.cash<CARD_SHOP[id]) return false;
+  save.cash-=CARD_SHOP[id];
+  save.collection.push(id);
+  return true;
+}
+function swapCard(save,into,out){
+  const index=save.deck.indexOf(out);
+  const owned=cardCounts(save.collection),equipped=cardCounts(save.deck);
+  if(index<0||!Object.hasOwn(CARDS,into)||(owned[into]||0)<=(equipped[into]||0))return false;
+  save.deck[index]=into;
   return true;
 }
 
@@ -762,12 +780,43 @@ resize(); requestAnimationFrame(loop);
 function flash(){if(still())return;const f=$("#flash");f.classList.remove("go");void f.offsetWidth;f.classList.add("go");}
 function quake(){if(still())return;app.classList.remove("quake");void app.offsetWidth;app.classList.add("quake");}
 
-/* ---------- sound (synthesized, no files) ---------- */
-let AC=null,muted=false,lastCrowd=0;
-try{muted=gameStorage.getItem(MUTE_KEY)==="1"}catch(e){}
+/* ---------- sound ---------- */
+let AC=null,muted=false,musicOff=false,lastCrowd=0,musicTimer=0,musicBeat=0;
+const PIN_VOICE=[/*__PIN_VOICE__*/];
+let pinVoice=[],voiceLoad=null;
+try{muted=gameStorage.getItem(MUTE_KEY)==="1";musicOff=gameStorage.getItem(MUSIC_KEY)==="1"}catch(e){}
 function actx(){if(muted)return null;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();}catch(e){return null}return AC;}
 function tone(f,dur,gain,type="sine",to){const a=actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+.02);}
 function noise(dur,freq,gain,type="lowpass",attack=0){const a=actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(a.destination);s.start(t);}
+const ARENA_RIFF=[55,55,0,65.41,55,0,73.42,65.41,49,49,0,55,49,0,65.41,73.42];
+function stopArenaMusic(){if(musicTimer)clearInterval(musicTimer);musicTimer=0;}
+function startArenaMusic(){
+  stopArenaMusic();
+  if(muted||musicOff||!actx())return;
+  musicBeat=0;
+  musicTimer=setInterval(()=>{
+    if(document.hidden||muted||musicOff||AC?.state!=="running")return;
+    const i=musicBeat++%ARENA_RIFF.length,f=ARENA_RIFF[i];
+    if(f){tone(f,.19,.075,"triangle");tone(f*2,.12,.025,"triangle");}
+    if(i%4===0)tone(85,.16,.125,"sine",36);
+    if(i%4===2)noise(.07,1400,.055,"bandpass");
+    if(i%2===1)noise(.035,4800,.022,"highpass");
+  },235);
+}
+function loadPinVoice(){
+  const audio=actx();
+  if(!audio||voiceLoad||!PIN_VOICE.length)return;
+  voiceLoad=Promise.all(PIN_VOICE.map(encoded=>audio.decodeAudioData(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0)).buffer)))
+    .then(clips=>{pinVoice=clips;}).catch(()=>{voiceLoad=null;});
+}
+function speakPin(number){
+  const audio=actx(),clip=pinVoice[number-1];
+  if(!audio||!clip)return false;
+  const source=audio.createBufferSource(),gain=audio.createGain();
+  source.buffer=clip;gain.gain.value=.9;source.connect(gain);gain.connect(audio.destination);
+  source.start(audio.currentTime+.07);
+  return true;
+}
 const SFX={
   tag(){tone(300,.12,.22,"triangle",160);tone(560,.16,.12,"sine",760);},
   entrance(){tone(110,.55,.20,"triangle",55);tone(220,.65,.095,"triangle",130);},
@@ -782,7 +831,7 @@ const SFX={
   crowd(){const n=Date.now();if(n-lastCrowd<900)return;lastCrowd=n;noise(1.4,1100,.2,"bandpass",.25)},
   boo(){tone(140,.7,.12,"sawtooth",95)},
 };
-document.addEventListener("click",e=>{const b=e.target.closest("[data-mute]");if(!b)return;muted=!muted;try{gameStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");if(!muted)SFX.bell();});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-mute]");if(!b)return;muted=!muted;try{gameStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");if(muted)stopArenaMusic();else{SFX.bell();loadPinVoice();if(G?.p&&!G.over)startArenaMusic();}});
 const muteBtn=()=>`<button class="mutebtn" data-mute>${muted?"Sound off":"Sound on"}</button>`;
 
 /* ---------- pieces ---------- */
@@ -796,6 +845,7 @@ const logo=()=>`<h1 class="logo"><span class="l1">Ringside</span><span class="l2
 
 /* ---------- screens ---------- */
 function titleScreen(){
+  stopArenaMusic();
   G=null;
   const saved=loadCareer(),cup=loadCup();
   app.innerHTML=`
@@ -857,14 +907,19 @@ function guideScreen(screen){
     <li>Read Next move before committing. Block absorbs damage. Reversal cancels grapples. Slip &amp; Rip counters strikes.</li>
     <li>Land a strike before a grapple in the same turn for +3 damage. Exposed adds +3 to the next hit that gets through. Anchor Stance clears Exposed and Weakened.</li>
     <li>At 10 hype, use your finisher for zero energy or hold hype for a kick-out. You can kick out once at 5 hype, except in a steel cage.</li>
-    <li>In Career, enter Fight Camp to read your opponent and equip earned cards. Training costs one weekly segment. Your career and settings save to this browser.</li>
+    <li>Career wins earn in-game cash. Buy cards in the Move Shop, then equip or swap them in Fight Camp. Training still costs one weekly segment. Your career and settings save on this device.</li>
   </ol><button class="btn primary" id="practice">Practice in exhibition</button>`
-  :`<div class="actions">${muteBtn()}<button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div>
+  :`<div class="actions">${muteBtn()}<button class="btn" id="music" aria-pressed="${!musicOff}">Arena music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div>
     ${RM?'<p class="howto">This device requests reduced motion.</p>':""}
-    <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. Create-a-Wrestler ring gear and synthesized audio are generated by the game.</p>`}
+    <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. The arena music and effects are synthesized in-game. Referee voice is synthesized with Festival Lite.</p>`}
   </section><div class="actions"><button class="btn" id="back">Main menu</button></div>`;
   $("#back").onclick=titleScreen;
   $("#practice")?.addEventListener("click",()=>exhibitionSetup("raven"));
+  $("#music")?.addEventListener("click",()=>{
+    musicOff=!musicOff;
+    try{gameStorage.setItem(MUSIC_KEY,musicOff?"1":"0");}catch(e){}
+    guideScreen(screen);
+  });
   $("#motion")?.addEventListener("click",()=>{
     lowMotion=!lowMotion;
     try{gameStorage.setItem(MOTION_KEY,lowMotion?"1":"0");}catch(e){}
@@ -1112,6 +1167,8 @@ function startRun(id){
   startMatch();
 }
 async function startMatch(){
+  loadPinVoice();
+  startArenaMusic();
   if(G.mode==="career"){
     const plus=G.stip==="lastman"?15:0;
     G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus+(C.hypeMod||0),hpMod:Math.min(0,C.hpMod||0)-injuryPenalty(C),hpPlus:plus+Math.max(0,C.hpMod||0)}); G.o=makeFighter(G.oid,{level:G.level,hpPlus:plus});
@@ -1350,15 +1407,20 @@ async function pinCount(kick){
   for(const s of steps){
     ov.innerHTML=`<div><div class="ref">The referee counts</div><div class="count ${s==="3"?"three":""} ${s.length>2?"out":""}">${s}</div></div>`;
     if(!still()&&s==="3")NATIVE?.impact("heavy");
-    SFX.count();if(s==="3"){SFX.bell();setTimeout(SFX.bell,260);setTimeout(SFX.bell,520);}
+    SFX.count();
+    const spoken=s.length===1&&speakPin(Number(s));
+    if(s==="3"){const lead=spoken?540:0;setTimeout(SFX.bell,lead);setTimeout(SFX.bell,lead+260);setTimeout(SFX.bell,lead+520);}
     if(s==="3"||s.length>2){flash();crowd(140);quake();}
-    await wait(s.length>2||s==="3"?1000:700);
+    const pause=s.length>2||s==="3"?1000:700;
+    if(spoken)await new Promise(resolve=>setTimeout(resolve,pause));
+    else await wait(pause);
   }
   ov.remove();
 }
 
 function finishMatch(won){
   if(G.over)return;
+  stopArenaMusic();
   G.over=true;
   if(G.mode==="career"){careerResult(won);return;}
   if(G.mode!=="quick"){eventResult(won);return;}
@@ -1392,9 +1454,10 @@ function eventResult(won){
   }
   const isTag=mode==="tag";
   const team=isTag?(won?[pid,partner]:[oid,otherPartner]):null;
+  let purse=0;
   if(isTag&&G.tagWeek){
     const line=recordCareerTag(C,G,won);
-    if(line){news(line);saveCareer();}
+    if(line){purse=awardPurse(C,won,true,forTitle);news(line);saveCareer();}
   }else if(isTag&&forTitle){
     const promotion=tagPromotion();
     recordTagChampions(promotion,team);
@@ -1407,6 +1470,7 @@ function eventResult(won){
     <h2 class="metal">${esc(isTag?teamName(team):(won?G.p:G.o).w.name)} wins</h2>
     ${isTag&&forTitle?`<p>${TAG_TITLE}</p>`:""}
     ${G.tagWeek?`<p>Tag result saved for week ${G.tagWeek}. Your singles match is next.</p>`:""}
+    ${purse?`<p class="eyebrow">Winner’s purse +${cashLabel(purse)}</p>`:""}
     ${starsHTML(matchRating(won))}
     <div class="actions"><button class="btn primary" id="event-next">${isCup?"View bracket":G.tagWeek?"Back to the card":isTag?"Tag Team setup":"Rematch"}</button>
       <button class="btn" id="event-menu">Main menu</button></div></div>`;
@@ -1534,6 +1598,8 @@ function normalizeCareer(c){
   c.hpMod=c.hpMod||0;c.hypeMod=c.hypeMod||0;c.best=c.best||0;c.align=c.align||0;
   if(!Number.isFinite(c.peak))c.peak=99;
   c.xp=Number.isFinite(c.xp)&&c.xp>=0?c.xp:(c.w||0)*12+(c.l||0)*5;
+  c.cash=Number.isSafeInteger(c.cash)&&c.cash>=0?Math.min(c.cash,CASH_CAP):
+    Math.min(CASH_CAP,Number.isSafeInteger(c.w)&&c.w>0?c.w*45:0);
   c.history=Array.isArray(c.history)?c.history:[];
   c.results=Array.isArray(c.results)?c.results:[];
   c.secondary=division==="open"?(pool.includes(c.secondary)||c.secondary===c.wid?c.secondary:pool.find(id=>id!==c.wid&&id!==c.champ)):null;
@@ -1773,7 +1839,7 @@ function hub(){
       ${story?`<button class="seg" id="s-story" style="--c:var(--gold)"><b>Backstage decision</b><span>${C.arc.ally?"Honor your alliance or turn on your partner.":"Hear an offer from the locker room."}</span></button>`:""}
       <button class="seg" id="s-call" style="--c:var(--crimson)" ${rivalryBooked||b.title||isChamp()||r===0?"disabled":""}><b>Call out</b><span>${rivalryBooked?"Your contract has already booked your rival.":isChamp()?"Champions get called out, not the other way around.":"Use the Call out button next to anyone up to 3 spots above you in the rankings."}</span></button>
     </div>`}
-    <div class="actions"><button class="btn" id="fight-camp">Fight Camp · Match Prep</button><button class="btn primary grow" id="fight">${b.title?"Title match":"To the ring"}</button></div>
+    <div class="actions"><button class="btn" id="fight-camp">Fight Camp · Match Prep</button><button class="btn" id="move-shop">Move Shop · ${cashLabel(C.cash)}</button><button class="btn primary grow" id="fight">${b.title?"Title match":"To the ring"}</button></div>
   </section>
   <section class="panel"><h3>Locker room</h3>
     <div class="stats"><span>Faction<b>${FACTIONS[C.arc.faction]||"Independent"}</b></span>${C.arc.ally?`<span>Ally<b>${esc(WRESTLERS[C.arc.ally].name)}</b></span>`:""}
@@ -1790,6 +1856,7 @@ function hub(){
   <div class="actions"><button class="btn" id="quit">Main menu</button><span class="grow"></span>${muteBtn()}</div>`;
   $("#fight").onclick=careerMatch;
   $("#fight-camp").onclick=fightCamp;
+  $("#move-shop").onclick=()=>moveShop();
   $("#journal").onclick=careerJournal;
   $("#career-office").onclick=officeScreen;
   $("#career-tag")?.addEventListener("click",careerTagMatch);
@@ -1803,7 +1870,28 @@ function hub(){
 
 
 /* ---------- Fight Camp: scout and select your earned cards ---------- */
-function fightCamp(){
+function moveShop(message=""){
+  normC();
+  const owned=cardCounts(C.collection);
+  app.innerHTML=`<header class="brand">${logo()}</header><section class="panel">
+    <h3>Move Shop</h3><div class="eyebrow">Career balance · ${cashLabel(C.cash)}</div>
+    <p class="howto">Win matches to earn in-game cash. Purchases go to your Fight Camp reserves so you can choose what to equip.</p>
+    ${message?`<p class="camp-note" role="status">${esc(message)}</p>`:""}
+    <div class="camp-moves">${Object.entries(CARD_SHOP).map(([id,price])=>{
+      const move=CARDS[id],label=owned[id]?"Owned":C.cash<price?`Need ${cashLabel(price)}`:`Buy ${cashLabel(price)}`;
+      return `<div class="camp-move t-${move.type}"><div><strong>${esc(move.name)}</strong><small>${rarity(move)} · ${move.type} · ${move.cost} energy${move.dmg?` · ${move.dmg} damage`:""} · ${esc(move.text)}</small></div>
+        <button data-buy="${id}" ${owned[id]||C.cash<price?"disabled":""} aria-label="${label}, ${esc(move.name)}">${label}</button></div>`;
+    }).join("")}</div>
+  </section><div class="actions"><button class="btn" id="shop-back">Back to career</button><button class="btn primary" id="shop-camp">Build my deck</button></div>`;
+  app.querySelectorAll("[data-buy]").forEach(button=>button.onclick=()=>{
+    const id=button.dataset.buy;
+    if(buyCard(C,id)){saveCareer();moveShop(`${CARDS[id].name} added to your reserves.`);}
+  });
+  $("#shop-back").onclick=hub;
+  $("#shop-camp").onclick=()=>fightCamp();
+}
+
+function fightCamp(swapIn){
   G=null;normC();
   const b=book(),opp=WRESTLERS[b.id],mine=WRESTLERS[C.wid];
   const active=cardCounts(C.deck),owned=cardCounts(C.collection);
@@ -1822,7 +1910,8 @@ function fightCamp(){
     const m=CARDS[id],can=action==="equip"?C.deck.length<MAX_CAMP_DECK:C.deck.length>MIN_CAMP_DECK;
     return `<div class="camp-move t-${m.type}" style="--c:var(--${m.type})">
       <div><strong>${esc(m.name)} ×${qty}</strong><small>${rarity(m)} · ${m.type} · ${m.cost} energy${m.dmg?` · ${m.dmg} damage`:""} · ${esc(m.text)}</small></div>
-      <button data-${action}="${id}" ${can?"":"disabled"} aria-label="${action==="equip"?"Equip":"Unequip"} ${esc(m.name)}">${action==="equip"?"Equip":"Remove"}</button></div>`;
+      <div class="actions"><button data-${action}="${id}" ${can?"":"disabled"} aria-label="${action==="equip"?"Equip":"Unequip"} ${esc(m.name)}">${action==="equip"?"Equip":"Remove"}</button>
+      ${action==="equip"?`<button data-swap="${id}" aria-label="Swap in ${esc(m.name)}">Swap</button>`:""}</div></div>`;
   }).join(""):`<div class="camp-empty">${action==="equip"?"All earned moves are equipped. Train during a show to learn new ones, or remove a card to make room.":"No moves equipped yet."}</div>`;
   const types=["strike","grapple","defense","hype"].map(t=>[t,C.deck.filter(id=>CARDS[id].type===t).length]);
   app.innerHTML=`
@@ -1841,12 +1930,14 @@ function fightCamp(){
       <h3>Build your match deck</h3>
       <div class="camp-summary"><span>Equipped ${C.deck.length} / ${MAX_CAMP_DECK}</span><span>Earned ${C.collection.length} moves</span>${types.map(([t,n])=>`<span>${t}: ${n}</span>`).join("")}</div>
       <div class="camp-note">Equip ${MIN_CAMP_DECK}–${MAX_CAMP_DECK} cards for your next match. Earned moves are permanent: removing a card from your deck does not delete it from your collection. Editing your deck does not consume your weekly segment.</div>
+      ${available.some(([id])=>id===swapIn)?`<form id="camp-swap" class="form-grid"><label>Replace with ${esc(CARDS[swapIn].name)}<select name="outgoing">${equipped.map(([id])=>`<option value="${id}">${esc(CARDS[id].name)}</option>`).join("")}</select></label>
+        <button class="btn primary" type="submit">Confirm swap</button></form>`:""}
     </section>
     <div class="camp-columns">
       <section class="panel"><h3>Equipped deck</h3><div class="camp-moves">${rows(equipped,"unequip")}</div></section>
       <section class="panel"><h3>Unlocked reserves</h3><div class="camp-moves">${rows(available,"equip")}</div></section>
     </div>
-    <div class="actions"><button class="btn" id="camp-back">Back to career</button>${!C.segDone?'<button class="btn" id="camp-train">Train a move</button>':""}<button class="btn primary grow" id="camp-fight">To the ring</button></div>
+    <div class="actions"><button class="btn" id="camp-back">Back to career</button><button class="btn" id="camp-shop">Move Shop</button>${!C.segDone?'<button class="btn" id="camp-train">Train a move</button>':""}<button class="btn primary grow" id="camp-fight">To the ring</button></div>
     <div class="foot">Fight Camp · Career Mode · Changes save automatically on this device.</div>
   `;
   app.querySelectorAll("[data-equip]").forEach(btn=>btn.onclick=()=>{
@@ -1855,6 +1946,16 @@ function fightCamp(){
   app.querySelectorAll("[data-unequip]").forEach(btn=>btn.onclick=()=>{
     if(unequipCard(C,btn.dataset.unequip)){saveCareer();fightCamp();}
   });
+  app.querySelectorAll("[data-swap]").forEach(btn=>btn.onclick=()=>{
+    fightCamp(btn.dataset.swap);
+    $("#camp-swap select")?.focus();
+    $("#camp-swap")?.scrollIntoView({block:"center"});
+  });
+  $("#camp-swap")?.addEventListener("submit",event=>{
+    event.preventDefault();
+    if(swapCard(C,swapIn,event.currentTarget.elements.outgoing.value)){saveCareer();fightCamp();}
+  });
+  $("#camp-shop").onclick=()=>moveShop();
   $("#camp-back").onclick=hub;
   $("#camp-train")?.addEventListener("click",train);
   $("#camp-fight").onclick=careerMatch;
@@ -2060,12 +2161,13 @@ function recordCareerMatch(won,rating){
     news(`${WRESTLERS[winner].name} upsets ${WRESTLERS[loser].name} and moves to #${i+1}.`);
   }
   news(line);
+  const purse=awardPurse(C,won,isPPV(),Boolean(b.title));
   C.week++;C.booked=null;C.rival=null;C.hypeBonus=0;C.hpMod=0;C.hypeMod=0;C.segDone=false;
-  return {fame,line,xp,level,wonTitle,contract};
+  return {fame,line,xp,level,wonTitle,contract,purse};
 }
 function careerResult(won){
   const rating=matchRating(won);
-  const {fame,line,xp,level,wonTitle,contract}=recordCareerMatch(won,rating);
+  const {fame,line,xp,level,wonTitle,contract,purse}=recordCareerMatch(won,rating);
   const champNow=isChamp();
   saveCareer();
   const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
@@ -2076,6 +2178,7 @@ function careerResult(won){
     <h2 class="${won?"metal":""}" ${won?"":'style="color:var(--crimson)"'}>${wonTitle?"New Champion":won?"Victory":"Defeat"}</h2>
     ${starsHTML(rating)}
     <p>${esc(line)}</p>
+    ${purse?`<p class="eyebrow">Winner’s purse +${cashLabel(purse)} · Balance ${cashLabel(C.cash)}</p>`:""}
     ${contract?`<p class="camp-note">${esc(contract.message)}</p>`:""}
     <div class="stats" style="justify-content:center"><span>Fame<b>${fame>=0?"+":""}${fame}</b></span><span>XP<b>+${xp} · Lv ${level}</b></span><span>Record<b>${C.w}-${C.l}</b></span><span>Rank<b>${champNow?"Champ":"#"+(myRank()+1)}</b></span></div>
     <div class="actions"><button class="btn primary" id="next">Week ${C.week}</button></div></div>`;
@@ -2103,13 +2206,9 @@ function ringAction(side,kind,label,hit=null){
   G.ring={side,kind,label,reaction,fresh:true};
 }
 function ringActor(fighter,side,action){
-  const w=fighter.w,skin=w.appearance?.skin??0;
+  const w=fighter.w;
   const cue=action?.fresh?(action.side===side?` data-action="${action.kind}"`:action.reaction?` data-reaction="${action.reaction}"`:""):"";
-  return `<div class="ring-actor ${side==="p"?"player":"opponent"}" data-wrestler="${esc(w.id)}"${cue} style="--gear:${w.color};--skin:${SKINS[skin]}">
-    <div class="ring-body">${portrait(w)}<i class="ring-part ring-torso"></i>
-      <i class="ring-part ring-arm rear"></i><i class="ring-part ring-arm lead"></i>
-      <i class="ring-part ring-leg rear"></i><i class="ring-part ring-leg lead"></i>
-    </div></div>`;
+  return `<div class="ring-actor ${side==="p"?"player":"opponent"}" data-wrestler="${esc(w.id)}"${cue} style="--gear:${w.color}">${portrait(w)}</div>`;
 }
 function liveRingHTML(){
   const cue=G.ring;
