@@ -1,0 +1,113 @@
+name: Ringside Card Clash TestFlight
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/card-clash-testflight.yml"
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Sign and upload the tested build to App Store Connect
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  RCC_SOURCE: b965481d7874e831f7fc33313e27c7424651d29a
+  RCC_TEAM: J4Y8FY6JNZ
+  RCC_BUNDLE: com.ctnetworkstudios.ringsidecardclash
+  RCC_PROJECT: games/card-clash/ios/RingsideCardClash.xcodeproj
+
+concurrency:
+  group: ringside-card-clash-testflight
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.RCC_SOURCE }}
+          persist-credentials: false
+      - name: Archive the tested iPhone build without signing
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RCC_SOURCE"
+          archive="$RUNNER_TEMP/rcc-verify.xcarchive"
+          xcodebuild -project "$RCC_PROJECT" -scheme RingsideCardClash \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$archive" -derivedDataPath "$RUNNER_TEMP/rcc-verify" \
+            CODE_SIGNING_ALLOWED=NO archive
+          app="$archive/Products/Applications/RingsideCardClash.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$RCC_BUNDLE"
+          test -s "$app/index.html"
+          node --test games/card-clash/tests/fight-camp.test.cjs games/card-clash/tests/ios-bridge.test.cjs
+          xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rcc-xcode-help.txt"
+          grep -F 'app-store-connect' "$RUNNER_TEMP/rcc-xcode-help.txt" >/dev/null
+          grep -F 'authenticationKeyPath' "$RUNNER_TEMP/rcc-xcode-help.txt" >/dev/null
+
+  upload:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload
+    needs: verify
+    environment: ringside-testflight
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.RCC_SOURCE }}
+          persist-credentials: false
+      - name: Sign and upload the private beta build
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.RCC_ASC_PRIVATE_KEY }}
+          ASC_KEY_ID: ${{ secrets.RCC_ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.RCC_ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RCC_SOURCE"
+          for name in ASC_PRIVATE_KEY ASC_KEY_ID ASC_ISSUER_ID; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Configure the corresponding RCC_ environment secret in ringside-testflight."
+              exit 1
+            fi
+          done
+          if [[ ! "$ASC_KEY_ID" =~ ^[A-Za-z0-9]+$ || ! "$ASC_ISSUER_ID" =~ ^[0-9A-Fa-f-]+$ ]]; then
+            echo "::error::Apple returned an unexpected key or issuer identifier format."
+            exit 1
+          fi
+          umask 077
+          signing="$(mktemp -d "$RUNNER_TEMP/rcc-signing.XXXXXX")"
+          trap 'rm -rf -- "$signing"' EXIT
+          auth_key="$signing/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$auth_key"
+          unset ASC_PRIVATE_KEY
+          if ! openssl pkey -in "$auth_key" -noout >/dev/null 2>&1; then
+            echo "::error::RCC_ASC_PRIVATE_KEY must contain the original Apple .p8 file text."
+            exit 1
+          fi
+          auth=(-allowProvisioningUpdates -authenticationKeyPath "$auth_key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          archive="$RUNNER_TEMP/rcc-upload.xcarchive"
+          xcodebuild -project "$RCC_PROJECT" -scheme RingsideCardClash \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$archive" -derivedDataPath "$RUNNER_TEMP/rcc-upload" \
+            "${auth[@]}" DEVELOPMENT_TEAM="$RCC_TEAM" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" archive
+          app="$archive/Products/Applications/RingsideCardClash.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$RCC_BUNDLE"
+          test -s "$app/index.html"
+          codesign --verify --strict "$app"
+          export_options="$signing/ExportOptions.plist"
+          plutil -create xml1 "$export_options"
+          plutil -insert method -string app-store-connect "$export_options"
+          plutil -insert destination -string upload "$export_options"
+          plutil -insert signingStyle -string automatic "$export_options"
+          plutil -insert teamID -string "$RCC_TEAM" "$export_options"
+          plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
+          xcodebuild -exportArchive -archivePath "$archive" \
+            -exportPath "$RUNNER_TEMP/rcc-testflight-export" -exportOptionsPlist "$export_options" "${auth[@]}"
