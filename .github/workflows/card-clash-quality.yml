@@ -28,7 +28,9 @@ jobs:
           from pathlib import Path
           page = Path('/tmp/ringside-card-clash-review.html').read_text()
           assert '<title>Ringside Card Clash</title>' in page
-          assert 'function fightCamp()' in page
+          assert 'function fightCamp(' in page
+          assert '/*__PIN_VOICE__*/' not in page
+          assert 'const PIN_VOICE=["' in page
           assert 'data:image/jpeg;base64,' in page
           assert '__BELT__' not in page
           assert '__ARENA__' not in page
