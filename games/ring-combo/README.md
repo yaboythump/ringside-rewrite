@@ -6,6 +6,9 @@ are fictional.
 
 Open `index.html` in a browser. It needs no build step and no network.
 
+All sound effects are synthesized with the Web Audio API, so there are no audio files.
+The speaker button in the header mutes them, and the setting is remembered in the browser.
+
 ## Rules
 
 - Swap neighbouring tiles to match 3 or more: 👊 Strike, 🤼 Grapple, 🦶 Kick,
