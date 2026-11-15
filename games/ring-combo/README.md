@@ -23,6 +23,8 @@ The speaker button in the header mutes them, and the setting is remembered in th
 - The opponent acts on a visible countdown: attack, raise a guard (only a kick breaks
   it), throw in chairs 🪑, or put on brass knucks 🥊, which explode after 3 moves.
   A match next to a weapon clears it.
+- A move clock (15s, 13s, 12s, then 10s up the ladder) gives the opponent a free hit
+  when it runs out. During a pin, it uses up one of your 3 moves.
 - Ladder: Jett Romano → Tank Ferro → Big Ox Duggan → Silas Crowe for the title.
 
 Each playable wrestler has a perk: Brick (grapples), Raven (clotheslines),

@@ -38,6 +38,11 @@ h1 span{color:var(--gold)}
 .chip{background:var(--panel2);border-radius:6px;padding:1px 6px}
 .chip.guard{background:#2a4a7a}
 .chip.next{background:#5a2a3a}
+.clock{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700}
+.clock .bar{flex:1;height:10px;margin:0}
+.clock .bar>i{background:var(--blue);transition:width .1s linear}
+.clock.low{color:var(--red);animation:hit .3s}
+.clock.low .bar>i{background:var(--red)}
 .crowd{background:var(--panel);border-radius:10px;padding:6px 10px;font-size:12px}
 .crowd .bar{height:10px}
 .crowd .bar>i{background:linear-gradient(90deg,var(--purple),var(--gold))}
@@ -111,6 +116,7 @@ h1 span{color:var(--gold)}
     <div class="fighter opp" id="oBox"><img id="oImg" alt=""><div class="meta"><div class="name" id="oName"></div>
       <div class="bar"><i id="oHp"></i></div><div class="hpnum" id="oHpN"></div><div class="status" id="oStat"></div></div></div>
   </div>
+  <div class="clock" id="clock"><span id="clockN">⏱ 15s</span><div class="bar"><i id="clockBar"></i></div></div>
   <div class="crowd" id="crowd"><div class="crowdrow"><span>🔥 Crowd</span><span id="crowdN">0%</span></div><div class="bar"><i id="crowdBar"></i></div></div>
   <div id="boardWrap"><div id="board"><div id="float"></div></div></div>
   <div id="ticker">Ring the bell!</div>
@@ -131,6 +137,7 @@ h1 span{color:var(--gold)}
       <li>Match 4 → <b>Clothesline</b> tile (clears a line). Match 5 → <b>Finisher</b> 🌀.</li>
       <li>Swap the Finisher with any tile to hit it. If it lands with the opponent under 30% health, you go for the pin.</li>
       <li>During a pin, clear enough tiles before the ref counts 3.</li>
+      <li>⏱ Don't stall! If the move clock runs out, your opponent gets a free hit.</li>
       <li>🦶 Kicks break the opponent's guard 🛡. Match next to 🪑 chairs or 🥊 knucks to clear them.</li>
     </ul>
   </div>
@@ -161,10 +168,10 @@ const HEROES = [
 ];
 // Opponent ladder. every = player moves between actions; acts = weighted action list.
 const LADDER = [
-  {id:'jett',img:'jett.jpg',name:'Jett Romano',hp:100,every:2,dmg:[8,12],acts:['hit','hit','hit','guard']},
-  {id:'tank',img:'tank.jpg',name:'Tank Ferro',hp:130,every:2,dmg:[13,17],acts:['hit','hit','chair','chair']},
-  {id:'ox',img:'ox.jpg',name:'Big Ox Duggan',hp:160,every:2,dmg:[18,24],acts:['hit','hit','guard','chair']},
-  {id:'silas',img:'silas.jpg',name:'Silas Crowe',hp:190,every:2,dmg:[14,19],acts:['hit','guard','knux','chair','hit']},
+  {id:'jett',img:'jett.jpg',name:'Jett Romano',hp:100,every:2,dmg:[8,12],acts:['hit','hit','hit','guard'],clock:15},
+  {id:'tank',img:'tank.jpg',name:'Tank Ferro',hp:130,every:2,dmg:[13,17],acts:['hit','hit','chair','chair'],clock:13},
+  {id:'ox',img:'ox.jpg',name:'Big Ox Duggan',hp:160,every:2,dmg:[18,24],acts:['hit','hit','guard','chair'],clock:12},
+  {id:'silas',img:'silas.jpg',name:'Silas Crowe',hp:190,every:2,dmg:[14,19],acts:['hit','guard','knux','chair','hit'],clock:10},
 ];
 
 const $ = id => document.getElementById(id);
@@ -328,6 +335,7 @@ const sfx = (() => {
     hurt(){ tone(120, 0.25, {vol:0.6, to:50}); noise(0.15, {vol:0.35, freq:700}); },
     guard(){ tone(1200, 0.4, {type:'square', vol:0.06}); tone(1800, 0.3, {type:'square', vol:0.04}); },
     chair(){ [0, 0.12].forEach(at=>{ tone(540, 0.5, {type:'square', vol:0.08, at}); tone(1370, 0.4, {type:'sawtooth', vol:0.05, at}); noise(0.2, {vol:0.25, freq:3500, at}); }); },
+    clockTick(){ tone(880, 0.06, {type:'square', vol:0.12}); },
     knuxTick(){ tone(1000, 0.05, {type:'square', vol:0.06}); },
     knuxBoom(){ tone(55, 0.6, {vol:0.9, to:25}); noise(0.5, {vol:0.6, freq:500, type:'lowpass'}); },
     weaponGone(){ tone(700, 0.3, {type:'square', vol:0.06, to:200}); crowd(0.5, 0.12); },
@@ -620,6 +628,7 @@ async function pinTick(){
 let ended = false;
 function afterSettle(){
   if (ended) return;
+  resetClock();
   if (!hasMove()) reshuffle();
   scheduleHint();
 }
@@ -658,7 +667,42 @@ function showBetween(champ){
 $('bGo').onclick = () => { $('between').hidden=true; start(); };
 $('bMenu').onclick = () => { $('between').hidden=true; rung=0; $('menu').hidden=false; };
 
-function start(){ sfx.init(); sfx.bellStart(); ended=false; busy=false; $('pin').hidden=true; newBout(); scheduleHint(); }
+function start(){ sfx.init(); sfx.bellStart(); ended=false; busy=false; $('pin').hidden=true; newBout(); resetClock(); scheduleHint(); }
+
+/* ---------- move clock: stall too long and the opponent gets a free shot ---------- */
+let clockLeft = 15, lastSecond = 99, lastTick = performance.now();
+function resetClock(){ clockLeft = st ? st.opp.clock : 15; lastSecond = 99; drawClock(); }
+function drawClock(){
+  const lim = st ? st.opp.clock : 15, secs = Math.ceil(clockLeft);
+  $('clockN').textContent = '⏱ ' + secs + 's';
+  $('clockBar').style.width = Math.max(0, clockLeft/lim*100) + '%';
+  $('clock').classList.toggle('low', secs <= 3);
+}
+const overlayOpen = () => !$('menu').hidden || !$('between').hidden;
+setInterval(async () => {
+  const now = performance.now(), dt = (now - lastTick)/1000; lastTick = now;
+  if (!st || ended || busy || overlayOpen() || document.hidden) return;
+  clockLeft -= dt;
+  const secs = Math.ceil(clockLeft);
+  if (secs <= 3 && secs > 0 && secs !== lastSecond){ lastSecond = secs; sfx.clockTick(); }
+  drawClock();
+  if (clockLeft > 0) return;
+  busy = true; clearSel(); hideHint();
+  if (st.pin){
+    say(`Too slow! The ref keeps counting…`);
+    await pinTick();
+  } else {
+    const o = st.opp, d = o.dmg[0] + rnd(o.dmg[1]-o.dmg[0]+1);
+    st.php -= d; st.crowd = Math.max(0, st.crowd - 10);
+    shake('pBox'); fx('-'+d, '#ff6b80', 1, 1); sfx.hurt();
+    say(`<b>TOO SLOW!</b> ${o.name} catches you hesitating with a cheap shot!`);
+    ui();
+    if (st.php <= 0){ await sleep(300); return lose(); }
+  }
+  await sleep(350);
+  if (ended) return;
+  busy = false; afterSettle();
+}, 100);
 
 $('pick').innerHTML = HEROES.map((h,i)=>`<button data-i="${i}"><img src="${PORT+h.img}" alt=""><b>${h.name}</b><small>${h.style} · ${h.perk}</small></button>`).join('');
 $('pick').onclick = e => { const b=e.target.closest('button'); if (!b) return; hero=HEROES[+b.dataset.i]; rung=0; $('menu').hidden=true; start(); };
