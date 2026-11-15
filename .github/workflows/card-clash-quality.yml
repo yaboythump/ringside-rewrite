@@ -1,0 +1,37 @@
+name: Card Clash quality gate
+
+on:
+  pull_request:
+    paths:
+      - "games/card-clash/**"
+      - ".github/workflows/card-clash-quality.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gameplay-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test earned-card ownership and career migration
+        run: node --test games/card-clash/tests/fight-camp.test.cjs
+      - name: Build standalone game and check embedded assets
+        run: |
+          python3 games/card-clash/build.py /tmp/ringside-card-clash-review.html
+          python3 - <<'PY'
+          from pathlib import Path
+          page = Path('/tmp/ringside-card-clash-review.html').read_text()
+          assert '<title>Ringside Card Clash</title>' in page
+          assert 'function fightCamp()' in page
+          assert 'data:image/jpeg;base64,' in page
+          assert '__BELT__' not in page
+          assert '__ARENA__' not in page
+          assert '/*__PORTRAITS__*/' not in page
+          print('Standalone game and embedded assets verified')
+          PY
