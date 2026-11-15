@@ -394,6 +394,43 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
 }
 /* Use the roomier layout when the actual touch viewport can fit both panels. */
 .live-ring{display:none}
+/* Career navigation stays above its scroll pane. Only the selected section is shown. */
+.career-view{display:grid;gap:10px}
+.career-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.career-head .ladder{justify-content:flex-start}
+.career-nav,.career-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.career-nav button{border:1px solid var(--line);background:#15151b;min-height:44px;padding:5px 2px;font-size:12px;color:var(--steel)}
+.career-nav button[aria-pressed=true]{border-color:var(--gold);color:var(--gold-hi);background:#302414}
+.career-content{display:grid;align-content:start;gap:9px;min-width:0}
+.career-pane{display:grid;align-content:start;gap:9px;min-width:0}
+.career-pane[hidden]{display:none}
+.career-actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.25fr)}
+.career-actions .btn{min-height:44px;padding:5px 7px;font-size:15px;letter-spacing:0}
+.career-view .hubtop{grid-template-columns:58px minmax(0,1fr);gap:9px}
+.career-view .hubtop .portrait{width:58px}
+.career-view .hubtop h2{font-size:clamp(23px,5vw,33px)}
+.career-view .panel{gap:8px;padding:10px}
+.career-view .segs{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.career-view .seg{min-height:44px;padding:6px 8px;font-size:13px}
+.career-view .seg b{font-size:15px}
+.career-view .tonight{grid-template-columns:54px minmax(0,1fr)}
+.career-view .tonight .portrait{width:54px}
+.career-view .vsline{font-size:clamp(19px,4.8vw,28px)}
+.home-hero.hero{min-height:0;padding:15px 13px}
+.home-hero .logo .l2{font-size:clamp(38px,9vw,60px)}
+.home-modes{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.home-modes .mode{min-height:58px;padding:9px 10px;gap:3px}
+.home-modes .mode h3{font-size:clamp(16px,4.5vw,25px)}
+.home-modes .mode p{font-size:12px;line-height:1.25}
+.home-modes #m-cont{grid-column:1/-1}
+.home-actions .btn{font-size:15px;min-height:44px;padding:6px 12px}
+@media(max-width:600px), (pointer:coarse){
+  body:has(.career-view){box-sizing:border-box;height:100dvh;overflow:hidden;
+    padding:max(6px,env(safe-area-inset-top)) max(9px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(9px,env(safe-area-inset-left))}
+  .app:has(>.career-view){height:100%;display:block}
+  .career-view{height:100%;grid-template-rows:auto auto minmax(0,1fr) auto;gap:6px}
+  .career-content{overflow:auto;overscroll-behavior:contain;padding:2px 3px 5px}
+}
 @media(min-width:560px) and (min-height:510px) and (pointer:coarse){
   .app:has(>.battle){max-width:1100px}
   .battle{grid-template-columns:minmax(0,4fr) minmax(0,5fr);grid-template-rows:minmax(0,1fr) clamp(108px,25dvh,228px) auto;gap:8px}
@@ -847,19 +884,20 @@ const logo=()=>`<h1 class="logo"><span class="l1">Ringside</span><span class="l2
 function titleScreen(){
   stopArenaMusic();
   G=null;
+  if(typeof scrollTo==="function")scrollTo(0,0);
   const saved=loadCareer(),cup=loadCup();
   app.innerHTML=`
-  <header class="hero"><span class="tag">CTInteractive · Ringside Rewrite</span>${logo()}<p>Build your move deck. Win the crowd. Fight for the gold.</p></header>
+  <header class="hero home-hero">${logo()}</header>
   ${PREVIEW?'<p class="release-notice">Playtest build · Uses its own career save.</p>':""}
-  <div class="modes">
+  <div class="modes home-modes">
     ${saved?`<button class="mode primary" id="m-cont"><span class="go">Continue career</span><h3 class="metal">${esc(WRESTLERS[saved.wid].name)}</h3><p>Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?mainTitle(saved.wid):`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</p></button>`:""}
-    <button class="mode ${saved?"":"primary"}" id="m-career"><span class="go">${saved?"New career":"Career mode"}</span><h3>Career</h3><p>Rise through the rankings, build rivalries, train your deck and headline championship shows.</p></button>
-    <button class="mode" id="m-quick"><span class="go">Quick match</span><h3>Ladder</h3><p>Win three straight matches with a fresh deck each round.</p></button>
-    <button class="mode" id="m-exhibition"><span class="go">Single match</span><h3>Exhibition</h3><p>Choose both wrestlers and the match rules.</p></button>
-    <button class="mode" id="m-tag"><span class="go">Two on two</span><h3>Tag Team</h3><p>Choose a partner and challenge the reigning champions or set up an exhibition.</p></button>
-    <button class="mode" id="m-tournament"><span class="go">Eight wrestlers</span><h3>Championship Cup</h3><p>${cup?`Saved bracket · ${esc(WRESTLERS[cup.pid].name)}${cup.bracket[2][0].winner?" · Final results":` · ${ROUND_NAMES[cup.round]}`}`:"Win an eight-wrestler elimination bracket for your division's cup."}</p></button>
+    <button class="mode ${saved?"":"primary"}" id="m-career"><h3>${saved?"New career":"Career"}</h3><p>Build your wrestler and chase titles.</p></button>
+    <button class="mode" id="m-quick"><h3>Quick Match</h3><p>Three-match ladder</p></button>
+    <button class="mode" id="m-exhibition"><h3>Exhibition</h3><p>Pick your matchup</p></button>
+    <button class="mode" id="m-tag"><h3>Tag Team</h3><p>Two on two</p></button>
+    <button class="mode" id="m-tournament"><h3>Championship Cup</h3><p>${cup?`Saved bracket · ${esc(WRESTLERS[cup.pid].name)}${cup.bracket[2][0].winner?" · Final results":` · ${ROUND_NAMES[cup.round]}`}`:"Eight-wrestler bracket"}</p></button>
   </div>
-  <div class="actions"><button class="btn" id="m-help">Tutorial &amp; rules</button><button class="btn" id="m-settings">Settings &amp; credits</button></div>`;
+  <div class="actions home-actions"><button class="btn" id="m-help">How to play</button><button class="btn" id="m-settings">Settings &amp; credits</button></div>`;
   $("#m-cont")?.addEventListener("click",()=>{C=saved;hub();});
   $("#m-career").onclick=()=>selectScreen("career");
   $("#m-quick").onclick=()=>selectScreen("quick");
@@ -1570,7 +1608,7 @@ function officeScreen(){
   </section>
   ${C.office.results.length?`<section class="panel"><h3>Contract record</h3><ul class="news">${C.office.results.map(entry=>`<li>Week ${entry.week} · ${CONTRACTS[entry.id].name} · ${entry.won?"Completed":"Expired"}</li>`).join("")}</ul></section>`:""}
   <div class="actions"><button class="btn" id="back">Back to career</button></div>`;
-  $("#back").onclick=hub;
+  $("#back").onclick=()=>hub("locker");
   app.querySelectorAll("[data-contract]").forEach(button=>button.onclick=()=>{
     if(signContract(C,button.dataset.contract)){
       if(C.office.active.id==="rivalry"&&!C.booked?.title){C.booked=null;book();}
@@ -1798,11 +1836,11 @@ function careerJournal(){
       <ul class="news">${history||"<li>No title changes or defenses recorded yet.</li>"}</ul></section>
     <section class="panel"><h3>Career tag title history</h3>${tagHistoryList(C.tag.history)}</section>
   </div><div class="actions"><button class="btn" id="back">Back to career</button></div>`;
-  $("#back").onclick=hub;
+  $("#back").onclick=()=>hub("records");
 }
 function news(t){C.news.unshift(t);C.news=C.news.slice(0,5);}
 
-function hub(){
+function hub(initialPane="tonight"){
   G=null;normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
   const story=isPPV()||C.week%2===0;
   const rivalryBooked=C.office.active?.id==="rivalry";
@@ -1813,8 +1851,14 @@ function hub(){
       const canCall=!rivalryBooked&&!b.title&&!isChamp()&&!C.segDone&&r>i&&r-i<=3&&id!==C.rival;
       return `<li class="${id===C.wid?"me":""}"><span class="n">#${i+1}</span><span>${esc(WRESTLERS[id].name)}${id===C.wid?' <span class="s">You</span>':""}${id===C.rival?' <span class="s">Rival</span>':""}</span><span>${canCall?`<button data-call="${id}">Call out</button>`:""}</span></li>`;})).join("");
   const markLeft=((C.align+5)/10*100).toFixed(0);
-  app.innerHTML=`
-  <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>${esc(showName())}</span></div></header>
+  const panes={tonight:"Tonight",rankings:"Rankings",locker:"Locker room",records:"Records"};
+  const selected=Object.hasOwn(panes,initialPane)?initialPane:"tonight";
+  if(typeof scrollTo==="function")scrollTo(0,0);
+  app.innerHTML=`<div class="career-view">
+  <header class="career-head"><div class="ladder"><span class="cur">Week ${C.week}</span><span>${esc(showName())}</span></div><button class="mutebtn" id="quit">Main menu</button></header>
+  <nav class="career-nav" aria-label="Career sections">${Object.entries(panes).map(([id,label])=>`<button data-career-tab="${id}" aria-pressed="${id===selected}" aria-controls="career-${id}">${label}</button>`).join("")}</nav>
+  <div class="career-content">
+  <div class="career-pane" data-career-pane="tonight" id="career-tonight" ${selected==="tonight"?"":"hidden"}>
   <section class="panel">
     <div class="hubtop">${portrait(me)}<div style="display:grid;gap:8px;min-width:0">
       <div class="eyebrow">${fameTier(C.fame)}${isChamp()?` · <span class="belt-chip">${mainTitle(C.wid)}</span>`:""}</div>
@@ -1822,7 +1866,7 @@ function hub(){
       <div class="stats"><span>Record<b>${C.w}-${C.l}</b></span><span>Fame<b>${C.fame}</b></span><span>Rank<b>${isChamp()?"Champ":"#"+(r+1)}</b></span><span>Level<b>${careerLevel(C.xp)}</b></span><span>XP<b>${C.xp}</b></span></div>
     </div></div>
     ${isChamp()?`<img class="belt sm" src="${BELT_IMG}" alt="Rewrite Championship belt">`:""}
-    <div class="align"><div class="ends"><span>Villain</span><span style="color:var(--fg)">You: ${alignName(C.align)}</span><span>Fan favorite</span></div><div class="track"><span class="mark" style="left:calc(${markLeft}% - 3px)"></span></div></div>
+
   </section>
   <section class="panel">
     <div class="eyebrow">${b.title?titleFor(C,b)+" match":isPPV()?`${esc(showName())} · big event`:"Tonight's main event"}</div>
@@ -1834,26 +1878,39 @@ function hub(){
     ${b.stip?`<div><span class="stip">${STIPS[b.stip][0]}</span> <span style="color:var(--steel);font-size:13px">${STIPS[b.stip][1]}</span></div>`:""}
     ${C.segDone?`<p class="howto" style="padding:10px 14px">Segment done for the week. Head to the ring.</p>`:`<div class="eyebrow" style="color:var(--steel)">Pick one segment before the match</div>
     <div class="segs">
-      <button class="seg" id="s-promo" style="--c:#5fa8ff"><b>Cut a promo</b><span>Talk about ${esc(o.name)}. Win the crowd and start the match with extra hype.</span></button>
-      <button class="seg" id="s-train" style="--c:var(--good)"><b>Train</b><span>Earn a new card for your collection.</span></button>
-      ${story?`<button class="seg" id="s-story" style="--c:var(--gold)"><b>Backstage decision</b><span>${C.arc.ally?"Honor your alliance or turn on your partner.":"Hear an offer from the locker room."}</span></button>`:""}
-      <button class="seg" id="s-call" style="--c:var(--crimson)" ${rivalryBooked||b.title||isChamp()||r===0?"disabled":""}><b>Call out</b><span>${rivalryBooked?"Your contract has already booked your rival.":isChamp()?"Champions get called out, not the other way around.":"Use the Call out button next to anyone up to 3 spots above you in the rankings."}</span></button>
+      <button class="seg" id="s-promo" style="--c:#5fa8ff"><b>Cut a promo</b><span>Start with extra hype.</span></button>
+      <button class="seg" id="s-train" style="--c:var(--good)"><b>Train</b><span>Learn a card.</span></button>
+      ${story?`<button class="seg" id="s-story" style="--c:var(--gold)"><b>Backstage decision</b><span>${C.arc.ally?"Honor or betray your ally.":"Hear a locker-room offer."}</span></button>`:""}
+      <button class="seg" id="s-call" style="--c:var(--crimson)" ${rivalryBooked||b.title||isChamp()||r===0?"disabled":""}><b>Call out</b><span>${rivalryBooked?"Your contract has already booked your rival.":isChamp()?"Champions get called out, not the other way around.":"Challenge a ranked rival."}</span></button>
     </div>`}
-    <div class="actions"><button class="btn" id="fight-camp">Fight Camp · Match Prep</button><button class="btn" id="move-shop">Move Shop · ${cashLabel(C.cash)}</button><button class="btn primary grow" id="fight">${b.title?"Title match":"To the ring"}</button></div>
-  </section>
+  </section></div>
+  <div class="career-pane" data-career-pane="rankings" id="career-rankings" ${selected==="rankings"?"":"hidden"}>
+    <section class="panel"><h3>Rankings</h3><ol class="ranks">${rankRows}</ol></section>
+  </div>
+  <div class="career-pane" data-career-pane="locker" id="career-locker" ${selected==="locker"?"":"hidden"}>
   <section class="panel"><h3>Locker room</h3>
     <div class="stats"><span>Faction<b>${FACTIONS[C.arc.faction]||"Independent"}</b></span>${C.arc.ally?`<span>Ally<b>${esc(WRESTLERS[C.arc.ally].name)}</b></span>`:""}
       ${C.arc.foe&&C.arc.heat?`<span>Rival<b>${esc(WRESTLERS[C.arc.foe].name)} · Heat ${C.arc.heat}/5</b></span>`:""}</div>
     <p>${esc(contractSummary(C))}${C.office.injury?` · Medical: −${injuryPenalty(C)} starting stamina`:""}</p>
-    <div class="actions"><button class="btn" id="career-office">Promoter’s Office</button><button class="btn" id="journal">Calendar, records &amp; titles</button></div>
+    <div class="align"><div class="ends"><span>Villain</span><span style="color:var(--fg)">You: ${alignName(C.align)}</span><span>Fan favorite</span></div><div class="track"><span class="mark" style="left:calc(${markLeft}% - 3px)"></span></div></div>
+    <div class="actions"><button class="btn" id="career-office">Promoter’s Office</button></div>
   </section>
   ${careerTagPanel()}
-  <div class="cols">
-    <section class="panel"><h3>Rankings</h3><ol class="ranks">${rankRows}</ol></section>
+  </div>
+  <div class="career-pane" data-career-pane="records" id="career-records" ${selected==="records"?"":"hidden"}>
+    <section class="panel"><button class="btn" id="journal">Calendar, records &amp; titles</button></section>
     <section class="panel"><h3>Around the promotion</h3><ul class="news">${C.news.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></section>
     <section class="panel"><h3>Career goals</h3><ul class="goals">${goals.map(g=>`<li class="${g[1]?"done":""}">${g[0]}</li>`).join("")}</ul><div class="stats"><span>Best match<b>${C.best?C.best.toFixed(2)+" ★":"-"}</b></span><span>Title defenses<b>${C.defenses}</b></span></div></section>
   </div>
-  <div class="actions"><button class="btn" id="quit">Main menu</button><span class="grow"></span>${muteBtn()}</div>`;
+  </div>
+  <div class="career-actions"><button class="btn" id="fight-camp">Fight Camp</button><button class="btn" id="move-shop">Move Shop · ${cashLabel(C.cash)}</button><button class="btn primary" id="fight">${b.title?"Title match":"To the ring"}</button></div>
+  </div>`;
+  const openPane=id=>{
+    app.querySelectorAll("[data-career-tab]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.careerTab===id)));
+    app.querySelectorAll("[data-career-pane]").forEach(section=>section.hidden=section.dataset.careerPane!==id);
+    $(".career-content").scrollTop=0;
+  };
+  app.querySelectorAll("[data-career-tab]").forEach(button=>button.onclick=()=>openPane(button.dataset.careerTab));
   $("#fight").onclick=careerMatch;
   $("#fight-camp").onclick=fightCamp;
   $("#move-shop").onclick=()=>moveShop();
@@ -1864,7 +1921,7 @@ function hub(){
   $("#quit").onclick=titleScreen;
   $("#s-promo")?.addEventListener("click",()=>promo(b.id));
   $("#s-train")?.addEventListener("click",train);
-  $("#s-call")?.addEventListener("click",()=>{app.querySelector(".ranks button")?.focus();app.querySelector(".ranks")?.scrollIntoView({behavior:"smooth",block:"center"});});
+  $("#s-call")?.addEventListener("click",()=>{openPane("rankings");app.querySelector(".ranks button")?.focus();});
   app.querySelectorAll("[data-call]").forEach(bt=>bt.onclick=()=>callOut(bt.dataset.call));
 }
 

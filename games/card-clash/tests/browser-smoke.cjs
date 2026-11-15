@@ -107,10 +107,26 @@ const legacy={
       if(!isPreview)p.once("dialog",d=>d.accept());
       await click("#creation [type=submit]");
       await visible("#fight-camp");
+      assert.equal(await p.locator(".career-pane:visible").count(),1);
+      assert.equal(await p.locator("#career-tonight").isVisible(),true);
+      assert.equal(await p.locator("#career-rankings").isVisible(),false);
+      if(label!=="desktop"){
+        for(const id of ["#fight","#move-shop","#fight-camp","#quit"]){
+          const rect=await button(id).boundingBox();
+          assert.ok(rect&&rect.y>=0&&rect.y+rect.height<=p.viewportSize().height+1,id+" is in the first viewport");
+        }
+        await click('[data-career-tab="rankings"]');
+        await p.locator(".career-content").evaluate(el=>el.scrollTop=el.scrollHeight);
+        assert.equal(await p.evaluate(()=>scrollY),0);
+        const fight=await button("#fight").boundingBox();
+        assert.ok(fight&&fight.y+fight.height<=p.viewportSize().height+1,"Match controls stay visible while scrolling");
+      }
+      await click('[data-career-tab="locker"]');
       await click("#career-office");
       await click('[data-contract="wins"]');
       await p.getByText(/Win Streak · 0\/2 · due week 4/).waitFor();
       await click("#back");
+      await click('[data-career-tab="tonight"]');
       await click("#s-train");
       const learned=await p.locator("[data-add]").first().getAttribute("data-add");
       await click(`[data-add="${learned}"]`);
@@ -118,6 +134,7 @@ const legacy={
       await click(`[data-unequip="${learned}"]`);
       await click(`[data-equip="${learned}"]`);
       await click("#camp-back");
+      await click('[data-career-tab="records"]');
       await click("#journal");
       await p.getByRole("heading",{name:"Event calendar"}).waitFor();
       await click("#back");
@@ -226,12 +243,14 @@ const legacy={
           localStorage.setItem(key,JSON.stringify(saved));
         },key);
         await menu();await click("#m-cont");
+        await click('[data-career-tab="locker"]');
         await p.getByRole("heading",{name:"Career Tag Team"}).waitFor();
         await click("#career-tag");await ring();
         console.log(label,"career tag title",await complete());
         await click("#event-next");
         await visible("#fight");
         assert.equal(await button("#career-tag").count(),0);
+        await click('[data-career-tab="records"]');
         await click("#journal");
         await p.locator("section").filter({has:p.getByRole("heading",{name:"Career tag title history"})})
           .getByText(/Week 4.* the belts/).waitFor();
