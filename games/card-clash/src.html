@@ -260,6 +260,28 @@ img.belt.sm{width:min(60vw,240px);animation:none;justify-self:center}
 .goals li::before{content:"\25CB  "}
 .goals li.done{color:var(--fg)}
 .goals li.done::before{content:"\2605  ";color:var(--gold)}
+
+/* Fight Camp: a mobile-first scouting desk and earned-move loadout editor. */
+.camp-hero{display:grid;grid-template-columns:90px 1fr;align-items:center;gap:14px}
+.camp-hero .portrait{width:90px}
+.camp-hero h2{font:italic 900 clamp(28px,7vw,42px)/.95 var(--display);text-transform:uppercase;margin:4px 0}
+.camp-scout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.camp-scout-item{padding:10px 12px;background:rgba(255,255,255,.045);display:grid;gap:5px}
+.camp-scout-item .label{display:flex;justify-content:space-between;gap:6px;font:700 12px var(--label);text-transform:uppercase;letter-spacing:.08em}
+.camp-meter{height:6px;background:#09090b;overflow:hidden}
+.camp-meter span{display:block;height:100%;background:linear-gradient(90deg,var(--crimson),var(--gold))}
+.camp-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px}
+.camp-moves{display:grid;gap:7px}
+.camp-move{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;background:rgba(255,255,255,.045);padding:10px;border-left:3px solid var(--c,var(--gold))}
+.camp-move strong{display:block;font:italic 900 21px/.95 var(--display);text-transform:uppercase}
+.camp-move small{display:block;color:var(--muted);font:600 12px/1.45 var(--label);margin-top:5px}
+.camp-move button{padding:7px 11px;min-width:74px;background:var(--metal);color:#181208;font:800 14px var(--label);text-transform:uppercase;letter-spacing:.07em}
+.camp-move button:disabled{opacity:.28;cursor:not-allowed}
+.camp-empty{font-size:13px;line-height:1.5;color:var(--steel);border:1px dashed var(--line);padding:16px}
+.camp-summary{display:flex;gap:8px;flex-wrap:wrap}
+.camp-summary span{font:700 12px var(--label);text-transform:uppercase;letter-spacing:.09em;padding:5px 10px;background:rgba(255,255,255,.055);color:var(--steel)}
+.camp-note{padding:12px 14px;border-left:3px solid var(--gold);background:rgba(226,189,98,.07);font-size:13px;color:var(--steel);line-height:1.5}
+@media(max-width:440px){.camp-hero{grid-template-columns:72px 1fr}.camp-hero .portrait{width:72px}.camp-scout{grid-template-columns:1fr 1fr}}
 @media (max-width:440px){.hubtop{grid-template-columns:84px 1fr}.hubtop .portrait{width:84px}}
 @media (max-width:440px){.fighter{grid-template-columns:70px 1fr;gap:10px}.fighter .portrait{width:70px}.hand{grid-template-columns:repeat(2,minmax(0,1fr))}.btn{font-size:19px;padding:12px 16px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
@@ -332,6 +354,48 @@ const CARDS = {
 const TRAIN_POOL=Object.keys(CARDS).filter(k=>CARDS[k].train);
 const BASE_DECK=["chop","chop","dropkick","clothesline","suplex","headlock","block","block","reversal","secondwind","taunt","crowdpop"];
 const HAND=5, ENERGY=3, HYPE_MAX=10;
+
+/* Career cards have two separate states: earned collection and equipped deck. */
+const MIN_CAMP_DECK=10, MAX_CAMP_DECK=20;
+function cardCounts(ids){
+  const counts={};
+  for(const id of ids||[]) if(CARDS[id]) counts[id]=(counts[id]||0)+1;
+  return counts;
+}
+function normalizeLoadout(save){
+  if(!Array.isArray(save.deck)) save.deck=[];
+  save.deck=save.deck.filter(id=>!!CARDS[id]);
+  if(save.deck.length<MIN_CAMP_DECK){
+    save.deck=[...BASE_DECK,...(WRESTLERS[save.wid]?.sig||[])];
+  }
+  if(!Array.isArray(save.collection)) save.collection=[...save.deck];
+  else save.collection=save.collection.filter(id=>!!CARDS[id]);
+  const owned=cardCounts(save.collection);
+  for(const [id,count] of Object.entries(cardCounts(save.deck))){
+    for(let n=owned[id]||0;n<count;n++) save.collection.push(id);
+  }
+  return save;
+}
+function equipCard(save,id){
+  if(!CARDS[id]||save.deck.length>=MAX_CAMP_DECK) return false;
+  if((cardCounts(save.collection)[id]||0)<=(cardCounts(save.deck)[id]||0)) return false;
+  save.deck.push(id);
+  return true;
+}
+function unequipCard(save,id){
+  if(save.deck.length<=MIN_CAMP_DECK) return false;
+  const index=save.deck.indexOf(id);
+  if(index<0) return false;
+  save.deck.splice(index,1);
+  return true;
+}
+function unlockCard(save,id){
+  if(!CARDS[id]) return false;
+  normalizeLoadout(save);
+  save.collection.push(id);
+  if(save.deck.length<MAX_CAMP_DECK) save.deck.push(id);
+  return true;
+}
 
 let G=null;
 const $=s=>document.querySelector(s);
@@ -701,9 +765,11 @@ const myRank=()=>C.contenders.indexOf(C.wid);
 function levelOf(id){if(C.champ===id)return 4;const i=C.contenders.indexOf(id);return Math.max(0,3-Math.floor(i/2));}
 
 function newCareer(wid){
+  if(loadCareer()&&!window.confirm("Start a new career? This replaces the existing career save. Your current progress cannot be recovered unless you backed it up.")) return;
   const others=shuffle(Object.keys(WRESTLERS).filter(k=>k!==wid&&k!=="silas"));
   const w=WRESTLERS[wid];
-  C={wid,week:1,fame:0,w:0,l:0,align:0,deck:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)],
+  const startingDeck=[...BASE_DECK,...w.sig,...w.sig.slice(0,1)];
+  C={wid,week:1,fame:0,w:0,l:0,align:0,deck:[...startingDeck],collection:[...startingDeck],
      champ:"silas",contenders:[...others,wid],rival:null,booked:null,hypeBonus:0,hpMod:0,hypeMod:0,best:0,peak:99,segDone:false,defenses:0,reigns:0,
      news:[`${w.name} signs with Ringside Rewrite and starts at the bottom of the rankings.`,`Silas Crowe holds the Rewrite Championship.`]};
   saveCareer();hub();
@@ -757,7 +823,7 @@ function hub(){
       <button class="seg" id="s-train" style="--c:var(--good)"><b>Train</b><span>Learn a new move for your deck, or cut a weak card.</span></button>
       <button class="seg" id="s-call" style="--c:var(--crimson)" ${isChamp()||r===0?"disabled":""}><b>Call out</b><span>${isChamp()?"Champions get called out, not the other way around.":"Use the Call out button next to anyone up to 3 spots above you in the rankings."}</span></button>
     </div>`}
-    <div class="actions"><button class="btn primary grow" id="fight">${b.title?"Title match":"To the ring"}</button></div>
+    <div class="actions"><button class="btn" id="fight-camp">Fight Camp · Match Prep</button><button class="btn primary grow" id="fight">${b.title?"Title match":"To the ring"}</button></div>
   </section>
   <div class="cols">
     <section class="panel"><h3>Rankings</h3><ol class="ranks">${rankRows}</ol></section>
@@ -766,11 +832,71 @@ function hub(){
   </div>
   <div class="actions"><button class="btn" id="quit">Main menu</button><span class="grow"></span>${muteBtn()}</div>`;
   $("#fight").onclick=careerMatch;
+  $("#fight-camp").onclick=fightCamp;
   $("#quit").onclick=titleScreen;
   $("#s-promo")?.addEventListener("click",()=>promo(b.id));
   $("#s-train")?.addEventListener("click",train);
   $("#s-call")?.addEventListener("click",()=>{app.querySelector(".ranks button")?.focus();app.querySelector(".ranks")?.scrollIntoView({behavior:"smooth",block:"center"});});
   app.querySelectorAll("[data-call]").forEach(bt=>bt.onclick=()=>callOut(bt.dataset.call));
+}
+
+
+/* ---------- Fight Camp: scout and select your earned cards ---------- */
+function fightCamp(){
+  G=null;normC();
+  const b=book(),opp=WRESTLERS[b.id],mine=WRESTLERS[C.wid];
+  const active=cardCounts(C.deck),owned=cardCounts(C.collection);
+  const tendencies=Object.entries(opp.ai).map(([type,weight])=>({type,weight}));
+  const total=tendencies.reduce((sum,t)=>sum+t.weight,0)||1;
+  const leading=[...tendencies].sort((a,b)=>b.weight-a.weight)[0].type;
+  const advice={
+    strike:"Fast strikes are likely. Block the biggest telegraphed hits and keep recovery cards close.",
+    grapple:"Grapples are likely. Reversal can cancel a grapple, so save it for the right moment.",
+    defense:"This opponent defends often. Use low-cost moves to build hype for a decisive finisher.",
+    hype:"Expect crowd work and a fast-building finisher. Push the pace before their hype meter fills."
+  }[leading];
+  const equipped=Object.entries(active).sort((a,b)=>CARDS[a[0]].type.localeCompare(CARDS[b[0]].type));
+  const available=Object.entries(owned).map(([id,count])=>[id,count-(active[id]||0)]).filter(x=>x[1]>0);
+  const rows=(entries,action)=>entries.length?entries.map(([id,qty])=>{
+    const m=CARDS[id],can=action==="equip"?C.deck.length<MAX_CAMP_DECK:C.deck.length>MIN_CAMP_DECK;
+    return `<div class="camp-move t-${m.type}" style="--c:var(--${m.type})">
+      <div><strong>${esc(m.name)} ×${qty}</strong><small>${m.type.toUpperCase()} · ${m.cost} energy · ${esc(m.text)}</small></div>
+      <button data-${action}="${id}" ${can?"":"disabled"} aria-label="${action==="equip"?"Equip":"Unequip"} ${esc(m.name)}">${action==="equip"?"Equip":"Remove"}</button></div>`;
+  }).join(""):`<div class="camp-empty">${action==="equip"?"All earned moves are equipped. Train during a show to learn new ones, or remove a card to make room.":"No moves equipped yet."}</div>`;
+  const types=["strike","grapple","defense","hype"].map(t=>[t,C.deck.filter(id=>CARDS[id].type===t).length]);
+  app.innerHTML=`
+    <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>Fight Camp</span></div></header>
+    <section class="panel">
+      <div class="eyebrow">Opposition intelligence · ${esc(showName())}</div>
+      <h3>Scout your opponent</h3>
+      <div class="camp-hero">${portrait(opp)}<div><div class="tag">${esc(opp.style)} · ${opp.hp} stamina</div>
+        <h2>${esc(opp.name)}</h2><div class="statline"><span>Finisher: ${esc(opp.fin.name)}</span>${b.title?'<span class="belt-chip">Title match</span>':""}</div></div></div>
+      ${b.stip?`<div class="camp-note"><b>${esc(STIPS[b.stip][0])}:</b> ${esc(STIPS[b.stip][1])}</div>`:""}
+      <div class="camp-scout">${tendencies.map(t=>`<div class="camp-scout-item"><div class="label"><span>${t.type}</span><span>${Math.round(100*t.weight/total)}%</span></div><div class="camp-meter"><span style="width:${100*t.weight/total}%"></span></div></div>`).join("")}</div>
+      <div class="camp-note"><b>Coach's read:</b> ${advice}<br>These are baseline tendencies, not guaranteed moves. The opponent's next intent is still revealed during matches.</div>
+    </section>
+    <section class="panel">
+      <div class="eyebrow">${esc(mine.name)} · earned move collection</div>
+      <h3>Build your match deck</h3>
+      <div class="camp-summary"><span>Equipped ${C.deck.length} / ${MAX_CAMP_DECK}</span><span>Earned ${C.collection.length} moves</span>${types.map(([t,n])=>`<span>${t}: ${n}</span>`).join("")}</div>
+      <div class="camp-note">Equip ${MIN_CAMP_DECK}–${MAX_CAMP_DECK} cards for your next match. Earned moves are permanent: removing a card from your deck does not delete it from your collection. Editing your deck does not consume your weekly segment.</div>
+    </section>
+    <div class="camp-columns">
+      <section class="panel"><h3>Equipped deck</h3><div class="camp-moves">${rows(equipped,"unequip")}</div></section>
+      <section class="panel"><h3>Unlocked reserves</h3><div class="camp-moves">${rows(available,"equip")}</div></section>
+    </div>
+    <div class="actions"><button class="btn" id="camp-back">Back to career</button>${!C.segDone?'<button class="btn" id="camp-train">Train a move</button>':""}<button class="btn primary grow" id="camp-fight">To the ring</button></div>
+    <div class="foot">Fight Camp · Career Mode · Changes save automatically on this device.</div>
+  `;
+  app.querySelectorAll("[data-equip]").forEach(btn=>btn.onclick=()=>{
+    if(equipCard(C,btn.dataset.equip)){saveCareer();fightCamp();}
+  });
+  app.querySelectorAll("[data-unequip]").forEach(btn=>btn.onclick=()=>{
+    if(unequipCard(C,btn.dataset.unequip)){saveCareer();fightCamp();}
+  });
+  $("#camp-back").onclick=hub;
+  $("#camp-train")?.addEventListener("click",train);
+  $("#camp-fight").onclick=careerMatch;
 }
 
 /* promos */
@@ -824,20 +950,23 @@ function promo(oid){
 
 /* training */
 function train(){
+  if(C.segDone) return hub();
   const offer=shuffle([...TRAIN_POOL]).slice(0,3);
-  const counts={};C.deck.forEach(k=>counts[k]=(counts[k]||0)+1);
   app.innerHTML=`
-  <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>Training</span></div></header>
-  <section class="panel"><div class="eyebrow">Learn one new move</div><h3>Pick a card to add to your deck</h3>
-    <div class="hand">${offer.map((id,i)=>{const c=CARDS[id];const big=c.dmg?`${c.dmg} DMG`:(c.big||"");return `<button class="card t-${c.type}" style="--i:${i}" data-add="${id}"><div class="top"><span class="type">${c.type}</span><span class="cost"><b>${c.cost}</b></span></div><h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p></button>`}).join("")}</div>
-  </section>
-  <section class="panel"><div class="eyebrow">Or cut a card instead</div><h3>Your deck · ${C.deck.length} cards</h3>
-    <div class="deck">${Object.entries(counts).map(([id,n])=>`<button class="t-${CARDS[id].type}" data-cut="${id}" ${C.deck.length<=10?"disabled":""}>${esc(CARDS[id].name)} ×${n}</button>`).join("")}</div>
-    <p class="howto" style="padding:10px 14px">A thinner deck draws your best cards more often. Decks can't go below 10 cards.</p>
-  </section>
-  <div class="actions"><button class="btn" id="back">Back</button></div>`;
-  app.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{C.deck.push(b.dataset.add);C.segDone=true;news(`${WRESTLERS[C.wid].name} spent the week learning the ${CARDS[b.dataset.add].name}.`);saveCareer();hub();});
-  app.querySelectorAll("[data-cut]").forEach(b=>b.onclick=()=>{const i=C.deck.indexOf(b.dataset.cut);if(i>=0&&C.deck.length>10){C.deck.splice(i,1);C.segDone=true;news(`${WRESTLERS[C.wid].name} cut the ${CARDS[b.dataset.cut].name} from the playbook.`);saveCareer();hub();}});
+    <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>Training</span></div></header>
+    <section class="panel"><div class="eyebrow">Earn a new move</div><h3>Train one move for your collection</h3>
+      <p class="howto" style="padding:10px 14px">Training uses your weekly segment, but the move stays yours. You can equip or bench it any time from Fight Camp.</p>
+      <div class="hand">${offer.map((id,i)=>{const c=CARDS[id],big=c.dmg?`${c.dmg} DMG`:(c.big||"");return `<button class="card t-${c.type}" style="--i:${i}" data-add="${id}"><div class="top"><span class="type">${c.type}</span><span class="cost"><b>${c.cost}</b></span></div><h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p></button>`}).join("")}</div>
+    </section>
+    <div class="actions"><button class="btn" id="back">Back to career</button></div>
+  `;
+  app.querySelectorAll("[data-add]").forEach(btn=>btn.onclick=()=>{
+    const id=btn.dataset.add;
+    if(!unlockCard(C,id))return;
+    C.segDone=true;
+    news(`${WRESTLERS[C.wid].name} trained the ${CARDS[id].name}. The move was added to the collection.`);
+    saveCareer();hub();
+  });
   $("#back").onclick=hub;
 }
 
@@ -854,7 +983,11 @@ function callOut(id){
   ov.querySelector("#ok").onclick=()=>{ov.remove();hub();};
 }
 
-function normC(){C.hpMod=C.hpMod||0;C.hypeMod=C.hypeMod||0;C.best=C.best||0;C.peak=C.peak||99;}
+function normC(){
+  C.hpMod=C.hpMod||0; C.hypeMod=C.hypeMod||0; C.best=C.best||0;
+  if(!Number.isFinite(C.peak)) C.peak=99; // Keep 0: an achieved champion peak.
+  normalizeLoadout(C);
+}
 const up=n=>{C.align=Math.max(-5,Math.min(5,C.align+n));};
 function weeklyEvent(){
   normC();
@@ -868,7 +1001,7 @@ function weeklyEvent(){
      a:["Take the money",()=>(C.fame+=6,up(-1),"Sellout! But a famous one. +6 fame.")],
      b:["Sign autographs instead",()=>(C.fame+=3,up(1),"The line goes around the block. +3 fame.")]},
     {t:"Veteran's advice",d:"A retired champion offers you an hour in the ring.",
-     a:["Learn a new move",()=>{const id=TRAIN_POOL[rnd(TRAIN_POOL.length)];C.deck.push(id);return `You pick up the ${CARDS[id].name}. It's in your deck now.`}],
+     a:["Learn a new move",()=>{const id=TRAIN_POOL[rnd(TRAIN_POOL.length)];unlockCard(C,id);return `You pick up the ${CARDS[id].name}. It's in your deck now.`}],
      b:["Ask about working the crowd",()=>(C.hypeMod+=3,"He teaches you to work the room. +3 hype to start this week's match.")]},
     {t:"Tweaked knee",d:"You landed wrong in training. The doctor says you can work, but carefully.",
      a:["Work through it",()=>(C.hpMod-=6,C.fame+=2,"Tough as nails. You start this week's match down 6 stamina. +2 fame.")],
