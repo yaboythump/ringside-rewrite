@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 env:
-  RCC_SOURCE: b965481d7874e831f7fc33313e27c7424651d29a
+  RCC_SOURCE: d4a97937595a734fee091af2457f1ff83f5798c5
   RCC_TEAM: J4Y8FY6JNZ
   RCC_BUNDLE: com.ctnetworkstudios.ringsidecardclash
   RCC_PROJECT: games/card-clash/ios/RingsideCardClash.xcodeproj
