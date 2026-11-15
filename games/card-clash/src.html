@@ -492,6 +492,12 @@ Object.assign(WRESTLERS.dutch.fin,{weak:2});
 Object.assign(WRESTLERS.kid.fin,{heal:5});
 for(const [id,sig] of Object.entries({silas:["sleeper","chain"],tank:["haymaker","ironchin"],jett:["springboard","crossbody"],ox:["pounce","fortress"]})) WRESTLERS[id].sig=sig;
 const rarity=c=>c.rarity||(c.sig?"signature":c.train?"uncommon":"common");
+Object.assign(CARDS,{
+  turnbuckle:{name:"Turnbuckle Blitz",type:"strike",cost:2,dmg:10,hype:2,rarity:"epic",text:"+2 hype. Win Streak contract reward."},
+  popUp:{name:"Standing Ovation",type:"hype",cost:1,hypeGain:4,draw:1,big:"+4 HYPE",rarity:"epic",text:"+4 hype. Draw one card. Show Stealer contract reward."},
+  counterClutch:{name:"Grudge Clutch",type:"defense",cost:1,reversal:true,block:2,big:"COUNTER",rarity:"epic",text:"Block 2. Cancel the next grapple and counter for 5. Settle the Score contract reward."},
+  goldRush:{name:"Gold Rush Driver",type:"grapple",cost:2,dmg:11,hype:1,rarity:"epic",text:"+1 hype. Fight for Gold contract reward."},
+});
 const TRAIN_POOL=Object.keys(CARDS).filter(k=>CARDS[k].train);
 const BASE_DECK=["chop","chop","dropkick","clothesline","suplex","headlock","block","block","reversal","secondwind","taunt","crowdpop"];
 const HAND=5, ENERGY=3, HYPE_MAX=10;
@@ -953,7 +959,7 @@ function startRun(id){
 async function startMatch(){
   if(G.mode==="career"){
     const plus=G.stip==="lastman"?15:0;
-    G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus+(C.hypeMod||0),hpMod:Math.min(0,C.hpMod||0),hpPlus:plus+Math.max(0,C.hpMod||0)}); G.o=makeFighter(G.oid,{level:G.level,hpPlus:plus});
+    G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus+(C.hypeMod||0),hpMod:Math.min(0,C.hpMod||0)-injuryPenalty(C),hpPlus:plus+Math.max(0,C.hpMod||0)}); G.o=makeFighter(G.oid,{level:G.level,hpPlus:plus});
     G.log=[G.title?`${showName()}. The ${G.title} is on the line.`:`${showName()}. ${G.o.w.name} is waiting in the ring.`];
     if(C.hypeBonus) G.log.unshift(`Your promo has the crowd buzzing. +${C.hypeBonus} hype to start.`);
     if(G.stip) G.log.unshift(`${STIPS[G.stip][0]}! ${STIPS[G.stip][1]}`);
@@ -1252,6 +1258,94 @@ const showName=()=>isPPV()?PPVS[(C.week/4-1)%PPVS.length]:"Monday Rewrite";
 const SECONDARY_TITLE="Continental Championship";
 const FACTIONS={guild:"The Iron Guild",lights:"House Lights"};
 const careerLevel=xp=>1+Math.floor(xp/45);
+const CONTRACTS={
+  wins:{name:"Win Streak",description:"Win two singles matches in a row.",target:2,weeks:4,reward:"turnbuckle",fame:12},
+  spotlight:{name:"Show Stealer",description:"Put on two singles matches rated three stars or higher.",target:2,weeks:4,reward:"popUp",fame:14},
+  rivalry:{name:"Settle the Score",description:"Beat the named rival in a singles match.",target:1,weeks:4,reward:"counterClutch",fame:16},
+  gold:{name:"Fight for Gold",description:"Win or defend a singles championship.",target:1,weeks:4,reward:"goldRush",fame:20},
+};
+const CONTRACT_COUNT=n=>Number.isSafeInteger(n)&&n>=0?n:0;
+function normalizeOffice(save){
+  const current=save.office;
+  const active=current?.active;
+  const injury=current?.injury;
+  const definition=active&&Object.hasOwn(CONTRACTS,active.id)?CONTRACTS[active.id]:null;
+  const signed=definition&&Number.isSafeInteger(active.deadline)&&active.deadline>=save.week
+    &&(active.id!=="rivalry"||(active.foe!==save.wid&&Object.hasOwn(WRESTLERS,active.foe)&&divisionOf(active.foe)===divisionOf(save.wid)));
+  const results=Array.isArray(current?.results)?current.results.filter(entry=>entry&&Object.hasOwn(CONTRACTS,entry.id)
+    &&Number.isSafeInteger(entry.week)&&typeof entry.won==="boolean").slice(0,12):[];
+  save.office={
+    active:signed?{id:active.id,progress:Math.min(definition.target-1,CONTRACT_COUNT(active.progress)),
+      deadline:active.deadline,foe:active.id==="rivalry"?active.foe:null}:null,
+    injury:Math.min(2,CONTRACT_COUNT(injury)),
+    results,
+  };
+}
+function availableContracts(save){
+  const rank=save.contenders.indexOf(save.wid);
+  const eligible={wins:true,spotlight:true,rivalry:save.arc.heat>=2&&save.arc.foe,
+    gold:save.champ===save.wid||save.secondary===save.wid||rank>=0&&rank<3};
+  return Object.keys(CONTRACTS).filter(id=>eligible[id]);
+}
+function signContract(save,id){
+  if(save.office.active||!availableContracts(save).includes(id))return false;
+  save.office.active={id,progress:0,deadline:save.week+CONTRACTS[id].weeks-1,
+    foe:id==="rivalry"?save.arc.foe:null};
+  return true;
+}
+function advanceContract(save,bout,won,rating){
+  const active=save.office.active;
+  if(!active)return null;
+  const contract=CONTRACTS[active.id];
+  if(active.id==="wins")active.progress=won?active.progress+1:0;
+  if(active.id==="spotlight"&&rating>=3)active.progress++;
+  if(active.id==="rivalry"&&won&&bout.id===active.foe)active.progress++;
+  if(active.id==="gold"&&won&&bout.title)active.progress++;
+  const completed=active.progress>=contract.target;
+  if(!completed&&save.week<active.deadline)return null;
+  save.office.results=[{id:active.id,week:save.week,won:completed},...save.office.results].slice(0,12);
+  save.office.active=null;
+  if(!completed)return {message:`${contract.name} contract expired.`,fame:0};
+  if(!cardCounts(save.collection)[contract.reward])unlockCard(save,contract.reward);
+  return {message:`${contract.name} completed. +${contract.fame} fame · ${CARDS[contract.reward].name}.`,fame:contract.fame};
+}
+const injuryPenalty=save=>save.office.injury?6:0;
+function rehabilitate(save){
+  if(save.segDone||!save.office.injury)return false;
+  save.office.injury=0;save.segDone=true;
+  return true;
+}
+function contractSummary(save){
+  const active=save.office.active;
+  if(!active)return "Choose a wrestling contract for the next four shows.";
+  const definition=CONTRACTS[active.id];
+  return `${definition.name} · ${active.progress}/${definition.target} · due week ${active.deadline}`;
+}
+function officeScreen(){
+  const active=C.office.active;
+  const definition=active?CONTRACTS[active.id]:null;
+  app.innerHTML=`<header class="brand">${logo()}</header>
+  <section class="panel"><h3>Promoter’s Office</h3>
+    ${definition?`<p>${esc(contractSummary(C))}</p><p>${esc(definition.description)}${active.foe?` Opponent: ${esc(WRESTLERS[active.foe].name)}.`:""}</p>
+    <p>Reward · ${definition.fame} fame and ${esc(CARDS[definition.reward].name)}</p>`:
+    `<div class="segs">${availableContracts(C).map(id=>{const d=CONTRACTS[id];return `<button class="seg" style="--c:var(--gold)" data-contract="${id}"><b>${d.name}</b><span>${d.description}${id==="rivalry"?` Opponent: ${esc(WRESTLERS[C.arc.foe].name)}.`:""}</span><span>Sign · ${d.fame} fame and ${CARDS[d.reward].name}</span></button>`;}).join("")}</div>`}
+  </section>
+  <section class="panel"><h3>Medical report</h3>
+    <p>${C.office.injury?`Knee injury · −${injuryPenalty(C)} starting stamina for ${C.office.injury} remaining singles match${C.office.injury===1?"":"es"}.`:"Cleared to wrestle."}</p>
+    ${C.office.injury?`<button class="btn" id="rehab" ${C.segDone?"disabled":""}>Use weekly segment for rehab</button>`:""}
+  </section>
+  ${C.office.results.length?`<section class="panel"><h3>Contract record</h3><ul class="news">${C.office.results.map(entry=>`<li>Week ${entry.week} · ${CONTRACTS[entry.id].name} · ${entry.won?"Completed":"Expired"}</li>`).join("")}</ul></section>`:""}
+  <div class="actions"><button class="btn" id="back">Back to career</button></div>`;
+  $("#back").onclick=hub;
+  app.querySelectorAll("[data-contract]").forEach(button=>button.onclick=()=>{
+    if(signContract(C,button.dataset.contract)){
+      if(C.office.active.id==="rivalry"&&!C.booked?.title){C.booked=null;book();}
+      saveCareer();officeScreen();
+    }
+  });
+  $("#rehab")?.addEventListener("click",()=>{if(rehabilitate(C)){saveCareer();officeScreen();}});
+}
+
 function normalizeCareer(c){
   if(!c||typeof c!=="object"||typeof c.wid!=="string") return null;
   if(c.wid==="custom"){
@@ -1281,6 +1375,7 @@ function normalizeCareer(c){
   c.arc.heat=Math.min(5,Math.max(0,Number(c.arc.heat)||0));
   if(!eligible.has(c.rival))c.rival=null;
   c.tag=careerTagState(c,pool);
+  normalizeOffice(c);
   normalizeLoadout(c);
   return c;
 }
@@ -1333,7 +1428,8 @@ function book(){
   }else if(ppv&&C.secondary&&(C.secondary===C.wid||r<4)){
     id=C.secondary===C.wid?C.contenders.find(k=>k!==C.wid):C.secondary;
     title="secondary";
-  }else if(C.rival){id=C.rival;}
+  }else if(C.office.active?.id==="rivalry"){id=C.office.active.foe;}
+  else if(C.rival){id=C.rival;}
   else if(ppv&&C.arc.heat>=3&&C.arc.foe&&C.arc.foe!==C.wid){id=C.arc.foe;}
   else if(isChamp()){id=C.contenders[rnd(Math.min(3,C.contenders.length))];}
   else {id=C.contenders[r===0?1:r-1];}
@@ -1510,7 +1606,8 @@ function hub(){
   <section class="panel"><h3>Locker room</h3>
     <div class="stats"><span>Faction<b>${FACTIONS[C.arc.faction]||"Independent"}</b></span>${C.arc.ally?`<span>Ally<b>${esc(WRESTLERS[C.arc.ally].name)}</b></span>`:""}
       ${C.arc.foe&&C.arc.heat?`<span>Rival<b>${esc(WRESTLERS[C.arc.foe].name)} · Heat ${C.arc.heat}/5</b></span>`:""}</div>
-    <button class="btn" id="journal">Calendar, records &amp; titles</button>
+    <p>${esc(contractSummary(C))}${C.office.injury?` · Medical: −${injuryPenalty(C)} starting stamina`:""}</p>
+    <div class="actions"><button class="btn" id="career-office">Promoter’s Office</button><button class="btn" id="journal">Calendar, records &amp; titles</button></div>
   </section>
   ${careerTagPanel()}
   <div class="cols">
@@ -1522,6 +1619,7 @@ function hub(){
   $("#fight").onclick=careerMatch;
   $("#fight-camp").onclick=fightCamp;
   $("#journal").onclick=careerJournal;
+  $("#career-office").onclick=officeScreen;
   $("#career-tag")?.addEventListener("click",careerTagMatch);
   $("#s-story")?.addEventListener("click",storyScreen);
   $("#quit").onclick=titleScreen;
@@ -1703,8 +1801,8 @@ function weeklyEvent(){
      a:["Learn a new move",()=>{const cards=availableTraining(C),id=cards[rnd(cards.length)];unlockCard(C,id);return `You pick up the ${CARDS[id].name}. It is yours to equip in Fight Camp.`}],
      b:["Ask about working the crowd",()=>(C.hypeMod+=3,"He teaches you to work the room. +3 hype to start this week's match.")]},
     {t:"Tweaked knee",d:"You landed wrong in training. The doctor says you can work, but carefully.",
-     a:["Work through it",()=>(C.hpMod-=6,C.fame+=2,"Tough as nails. You start this week's match down 6 stamina. +2 fame.")],
-     b:["Rest up",()=>(C.segDone=true,"You skip this week's segment to heal. Straight to the match.")]},
+     a:["Work through it",()=>(C.office.injury=2,C.fame+=2,"You’ll start the next two singles matches down 6 stamina unless you use a weekly segment for rehab. +2 fame.")],
+     b:["Rest up",()=>(C.segDone=true,C.office.injury=0,"You use this week’s segment to recover and wrestle at full stamina.")]},
     {t:"Sign in the crowd",d:"A kid in the front row holds up a sign with your name on it.",
      a:["Hand over your wristband",()=>(C.hypeMod+=2,up(1),"The whole section is behind you. +2 hype to start this week's match.")],
      b:["Tear the sign up",()=>(C.fame+=4,up(-2),"The building boos you out of it. +4 fame.")]},
@@ -1776,6 +1874,9 @@ function recordCareerMatch(won,rating){
     if(reward){unlockCard(C,reward);news(`Level ${level} reward: ${CARDS[reward].name}.`);}
   }
   if(C.arc.foe===oid) adjustRival(C,oid,won?-2:1);
+  const contract=advanceContract(C,b,won,rating);
+  if(contract){fame+=contract.fame;news(contract.message);}
+  C.office.injury=Math.max(0,C.office.injury-1);
   C.fame=Math.max(0,C.fame+fame);
   C.peak=Math.min(C.peak,isChamp()?0:myRank()+1);
   C.results.unshift({week:C.week,opponent:o.name,won,rating});
@@ -1788,11 +1889,11 @@ function recordCareerMatch(won,rating){
   }
   news(line);
   C.week++;C.booked=null;C.rival=null;C.hypeBonus=0;C.hpMod=0;C.hypeMod=0;C.segDone=false;
-  return {fame,line,xp,level,wonTitle};
+  return {fame,line,xp,level,wonTitle,contract};
 }
 function careerResult(won){
   const rating=matchRating(won);
-  const {fame,line,xp,level,wonTitle}=recordCareerMatch(won,rating);
+  const {fame,line,xp,level,wonTitle,contract}=recordCareerMatch(won,rating);
   const champNow=isChamp();
   saveCareer();
   const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
@@ -1803,6 +1904,7 @@ function careerResult(won){
     <h2 class="${won?"metal":""}" ${won?"":'style="color:var(--crimson)"'}>${wonTitle?"New Champion":won?"Victory":"Defeat"}</h2>
     ${starsHTML(rating)}
     <p>${esc(line)}</p>
+    ${contract?`<p class="camp-note">${esc(contract.message)}</p>`:""}
     <div class="stats" style="justify-content:center"><span>Fame<b>${fame>=0?"+":""}${fame}</b></span><span>XP<b>+${xp} · Lv ${level}</b></span><span>Record<b>${C.w}-${C.l}</b></span><span>Rank<b>${champNow?"Champ":"#"+(myRank()+1)}</b></span></div>
     <div class="actions"><button class="btn primary" id="next">Week ${C.week}</button></div></div>`;
   if(wonTitle) flash();

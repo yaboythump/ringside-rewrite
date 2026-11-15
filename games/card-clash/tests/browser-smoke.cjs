@@ -82,8 +82,10 @@ const legacy={
       }
       await click("#m-career");
       assert.equal(await p.locator(".pick").count(),16);
+      assert.equal(await p.locator(".pick img").count(),16);
       await click('[data-division="women"]');
       assert.equal(await p.locator(".pick").count(),8);
+      assert.equal(await p.locator(".pick img").count(),8);
       await click("#create-wrestler");
       await button('[name="name"]').fill("Rose & Thorn");
       await button('[name="look"]').selectOption("mask");
@@ -93,6 +95,10 @@ const legacy={
       if(!isPreview)p.once("dialog",d=>d.accept());
       await click("#creation [type=submit]");
       await visible("#fight-camp");
+      await click("#career-office");
+      await click('[data-contract="wins"]');
+      await p.getByText(/Win Streak · 0\/2 · due week 4/).waitFor();
+      await click("#back");
       await click("#s-train");
       const learned=await p.locator("[data-add]").first().getAttribute("data-add");
       await click(`[data-add="${learned}"]`);
@@ -116,6 +122,8 @@ const legacy={
       const result=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
       assert.equal(result.week,2);
       assert.equal(result.w+result.l,1);
+      assert.equal(result.office.active.id,"wins");
+      assert.equal(result.office.active.progress,result.w);
       console.log(label,"career",career,"saved week",result.week);
       if(label==="desktop"&&!mode){
         for(const stip of ["cage","street","submission","lastman"]){
