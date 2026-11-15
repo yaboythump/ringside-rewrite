@@ -70,13 +70,14 @@ const legacy={
       };
       await visible("#m-career");
       await noOverflow();
+      assert.equal(await p.locator(".mode").evaluateAll(tiles=>tiles.every(tile=>tile.scrollWidth<=tile.clientWidth)),true,label+" title menu fit");
       await p.evaluate(data=>localStorage.setItem("rcc-career",JSON.stringify(data)),legacy);
       await menu();
       assert.equal(await button("#m-cont").count(),isPreview?0:1);
       if(!isPreview){
         await click("#m-cont");
         await click("#fight-camp");
-        assert.match(await button(".camp-summary").innerText(),/Equipped 15/);
+        assert.match(await button(".camp-summary").textContent(),/Equipped 15/);
         await click("#camp-back");await click("#quit");
       }
       await click("#m-career");
