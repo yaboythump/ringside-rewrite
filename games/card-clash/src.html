@@ -795,7 +795,7 @@ function recordTagChampions(promotion,team,week){
   return action;
 }
 function tagHistoryList(history){
-  return `<ul class="news">${history.map(({team,action,week})=>`<li>${week?`Week ${week} · `:""}${esc(teamName(team))} ${action==="vacated"?"vacated the belts":action==="retained"?"retained the belts":"won the belts"}</li>`).join("")||"<li>Title changes and defenses will appear here.</li>"}</ul>`;
+  return `<ul class="news">${history.map(({team,action,week})=>`<li>${Number.isSafeInteger(week)&&week>0?`Week ${week} · `:""}${esc(teamName(team))} ${action==="vacated"?"vacated the belts":action==="retained"?"retained the belts":"won the belts"}</li>`).join("")||"<li>Title changes and defenses will appear here.</li>"}</ul>`;
 }
 const teamName=ids=>ids.map(id=>WRESTLERS[id].name).join(" & ");
 function startTag(pid,partner,oid,otherPartner,forTitle,tagWeek=null){
@@ -1357,7 +1357,7 @@ function careerTagState(save,pool){
     }
   }
   const history=Array.isArray(raw?.history)?raw.history.filter(entry=>validTeam(entry?.team,eligible)
-    &&Number.isSafeInteger(entry.week)&&["won","retained","vacated"].includes(entry.action)).slice(0,20):[];
+    &&Number.isSafeInteger(entry.week)&&entry.week>0&&["won","retained","vacated"].includes(entry.action)).slice(0,20):[];
   const playedWeek=Number.isSafeInteger(raw?.playedWeek)&&raw.playedWeek<=save.week?raw.playedWeek:0;
   return {champions,partners,history,playedWeek};
 }
