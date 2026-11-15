@@ -103,21 +103,85 @@ jobs:
           import base64
           import json
           import os
+          import re
           import sys
           from pathlib import Path
 
           output = Path(sys.argv[1])
+          value = os.environ["DISTRIBUTION_PACKAGE"].strip()
           try:
-              package = json.loads(os.environ["DISTRIBUTION_PACKAGE"])
-              for field, filename in (("certificate", "distribution.p12"), ("profile", "ringside.mobileprovision")):
-                  data = base64.b64decode(package[field], validate=True)
-                  if not data:
-                      raise ValueError("empty field")
-                  (output / filename).write_bytes(data)
+              package = json.loads(value)
+          except json.JSONDecodeError:
+              # A mobile paste may stop after the first field in an earlier package.
+              match = re.match(r'\{\s*"certificate"\s*:\s*"([A-Za-z0-9+/=]+)"', value)
+              package = {"certificate": match[1] if match else value}
+          if not isinstance(package, dict):
+              sys.exit("::error::The signing secret must contain the certificate package.")
+          try:
+              certificate = base64.b64decode(package["certificate"], validate=True)
+              if not certificate:
+                  raise ValueError("empty certificate")
           except (ValueError, KeyError, TypeError):
-              sys.exit("::error::RCC_DISTRIBUTION_PACKAGE is incomplete or invalid.")
+              sys.exit(f"::error::The signing secret has no complete certificate ({len(value)} characters received).")
+          (output / "distribution.p12").write_bytes(certificate)
+
+          if package.get("profile"):
+              try:
+                  profile = base64.b64decode(package["profile"], validate=True)
+              except (ValueError, TypeError):
+                  profile = b""
+              if profile:
+                  (output / "ringside.mobileprovision").write_bytes(profile)
           PY
           unset DISTRIBUTION_PACKAGE
+          openssl pkcs12 -in "$signing/distribution.p12" -passin pass: -noout > /dev/null 2>&1 || {
+            echo "::error::The signing secret does not contain a complete PKCS#12 file."
+            exit 1
+          }
+          if [[ ! -s "$signing/ringside.mobileprovision" ]]; then
+            # Download only the App Store profile created for Ringside.
+            token="$(ruby -ropenssl -rbase64 -rjson - "$auth_key" "$ASC_KEY_ID" "$ASC_ISSUER_ID" <<'RUBY'
+          key_path, key_id, issuer = ARGV
+          encode = ->(value) { Base64.urlsafe_encode64(value, padding: false) }
+          now = Time.now.to_i
+          header = encode.call(JSON.generate(alg: "ES256", kid: key_id, typ: "JWT"))
+          claims = encode.call(JSON.generate(iss: issuer, iat: now, exp: now + 300, aud: "appstoreconnect-v1"))
+          input = "#{header}.#{claims}"
+          key = OpenSSL::PKey.read(File.binread(key_path))
+          der = key.sign("SHA256", input)
+          raw = OpenSSL::ASN1.decode(der).value.map { |part| part.value.to_s(2).rjust(32, "\x00") }.join
+          puts "#{input}.#{encode.call(raw)}"
+          RUBY
+            )"
+            echo "::add-mask::$token"
+            if ! curl --silent --show-error --fail --max-time 30 --get \
+              --header "Authorization: Bearer $token" \
+              --data-urlencode 'filter[name]=Ringside Card Clash App Store' \
+              --data-urlencode 'fields[profiles]=name,profileType,profileState,profileContent' \
+              --output "$signing/profile-response.json" https://api.appstoreconnect.apple.com/v1/profiles; then
+              echo "::error::Apple would not supply the Ringside provisioning profile with the upload key."
+              exit 1
+            fi
+            unset token
+            python3 - "$signing" <<'PY'
+          import base64
+          import json
+          import sys
+          from pathlib import Path
+
+          signing = Path(sys.argv[1])
+          records = json.loads((signing / "profile-response.json").read_bytes())["data"]
+          matches = [
+              row["attributes"]["profileContent"] for row in records
+              if row["attributes"]["name"] == "Ringside Card Clash App Store"
+              and row["attributes"]["profileType"] == "IOS_APP_STORE"
+              and row["attributes"]["profileState"] == "ACTIVE"
+          ]
+          if len(matches) != 1:
+              sys.exit("::error::Apple did not return exactly one active Ringside App Store profile.")
+          (signing / "ringside.mobileprovision").write_bytes(base64.b64decode(matches[0], validate=True))
+          PY
+          fi
           security cms -D -i "$signing/ringside.mobileprovision" > "$signing/profile.plist"
           profile_id="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$signing/profile.plist")"
           profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$signing/profile.plist")"
