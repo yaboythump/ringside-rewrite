@@ -197,7 +197,13 @@ jobs:
           security unlock-keychain -p "$keychain_password" "$keychain"
           security set-keychain-settings -lut 1200 "$keychain"
           security list-keychains -d user -s "$keychain"
-          security import "$signing/distribution.p12" -k "$keychain" -P "" -T /usr/bin/codesign -T /usr/bin/security
+          openssl pkcs12 -in "$signing/distribution.p12" -passin pass: -nodes -out "$signing/identity.pem"
+          openssl rand -hex 24 > "$signing/import-password"
+          openssl pkcs12 -export -in "$signing/identity.pem" -out "$signing/apple-import.p12" \
+            -passout "file:$signing/import-password" -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
+          security import "$signing/apple-import.p12" -f pkcs12 -k "$keychain" \
+            -P "$(cat "$signing/import-password")" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f -- "$signing/identity.pem" "$signing/apple-import.p12" "$signing/import-password"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
           unset keychain_password
           auth=(-authenticationKeyPath "$auth_key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
