@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 env:
-  RCC_SOURCE: 6bcf4578c6e1f7505bef21cbb7a039f258b9b2c8
+  RCC_SOURCE: 868f90687df030d9d346e489418c650c5d2de9d4
   DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
   RCC_TEAM: J4Y8FY6JNZ
   RCC_BUNDLE: com.ctnetworkstudios.ringsidecardclash
