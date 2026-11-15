@@ -13,13 +13,13 @@ permissions:
 jobs:
   gameplay-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Test earned-card ownership and career migration
+      - name: Test match logic, earned cards and careers
         run: node --test games/card-clash/tests/fight-camp.test.cjs
       - name: Build standalone game and check embedded assets
         run: |
@@ -35,3 +35,20 @@ jobs:
           assert '/*__PORTRAITS__*/' not in page
           print('Standalone game and embedded assets verified')
           PY
+      - name: Install Chromium for browser smoke tests
+        run: |
+          npm install --prefix "$RUNNER_TEMP/rcc-browser" playwright@1.56.1
+          "$RUNNER_TEMP/rcc-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Play the game at desktop, iPhone and Android sizes
+        run: |
+          page_dir="$RUNNER_TEMP/rcc-site"
+          mkdir -p "$page_dir/ringside-rewrite/preview"
+          cp /tmp/ringside-card-clash-review.html "$page_dir/ringside-rewrite/preview/index.html"
+          cp /tmp/ringside-card-clash-review.html "$page_dir/ringside-rewrite/index.html"
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory "$page_dir" &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          curl --retry 4 --retry-connrefused --fail --silent http://127.0.0.1:8765/ringside-rewrite/preview/ -o /dev/null
+          export NODE_PATH="$RUNNER_TEMP/rcc-browser/node_modules"
+          node games/card-clash/tests/browser-smoke.cjs
+          RCC_URL=http://127.0.0.1:8765/ringside-rewrite/ RCC_SMOKE_ONLY=1 node games/card-clash/tests/browser-smoke.cjs

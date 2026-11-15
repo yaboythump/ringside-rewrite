@@ -1,0 +1,147 @@
+const {chromium,devices}=require("playwright");
+const assert=require("node:assert/strict");
+const base=process.env.RCC_URL||"http://127.0.0.1:8765/ringside-rewrite/preview/";
+const isPreview=new URL(base).pathname.includes("/preview");
+const key=isPreview?"rcc-preview-career":"rcc-career";
+const mode=process.env.RCC_SMOKE_ONLY;
+const legacy={
+  wid:"raven",champ:"silas",contenders:["dutch","raven","kid","brick","tank","jett","ox"],
+  booked:{id:"dutch",title:false,stip:null},news:["Prior show"],week:13,w:8,l:4,fame:65,align:2,hypeBonus:0,hpMod:0,
+  segDone:false,peak:0,defenses:3,reigns:1,best:4,
+  deck:["chop","chop","dropkick","clothesline","suplex","headlock","block","block","reversal","secondwind","taunt","crowdpop","springboard","moonsault","springboard"]
+};
+(async()=>{
+  const browser=await chromium.launch();
+  try{
+    for(const [label,device] of Object.entries({
+      desktop:{viewport:{width:1440,height:950}},
+      iPhone:devices["iPhone 13"],
+      Android:devices["Pixel 7"]
+    })){
+      const ctx=await browser.newContext({...device,reducedMotion:"reduce"});
+      const p=await ctx.newPage();
+      p.setDefaultTimeout(8500);
+      const errors=[];
+      p.on("pageerror",e=>errors.push(e.message));
+      p.on("console",m=>{if(m.type()==="error")errors.push(m.text());});
+      await p.goto(base,{waitUntil:"load"});
+      const button=id=>p.locator(id);
+      const click=async id=>button(id).click();
+      const visible=async id=>button(id).waitFor({state:"visible"});
+      const noOverflow=async()=>assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,label);
+      const menu=async()=>{await p.goto(base,{waitUntil:"load"});await visible("#m-career");};
+      const ring=async()=>{
+        const skip=button(".overlay .skip");
+        if(await skip.count()) await skip.click({timeout:750}).catch(()=>{});
+        await p.waitForFunction(()=>G?.p&&!G.busy);
+        await noOverflow();
+      };
+      const complete=async()=>{
+        for(let turns=0;turns<35;turns++){
+          await p.waitForFunction(()=>G?.over||!G?.busy);
+          if(await p.evaluate(()=>G.over))return p.locator(".result h2").textContent();
+          const action=await p.evaluate(()=>{
+            const {p,o,intent}=G;
+            if(p.hype===10)return "#fin";
+            const cards=p.hand.map((id,i)=>({c:CARDS[id],i})).filter(({c})=>c.cost<=p.energy);
+            const score=c=>{
+              if(c.dmg&&c.dmg>=(o.hp+(c.pierce?0:o.block))&&!p.weak)return 60;
+              if(c.reversal&&intent.type==="grapple"&&!p.reversal)return 30;
+              if(c.strikeCounter&&intent.type==="strike"&&!p.strikeCounter)return 26;
+              if(c.heal&&p.hp+8<p.max&&p.hp<18)return 17;
+              if(c.block&&intent.dmg&&p.block<5&&p.hp<=intent.dmg+5)return 15;
+              if(c.hypeGain||c.energy)return c.cost===0?27:(c.hypeGain>3?9:5);
+              if(c.dmg)return Math.max(0,cardDmg(c)-o.block)/(c.cost||1)+(c.pierce?1:0);
+              return 0;
+            };
+            const usable=cards.map(x=>({...x,score:score(x.c)})).sort((a,b)=>b.score-a.score)[0];
+            return usable?.score>0?`.hand [data-i="${usable.i}"]`:"#end";
+          });
+          await click(action);
+        }
+        for(let i=0;i<100;i++){
+          await p.waitForFunction(()=>G?.over||!G?.busy);
+          if(await p.evaluate(()=>G.over))return p.locator(".result h2").textContent();
+          const attack=p.locator(".hand .card:not([disabled]):has(.big:text('DMG'))").first();
+          if(await attack.count()) await attack.click();
+          else await click("#end");
+        }
+        throw Error("Bout exceeded QA action limit");
+      };
+      await visible("#m-career");
+      await noOverflow();
+      await p.evaluate(data=>localStorage.setItem("rcc-career",JSON.stringify(data)),legacy);
+      await menu();
+      assert.equal(await button("#m-cont").count(),isPreview?0:1);
+      if(!isPreview){
+        await click("#m-cont");
+        await click("#fight-camp");
+        assert.match(await button(".camp-summary").innerText(),/Equipped 15/);
+        await click("#camp-back");await click("#quit");
+      }
+      await click("#m-career");
+      assert.equal(await p.locator(".pick").count(),16);
+      await click('[data-division="women"]');
+      assert.equal(await p.locator(".pick").count(),8);
+      await click("#create-wrestler");
+      await button('[name="name"]').fill("Rose & Thorn");
+      await button('[name="look"]').selectOption("mask");
+      await button('[name="gear"]').selectOption("elite");
+      await button('[name="palette"]').selectOption("jade");
+      await button('[name="move"]').selectOption("haymaker");
+      if(!isPreview)p.once("dialog",d=>d.accept());
+      await click("#creation [type=submit]");
+      await visible("#fight-camp");
+      await click("#s-train");
+      const learned=await p.locator("[data-add]").first().getAttribute("data-add");
+      await click(`[data-add="${learned}"]`);
+      await click("#fight-camp");
+      await click(`[data-unequip="${learned}"]`);
+      await click(`[data-equip="${learned}"]`);
+      await click("#camp-back");
+      await click("#journal");
+      await p.getByRole("heading",{name:"Event calendar"}).waitFor();
+      await click("#back");
+      await menu();
+      await click("#m-cont");
+      assert.match(await p.locator(".hubtop").textContent(),/Rose & Thorn/);
+      const save=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
+      assert.equal(save.profile.look,"mask");
+      assert.ok(save.collection.includes(learned));
+      if(isPreview)assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem("rcc-career")).week),13);
+      await click("#fight");
+      await ring();
+      const career=await complete();
+      const result=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
+      assert.equal(result.week,2);
+      assert.equal(result.w+result.l,1);
+      console.log(label,"career",career,"saved week",result.week);
+      if(label==="desktop"&&!mode){
+        for(const stip of ["cage","street","submission","lastman"]){
+          await menu();await click("#m-exhibition");await click('[data-w="raven"]');
+          await button('[name="opponent"]').selectOption("tank");
+          await button('[name="stip"]').selectOption(stip);
+          await click("#bout [type=submit]");await ring();
+          console.log(label,stip,await complete());
+        }
+        await menu();await click("#m-quick");await click('[data-w="raven"]');await ring();
+        console.log(label,"ladder",await complete());
+        await menu();await click("#m-tournament");await click('[data-division="women"]');await click('[data-w="nova"]');
+        assert.equal(await p.locator(".bracket li").count(),7);
+        await click("#cup-fight");await ring();
+        console.log(label,"cup",await complete());
+        await click("#event-next");await p.locator(".bracket strong").first().waitFor();
+        await menu();await click("#m-tag");await click('[data-w="raven"]');
+        await button('[name="stakes"]').selectOption("title");
+        await click("#tag-bout [type=submit]");await ring();
+        const partner=await p.evaluate(()=>G.pBench.w.id);
+        await click("#tag");
+        await p.waitForFunction(id=>!G.busy&&G.p.w.id===id,partner);
+        console.log(label,"tag",await complete());
+        assert.equal(await p.evaluate(key=>JSON.parse(localStorage.getItem(key)).length,isPreview?"rcc-preview-tag":"rcc-tag"),2);
+      }
+      assert.deepEqual(errors,[],label+" runtime errors");
+      await ctx.close();
+    }
+  }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});
