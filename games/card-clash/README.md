@@ -10,14 +10,22 @@ and CTNETWORK Studios. All characters and promotions are fictional.
 
 - **Career** includes the Open and Women’s divisions, Create-a-Wrestler, Fight Camp,
   permanent card ownership, training, XP rewards, faction and rivalry choices,
-  a four-week event calendar, rankings, and a title journal.
+  a four-week event calendar, rankings, and a title journal. Faction allies
+  double as tag partners. At every fourth-week special event, wrestle one
+  optional tag bout with your Fight Camp deck before your singles main event.
+  Two wins with the same partner earn a shot at your division’s tag belts.
+  Title changes, successful defenses and vacated titles appear in the career
+  journal. Breaking up a championship team vacates the belts.
 - **Fight Camp** shows opponent tendencies and lets you adjust a 10–20 card deck
   without spending the weekly segment. Rare cards enter training at level 2 and
   epic cards at level 4. Older decks above the new deck limit remain playable.
 - **Quick Match** is the original three-bout ladder. **Exhibition** lets you choose
   the opponent and stipulation. **Championship Cup** runs an eight-wrestler bracket,
-  advancing the other bouts locally. **Tag Team** includes a championship with
-  browser-local title holders. When you tag, your partner inherits the legal spot and
+  advancing the other bouts locally. It saves the bracket on entry and after
+  every result. Reopen Championship Cup to continue the bracket or review
+  the finished tournament. An interrupted match restarts from its opening bell.
+  **Tag Team** includes a championship with browser-local title holders and a
+  title history. When you tag, your partner inherits the legal spot and
   keeps their own deck, stamina, hype and kick-out. The first pin ends the match.
 - **Settings** include sound and reduced effects. System reduced-motion settings
   are honored. The match engine and all artwork and audio run locally in the browser.
@@ -52,7 +60,7 @@ pinned game commit. The pre-upgrade root can be rebuilt from
 ## Future work
 
 Add full individual portrait art for the expanded roster, more faction stories,
-and richer divisions and tag careers. Cup brackets currently last for the session.
+and richer divisional stories and team strategies.
 Online multiplayer and cross-device saves would require a separately deployed
 service. For multiplayer, keep stable wrestler, card and ruleset IDs in a shared
 engine, and have an authoritative server validate each turn, handle reconnects and

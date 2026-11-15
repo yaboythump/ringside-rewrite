@@ -296,5 +296,77 @@ test("tag commits the turn, preserves bench health and can award the belts", asy
   assert.equal(run("G.pBench.hp"),33);
   assert.equal(run("G.turn"),2);
   run("finishMatch(true);");
-  assert.deepEqual(JSON.parse(memory.get("rcc-tag")),["brick","raven"]);
+  const saved=JSON.parse(memory.get("rcc-tag"));
+  assert.deepEqual(saved.champions,["brick","raven"]);
+  assert.equal(saved.history[0].action,"won");
+});
+
+test("a cup saves before the first match and resumes the exact bracket after a win", async () => {
+  const {run,memory}=gameRuntime();
+  run("startTournament('nova');");
+  const opening=JSON.parse(memory.get("rcc-cup"));
+  assert.equal(opening.pid,"nova");
+  assert.equal(run("loadCup().round"),0);
+  run(`const bout=G.bracket[0].find(game=>game.a==='nova'||game.b==='nova');
+    G.oid=bout.a==='nova'?bout.b:bout.a;startMatch();`);
+  await new Promise(resolve=>setImmediate(resolve));
+  run("finishMatch(true);");
+  assert.equal(run("loadCup().round"),1);
+  assert.equal(run("loadCup().bracket[1].some(game=>game.a==='nova'||game.b==='nova')"),true);
+  const positions=JSON.parse(memory.get("rcc-cup")).bracket[0].map(({a,b})=>[a,b]);
+  assert.deepEqual(positions,opening.bracket[0].map(({a,b})=>[a,b]));
+  run("titleScreen();championshipCupMenu();");
+  assert.equal(run("G.round"),1);
+  assert.equal(run("G.pid"),"nova");
+});
+
+test("cup saves contain the final winner on elimination and invalid brackets are rejected", async () => {
+  const {run}=gameRuntime();
+  run(`startTournament('nova');
+    const bout=G.bracket[0].find(game=>game.a==='nova'||game.b==='nova');
+    G.oid=bout.a==='nova'?bout.b:bout.a;startMatch();`);
+  await new Promise(resolve=>setImmediate(resolve));
+  run("finishMatch(false);");
+  assert.equal(run("Boolean(loadCup().bracket[2][0].winner)"),true);
+  assert.equal(run("loadCup().bracket[2][0].winner==='nova'"),false);
+  assert.equal(run("G.bracket[0][0].winner='constructor';normalizeCup(G)"),null);
+});
+
+test("standalone tag promotion migrates a previously saved champion pair", () => {
+  const {run,memory}=gameRuntime();
+  memory.set("rcc-tag",JSON.stringify(["brick","raven"]));
+  assert.equal(run("tagPromotion().champions.join(',')"),"brick,raven");
+  assert.equal(run("tagPromotion().history.length"),0);
+  assert.equal(run("recordTagChampions(tagPromotion(),['raven','brick'])"),"retained");
+});
+
+test("a career tag team qualifies for the title and preserves the singles booking", () => {
+  const {run}=gameRuntime();
+  run(`newCareer('nova');C.arc.ally='nyx';C.arc.faction='lights';
+    const play=(won)=>{const booking=careerTagBooking(C);
+      const [pid,partner]=booking.pair,[oid,otherPartner]=booking.opponents;
+      return recordCareerTag(C,{pid,partner,oid,otherPartner,forTitle:booking.forTitle,tagWeek:C.week},won);
+    };`);
+  assert.equal(run("careerTagBooking(C)"),null);
+  run("C.week=4;C.booked=null;book();const mainEvent=C.booked;play(true);");
+  assert.equal(run("C.booked===mainEvent&&C.week===4&&C.w===0"),true);
+  assert.equal(run("careerTagBooking(C)"),null);
+  run("C.week=8;play(true);C.week=12;");
+  assert.equal(run("careerTagBooking(C).forTitle"),true);
+  assert.equal(run("careerTagBooking(C).opponents.join(',')"),"imani,alba");
+  assert.match(run("play(true)"),/wins the Tag Team Championship/);
+  assert.equal(run("C.tag.champions.join(',')"),"nova,nyx");
+  assert.equal(run("C.tag.history[0].week"),12);
+  run("C.week=16;play(true);");
+  assert.equal(run("C.tag.history[0].action"),"retained");
+  assert.equal(run("C.tag.partners.nyx.wins"),4);
+});
+
+test("betraying a championship partner vacates the belts without clearing team records", () => {
+  const {run}=gameRuntime();
+  run(`newCareer('nova');C.arc.ally='nyx';C.arc.faction='lights';C.tag.champions=['nova','nyx'];
+    C.tag.partners.nyx={wins:3,losses:1};storyOffer(C).actions[1][1]();saveCareer();C=loadCareer();`);
+  assert.equal(run("C.tag.champions"),null);
+  assert.equal(run("C.tag.history[0].action"),"vacated");
+  assert.equal(run("C.tag.partners.nyx.wins"),3);
 });
