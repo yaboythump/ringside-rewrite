@@ -76,9 +76,9 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
         let encoded = ((try? JSONEncoder().encode(saves)) ?? Data("{}".utf8)).base64EncodedString()
         return """
         (() => {
-            const seed = Uint8Array.from(atob("(encoded)"), letter => letter.charCodeAt(0));
+            const seed = Uint8Array.from(atob("\(encoded)"), letter => letter.charCodeAt(0));
             const saves = JSON.parse(new TextDecoder().decode(seed));
-            const send = message => window.webkit.messageHandlers.(Self.bridgeName).postMessage(message);
+            const send = message => window.webkit.messageHandlers["\(Self.bridgeName)"].postMessage(message);
             Object.defineProperty(window, "RingsideNative", {value: Object.freeze({
                 getItem(key) {
                     return Object.hasOwn(saves, key) ? saves[key] : null;
