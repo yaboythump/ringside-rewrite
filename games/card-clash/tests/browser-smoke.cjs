@@ -120,6 +120,42 @@ const legacy={
       if(isPreview)assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem("rcc-career")).week),13);
       await click("#fight");
       await ring();
+      if(label==="iPhone"&&!mode){
+        const original=p.viewportSize();
+        const positions=()=>p.evaluate(()=>{
+          const bounds=selector=>document.querySelector(selector).getBoundingClientRect();
+          const hud=bounds(".battle-hud"),hand=bounds(".battle-hand");
+          return {split:hud.right<=hand.left,atTop:scrollY===0,
+            controls:["#end",".ticker","#f-p","#f-o"].every(selector=>{
+              const {top,bottom,left,right}=bounds(selector);
+              return top>=0&&left>=0&&right<=innerWidth&&bottom<=innerHeight+1;
+            })};
+        });
+        const turnState=()=>p.evaluate(()=>({
+          turn:G.turn,hp:[G.p.hp,G.o.hp],energy:G.p.energy,hand:[...G.p.hand],message:G.log[0]
+        }));
+        await p.setViewportSize({width:466,height:678});
+        assert.deepEqual(await positions(),{split:false,atTop:true,controls:true},"Duo closed");
+        const before=await turnState();
+        for(const viewport of [{width:890,height:626},{width:626,height:890}]){
+          await p.setViewportSize(viewport);
+          assert.deepEqual(await positions(),{split:true,atTop:true,controls:true},"Duo open");
+          assert.deepEqual(await turnState(),before,"Unfolding or rotating preserves the live turn");
+          await noOverflow();
+        }
+        // Set up a known strike within the live match, then use the real card click.
+        await p.evaluate(()=>{G.p.hand[0]="chop";G.o.block=0;render();});
+        await click('.hand [data-i="0"]');
+        const after=await turnState();
+        assert.ok(after.hp[1]<before.hp[1]);
+        assert.match(after.message,new RegExp("for "+(before.hp[1]-after.hp[1])));
+        await p.setViewportSize({width:466,height:678});
+        assert.deepEqual(await positions(),{split:false,atTop:true,controls:true},"Duo refolded");
+        assert.deepEqual(await turnState(),after,"Refolding preserves damage and the remaining cards");
+        assert.match(await button(".ticker .now").textContent(),/for [1-9]/);
+        await p.setViewportSize(original);
+        console.log("iPhone Duo closed/open/rotated/refolded: controls visible, cards and damage preserved");
+      }
       const career=await complete();
       const result=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
       assert.equal(result.week,2);
