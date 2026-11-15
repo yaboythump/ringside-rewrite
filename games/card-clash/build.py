@@ -53,7 +53,7 @@ def publish_preview(dest):
     pin = (HERE / "pages-preview-ref.txt").read_text().strip()
     if not re.fullmatch(r"[a-f0-9]{40}", pin):
         sys.exit("Preview ref must be a full Git commit SHA")
-    git = ["git", "-C", str(HERE)]
+    git = ["git", "-C", str(HERE.parents[1])]
     subprocess.run([*git, "fetch", "--no-tags", "--depth=1", "origin", pin], check=True)
     root = "games/card-clash"
     prefix = f"{root}/assets/"

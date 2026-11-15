@@ -83,9 +83,11 @@ const legacy={
       await click("#m-career");
       assert.equal(await p.locator(".pick").count(),16);
       assert.equal(await p.locator(".pick img").count(),16);
+      await p.waitForFunction(()=>[...document.querySelectorAll(".pick img")].every(img=>img.complete&&img.naturalWidth>0));
       await click('[data-division="women"]');
       assert.equal(await p.locator(".pick").count(),8);
       assert.equal(await p.locator(".pick img").count(),8);
+      await p.waitForFunction(()=>[...document.querySelectorAll(".pick img")].every(img=>img.complete&&img.naturalWidth>0));
       await click("#create-wrestler");
       await button('[name="name"]').fill("Rose & Thorn");
       await button('[name="look"]').selectOption("mask");
