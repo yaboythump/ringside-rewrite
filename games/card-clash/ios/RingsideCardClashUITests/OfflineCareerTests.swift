@@ -2,6 +2,49 @@ import XCTest
 
 final class OfflineCareerTests: XCTestCase {
     @MainActor
+    func testDamageAndEndTurnStayVisibleAfterPlayingCard() {
+        let app = XCUIApplication()
+        let game = app.webViews.firstMatch
+        func button(_ text: String) -> XCUIElement {
+            game.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", text)).firstMatch
+        }
+
+        app.launch()
+        let exhibition = button("Exhibition")
+        guard exhibition.waitForExistence(timeout: 20) else {
+            return XCTFail("The bundled game did not load.")
+        }
+        exhibition.tap()
+        button("Brick Malone").tap()
+        button("To the ring").tap()
+        let entrance = button("Ring the bell")
+        if entrance.waitForExistence(timeout: 2), entrance.isHittable { entrance.tap() }
+
+        let endTurn = button("End turn")
+        XCTAssertTrue(endTurn.waitForExistence(timeout: 10))
+        let attack = game.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] %@ AND enabled == true", "DMG")
+        ).firstMatch
+        // The hand is shuffled. A defensive opening can be played through without scrolling.
+        for _ in 0..<3 where !attack.waitForExistence(timeout: 2) {
+            XCTAssertTrue(game.frame.contains(endTurn.frame))
+            endTurn.tap()
+        }
+        guard attack.waitForExistence(timeout: 4) else {
+            return XCTFail("No attack card was dealt.")
+        }
+        XCTAssertTrue(game.frame.contains(attack.frame))
+        attack.tap()
+
+        let damage = game.staticTexts.matching(
+            NSPredicate(format: "label MATCHES[c] %@", ".* for [0-9]+.*!.*")
+        ).firstMatch
+        XCTAssertTrue(damage.waitForExistence(timeout: 5))
+        XCTAssertTrue(game.frame.contains(damage.frame))
+        XCTAssertTrue(game.frame.contains(endTurn.frame))
+    }
+
+    @MainActor
     func testNewCareerSurvivesRelaunch() {
         let app = XCUIApplication()
         func button(_ text: String) -> XCUIElement {

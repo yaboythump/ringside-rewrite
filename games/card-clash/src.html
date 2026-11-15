@@ -324,6 +324,74 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
 .overlay .skip{min-height:44px;font:inherit;color:var(--gold-hi);border:1px solid #b59659;margin:auto;padding:8px 18px}
 .compact-motion *,.compact-motion *::before,.compact-motion *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 @media(max-width:440px){.hero{min-height:155px}.bracket{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr 1fr}.pick .fin{font-size:12px}}
+
+/* On phones only the hand scrolls. Keep stamina, the last action and turn controls in view. */
+.battle,.battle-hud,.battle-hand{display:contents}
+@media(max-width:600px), (max-height:540px) and (hover:none){
+  body:has(.battle){box-sizing:border-box;height:100dvh;overflow:hidden;
+    padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+  .app:has(>.battle){height:100%;display:block}
+  .battle{display:grid;height:100%;grid-template-rows:auto minmax(0,1fr) auto;gap:8px}
+  .battle-hud{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;align-items:start}
+  .battle .brand,.battle .ticker,.battle .meta{grid-column:1/-1}
+  .battle .brand{justify-content:center}
+  .battle .brand .logo,.battle .matchup{display:none}
+  .battle .ladder{justify-content:center;gap:3px;font-size:10px}
+  .battle .ladder span{padding:3px 6px;letter-spacing:.02em}
+  .battle .fighter{margin:0;padding:7px 9px 9px;display:block;align-self:stretch;
+    clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%)}
+  .battle .fighter::before{clip-path:inherit}
+  .battle .fighter.me{grid-area:2/1}
+  .battle .fighter.them{grid-area:2/2}
+  .battle .fighter .portrait{position:absolute;top:7px;right:8px;width:30px}
+  .battle .fighter .portrait .ini{font-size:17px;-webkit-text-stroke:1px}
+  .battle .fighter .portrait .note,.battle .fighter .name small{display:none}
+  .battle .side{position:static;display:inline-block;font:700 10px/1.15 var(--label);padding:2px 7px}
+  .battle .bars{gap:4px}
+  .battle .fighter .name{display:block;min-height:24px;margin:3px 32px 0 0;font-size:clamp(15px,4.2vw,20px);line-height:1;overflow-wrap:anywhere}
+  .battle .lbl{margin:0;font-size:10px;letter-spacing:.04em;align-items:baseline}
+  .battle .lbl .num{font-size:13px;letter-spacing:0}
+  .battle .bar{height:8px}
+  .battle .hype{gap:2px}
+  .battle .hype span{height:5px}
+  .battle .intent{gap:2px;align-items:flex-start;flex-direction:column}
+  .battle .intent .k{font-size:9px;letter-spacing:.04em}
+  .battle .intent .v{padding:2px 5px;font-size:13px;overflow-wrap:anywhere}
+  .battle .chips,.battle .fighter .statline{gap:3px;font-size:10px;letter-spacing:0}
+  .battle .chip{padding:2px 4px}
+  .battle .float{right:12px;top:27px;font-size:35px}
+  .battle .float.big{font-size:46px}
+  .battle .ticker{padding:7px 9px;min-height:27px;align-content:center}
+  .battle .ticker .now{font-size:16px;line-height:1.05}
+  .battle .ticker .prev{display:none}
+  .battle .meta{gap:3px;font-size:10px;letter-spacing:0}
+  .battle .energy{gap:3px}
+  .battle .energy i{width:7px;height:7px;border-width:1px}
+  .battle .energy span{margin-left:4px}
+  .battle .mutebtn{padding:4px 8px;letter-spacing:.02em}
+  .battle-hand{display:block;min-height:0;overflow:auto;overscroll-behavior:contain;padding:3px 3px 5px}
+  .battle-hand .tip{margin-bottom:6px;padding:6px 8px;font-size:12px;line-height:1.25}
+  .battle .hand{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .battle .card{min-height:92px;gap:3px;padding:6px 7px 8px}
+  .battle .card:has(.combo){padding-bottom:24px}
+  .battle .card .cost{width:20px;height:20px}
+  .battle .card .cost b{font-size:13px}
+  .battle .card h4{font-size:clamp(14px,4vw,19px);line-height:1;overflow-wrap:anywhere}
+  .battle .card .big{font-size:19px}
+  .battle .card p{font-size:12px;line-height:1.2}
+  .battle-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+  .battle-actions:has(#tag){grid-template-columns:minmax(0,1fr) auto auto}
+  .battle-actions .grow{display:none}
+  .battle-actions .btn{min-height:44px;padding:6px 11px;font-size:16px;letter-spacing:0;overflow-wrap:anywhere}
+}
+@media(min-width:375px) and (max-width:600px){
+  .battle .hand{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(orientation:landscape) and (max-height:540px) and (hover:none){
+  .battle{grid-template-columns:minmax(240px,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+  .battle-hud{overflow:auto;align-content:start}
+  .battle-actions{grid-column:1/-1}
+}
 </style>
 
 <canvas id="arena" aria-hidden="true"></canvas>
@@ -1972,26 +2040,32 @@ function cardHTML(id,i,p){
 function render(){
   if(!G||!G.p) return;
   const p=G.p,o=G.o;
+  const handScroll=G.dealt?0:(app.querySelector(".battle-hand")?.scrollTop||0);
   const ladder=G.mode==="career"
     ? `<span class="cur">Week ${C.week}</span><span>${esc(G.title||showName())}</span>${G.stip?`<span style="color:#ff6b7c">${STIPS[G.stip][0]}</span>`:""}`
     : G.mode==="quick"?G.ladder.map((k,i)=>`<span class="${i<G.round?"done":i===G.round?"cur":""}">${esc(WRESTLERS[k].name)}</span>`).join("")
     : `<span class="cur">${G.mode==="tag"?(G.forTitle?TAG_TITLE:G.tagWeek?"Tag Contender Bout":"Tag Team Exhibition"):G.mode==="tournament"?ROUND_NAMES[G.round]:G.stip?STIPS[G.stip][0]:"Exhibition"}</span>`;
-  app.innerHTML=`
+  app.innerHTML=`<div class="battle">
+  <div class="battle-hud">
   <header class="brand">${logo()}<div class="ladder">${ladder}</div></header>
-  <div class="eyebrow">You are ${esc(p.w.name)} · vs ${esc(o.w.name)}</div>
+  <div class="eyebrow matchup">You are ${esc(p.w.name)} · vs ${esc(o.w.name)}</div>
   ${fighterHTML(p,"p")}
   <div class="ticker" role="status"><div class="now ${G.fresh?"pop":""}">${esc(G.log[0]||"")}</div>${G.log[1]?`<div class="prev">${esc(G.log[1])}</div>`:""}</div>
   ${fighterHTML(o,"o")}
   <div class="meta"><div class="energy">${Array.from({length:ENERGY},(_,i)=>`<i class="${i<p.energy?"on":""}"></i>`).join("")}<span>${p.energy} energy</span></div>
     <span>Turn ${G.turn} · Deck ${p.deck.length} · Discard ${p.discard.length}</span><span style="display:flex;gap:6px">${muteBtn()}<button class="mutebtn" id="menu" ${G.busy?"disabled":""}>Quit</button></span></div>
-  ${tipHTML()}
-  <div class="hand">${p.hand.map((id,i)=>cardHTML(id,i,p)).join("")||`<p class="howto">No cards left. End your turn.</p>`}</div>
-  <div class="actions">
+  </div>
+  <div class="battle-hand">
+    ${tipHTML()}
+    <div class="hand">${p.hand.map((id,i)=>cardHTML(id,i,p)).join("")||`<p class="howto">No cards left. End your turn.</p>`}</div>
+  </div>
+  <div class="actions battle-actions">
     <button class="btn fin" id="fin" ${p.hype<HYPE_MAX||G.busy?"disabled":""}>${esc(p.w.fin.name)}</button>
     ${G.mode==="tag"?`<button class="btn" id="tag" ${G.busy?"disabled":""}>Tag partner</button>`:""}
     <span class="grow"></span>
     <button class="btn primary" id="end" ${G.busy?"disabled":""}>End turn</button>
-  </div>`;
+  </div></div>`;
+  if(handScroll) app.querySelector(".battle-hand").scrollTop=handScroll;
   G.fresh=false; G.dealt=false;
   app.querySelectorAll(".card").forEach(b=>b.onclick=()=>playCard(+b.dataset.i));
   $("#tag")?.addEventListener("click",playerTag);
