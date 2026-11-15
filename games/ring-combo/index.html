@@ -251,13 +251,40 @@ const sfx = (() => {
   let ctx = null, master = null, noiseBuf = null;
   let muted = false;
   try { muted = localStorage.getItem('ringcombo-muted') === '1'; } catch {}
-  function init(){
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
-    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-    ctx = new AC(); master = ctx.createGain(); master.gain.value = muted ? 0 : 0.6; master.connect(ctx.destination);
-    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+  // A short silent WAV. Playing it through an <audio> element during a tap moves iOS into
+  // "playback" mode, so the game is audible even with the ring/silent switch on.
+  let unlockEl = null;
+  function silentWav(){
+    const n = 2205, b = new ArrayBuffer(44+n*2), v = new DataView(b);
+    const w = (o,str) => { for (let i=0;i<str.length;i++) v.setUint8(o+i, str.charCodeAt(i)); };
+    w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true);
+    v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,22050,true); v.setUint32(28,44100,true);
+    v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*2,true);
+    let bin=''; new Uint8Array(b).forEach(x=>bin+=String.fromCharCode(x));
+    return 'data:audio/wav;base64,'+btoa(bin);
   }
+  function init(){
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
+    if (!unlockEl){
+      try { unlockEl = new Audio(silentWav()); unlockEl.loop = true; unlockEl.setAttribute('playsinline',''); } catch {}
+    }
+    if (unlockEl && unlockEl.paused) { const pr = unlockEl.play(); if (pr) pr.catch(()=>{}); }
+    if (!ctx){
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      ctx = new AC();
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -14; comp.ratio.value = 6; comp.connect(ctx.destination);
+      master = ctx.createGain(); master.gain.value = muted ? 0 : 1.6; master.connect(comp);
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+    }
+    if (ctx.state !== 'running') { const pr = ctx.resume(); if (pr) pr.catch(()=>{}); }
+    // Old iOS needs a buffer started inside the tap to wake the context.
+    try { const src = ctx.createBufferSource(); src.buffer = ctx.createBuffer(1,1,22050); src.connect(ctx.destination); src.start(0); } catch {}
+  }
+  // Retry the unlock on every kind of tap, not just the ones that call init directly.
+  ['pointerup','touchend','click','keydown'].forEach(ev => window.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running' || (unlockEl && unlockEl.paused)) init(); }, {capture:true, passive:true}));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(()=>{}); });
   const ok = () => ctx && !muted;
   function tone(freq, dur, {type='sine', vol=0.4, to=null, at=0, attack=0.005}={}){
     if (!ok()) return; const t = ctx.currentTime + at;
@@ -283,7 +310,8 @@ const sfx = (() => {
     init,
     get muted(){ return muted; },
     toggle(){ muted = !muted; try { localStorage.setItem('ringcombo-muted', muted?'1':'0'); } catch {}
-      if (master) master.gain.value = muted ? 0 : 0.6; return muted; },
+      if (master) master.gain.value = muted ? 0 : 1.6;
+      if (unlockEl) { if (muted) unlockEl.pause(); else unlockEl.play().catch(()=>{}); } return muted; },
     select(){ tone(660, 0.05, {type:'triangle', vol:0.15}); },
     swap(){ noise(0.14, {vol:0.12, freq:600, sweep:2400, q:1.5}); },
     bad(){ tone(140, 0.18, {type:'square', vol:0.12}); tone(110, 0.18, {type:'square', vol:0.1, at:0.09}); },
@@ -365,8 +393,9 @@ window.addEventListener('pointerup', e => {
     const [sr,sc] = posOf(sel);
     if (Math.abs(sr-r)+Math.abs(sc-c)===1){ clearSel(); tryMove(sr,sc,r,c); return; }
   }
+  const wasSel = sel===t;
   clearSel();
-  if (sel!==t){ sel=t; t.el.classList.add('sel'); sfx.select(); } else sel=null;
+  if (!wasSel){ sel=t; t.el.classList.add('sel'); sfx.select(); }
 });
 function clearSel(){ if (sel) sel.el.classList.remove('sel'); sel = null; }
 
