@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ringside Combo</title>
+<style>
+:root{
+  --bg:#0d0b14; --panel:#1a1626; --panel2:#241e35; --ink:#f4f0ff; --dim:#a69cc2;
+  --red:#e2364f; --gold:#f2b33d; --blue:#3d8bf2; --green:#3ec97a; --purple:#9b5cf2;
+  --S:48px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:radial-gradient(circle at 50% -10%,#3a1d4a 0,var(--bg) 60%);color:var(--ink);
+  font:15px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation}
+#app{width:100%;max-width:440px;padding:10px 16px 20px;display:flex;flex-direction:column;gap:8px}
+h1{margin:0;font-size:22px;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+h1 span{color:var(--gold)}
+.fighters{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.fighter{background:var(--panel);border-radius:12px;padding:6px;display:flex;gap:6px;align-items:center;position:relative;transition:transform .15s}
+.fighter.opp{flex-direction:row-reverse;text-align:right}
+.fighter img{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--panel2)}
+.fighter .meta{flex:1;min-width:0}
+.fighter .name{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:8px;background:#000a;border-radius:4px;overflow:hidden;margin-top:4px}
+.bar>i{display:block;height:100%;background:var(--green);transition:width .3s}
+.opp .bar>i{background:var(--red);margin-left:auto}
+.hpnum{font-size:11px;color:var(--dim)}
+.vs{font-weight:900;color:var(--gold)}
+.hit{animation:hit .3s}
+@keyframes hit{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+.status{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;font-size:11px;margin-top:3px;min-height:16px}
+.fighter:not(.opp) .status{justify-content:flex-start}
+.chip{background:var(--panel2);border-radius:6px;padding:1px 6px}
+.chip.guard{background:#2a4a7a}
+.chip.next{background:#5a2a3a}
+.crowd{background:var(--panel);border-radius:10px;padding:6px 10px;font-size:12px}
+.crowd .bar{height:10px}
+.crowd .bar>i{background:linear-gradient(90deg,var(--purple),var(--gold))}
+.crowd.hot .bar>i{animation:glow 0.6s infinite alternate}
+@keyframes glow{to{filter:brightness(1.6)}}
+.crowdrow{display:flex;justify-content:space-between}
+#boardWrap{display:flex;justify-content:center}
+#board{position:relative;width:calc(var(--S)*7);height:calc(var(--S)*7);background:#120f1c;border-radius:12px;
+  border:3px solid #6a3a2a;box-shadow:inset 0 0 0 3px #2b2340, 0 0 0 4px #c23a3a55;overflow:hidden;touch-action:none}
+.tile{position:absolute;left:0;top:0;width:var(--S);height:var(--S);display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--S)*.55);transition:transform .2s ease, opacity .2s;cursor:pointer;will-change:transform}
+.tile .face{width:86%;height:86%;border-radius:22%;display:flex;align-items:center;justify-content:center;position:relative;
+  box-shadow:inset 0 -3px 0 #0005, inset 0 2px 0 #fff3}
+.t-strike .face{background:#c8364a}
+.t-grapple .face{background:#3d7bd8}
+.t-kick .face{background:#2fa36a}
+.t-show .face{background:#d79a1e}
+.t-heal .face{background:#8a52d8}
+.t-fin .face{background:conic-gradient(var(--red),var(--gold),var(--blue),var(--green),var(--purple),var(--red));animation:spin 2s linear infinite}
+@keyframes spin{to{filter:hue-rotate(360deg)}}
+.t-chair .face{background:#555b66;font-size:.9em}
+.t-knux .face{background:#2a2a2a;outline:2px solid var(--red)}
+.tile .cd{position:absolute;right:-2px;bottom:-4px;font-size:12px;font-weight:900;background:var(--red);border-radius:8px;padding:0 4px;color:#fff}
+.tile.line-h .face::after,.tile.line-v .face::after{content:"";position:absolute;background:#fffb;border-radius:2px}
+.tile.line-h .face::after{left:8%;right:8%;height:3px;top:calc(50% - 1.5px)}
+.tile.line-v .face::after{top:8%;bottom:8%;width:3px;left:calc(50% - 1.5px)}
+.tile.sel .face{outline:3px solid #fff;outline-offset:-1px}
+.tile.pop{opacity:0}
+.tile.pop .face{transform:scale(.2);transition:transform .2s}
+.tile.hint .face{animation:pulse .8s infinite alternate}
+@keyframes pulse{to{transform:scale(.85)}}
+#ticker{background:var(--panel);border-radius:10px;padding:8px 10px;min-height:40px;font-size:13px;font-style:italic;text-align:center}
+#ticker b{color:var(--gold);font-style:normal}
+.legend{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;font-size:10px;color:var(--dim);text-align:center}
+.legend div span{display:block;font-size:16px}
+#float{position:absolute;inset:0;pointer-events:none}
+.fx{position:absolute;font-weight:900;font-size:20px;text-shadow:0 2px 0 #000;animation:up 0.9s forwards;white-space:nowrap}
+@keyframes up{to{transform:translateY(-40px);opacity:0}}
+.overlay{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.overlay[hidden]{display:none}
+.card{background:var(--panel);border-radius:16px;padding:18px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px #000a}
+.card h2{margin:0 0 6px;font-size:22px}
+.card p{color:var(--dim);margin:6px 0}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.pick button{background:var(--panel2);border:2px solid transparent;border-radius:12px;padding:8px;color:var(--ink);text-align:left;cursor:pointer;font:inherit}
+.pick button:hover,.pick button:focus-visible{border-color:var(--gold);outline:none}
+.pick img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#000}
+.pick b{display:block;font-size:13px;margin-top:4px}
+.pick small{color:var(--dim);font-size:11px;display:block}
+.btn{background:var(--gold);color:#1a1020;border:0;border-radius:10px;padding:10px 18px;font:700 15px system-ui;cursor:pointer;margin:4px}
+.btn.ghost{background:var(--panel2);color:var(--ink)}
+#pin{position:fixed;left:0;right:0;top:34%;text-align:center;pointer-events:none;z-index:5}
+#pin[hidden]{display:none}
+#pin .count{font-size:52px;font-weight:900;color:#fff;text-shadow:0 0 20px var(--red),0 4px 0 #000;line-height:1}
+#pin .need{font-size:14px;background:#000c;display:inline-block;padding:4px 10px;border-radius:8px;margin-top:4px}
+.ladder{display:flex;gap:6px;justify-content:center;margin:10px 0}
+.ladder img{width:52px;height:52px;border-radius:8px;object-fit:cover;opacity:.5;border:2px solid transparent}
+.ladder img.done{opacity:.25;filter:grayscale(1)}
+.ladder img.now{opacity:1;border-color:var(--gold)}
+.howto{text-align:left;font-size:13px;color:var(--ink);margin:8px 0;padding-left:18px}
+.howto li{margin:3px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Ringside <span>Combo</span></h1>
+  <div class="fighters">
+    <div class="fighter" id="pBox"><img id="pImg" alt=""><div class="meta"><div class="name" id="pName"></div>
+      <div class="bar"><i id="pHp"></i></div><div class="hpnum" id="pHpN"></div><div class="status" id="pStat"></div></div></div>
+    <div class="vs">VS</div>
+    <div class="fighter opp" id="oBox"><img id="oImg" alt=""><div class="meta"><div class="name" id="oName"></div>
+      <div class="bar"><i id="oHp"></i></div><div class="hpnum" id="oHpN"></div><div class="status" id="oStat"></div></div></div>
+  </div>
+  <div class="crowd" id="crowd"><div class="crowdrow"><span>🔥 Crowd</span><span id="crowdN">0%</span></div><div class="bar"><i id="crowdBar"></i></div></div>
+  <div id="boardWrap"><div id="board"><div id="float"></div></div></div>
+  <div id="ticker">Ring the bell!</div>
+  <div class="legend">
+    <div><span>👊</span>Strike</div><div><span>🤼</span>Grapple</div><div><span>🦶</span>Kick</div><div><span>⭐</span>Showboat</div><div><span>🩹</span>Recover</div>
+  </div>
+</div>
+
+<div id="pin" hidden><div class="count" id="pinCount">1</div><div class="need" id="pinNeed"></div></div>
+
+<div class="overlay" id="menu">
+  <div class="card">
+    <h2>Ringside Combo</h2>
+    <p>Wrestling meets match-3. Pick your wrestler.</p>
+    <div class="pick" id="pick"></div>
+    <ul class="howto">
+      <li>Swap neighbouring tiles to match 3 or more. Every match is a move.</li>
+      <li>Match 4 → <b>Clothesline</b> tile (clears a line). Match 5 → <b>Finisher</b> 🌀.</li>
+      <li>Swap the Finisher with any tile to hit it. If it lands with the opponent under 30% health, you go for the pin.</li>
+      <li>During a pin, clear enough tiles before the ref counts 3.</li>
+      <li>🦶 Kicks break the opponent's guard 🛡. Match next to 🪑 chairs or 🥊 knucks to clear them.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="overlay" id="between" hidden>
+  <div class="card">
+    <h2 id="bTitle"></h2>
+    <p id="bText"></p>
+    <div class="ladder" id="ladder"></div>
+    <button class="btn" id="bGo"></button>
+    <button class="btn ghost" id="bMenu">Change wrestler</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const PORT = '../card-clash/assets/portraits/';
+const N = 7;
+const TYPES = ['strike','grapple','kick','show','heal'];
+const ICON = {strike:'👊',grapple:'🤼',kick:'🦶',show:'⭐',heal:'🩹',fin:'🌀',chair:'🪑',knux:'🥊'};
+
+const HEROES = [
+  {id:'brick',img:'brick.jpg',name:'Brick Malone',style:'Powerhouse',perk:'Grapples hit 50% harder',mod:{grapple:1.5}},
+  {id:'raven',img:'raven.jpg',name:'Raven Vega',style:'High-Flyer',perk:'Clotheslines deal +8 damage',mod:{line:8}},
+  {id:'dutch',img:'dutch.jpg',name:'Dutch Harlan',style:'Technician',perk:'Can pin below 40% health',mod:{pinAt:0.4}},
+  {id:'kid',img:'kid.jpg',name:'Kid Voltage',style:'Showman',perk:'Crowd builds 50% faster',mod:{crowd:1.5}},
+];
+// Opponent ladder. every = player moves between actions; acts = weighted action list.
+const LADDER = [
+  {id:'jett',img:'jett.jpg',name:'Jett Romano',hp:100,every:2,dmg:[8,12],acts:['hit','hit','hit','guard']},
+  {id:'tank',img:'tank.jpg',name:'Tank Ferro',hp:130,every:2,dmg:[13,17],acts:['hit','hit','chair','chair']},
+  {id:'ox',img:'ox.jpg',name:'Big Ox Duggan',hp:160,every:2,dmg:[18,24],acts:['hit','hit','guard','chair']},
+  {id:'silas',img:'silas.jpg',name:'Silas Crowe',hp:190,every:2,dmg:[14,19],acts:['hit','guard','knux','chair','hit']},
+];
+
+const $ = id => document.getElementById(id);
+const board = $('board'), floatEl = $('float');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rnd = n => Math.floor(Math.random()*n);
+const pickOne = a => a[rnd(a.length)];
+
+let S = 48, grid = [], nextId = 1, busy = false, sel = null;
+let hero, rung = 0, st;
+
+function sizeBoard(){
+  const w = Math.min(window.innerWidth - 32, 420);
+  S = Math.floor(w / N);
+  document.documentElement.style.setProperty('--S', S + 'px');
+  for (let r=0;r<N;r++) for (let c=0;c<N;c++) if (grid[r]?.[c]) place(grid[r][c], r, c);
+}
+
+/* ---------- tiles ---------- */
+function makeTile(type, r, c, fromRow){
+  const t = {id:nextId++, type, special:null, cd:0, el:document.createElement('div')};
+  t.el.innerHTML = '<div class="face"></div>';
+  t.el.addEventListener('pointerdown', e => onDown(e, t));
+  board.appendChild(t.el);
+  paint(t);
+  place(t, fromRow ?? r, c);
+  return t;
+}
+function paint(t){
+  t.el.className = 'tile t-' + t.type + (t.special==='h' ? ' line-h' : t.special==='v' ? ' line-v' : '');
+  t.el.firstChild.innerHTML = ICON[t.type] + (t.type==='knux' ? `<span class="cd">${t.cd}</span>` : '');
+}
+function place(t, r, c){ t.el.style.transform = `translate(${c*S}px,${r*S}px)`; }
+const matchable = t => t && TYPES.includes(t.type);
+const blocker = t => t && (t.type==='chair' || t.type==='knux');
+function posOf(t){ for (let r=0;r<N;r++) for (let c=0;c<N;c++) if (grid[r][c]===t) return [r,c]; }
+
+function fillFresh(){
+  board.querySelectorAll('.tile').forEach(e => e.remove());
+  grid = [];
+  for (let r=0;r<N;r++){ grid[r]=[]; for (let c=0;c<N;c++){
+    let type; do { type = pickOne(TYPES); } while (
+      (c>=2 && grid[r][c-1].type===type && grid[r][c-2].type===type) ||
+      (r>=2 && grid[r-1][c].type===type && grid[r-2][c].type===type));
+    grid[r][c] = makeTile(type, r, c);
+  }}
+  if (!hasMove()) fillFresh();
+}
+
+/* ---------- matching ---------- */
+function findRuns(){
+  const runs = [];
+  for (let r=0;r<N;r++){ let c=0; while (c<N){ const t=grid[r][c]; let e=c+1;
+    if (matchable(t)) while (e<N && matchable(grid[r][e]) && grid[r][e].type===t.type) e++;
+    if (matchable(t) && e-c>=3) runs.push({dir:'h', cells:[...Array(e-c)].map((_,i)=>[r,c+i])});
+    c = e; } }
+  for (let c=0;c<N;c++){ let r=0; while (r<N){ const t=grid[r][c]; let e=r+1;
+    if (matchable(t)) while (e<N && matchable(grid[e][c]) && grid[e][c].type===t.type) e++;
+    if (matchable(t) && e-r>=3) runs.push({dir:'v', cells:[...Array(e-r)].map((_,i)=>[r+i,c])});
+    r = e; } }
+  return runs;
+}
+function wouldMatch(r1,c1,r2,c2){
+  const a=grid[r1][c1], b=grid[r2][c2];
+  if (blocker(a)||blocker(b)) return false;
+  if (a.type==='fin'||b.type==='fin') return true;
+  grid[r1][c1]=b; grid[r2][c2]=a;
+  const ok = findRuns().length>0;
+  grid[r1][c1]=a; grid[r2][c2]=b;
+  return ok;
+}
+function findMove(){
+  for (let r=0;r<N;r++) for (let c=0;c<N;c++){
+    if (c+1<N && wouldMatch(r,c,r,c+1)) return [[r,c],[r,c+1]];
+    if (r+1<N && wouldMatch(r,c,r+1,c)) return [[r,c],[r+1,c]];
+  }
+  return null;
+}
+const hasMove = () => !!findMove();
+
+/* ---------- state & UI ---------- */
+function newBout(){
+  const o = LADDER[rung];
+  st = {php:100, pmax:100, ohp:o.hp, omax:o.hp, crowd:0, guard:false, timer:o.every, opp:o,
+        nextAct:pickOne(o.acts), pin:null, finUsed:false, moves:0};
+  $('pImg').src = PORT+hero.img; $('pName').textContent = hero.name;
+  $('oImg').src = PORT+o.img; $('oName').textContent = o.name;
+  fillFresh(); ui();
+  say(`<b>${o.name}</b> is in the ring. Ring the bell!`);
+}
+function ui(){
+  $('pHp').style.width = Math.max(0,st.php/st.pmax*100)+'%';
+  $('oHp').style.width = Math.max(0,st.ohp/st.omax*100)+'%';
+  $('pHpN').textContent = `${Math.max(0,Math.round(st.php))} / ${st.pmax}`;
+  $('oHpN').textContent = `${Math.max(0,Math.round(st.ohp))} / ${st.omax}`;
+  $('crowdBar').style.width = st.crowd+'%';
+  $('crowdN').textContent = Math.round(st.crowd)+'%' + (st.crowd>=100?' — ON FIRE':'');
+  $('crowd').classList.toggle('hot', st.crowd>=100);
+  const actName = {hit:'Attack',guard:'Guard',chair:'Chair',knux:'Knucks'}[st.nextAct];
+  $('oStat').innerHTML = (st.guard?'<span class="chip guard">🛡 Guard</span>':'') +
+    (st.pin ? '' : `<span class="chip next">${actName} in ${st.timer}</span>`);
+  $('pStat').innerHTML = `<span class="chip">${hero.style}</span>`;
+}
+function say(html){ $('ticker').innerHTML = html; }
+function fx(text, color, r=3, c=3){
+  const d = document.createElement('div'); d.className='fx'; d.textContent=text; d.style.color=color;
+  d.style.left = (c*S + S/2 - 20)+'px'; d.style.top = (r*S)+'px';
+  floatEl.appendChild(d); setTimeout(()=>d.remove(), 900);
+}
+function shake(id){ const e=$(id); e.classList.remove('hit'); void e.offsetWidth; e.classList.add('hit'); }
+
+/* ---------- input ---------- */
+let down = null;
+function onDown(e, t){
+  if (busy) return;
+  e.preventDefault();
+  down = {t, x:e.clientX, y:e.clientY};
+}
+window.addEventListener('pointerup', e => {
+  if (!down || busy) { down=null; return; }
+  const {t, x, y} = down; down = null;
+  const dx = e.clientX-x, dy = e.clientY-y;
+  const [r,c] = posOf(t);
+  if (Math.hypot(dx,dy) > S*0.35){
+    const [r2,c2] = Math.abs(dx)>Math.abs(dy) ? [r, c+Math.sign(dx)] : [r+Math.sign(dy), c];
+    clearSel();
+    if (r2>=0&&r2<N&&c2>=0&&c2<N) tryMove(r,c,r2,c2);
+    return;
+  }
+  if (sel && sel!==t){
+    const [sr,sc] = posOf(sel);
+    if (Math.abs(sr-r)+Math.abs(sc-c)===1){ clearSel(); tryMove(sr,sc,r,c); return; }
+  }
+  clearSel();
+  if (sel!==t){ sel=t; t.el.classList.add('sel'); } else sel=null;
+});
+function clearSel(){ if (sel) sel.el.classList.remove('sel'); sel = null; }
+
+/* ---------- moves ---------- */
+async function tryMove(r1,c1,r2,c2){
+  const a=grid[r1][c1], b=grid[r2][c2];
+  if (blocker(a)||blocker(b)){ say('Can\'t move that. Make a match next to it to knock it away!'); return; }
+  busy = true; hideHint();
+  grid[r1][c1]=b; grid[r2][c2]=a; place(a,r2,c2); place(b,r1,c1);
+  await sleep(180);
+  if (a.type==='fin' || b.type==='fin'){
+    const fin = a.type==='fin'?a:b, other = fin===a?b:a;
+    await finisher(fin, other);
+    await endTurn(); return;
+  }
+  if (!findRuns().length){
+    grid[r1][c1]=a; grid[r2][c2]=b; place(a,r1,c1); place(b,r2,c2);
+    await sleep(180); busy=false; return;
+  }
+  await cascade([r2,c2],[r1,c1]);
+  await endTurn();
+}
+
+async function cascade(swapA, swapB){
+  let step = 0;
+  while (true){
+    const runs = findRuns();
+    if (!runs.length) break;
+    step++;
+    const clear = new Set(), keep = new Map();
+    const key = (r,c)=>r*N+c;
+    for (const run of runs){
+      run.cells.forEach(([r,c])=>clear.add(key(r,c)));
+      if (run.cells.length>=4){
+        let at = run.cells.find(([r,c]) => (swapA && r===swapA[0]&&c===swapA[1]) || (swapB && r===swapB[0]&&c===swapB[1]))
+              || run.cells[Math.floor(run.cells.length/2)];
+        const k = key(...at);
+        const isFin = run.cells.length>=5;
+        if (!keep.has(k) || isFin) keep.set(k, isFin ? 'fin' : (run.dir==='h'?'h':'v'));
+      }
+    }
+    // Clotheslines already on the board fire when cleared.
+    let lineHits = 0, grew = true;
+    while (grew){ grew=false;
+      for (const k of [...clear]){ const r=Math.floor(k/N), c=k%N, t=grid[r][c];
+        if (t && (t.special==='h'||t.special==='v') && !t._fired){ t._fired=true; lineHits++;
+          for (let i=0;i<N;i++){ const kk = t.special==='h'?key(r,i):key(i,c);
+            if (!clear.has(kk)){ clear.add(kk); grew=true; } }
+          fx('CLOTHESLINE!', '#fff', r, c);
+        } } }
+    // Blockers next to a match get knocked away.
+    let blocks = 0;
+    for (const k of [...clear]){ const r=Math.floor(k/N), c=k%N;
+      for (const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){ const rr=r+dr, cc=c+dc;
+        if (rr>=0&&rr<N&&cc>=0&&cc<N && blocker(grid[rr][cc]) && !clear.has(key(rr,cc))){ clear.add(key(rr,cc)); } } }
+    // Tally and remove.
+    const tally = {strike:0,grapple:0,kick:0,show:0,heal:0};
+    for (const k of clear){
+      if (keep.has(k)) continue;
+      const r=Math.floor(k/N), c=k%N, t=grid[r][c]; if (!t) continue;
+      if (TYPES.includes(t.type)) tally[t.type]++; else if (blocker(t)) blocks++;
+      t.el.classList.add('pop'); grid[r][c]=null;
+      setTimeout(()=>t.el.remove(), 220);
+    }
+    for (const [k,sp] of keep){ const r=Math.floor(k/N), c=k%N, t=grid[r][c]; if (!t) continue;
+      if (sp==='fin'){ t.type='fin'; t.special=null; fx('FINISHER READY!', '#f2b33d', r, c); }
+      else { t.special=sp; }
+      paint(t);
+    }
+    applyTally(tally, step, lineHits, blocks);
+    ui();
+    await sleep(230);
+    await gravity();
+    swapA = swapB = null;
+  }
+}
+
+function applyTally(t, step, lineHits, blocks){
+  const m = hero.mod, chain = 1 + 0.25*(step-1);
+  let crowdGain = (t.grapple*3 + t.show*8 + blocks*6 + (step>1?step*3:0)) * (m.crowd||1);
+  if (st.pin){
+    st.pin.got += t.strike+t.grapple+t.kick+t.show+t.heal+blocks;
+    st.crowd = Math.min(100, st.crowd+crowdGain);
+    renderPin(); return;
+  }
+  let msgs = [];
+  if (t.kick && st.guard){ st.guard=false; msgs.push('A kick breaks the guard!'); }
+  let dmg = (t.strike*2.5 + t.grapple*3*(m.grapple||1)) * (st.guard?0.5:1) + t.kick*2 + lineHits*(m.line||0);
+  dmg *= chain;
+  if (dmg>0){ st.ohp -= dmg; shake('oBox'); fx('-'+Math.round(dmg), '#ff6b80', 1, 5); }
+  if (t.heal){ const h=Math.round(t.heal*1.5); st.php=Math.min(st.pmax, st.php+h); fx('+'+h, '#3ec97a', 1, 1); }
+  st.crowd = Math.min(100, st.crowd+crowdGain);
+  if (blocks) msgs.push('Weapon knocked out of the ring!');
+  if (step>=2) msgs.unshift(`<b>${step}x COMBO!</b>`);
+  const flavor = t.grapple>=3 ? 'Suplex! The ring shakes!' : t.strike>=3 ? 'Rapid-fire strikes in the corner!' :
+                 t.kick>=3 ? 'Superkick!' : t.show>=3 ? 'Playing to the crowd!' : t.heal>=3 ? 'Catching a breather.' : '';
+  if (flavor) msgs.push(flavor);
+  if (msgs.length) say(msgs.join(' '));
+}
+
+async function gravity(){
+  for (let c=0;c<N;c++){
+    let w = N-1;
+    for (let r=N-1;r>=0;r--){ const t=grid[r][c]; if (t){ if (w!==r){ grid[w][c]=t; grid[r][c]=null; place(t,w,c); } w--; } }
+    let spawn = -1;
+    for (let r=w;r>=0;r--){ const t = makeTile(pickOne(TYPES), r, c, spawn--); grid[r][c]=t; }
+  }
+  await sleep(30);
+  for (let r=0;r<N;r++) for (let c=0;c<N;c++) place(grid[r][c], r, c);
+  await sleep(240);
+}
+
+async function finisher(fin, other){
+  const [fr,fc] = posOf(fin);
+  const hot = st.crowd>=100;
+  let dmg = 22 + st.crowd*0.12;
+  if (hot) dmg *= 1.5;
+  if (st.guard){ st.guard=false; }
+  const target = other.type==='fin' ? null : other.type;
+  fin.el.classList.add('pop'); grid[fr][fc]=null; setTimeout(()=>fin.el.remove(),220);
+  let cleared = 0;
+  for (let r=0;r<N;r++) for (let c=0;c<N;c++){ const t=grid[r][c];
+    if (t && (target===null ? !blocker(t) : t.type===target)){ t.el.classList.add('pop'); grid[r][c]=null; setTimeout(()=>t.el.remove(),220); cleared++; } }
+  if (st.pin){ st.pin.got += cleared + 6; renderPin(); }
+  else {
+    st.ohp -= dmg; st.crowd = 0; st.finUsed = true;
+    shake('oBox'); fx('-'+Math.round(dmg), '#f2b33d', 2, 4);
+    say(`<b>${hero.name.toUpperCase()} HITS THE FINISHER!</b> ${hot?'The crowd is going insane!':''}`);
+  }
+  ui(); await sleep(260); await gravity();
+  await cascade(null,null);
+}
+
+/* ---------- turns ---------- */
+async function endTurn(){
+  st.moves++;
+  if (st.pin){ await pinTick(); busy=false; afterSettle(); return; }
+  const pinLine = (hero.mod.pinAt||0.3);
+  if (st.ohp<=0 || (st.finUsed && st.ohp <= st.omax*pinLine)){
+    st.finUsed=false; startPin(); busy=false; afterSettle(); return;
+  }
+  st.finUsed=false;
+  await tickKnux();
+  if (st.php<=0) return lose();
+  st.timer--;
+  if (st.timer<=0){ await oppAct(); st.timer = st.opp.every; st.nextAct = pickOne(st.opp.acts); }
+  ui();
+  if (st.php<=0) return lose();
+  busy=false; afterSettle();
+}
+
+async function oppAct(){
+  const o = st.opp, a = st.nextAct;
+  if (a==='hit'){
+    const d = o.dmg[0]+rnd(o.dmg[1]-o.dmg[0]+1);
+    st.php -= d; shake('pBox'); fx('-'+d, '#ff6b80', 1, 1);
+    say(pickOne([`${o.name} with a big lariat!`, `${o.name} drives you into the turnbuckle!`, `Spinebuster from ${o.name}!`, `${o.name} rakes the eyes. The ref didn't see it!`]));
+  } else if (a==='guard'){
+    st.guard = true; say(`${o.name} covers up. Damage is halved until you land a 🦶 kick!`);
+  } else if (a==='chair' || a==='knux'){
+    const spots=[]; for (let r=0;r<N;r++) for (let c=0;c<N;c++) if (matchable(grid[r][c]) && !grid[r][c].special) spots.push([r,c]);
+    const n = a==='chair'?2:1;
+    for (let i=0;i<n && spots.length;i++){
+      const [r,c] = spots.splice(rnd(spots.length),1)[0], t=grid[r][c];
+      t.type=a; t.cd = a==='knux'?3:0; paint(t);
+    }
+    say(a==='chair' ? `${o.name} slides chairs into the ring! 🪑 Make matches next to them to clear them.`
+                    : `${o.name} slips on brass knucks! 🥊 Clear it within 3 moves or take a big hit!`);
+  }
+  await sleep(250);
+  if (!hasMove()) await reshuffle();
+}
+
+async function tickKnux(){
+  for (let r=0;r<N;r++) for (let c=0;c<N;c++){ const t=grid[r][c];
+    if (t?.type==='knux'){ t.cd--; paint(t);
+      if (t.cd<=0){ st.php -= 15; shake('pBox'); fx('-15', '#ff3b3b', r, c);
+        say(`KNUCKS SHOT! ${st.opp.name} cheats to get ahead!`);
+        t.type=pickOne(TYPES); paint(t); await sleep(300); } } }
+}
+
+/* ---------- pin ---------- */
+function startPin(){
+  const need = 12 + Math.round(Math.max(0, st.ohp)/3) + rung*3;
+  st.pin = {count:0, need, got:0};
+  say(`<b>THE COVER!</b> Clear ${need} tiles before the 3-count!`);
+  renderPin(); ui();
+}
+function renderPin(){
+  const p = st.pin; if (!p) return;
+  $('pin').hidden = false;
+  $('pinCount').textContent = p.count===0 ? 'COVER!' : p.count+'…';
+  $('pinNeed').textContent = `Tiles cleared ${Math.min(p.got,p.need)} / ${p.need} — ${3-p.count} move${3-p.count===1?'':'s'} left`;
+}
+async function pinTick(){
+  const p = st.pin;
+  if (p.got>=p.need){ $('pinCount').textContent='3!'; await sleep(700); $('pin').hidden=true; st.pin=null; return win(); }
+  p.count++; renderPin();
+  if (p.count>=3){
+    await sleep(500);
+    $('pinCount').textContent='KICK OUT!'; await sleep(800); $('pin').hidden=true;
+    st.pin=null; st.ohp = Math.max(st.ohp,0) + 15; st.crowd = Math.min(100, st.crowd+20);
+    say(`<b>${st.opp.name} KICKS OUT AT 2.9!</b> The crowd can't believe it!`);
+    ui();
+  }
+}
+
+/* ---------- flow ---------- */
+let ended = false;
+function afterSettle(){
+  if (ended) return;
+  if (!hasMove()) reshuffle();
+  scheduleHint();
+}
+async function reshuffle(){
+  say('No moves left. Ref resets the action!');
+  const ts=[]; for (let r=0;r<N;r++) for (let c=0;c<N;c++) if (matchable(grid[r][c])) ts.push(grid[r][c]);
+  let tries=0;
+  do { ts.forEach(t=>{ t.type=pickOne(TYPES); t.special=null; paint(t); }); tries++; }
+  while ((findRuns().length || !hasMove()) && tries<50);
+  if (tries>=50) fillFresh();
+}
+let hintT=null;
+function hideHint(){ clearTimeout(hintT); board.querySelectorAll('.hint').forEach(e=>e.classList.remove('hint')); }
+function scheduleHint(){ hideHint(); hintT=setTimeout(()=>{ const m=findMove(); if (m && !busy) m.forEach(([r,c])=>grid[r][c].el.classList.add('hint')); }, 6000); }
+
+function win(){
+  ended = true; busy = true;
+  const last = rung===LADDER.length-1;
+  $('bTitle').textContent = last ? '🏆 NEW CHAMPION!' : '1… 2… 3! You win!';
+  $('bText').textContent = last ? `${hero.name} cleared the whole card in ${st.moves} moves.` : `${st.opp.name} is down. Next up: ${LADDER[rung+1].name}.`;
+  rung = last ? 0 : rung+1;
+  $('bGo').textContent = last ? 'Run it back' : 'Next match';
+  showBetween(last);
+}
+function lose(){
+  ended = true; busy = true;
+  $('bTitle').textContent = `${st.opp.name} pins you`;
+  $('bText').textContent = 'The ref counts three. Get back in there.';
+  $('bGo').textContent = 'Rematch';
+  showBetween(false);
+}
+function showBetween(champ){
+  $('ladder').innerHTML = LADDER.map((o,i)=>`<img src="${PORT+o.img}" alt="${o.name}" class="${champ||i<rung?'done':i===rung?'now':''}">`).join('');
+  $('between').hidden = false;
+}
+$('bGo').onclick = () => { $('between').hidden=true; start(); };
+$('bMenu').onclick = () => { $('between').hidden=true; rung=0; $('menu').hidden=false; };
+
+function start(){ ended=false; busy=false; $('pin').hidden=true; newBout(); scheduleHint(); }
+
+$('pick').innerHTML = HEROES.map((h,i)=>`<button data-i="${i}"><img src="${PORT+h.img}" alt=""><b>${h.name}</b><small>${h.style} · ${h.perk}</small></button>`).join('');
+$('pick').onclick = e => { const b=e.target.closest('button'); if (!b) return; hero=HEROES[+b.dataset.i]; rung=0; $('menu').hidden=true; start(); };
+
+window.addEventListener('resize', sizeBoard);
+sizeBoard();
+})();
+</script>
+</body>
+</html>
