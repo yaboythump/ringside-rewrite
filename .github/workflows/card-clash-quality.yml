@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   gameplay-and-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
       - name: Install Chromium for browser smoke tests
         run: |
           npm install --prefix "$RUNNER_TEMP/rcc-browser" playwright@1.56.1
-          "$RUNNER_TEMP/rcc-browser/node_modules/.bin/playwright" install --with-deps chromium
+          "$RUNNER_TEMP/rcc-browser/node_modules/.bin/playwright" install --only-shell chromium
       - name: Play the game at desktop, iPhone and Android sizes
         run: |
           page_dir="$RUNNER_TEMP/rcc-site"
