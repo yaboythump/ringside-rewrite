@@ -370,3 +370,60 @@ test("betraying a championship partner vacates the belts without clearing team r
   assert.equal(run("C.tag.history[0].action"),"vacated");
   assert.equal(run("C.tag.partners.nyx.wins"),3);
 });
+
+test("contracts persist progress and award each earned move once", () => {
+  const {run}=gameRuntime();
+  run("newCareer('raven');");
+  assert.equal(run("signContract(C,'wins')"),true);
+  assert.equal(run("signContract(C,'spotlight')"),false);
+  assert.equal(run("recordCareerMatch(true,2).contract"),null);
+  run("saveCareer();C=loadCareer();");
+  assert.equal(run("C.office.active.progress"),1);
+  assert.equal(run("C.office.active.deadline"),4);
+  run("book();recordCareerMatch(true,2);");
+  assert.equal(run("C.office.active"),null);
+  assert.equal(run("C.office.results[0].won"),true);
+  assert.equal(run("cardCounts(C.collection).turnbuckle"),1);
+  run("signContract(C,'wins');book();recordCareerMatch(true,2);book();recordCareerMatch(true,2);");
+  assert.equal(run("cardCounts(C.collection).turnbuckle"),1);
+});
+
+test("a contract expires on its final show and a loss resets a win streak", () => {
+  const {run}=gameRuntime();
+  run("newCareer('brick');signContract(C,'wins');recordCareerMatch(true,2);");
+  run("book();recordCareerMatch(false,2);");
+  assert.equal(run("C.office.active.progress"),0);
+  run("book();recordCareerMatch(false,2);book();recordCareerMatch(true,2);");
+  assert.equal(run("C.office.active"),null);
+  assert.equal(run("C.office.results[0].won"),false);
+  assert.equal(run("C.collection.includes('turnbuckle')"),false);
+});
+
+test("a rivalry contract books the correct opponent without overriding a title match", () => {
+  const {run}=gameRuntime();
+  run("newCareer('brick');C.arc.foe='raven';C.arc.heat=3;signContract(C,'rivalry');C.booked=null;");
+  assert.equal(run("book().id"),"raven");
+  run("C.week=4;C.contenders=['brick',...C.contenders.filter(id=>id!=='brick')];C.booked=null;");
+  assert.equal(run("book().title"),"main");
+  assert.equal(run("book().id"),"silas");
+});
+
+test("rehab uses a segment and injuries otherwise fade after two singles bouts", () => {
+  const {run}=gameRuntime();
+  run("newCareer('brick');C.office.injury=2;saveCareer();C=loadCareer();");
+  assert.equal(run("injuryPenalty(C)"),6);
+  run("recordCareerMatch(true,3);");
+  assert.equal(run("C.office.injury"),1);
+  run("book();recordCareerMatch(false,3);");
+  assert.equal(run("injuryPenalty(C)"),0);
+  run("C.office.injury=2;");
+  assert.equal(run("rehabilitate(C)"),true);
+  assert.equal(run("C.segDone"),true);
+  assert.equal(run("injuryPenalty(C)"),0);
+});
+
+test("embedded portrait assets bind to both the original and expanded rosters", () => {
+  const loaded=script.slice(start,end).replace("/*__PORTRAITS__*/",'raven:"original",hana:"expanded"');
+  const result=vm.runInNewContext(loaded+'\n[WRESTLERS.raven.img,WRESTLERS.hana.img].join(",")');
+  assert.equal(result,"original,expanded");
+});

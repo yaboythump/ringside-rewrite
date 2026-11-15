@@ -30,16 +30,20 @@ and CTNETWORK Studios. All characters and promotions are fictional.
 - **Settings** include sound and reduced effects. System reduced-motion settings
   are honored. The match engine and all artwork and audio run locally in the browser.
 
-There are 24 authored wrestlers. The original eight portraits are embedded. New
-wrestlers and created characters use illustrated gear with different colors, skin
-tones, hairstyles, masks, and ring gear. Each new wrestler has a named signature,
-a finisher, and weighted AI preferences. The card catalog contains 61 moves,
-including 16 new wrestler signatures. Finishers are separate from the deck.
+All 24 authored wrestlers have individual cinematic backstage portraits, including
+the original eight. Create-a-Wrestler uses customizable illustrated gear.
+The card catalog contains 65 moves, including 16 wrestler signatures introduced
+with the expanded roster and four contract rewards. Finishers sit outside the deck.
 
 Career saves and settings are browser-local. Existing careers preserve their
 record, booked opponent, deck, position, and title totals. New title history and
 detailed match records begin with the upgraded release. The public preview uses
 separate storage keys on the same origin.
+
+The **Promoter’s Office** offers four-show contracts with different objectives.
+Finish a contract to earn fame and a permanent move. Rivalry contracts book
+the named opponent when the title schedule permits it. The Medical Report
+tracks injuries and lets you spend a weekly segment on rehab.
 
 ## Development and release
 
@@ -59,8 +63,7 @@ pinned game commit. The pre-upgrade root can be rebuilt from
 
 ## Future work
 
-Add full individual portrait art for the expanded roster, more faction stories,
-and richer divisional stories and team strategies.
+Add more faction stories, richer divisional stories, and team strategies.
 Online multiplayer and cross-device saves would require a separately deployed
 service. For multiplayer, keep stable wrestler, card and ruleset IDs in a shared
 engine, and have an authoritative server validate each turn, handle reconnects and
