@@ -1,10 +1,24 @@
 # Ringside Combo
 
-A wrestling match-3 prototype. Every match is a move in the bout. The game uses the
-Card Clash roster and portraits (`../card-clash/assets/portraits/`). All characters
-are fictional.
+A turn-based wrestling match-3 game. It uses the Card Clash roster and portraits. All
+characters are fictional.
 
-Open `index.html` in a browser. It needs no build step and no network.
+- Live game (after merging to `main`): https://yaboythump.github.io/ringside-rewrite/ring-combo/
+
+## Building
+
+```sh
+python3 games/ring-combo/build.py            # writes games/ring-combo.html
+```
+
+Edit `src.html`. The build packs the portraits and any art in `assets/` into one HTML file
+with no network requirement. Open the built file in a browser to play.
+
+## Art
+
+`ART_BRIEF.md` lists every image the game can use, with ready-to-paste ChatGPT prompts, file
+names and sizes. Put the files in `assets/` and rebuild. Missing tile art keeps the
+built-in look, and the arena and belt fall back to the Card Clash images.
 
 All sound effects are synthesized with the Web Audio API, so there are no audio files.
 The speaker button in the header mutes them, and the setting is remembered in the browser.

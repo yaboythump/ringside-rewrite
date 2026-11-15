@@ -27,6 +27,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the game into one page
         run: python3 games/card-clash/build.py _site/index.html
+      - name: Build Ringside Combo into /ring-combo/
+        run: python3 games/ring-combo/build.py _site/ring-combo/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

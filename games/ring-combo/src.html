@@ -58,6 +58,11 @@ h1 span{color:var(--gold)}
   border:3px solid #6a3a2a;box-shadow:inset 0 0 0 3px #2b2340, 0 0 0 4px #c23a3a55;overflow:hidden;touch-action:none}
 .tile{position:absolute;left:0;top:0;width:var(--S);height:var(--S);display:flex;align-items:center;justify-content:center;
   font-size:calc(var(--S)*.55);transition:transform .2s ease, opacity .2s;cursor:pointer;will-change:transform}
+.tile .face img.art{width:84%;height:84%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
+.belt{width:100%;max-width:280px;border-radius:12px;margin:0 auto 8px;display:block}
+.has-arena body{background:linear-gradient(#0d0b14cc,#0d0b14ee),var(--arena) center/cover no-repeat fixed,var(--bg)}
+.has-mat #board{background:linear-gradient(#120f1c99,#120f1c99),var(--mat) center/cover}
+.logo{display:block;height:34px;margin:0 auto;max-width:70%;object-fit:contain}
 .tile .face{width:86%;height:86%;border-radius:22%;display:flex;align-items:center;justify-content:center;position:relative;
   box-shadow:inset 0 -3px 0 #0005, inset 0 2px 0 #fff3}
 .t-strike .face{background:#c8364a}
@@ -167,6 +172,7 @@ h1 span{color:var(--gold)}
 
 <div class="overlay" id="between" hidden>
   <div class="card">
+    <img id="bBelt" class="belt" alt="" hidden>
     <h2 id="bTitle"></h2>
     <p id="bText"></p>
     <div class="ladder" id="ladder"></div>
@@ -177,7 +183,10 @@ h1 span{color:var(--gold)}
 
 <script>
 (() => {
-const PORT = '../card-clash/assets/portraits/';
+// Images are packed in by build.py. Anything missing falls back to the built-in look.
+const PORTRAITS = {/*__PORTRAITS__*/};
+const ART = {/*__ART__*/};
+const pic = file => PORTRAITS[file.split('.')[0]] || '';
 const N = 7;
 const TYPES = ['strike','grapple','kick','show','heal'];
 const ICON = {strike:'👊',grapple:'🤼',kick:'🦶',show:'⭐',heal:'🩹',fin:'🌀',chair:'🪑',knux:'🥊'};
@@ -227,7 +236,8 @@ function makeTile(type, r, c, fromRow){
 }
 function paint(t){
   t.el.className = 'tile t-' + t.type + (t.special==='h' ? ' line-h' : t.special==='v' ? ' line-v' : '') + (t.type==='fin' ? ' own-'+t.owner : '');
-  t.el.firstChild.innerHTML = ICON[t.type] + (t.type==='knux' ? `<span class="cd">${t.cd}</span>` : '');
+  const face = ART[t.type] ? `<img class="art" src="${ART[t.type]}" alt="" draggable="false">` : ICON[t.type];
+  t.el.firstChild.innerHTML = face + (t.type==='knux' ? `<span class="cd">${t.cd}</span>` : '');
 }
 function place(t, r, c){ t.el.style.transform = `translate(${c*S}px,${r*S}px)`; }
 const matchable = t => t && TYPES.includes(t.type);
@@ -377,8 +387,8 @@ function newBout(){
   const o = LADDER[rung];
   st = {php:100, pmax:100, ohp:o.hp, omax:o.hp, crowd:0, guard:false, opp:o, turn:'p',
         trickIn:o.trickEvery, nextTrick:pickOne(o.tricks), pin:null, kick:null, kickouts:0, finUsed:false, moves:0};
-  $('pImg').src = PORT+hero.img; $('pName').textContent = hero.name;
-  $('oImg').src = PORT+o.img; $('oName').textContent = o.name;
+  $('pImg').src = pic(hero.img); $('pName').textContent = hero.name;
+  $('oImg').src = pic(o.img); $('oName').textContent = o.name;
   fillFresh(); ui();
   say(`<b>${o.name}</b> is in the ring. You have the first move!`);
 }
@@ -779,6 +789,7 @@ function win(){
   ended = true; busy = true; sfx.win(); ui();
   const last = rung===LADDER.length-1;
   $('bTitle').textContent = last ? '🏆 NEW CHAMPION!' : '1… 2… 3! You win!';
+  if (last && ART.belt){ $('bBelt').src = ART.belt; $('bBelt').hidden = false; }
   $('bText').textContent = last ? `${hero.name} cleared the whole card in ${st.moves} moves.` : `${st.opp.name} is down. Next up: ${LADDER[rung+1].name}.`;
   rung = last ? 0 : rung+1;
   $('bGo').textContent = last ? 'Run it back' : 'Next match';
@@ -792,10 +803,10 @@ function lose(){
   showBetween(false);
 }
 function showBetween(champ){
-  $('ladder').innerHTML = LADDER.map((o,i)=>`<img src="${PORT+o.img}" alt="${o.name}" class="${champ||i<rung?'done':i===rung?'now':''}">`).join('');
+  $('ladder').innerHTML = LADDER.map((o,i)=>`<img src="${pic(o.img)}" alt="${o.name}" class="${champ||i<rung?'done':i===rung?'now':''}">`).join('');
   $('between').hidden = false;
 }
-$('bGo').onclick = () => { $('between').hidden=true; start(); };
+$('bGo').onclick = () => { $('between').hidden=true; $('bBelt').hidden=true; start(); };
 $('bMenu').onclick = () => { $('between').hidden=true; rung=0; $('menu').hidden=false; };
 
 function start(){ sfx.init(); sfx.bellStart(); ended=false; busy=false; $('pin').hidden=true; newBout(); resetClock(); scheduleHint(); }
@@ -834,8 +845,14 @@ setInterval(async () => {
   await oppTurn();
 }, 100);
 
-$('pick').innerHTML = HEROES.map((h,i)=>`<button data-i="${i}"><img src="${PORT+h.img}" alt=""><b>${h.name}</b><small>${h.style} · ${h.perk}</small></button>`).join('');
+$('pick').innerHTML = HEROES.map((h,i)=>`<button data-i="${i}"><img src="${pic(h.img)}" alt=""><b>${h.name}</b><small>${h.style} · ${h.perk}</small></button>`).join('');
 $('pick').onclick = e => { const b=e.target.closest('button'); if (!b) return; hero=HEROES[+b.dataset.i]; rung=0; $('menu').hidden=true; start(); };
+
+// Optional art: arena backdrop, ring-mat board, logo.
+if (ART.arena){ document.documentElement.classList.add('has-arena'); document.documentElement.style.setProperty('--arena', `url("${ART.arena}")`); }
+if (ART.mat){ document.documentElement.classList.add('has-mat'); document.documentElement.style.setProperty('--mat', `url("${ART.mat}")`); }
+document.querySelectorAll('.legend div').forEach((d,i) => { const k = TYPES[i]; if (ART[k]) d.firstChild.innerHTML = `<img src="${ART[k]}" alt="" style="width:20px;height:20px;object-fit:contain">`; });
+if (ART.logo){ document.querySelector('.top h1').innerHTML = `<img class="logo" src="${ART.logo}" alt="Ringside Combo">`; }
 
 const muteBtn = $('mute');
 const syncMute = () => muteBtn.textContent = sfx.muted ? '🔇' : '🔊';
