@@ -129,9 +129,14 @@ const legacy={
         console.log(label,"ladder",await complete());
         await menu();await click("#m-tournament");await click('[data-division="women"]');await click('[data-w="nova"]');
         assert.equal(await p.locator(".bracket li").count(),7);
+        const bracket=await button(".bracket").textContent();
+        await menu();await click("#m-tournament");
+        assert.equal(await button(".bracket").textContent(),bracket);
         await click("#cup-fight");await ring();
         console.log(label,"cup",await complete());
-        await click("#event-next");await p.locator(".bracket strong").first().waitFor();
+        await menu();await click("#m-tournament");
+        await p.locator(".bracket strong").first().waitFor();
+        console.log(label,"cup resumed after reload");
         await menu();await click("#m-tag");await click('[data-w="raven"]');
         await button('[name="stakes"]').selectOption("title");
         await click("#tag-bout [type=submit]");await ring();
@@ -139,7 +144,31 @@ const legacy={
         await click("#tag");
         await p.waitForFunction(id=>!G.busy&&G.p.w.id===id,partner);
         console.log(label,"tag",await complete());
-        assert.equal(await p.evaluate(key=>JSON.parse(localStorage.getItem(key)).length,isPreview?"rcc-preview-tag":"rcc-tag"),2);
+        const tag=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)),isPreview?"rcc-preview-tag":"rcc-tag");
+        assert.equal(tag.champions.length,2);
+        assert.equal(tag.history.length,1);
+        await click("#event-next");
+        await click("summary");
+        await p.getByText(/won the belts|retained the belts/).waitFor();
+
+        await p.evaluate(key=>{
+          const saved=JSON.parse(localStorage.getItem(key));
+          saved.week=4;
+          saved.arc.ally="nyx";
+          saved.arc.faction="lights";
+          saved.tag.partners.nyx={wins:2,losses:0};
+          localStorage.setItem(key,JSON.stringify(saved));
+        },key);
+        await menu();await click("#m-cont");
+        await p.getByRole("heading",{name:"Career Tag Team"}).waitFor();
+        await click("#career-tag");await ring();
+        console.log(label,"career tag title",await complete());
+        await click("#event-next");
+        await visible("#fight");
+        assert.equal(await button("#career-tag").count(),0);
+        await click("#journal");
+        await p.locator("section").filter({has:p.getByRole("heading",{name:"Career tag title history"})})
+          .getByText(/Week 4.* the belts/).waitFor();
       }
       assert.deepEqual(errors,[],label+" runtime errors");
       await ctx.close();

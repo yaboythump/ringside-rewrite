@@ -335,6 +335,7 @@ const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const PREVIEW = typeof location!=="undefined"&&/^\/ringside-rewrite\/preview(?:\/|$)/.test(location.pathname);
 const CAREER_KEY=PREVIEW?"rcc-preview-career":"rcc-career";
 const BEST_KEY=PREVIEW?"rcc-preview-best":"rcc-best";
+const CUP_KEY=PREVIEW?"rcc-preview-cup":"rcc-cup";
 const TAG_KEY=PREVIEW?"rcc-preview-tag":"rcc-tag";
 const MUTE_KEY=PREVIEW?"rcc-preview-mute":"rcc-mute";
 const MOTION_KEY=PREVIEW?"rcc-preview-low-motion":"rcc-low-motion";
@@ -636,7 +637,7 @@ const logo=()=>`<h1 class="logo"><span class="l1">Ringside</span><span class="l2
 /* ---------- screens ---------- */
 function titleScreen(){
   G=null;
-  const saved=loadCareer();
+  const saved=loadCareer(),cup=loadCup();
   app.innerHTML=`
   <header class="hero"><span class="tag">CTInteractive · Ringside Rewrite</span>${logo()}<p>Build your move deck. Win the crowd. Fight for the gold.</p></header>
   ${PREVIEW?'<p class="release-notice">Playtest build · Uses its own career save.</p>':""}
@@ -646,7 +647,7 @@ function titleScreen(){
     <button class="mode" id="m-quick"><span class="go">Quick match</span><h3>Ladder</h3><p>Win three straight matches with a fresh deck each round.</p></button>
     <button class="mode" id="m-exhibition"><span class="go">Single match</span><h3>Exhibition</h3><p>Choose both wrestlers and the match rules.</p></button>
     <button class="mode" id="m-tag"><span class="go">Two on two</span><h3>Tag Team</h3><p>Choose a partner and challenge the reigning champions or set up an exhibition.</p></button>
-    <button class="mode" id="m-tournament"><span class="go">Eight wrestlers</span><h3>Championship Cup</h3><p>Win an eight-wrestler elimination bracket for your division's cup.</p></button>
+    <button class="mode" id="m-tournament"><span class="go">Eight wrestlers</span><h3>Championship Cup</h3><p>${cup?`Saved bracket · ${esc(WRESTLERS[cup.pid].name)}${cup.bracket[2][0].winner?" · Final results":` · ${ROUND_NAMES[cup.round]}`}`:"Win an eight-wrestler elimination bracket for your division's cup."}</p></button>
   </div>
   <div class="actions"><button class="btn" id="m-help">Tutorial &amp; rules</button><button class="btn" id="m-settings">Settings &amp; credits</button></div>`;
   $("#m-cont")?.addEventListener("click",()=>{C=saved;hub();});
@@ -654,7 +655,7 @@ function titleScreen(){
   $("#m-quick").onclick=()=>selectScreen("quick");
   $("#m-exhibition").onclick=()=>selectScreen("exhibition");
   $("#m-tag").onclick=()=>selectScreen("tag");
-  $("#m-tournament").onclick=()=>selectScreen("tournament");
+  $("#m-tournament").onclick=championshipCupMenu;
   $("#m-help").onclick=()=>guideScreen("help");
   $("#m-settings").onclick=()=>guideScreen("settings");
 }
@@ -769,23 +770,43 @@ function startExhibition(pid,oid,stip){
   startMatch();
 }
 const TAG_TITLE="Tag Team Championship";
-function tagChampions(){
+function validTeam(ids,eligible){
+  return Array.isArray(ids)&&ids.length===2&&ids[0]!==ids[1]&&ids.every(id=>eligible.has(id));
+}
+function sameTeam(a,b){return Boolean(a&&b&&a.length===b.length&&a.every(id=>b.includes(id)));}
+function tagPromotion(){
+  const defaultChampions=["silas","tank"];
   try{
-    const ids=JSON.parse(localStorage.getItem(TAG_KEY)||"null");
-    if(Array.isArray(ids)&&ids.length===2&&ids[0]!==ids[1]&&ids.every(id=>id!=="custom"&&Object.hasOwn(WRESTLERS,id)))return ids;
+    const raw=JSON.parse(localStorage.getItem(TAG_KEY)||"null");
+    const champs=Array.isArray(raw)?raw:raw?.champions;
+    const eligible=new Set(roster().map(w=>w.id));
+    if(validTeam(champs,eligible)){
+      const history=Array.isArray(raw.history)?raw.history.filter(entry=>validTeam(entry?.team,eligible)
+        &&["won","retained"].includes(entry.action)).slice(0,20):[];
+      return {champions:champs,history};
+    }
   }catch(e){}
-  return ["silas","tank"];
+  return {champions:defaultChampions,history:[]};
+}
+function recordTagChampions(promotion,team,week){
+  const action=sameTeam(promotion.champions,team)?"retained":"won";
+  promotion.champions=[...team];
+  promotion.history=[{team:[...team],action,week},...promotion.history].slice(0,20);
+  return action;
+}
+function tagHistoryList(history){
+  return `<ul class="news">${history.map(({team,action,week})=>`<li>${Number.isSafeInteger(week)&&week>0?`Week ${week} · `:""}${esc(teamName(team))} ${action==="vacated"?"vacated the belts":action==="retained"?"retained the belts":"won the belts"}</li>`).join("")||"<li>Title changes and defenses will appear here.</li>"}</ul>`;
 }
 const teamName=ids=>ids.map(id=>WRESTLERS[id].name).join(" & ");
-function startTag(pid,partner,oid,otherPartner,forTitle){
+function startTag(pid,partner,oid,otherPartner,forTitle,tagWeek=null){
   const ids=[pid,partner,oid,otherPartner];
-  if(new Set(ids).size!==4||ids.some(id=>id==="custom"||!Object.hasOwn(WRESTLERS,id)))return false;
-  G={mode:"tag",pid,partner,oid,otherPartner,forTitle,round:0,log:[]};
+  if(new Set(ids).size!==4||ids.some(id=>!Object.hasOwn(WRESTLERS,id))||(!tagWeek&&ids.includes("custom")))return false;
+  G={mode:"tag",pid,partner,oid,otherPartner,forTitle,tagWeek,round:0,log:[]};
   startMatch();
   return true;
 }
 function tagSetup(pid){
-  const champ=tagChampions();
+  const promotion=tagPromotion(),champ=promotion.champions;
   const choices=Object.fromEntries(roster().filter(w=>w.id!==pid).map(w=>[w.id,w.name]));
   app.innerHTML=`<header class="brand">${logo()}<span class="tag">Tag team</span></header>
   <section class="panel"><h3>${esc(WRESTLERS[pid].name)} · Tag team</h3>
@@ -797,7 +818,7 @@ function tagSetup(pid){
     <label>Opposing partner<select name="otherPartner">${options(choices)}</select></label>
     <label>Stakes<select name="stakes">${options({exhibition:"Exhibition",title:"Tag Team Championship"})}</select></label>
     <button class="btn primary" type="submit">To the ring</button>
-  </form><p id="tag-error" role="status"></p>
+  </form><p id="tag-error" role="status"></p><details><summary>Title history</summary>${tagHistoryList(promotion.history)}</details>
   </section><div class="actions"><button class="btn" id="back">Back to roster</button></div>`;
   const form=$("#tag-bout");
   const {partner,opponent,otherPartner,stakes}=form.elements;
@@ -854,9 +875,53 @@ function resolveBracket(rounds,round,player,won,choose){
 }
 function cupBest(a,b){return Math.random()<.5?a:b;}
 const ROUND_NAMES=["Quarterfinals","Semifinals","Final"];
+function normalizeCup(raw){
+  if(!raw||!roster().some(w=>w.id===raw.pid)||!Array.isArray(raw.bracket?.[0])||raw.bracket[0].length!==4)return null;
+  const entrants=raw.bracket[0].flatMap(bout=>[bout?.a,bout?.b]);
+  if(new Set(entrants).size!==8||!entrants.includes(raw.pid)
+    ||entrants.some(id=>id==="custom"||!Object.hasOwn(WRESTLERS,id)||divisionOf(id)!==divisionOf(raw.pid)))return null;
+  const bracket=buildBracket(entrants);
+  let round=0;
+  for(;round<3;round++){
+    const saved=raw.bracket[round];
+    const bouts=bracket[round];
+    if(!Array.isArray(saved)||saved.length!==bouts.length)return null;
+    if(saved.every(bout=>bout?.winner===null)){
+      return bouts.some(bout=>bout.a===raw.pid||bout.b===raw.pid)?{pid:raw.pid,bracket,round}:null;
+    }
+    for(const [index,bout] of bouts.entries()){
+      const winner=saved[index]?.winner;
+      if(winner!==bout.a&&winner!==bout.b)return null;
+      bout.winner=winner;
+    }
+    if(round<2){
+      for(const [index,bout] of bracket[round+1].entries()){
+        bout.a=bouts[2*index].winner;
+        bout.b=bouts[2*index+1].winner;
+      }
+    }
+  }
+  return {pid:raw.pid,bracket,round:2};
+}
+function loadCup(){
+  try{return normalizeCup(JSON.parse(localStorage.getItem(CUP_KEY)||"null"));}
+  catch(e){return null;}
+}
+function saveCup(){
+  saveLocal(CUP_KEY,{pid:G.pid,bracket:G.bracket});
+}
+function championshipCupMenu(){
+  const saved=loadCup();
+  if(!saved)return selectScreen("tournament");
+  G={mode:"tournament",...saved,log:[]};
+  tournamentScreen();
+}
 function startTournament(pid){
+  const existing=loadCup();
+  if(existing&&!existing.bracket[2][0].winner&&!window.confirm("Replace your current cup bracket?"))return;
   const entrants=[pid,...shuffle(roster().filter(w=>w.id!==pid&&divisionOf(w.id)===divisionOf(pid)).map(w=>w.id)).slice(0,7)];
   G={mode:"tournament",pid,round:0,bracket:buildBracket(shuffle(entrants)),log:[]};
+  saveCup();
   tournamentScreen();
 }
 function tournamentScreen(){
@@ -866,8 +931,9 @@ function tournamentScreen(){
   app.innerHTML=`<header class="brand">${logo()}<span class="tag">Championship Tournament</span></header>
   <section class="panel"><h3>${cup}</h3>${finalWinner?`<p class="metal">Cup winner · ${esc(WRESTLERS[finalWinner].name)}</p>`:""}
   <div class="bracket">${bracket.map((bouts,i)=>`<section><h4>${ROUND_NAMES[i]}</h4><ol>${bouts.map(({a,b,winner})=>`<li>${[a,b].map(id=>id?`<div>${id===winner?"<strong>":""}${esc(WRESTLERS[id].name)}${id===pid?" · You":""}${id===winner?"</strong>":""}</div>`:"<div>—</div>").join("")}</li>`).join("")}</ol></section>`).join("")}</div>
-  <div class="actions">${finalWinner?"":`<button class="btn primary" id="cup-fight">Fight in ${ROUND_NAMES[round].toLowerCase()}</button>`}<button class="btn" id="cup-menu">Main menu</button></div></section>`;
+  <div class="actions">${finalWinner?"":`<button class="btn primary" id="cup-fight">Fight in ${ROUND_NAMES[round].toLowerCase()}</button>`}<button class="btn" id="cup-new">New cup</button><button class="btn" id="cup-menu">Main menu</button></div></section>`;
   $("#cup-menu").onclick=titleScreen;
+  $("#cup-new").onclick=()=>selectScreen("tournament",divisionOf(pid));
   $("#cup-fight")?.addEventListener("click",()=>{
     const bout=bracket[round].find(b=>b.a===pid||b.b===pid);
     G.oid=bout.a===pid?bout.b:bout.a;
@@ -894,12 +960,12 @@ async function startMatch(){
   } else {
     G.level=Math.min(G.round,2);
     const plus=G.stip==="lastman"?15:0;
-    G.p=makeFighter(G.pid,{hpPlus:plus});
+    G.p=makeFighter(G.pid,{hpPlus:plus,deck:G.tagWeek?C.deck:undefined});
     G.o=makeFighter(G.mode==="quick"?G.ladder[G.round]:G.oid,{level:G.level,hpPlus:plus});
     if(G.mode==="tag"){
       G.pBench=makeFighter(G.partner);G.oBench=makeFighter(G.otherPartner);
     }
-    const label=G.mode==="tag"?(G.forTitle?TAG_TITLE:"Tag Team Exhibition"):G.mode==="quick"?`Round ${G.round+1} of 3`:G.mode==="tournament"?ROUND_NAMES[G.round]:G.stip?STIPS[G.stip][0]:"Exhibition";
+    const label=G.mode==="tag"?(G.forTitle?TAG_TITLE:G.tagWeek?"Tag Contender Bout":"Tag Team Exhibition"):G.mode==="quick"?`Round ${G.round+1} of 3`:G.mode==="tournament"?ROUND_NAMES[G.round]:G.stip?STIPS[G.stip][0]:"Exhibition";
     G.log=[`${label}. ${G.o.w.name} is waiting in the ring.`];
   }
   if(typeof scrollTo==="function") scrollTo(0,0);
@@ -1116,6 +1182,7 @@ async function pinCount(kick){
 }
 
 function finishMatch(won){
+  if(G.over)return;
   G.over=true;
   if(G.mode==="career"){careerResult(won);return;}
   if(G.mode!=="quick"){eventResult(won);return;}
@@ -1145,11 +1212,17 @@ function eventResult(won){
   if(isCup){
     resolveBracket(bracket,round,pid,won,cupBest);
     if(!won) for(let i=round+1;i<3;i++) resolveBracket(bracket,i,pid,false,cupBest);
+    saveCup();
   }
   const isTag=mode==="tag";
   const team=isTag?(won?[pid,partner]:[oid,otherPartner]):null;
-  if(isTag&&forTitle){
-    try{localStorage.setItem(TAG_KEY,JSON.stringify(team));}catch(e){}
+  if(isTag&&G.tagWeek){
+    const line=recordCareerTag(C,G,won);
+    if(line){news(line);saveCareer();}
+  }else if(isTag&&forTitle){
+    const promotion=tagPromotion();
+    recordTagChampions(promotion,team);
+    saveLocal(TAG_KEY,promotion);
   }
   if(won) crowd(180);
   const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
@@ -1157,12 +1230,14 @@ function eventResult(won){
     ${isTag&&forTitle?`<img class="belt" src="${BELT_IMG}" alt="Tag Team Championship belt">`:""}
     <h2 class="metal">${esc(isTag?teamName(team):(won?G.p:G.o).w.name)} wins</h2>
     ${isTag&&forTitle?`<p>${TAG_TITLE}</p>`:""}
+    ${G.tagWeek?`<p>Tag result saved for week ${G.tagWeek}. Your singles match is next.</p>`:""}
     ${starsHTML(matchRating(won))}
-    <div class="actions"><button class="btn primary" id="event-next">${isCup?"View bracket":isTag?"Tag Team setup":"Rematch"}</button>
+    <div class="actions"><button class="btn primary" id="event-next">${isCup?"View bracket":G.tagWeek?"Back to the card":isTag?"Tag Team setup":"Rematch"}</button>
       <button class="btn" id="event-menu">Main menu</button></div></div>`;
   ov.querySelector("#event-next").onclick=()=>{
     ov.remove();
     if(isCup){if(won&&round<2) G.round++;tournamentScreen();}
+    else if(G.tagWeek)hub();
     else if(isTag)tagSetup(pid);
     else startExhibition(pid,oid,stip);
   };
@@ -1205,20 +1280,22 @@ function normalizeCareer(c){
   if(!Object.hasOwn(FACTIONS,c.arc.faction))c.arc.faction=null;
   c.arc.heat=Math.min(5,Math.max(0,Number(c.arc.heat)||0));
   if(!eligible.has(c.rival))c.rival=null;
+  c.tag=careerTagState(c,pool);
   normalizeLoadout(c);
   return c;
 }
 function loadCareer(){
   try{return normalizeCareer(JSON.parse(localStorage.getItem(CAREER_KEY)||"null"));}catch(e){return null;}
 }
-function saveCareer(){
+function saveCareer(){saveLocal(CAREER_KEY,C);}
+function saveLocal(key,value){
   try{
-    localStorage.setItem(CAREER_KEY,JSON.stringify(C));
+    localStorage.setItem(key,JSON.stringify(value));
   }catch(e){
     if(!document.querySelector(".storage-warning")){
       const warning=document.createElement("p");
       warning.className="release-notice storage-warning";
-      warning.textContent="This browser couldn't save your progress. Keep this tab open to continue.";
+      warning.textContent="This browser couldn't save your progress.";
       document.body.appendChild(warning);
     }
   }
@@ -1264,6 +1341,80 @@ function book(){
   saveCareer();
   return C.booked;
 }
+/* Each career owns its divisional tag records independently of Exhibition. */
+function careerTagState(save,pool){
+  const raw=save.tag;
+  const eligible=new Set([...pool,save.wid]);
+  const defaults=(divisionOf(save.wid)==="women"?["imani","alba"]:["silas","tank"]).filter(id=>id!==save.wid);
+  const champions=raw?.champions===null||validTeam(raw?.champions,eligible)
+    ?raw.champions:[...new Set([...defaults,...pool.filter(id=>id!==save.wid)])].slice(0,2);
+  const partners={};
+  for(const id of pool){
+    const pair=raw?.partners?.[id];
+    if(id!==save.wid&&pair){
+      const count=n=>Number.isSafeInteger(n)&&n>=0?n:0;
+      partners[id]={wins:count(pair.wins),losses:count(pair.losses)};
+    }
+  }
+  const history=Array.isArray(raw?.history)?raw.history.filter(entry=>validTeam(entry?.team,eligible)
+    &&Number.isSafeInteger(entry.week)&&entry.week>0&&["won","retained","vacated"].includes(entry.action)).slice(0,20):[];
+  const playedWeek=Number.isSafeInteger(raw?.playedWeek)&&raw.playedWeek<=save.week?raw.playedWeek:0;
+  return {champions,partners,history,playedWeek};
+}
+function vacateCareerTag(save,ally){
+  const champs=save.tag.champions;
+  if(!champs?.includes(ally))return false;
+  save.tag.history=[{team:[...champs],action:"vacated",week:save.week},...save.tag.history].slice(0,20);
+  save.tag.champions=null;
+  return true;
+}
+const qualifyingTagWins=2;
+function careerTagBooking(save){
+  const ally=save.arc.ally;
+  if(!ally||save.week%4!==0||save.tag.playedWeek===save.week)return null;
+  const pair=[save.wid,ally], champions=save.tag.champions;
+  const defending=sameTeam(champions,pair);
+  const forTitle=defending||(save.tag.partners[ally]?.wins||0)>=qualifyingTagWins;
+  if(forTitle&&!defending&&champions?.every(id=>!pair.includes(id)))return {pair,opponents:champions,forTitle};
+  const pool=[...new Set([save.arc.foe,save.booked?.id,...save.contenders,save.champ])];
+  const opponents=pool.filter(id=>id&&Object.hasOwn(WRESTLERS,id)&&divisionOf(id)===divisionOf(save.wid)&&!pair.includes(id)).slice(0,2);
+  return {pair,opponents,forTitle};
+}
+function careerTagMatch(){
+  const booking=careerTagBooking(C);
+  if(!booking)return hub();
+  startTag(...booking.pair,...booking.opponents,booking.forTitle,C.week);
+}
+function recordCareerTag(save,bout,won){
+  if(save.week!==bout.tagWeek||save.tag.playedWeek===save.week)return;
+  const {pid,partner,oid,otherPartner,forTitle}=bout;
+  const pair=save.tag.partners[partner]??={wins:0,losses:0};
+  if(won)pair.wins++;else pair.losses++;
+  save.tag.playedWeek=save.week;
+  if(forTitle){
+    const team=won?[pid,partner]:[oid,otherPartner];
+    const action=recordTagChampions(save.tag,team,save.week);
+    return `${teamName(team)} ${action==="retained"?"retains":"wins"} the ${TAG_TITLE}.`;
+  }
+  return won?`${teamName([pid,partner])} wins their tag match.`:`${teamName([oid,otherPartner])} wins the tag match.`;
+}
+function careerTagPanel(){
+  const ally=C.arc.ally;
+  const match=careerTagBooking(C);
+  const pair=C.tag.partners[ally];
+  const status=!ally?"Accept a faction offer during a backstage segment to form a team."
+    :C.tag.playedWeek===C.week?"Your team has already wrestled tonight."
+    :match?match.forTitle?`Title match vs ${teamName(match.opponents)}`:`Contender bout vs ${teamName(match.opponents)}`
+    :"Your next tag booking opens at a special event, every fourth week.";
+  return `<section class="panel"><h3>Career Tag Team</h3>
+    <p>${C.tag.champions?`Champions · ${esc(teamName(C.tag.champions))}`:"The tag championship is vacant."}</p>
+    ${ally?`<div class="stats"><span>Partner<b>${esc(WRESTLERS[ally].name)}</b></span><span>Team record<b>${pair?.wins||0}-${pair?.losses||0}</b></span></div>`:""}
+    <p>${esc(status)}</p>
+    ${match?`<p class="howto">Two wins with your current partner earn a title shot. This bout uses your Fight Camp deck and your singles main event stays on the card.</p>
+      <button class="btn" id="career-tag">${match.forTitle?"Fight for the tag belts":"Wrestle the tag bout"}</button>`:""}
+    </section>`;
+}
+
 function adjustRival(save,id,delta){
   if(id===save.wid)return;
   if(save.arc.foe===id) save.arc.heat=Math.max(0,Math.min(5,save.arc.heat+delta));
@@ -1275,15 +1426,15 @@ function storyOffer(c){
     return {title:`${FACTIONS[c.arc.faction]} wants an answer`,text:`${WRESTLERS[c.arc.ally].name} asks you to honor your pact before tonight’s match.`,
       actions:[
         ["Stand with your ally",()=>{c.hypeMod+=2;up(1);return "Your corner backs you. +2 starting hype.";}],
-        ["Betray your ally",()=>{const ally=c.arc.ally;c.arc.ally=null;c.arc.faction=null;adjustRival(c,ally,4);up(-2);c.fame+=5;return `${WRESTLERS[ally].name} vows revenge. +5 fame.`;}],
+        ["Betray your ally",()=>{const ally=c.arc.ally;c.arc.ally=null;c.arc.faction=null;const vacated=vacateCareerTag(c,ally);adjustRival(c,ally,4);up(-2);c.fame+=5;return `${WRESTLERS[ally].name} vows revenge. +5 fame.${vacated?" The tag belts are vacant.":""}`;}],
       ]};
   }
   const ally=c.contenders.find(k=>k!==id&&k!==c.wid&&k!==c.arc.foe);
   if(!ally) return null;
   return {title:`An offer from ${WRESTLERS[ally].name}`,text:"A faction wants you in its corner. The locker room is watching.",
     actions:[
-      ["Join the Iron Guild",()=>{c.arc.ally=ally;c.arc.faction="guild";c.hpMod+=5;return "The Iron Guild prepares you for the match. +5 starting stamina.";}],
-      ["Join House Lights",()=>{c.arc.ally=ally;c.arc.faction="lights";c.hypeMod+=3;return "House Lights leads the crowd. +3 starting hype.";}],
+      ["Join the Iron Guild",()=>{c.arc.ally=ally;c.arc.faction="guild";c.hpMod+=5;const vacated=vacateCareerTag(c,ally);return "The Iron Guild prepares you for the match. +5 starting stamina."+(vacated?" Your partner vacates their tag belts.":"");}],
+      ["Join House Lights",()=>{c.arc.ally=ally;c.arc.faction="lights";c.hypeMod+=3;const vacated=vacateCareerTag(c,ally);return "House Lights leads the crowd. +3 starting hype."+(vacated?" Your partner vacates their tag belts.":"");}],
       ["Go it alone",()=>{adjustRival(c,id,2);c.fame+=3;return `${WRESTLERS[id].name} calls you out for walking away. +3 fame.`;}],
     ]};
 }
@@ -1312,6 +1463,7 @@ function careerJournal(){
     <section class="panel"><h3>Title history</h3><p>${mainTitle(C.wid)} · ${esc(WRESTLERS[C.champ].name)}</p>
       ${C.secondary?`<p>${SECONDARY_TITLE} · ${esc(WRESTLERS[C.secondary].name)} · ${C.secondaryDefenses} career defenses</p>`:""}
       <ul class="news">${history||"<li>No title changes or defenses recorded yet.</li>"}</ul></section>
+    <section class="panel"><h3>Career tag title history</h3>${tagHistoryList(C.tag.history)}</section>
   </div><div class="actions"><button class="btn" id="back">Back to career</button></div>`;
   $("#back").onclick=hub;
 }
@@ -1360,6 +1512,7 @@ function hub(){
       ${C.arc.foe&&C.arc.heat?`<span>Rival<b>${esc(WRESTLERS[C.arc.foe].name)} · Heat ${C.arc.heat}/5</b></span>`:""}</div>
     <button class="btn" id="journal">Calendar, records &amp; titles</button>
   </section>
+  ${careerTagPanel()}
   <div class="cols">
     <section class="panel"><h3>Rankings</h3><ol class="ranks">${rankRows}</ol></section>
     <section class="panel"><h3>Around the promotion</h3><ul class="news">${C.news.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></section>
@@ -1369,6 +1522,7 @@ function hub(){
   $("#fight").onclick=careerMatch;
   $("#fight-camp").onclick=fightCamp;
   $("#journal").onclick=careerJournal;
+  $("#career-tag")?.addEventListener("click",careerTagMatch);
   $("#s-story")?.addEventListener("click",storyScreen);
   $("#quit").onclick=titleScreen;
   $("#s-promo")?.addEventListener("click",()=>promo(b.id));
@@ -1707,7 +1861,7 @@ function render(){
   const ladder=G.mode==="career"
     ? `<span class="cur">Week ${C.week}</span><span>${esc(G.title||showName())}</span>${G.stip?`<span style="color:#ff6b7c">${STIPS[G.stip][0]}</span>`:""}`
     : G.mode==="quick"?G.ladder.map((k,i)=>`<span class="${i<G.round?"done":i===G.round?"cur":""}">${esc(WRESTLERS[k].name)}</span>`).join("")
-    : `<span class="cur">${G.mode==="tag"?(G.forTitle?TAG_TITLE:"Tag Team Exhibition"):G.mode==="tournament"?ROUND_NAMES[G.round]:G.stip?STIPS[G.stip][0]:"Exhibition"}</span>`;
+    : `<span class="cur">${G.mode==="tag"?(G.forTitle?TAG_TITLE:G.tagWeek?"Tag Contender Bout":"Tag Team Exhibition"):G.mode==="tournament"?ROUND_NAMES[G.round]:G.stip?STIPS[G.stip][0]:"Exhibition"}</span>`;
   app.innerHTML=`
   <header class="brand">${logo()}<div class="ladder">${ladder}</div></header>
   <div class="eyebrow">You are ${esc(p.w.name)} · vs ${esc(o.w.name)}</div>
