@@ -105,3 +105,39 @@ test("the career UI exposes Fight Camp, weekly training and save protection", ()
   assert.match(html,/unlockCard\(C,id\)/);
   assert.match(html,/rcc-career/);
 });
+
+test("Fight Camp can render after starting an actual career in a DOM harness", () => {
+  const no = () => {};
+  const gradient = {addColorStop:no};
+  const ctx = new Proxy({}, {
+    get:(_,name)=>name==="createLinearGradient"||name==="createRadialGradient"?()=>gradient:no,
+    set:()=>true
+  });
+  const button = {onclick:null,addEventListener:no,focus:no,scrollIntoView:no,style:{}};
+  const app = {innerHTML:"",querySelectorAll:()=>[],querySelector:()=>button};
+  const cv = {getContext:()=>ctx};
+  const memory=new Map();
+  const doc={
+    querySelector:sel=>sel==="#app"?app:sel==="#arena"?cv:button,
+    querySelectorAll:()=>[],
+    addEventListener:no,
+    createElement:()=>({className:"",innerHTML:"",remove:no,querySelector:()=>button})
+  };
+  const hot={ready:no,snapshot:no};
+  const win={claude:{hot},confirm:()=>true};
+  const runtime=vm.createContext({
+    document:doc,window:win,matchMedia:()=>({matches:true}),
+    Image:class{set src(value){this._src=value}},
+    addEventListener:no,requestAnimationFrame:no,
+    innerWidth:375,innerHeight:740,devicePixelRatio:1,
+    localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)}
+  });
+  vm.runInContext(script,runtime,{timeout:3000});
+  vm.runInContext("newCareer('raven');fightCamp();",runtime,{timeout:3000});
+  assert.match(app.innerHTML,/Scout your opponent/);
+  assert.match(app.innerHTML,/Unlocked reserves/);
+  assert.match(app.innerHTML,/Equipped deck/);
+  assert.match(app.innerHTML,/Coach.s read/);
+  assert.match(app.innerHTML,/To the ring/);
+  assert.ok(memory.has("rcc-career"),"Career state saved locally");
+});
