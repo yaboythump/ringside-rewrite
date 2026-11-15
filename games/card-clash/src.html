@@ -331,6 +331,11 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
 <div class="app" id="app"></div>
 
 <script>
+const NATIVE = typeof window==="undefined"?null:window.RingsideNative;
+const gameStorage=NATIVE||{
+  getItem:key=>localStorage.getItem(key),
+  setItem:(key,value)=>localStorage.setItem(key,value),
+};
 const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const PREVIEW = typeof location!=="undefined"&&/^\/ringside-rewrite\/preview(?:\/|$)/.test(location.pathname);
 const CAREER_KEY=PREVIEW?"rcc-preview-career":"rcc-career";
@@ -340,7 +345,7 @@ const TAG_KEY=PREVIEW?"rcc-preview-tag":"rcc-tag";
 const MUTE_KEY=PREVIEW?"rcc-preview-mute":"rcc-mute";
 const MOTION_KEY=PREVIEW?"rcc-preview-low-motion":"rcc-low-motion";
 let lowMotion=false;
-try{lowMotion=localStorage.getItem(MOTION_KEY)==="1";}catch(e){}
+try{lowMotion=gameStorage.getItem(MOTION_KEY)==="1";}catch(e){}
 const still=()=>RM||lowMotion;
 
 
@@ -555,8 +560,8 @@ const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const wait=ms=>new Promise(r=>setTimeout(r,still()?Math.min(ms,150):ms));
 
-function loadBest(){try{return JSON.parse(localStorage.getItem(BEST_KEY)||"{}")}catch(e){return {}}}
-function saveBest(b){try{localStorage.setItem(BEST_KEY,JSON.stringify(b))}catch(e){}}
+function loadBest(){try{return JSON.parse(gameStorage.getItem(BEST_KEY)||"{}")}catch(e){return {}}}
+function saveBest(b){try{gameStorage.setItem(BEST_KEY,JSON.stringify(b))}catch(e){}}
 
 /* ---------- arena canvas ---------- */
 const cv=$("#arena"), cx=cv.getContext("2d");
@@ -613,7 +618,7 @@ function quake(){if(still())return;app.classList.remove("quake");void app.offset
 
 /* ---------- sound (synthesized, no files) ---------- */
 let AC=null,muted=false,lastCrowd=0;
-try{muted=localStorage.getItem(MUTE_KEY)==="1"}catch(e){}
+try{muted=gameStorage.getItem(MUTE_KEY)==="1"}catch(e){}
 function actx(){if(muted)return null;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();}catch(e){return null}return AC;}
 function tone(f,dur,gain,type="sine",to){const a=actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+.02);}
 function noise(dur,freq,gain,type="lowpass",attack=0){const a=actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(a.destination);s.start(t);}
@@ -631,7 +636,7 @@ const SFX={
   crowd(){const n=Date.now();if(n-lastCrowd<900)return;lastCrowd=n;noise(1.4,1100,.2,"bandpass",.25)},
   boo(){tone(140,.7,.12,"sawtooth",95)},
 };
-document.addEventListener("click",e=>{const b=e.target.closest("[data-mute]");if(!b)return;muted=!muted;try{localStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");if(!muted)SFX.bell();});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-mute]");if(!b)return;muted=!muted;try{gameStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");if(!muted)SFX.bell();});
 const muteBtn=()=>`<button class="mutebtn" data-mute>${muted?"Sound off":"Sound on"}</button>`;
 
 /* ---------- pieces ---------- */
@@ -716,7 +721,7 @@ function guideScreen(screen){
   $("#practice")?.addEventListener("click",()=>exhibitionSetup("raven"));
   $("#motion")?.addEventListener("click",()=>{
     lowMotion=!lowMotion;
-    try{localStorage.setItem(MOTION_KEY,lowMotion?"1":"0");}catch(e){}
+    try{gameStorage.setItem(MOTION_KEY,lowMotion?"1":"0");}catch(e){}
     document.body.classList.toggle("compact-motion",still());
     if(still())drawArena(0);
     guideScreen(screen);
@@ -786,7 +791,7 @@ function sameTeam(a,b){return Boolean(a&&b&&a.length===b.length&&a.every(id=>b.i
 function tagPromotion(){
   const defaultChampions=["silas","tank"];
   try{
-    const raw=JSON.parse(localStorage.getItem(TAG_KEY)||"null");
+    const raw=JSON.parse(gameStorage.getItem(TAG_KEY)||"null");
     const champs=Array.isArray(raw)?raw:raw?.champions;
     const eligible=new Set(roster().map(w=>w.id));
     if(validTeam(champs,eligible)){
@@ -913,7 +918,7 @@ function normalizeCup(raw){
   return {pid:raw.pid,bracket,round:2};
 }
 function loadCup(){
-  try{return normalizeCup(JSON.parse(localStorage.getItem(CUP_KEY)||"null"));}
+  try{return normalizeCup(JSON.parse(gameStorage.getItem(CUP_KEY)||"null"));}
   catch(e){return null;}
 }
 function saveCup(){
@@ -1041,6 +1046,7 @@ function damage(t,amount,{ignoreBlock=false}={}){
   t.hp=Math.max(0,t.hp-d);return d;
 }
 function impact(who,amount,big){
+  if(!still()&&amount>0)NATIVE?.impact(big?"heavy":"light");
   fx(who,amount,big);
   if(big)SFX.big();else if(amount>0)SFX.hit();else SFX.block();
   if(amount>=8||big){quake();crowd(big?90:30);}
@@ -1183,6 +1189,7 @@ async function pinCount(kick){
   const steps=kick?["1","2","KICK OUT!"]:["1","2","3"];
   for(const s of steps){
     ov.innerHTML=`<div><div class="ref">The referee counts</div><div class="count ${s==="3"?"three":""} ${s.length>2?"out":""}">${s}</div></div>`;
+    if(!still()&&s==="3")NATIVE?.impact("heavy");
     SFX.count();if(s==="3"){SFX.bell();setTimeout(SFX.bell,260);setTimeout(SFX.bell,520);}
     if(s==="3"||s.length>2){flash();crowd(140);quake();}
     await wait(s.length>2||s==="3"?1000:700);
@@ -1383,20 +1390,21 @@ function normalizeCareer(c){
   return c;
 }
 function loadCareer(){
-  try{return normalizeCareer(JSON.parse(localStorage.getItem(CAREER_KEY)||"null"));}catch(e){return null;}
+  try{return normalizeCareer(JSON.parse(gameStorage.getItem(CAREER_KEY)||"null"));}catch(e){return null;}
 }
 function saveCareer(){saveLocal(CAREER_KEY,C);}
+function showSaveError(){
+  if(document.querySelector(".storage-warning"))return;
+  const warning=document.createElement("p");
+  warning.className="release-notice storage-warning";
+  warning.setAttribute("role","alert");
+  warning.textContent="This device couldn’t save your progress.";
+  document.body.appendChild(warning);
+}
+document.addEventListener("ringside-save-error",showSaveError);
 function saveLocal(key,value){
-  try{
-    localStorage.setItem(key,JSON.stringify(value));
-  }catch(e){
-    if(!document.querySelector(".storage-warning")){
-      const warning=document.createElement("p");
-      warning.className="release-notice storage-warning";
-      warning.textContent="This browser couldn't save your progress.";
-      document.body.appendChild(warning);
-    }
-  }
+  try{gameStorage.setItem(key,JSON.stringify(value));}
+  catch(e){showSaveError();}
 }
 function fameTier(f){return f>=200?"Legend":f>=100?"Main eventer":f>=40?"Rising star":"Rookie";}
 function alignName(a){return a>=2?"Fan favorite":a<=-2?"Villain":"Tweener";}

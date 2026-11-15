@@ -1,0 +1,32 @@
+name: Card Clash iPhone build
+on:
+  pull_request:
+    paths:
+      - "games/card-clash/**"
+      - ".github/workflows/card-clash-ios.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  simulator:
+    runs-on: macos-26
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the offline game
+        run: node --test games/card-clash/tests/fight-camp.test.cjs
+      - name: Build and run the iPhone simulator test
+        working-directory: games/card-clash/ios
+        run: |
+          xcodebuild -version
+          device=$(xcrun simctl create RingsideQA com.apple.CoreSimulator.SimDeviceType.iPhone-17)
+          trap 'xcrun simctl delete "$device" || true' EXIT
+          xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
+            -destination "platform=iOS Simulator,id=$device" -derivedDataPath "$RUNNER_TEMP/rcc-ios" \
+            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
+      - name: Build the device release target
+        working-directory: games/card-clash/ios
+        run: |
+          xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/rcc-ios-device" CODE_SIGNING_ALLOWED=NO build

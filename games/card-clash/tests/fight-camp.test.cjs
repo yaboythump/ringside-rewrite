@@ -106,7 +106,7 @@ test("the career UI exposes Fight Camp, weekly training and save protection", ()
   assert.match(html,/rcc-career/);
 });
 
-function gameRuntime(){
+function gameRuntime(native){
   const no = () => {};
   const gradient = {addColorStop:no};
   const ctx = new Proxy({}, {
@@ -125,7 +125,7 @@ function gameRuntime(){
     createElement:()=>({className:"",style:{},innerHTML:"",remove:no,querySelector:()=>button})
   };
   const hot={ready:no,snapshot:no};
-  const win={claude:{hot},confirm:()=>true};
+  const win={claude:{hot},confirm:()=>true,RingsideNative:native};
   const runtime=vm.createContext({
     document:doc,window:win,matchMedia:()=>({matches:true}),
     Image:class{set src(value){this._src=value}},
@@ -426,4 +426,17 @@ test("embedded portrait assets bind to both the original and expanded rosters", 
   const loaded=script.slice(start,end).replace("/*__PORTRAITS__*/",'raven:"original",hana:"expanded"');
   const result=vm.runInNewContext(loaded+'\n[WRESTLERS.raven.img,WRESTLERS.hana.img].join(",")');
   assert.equal(result,"original,expanded");
+});
+
+test("the iPhone bridge owns its career saves while browser storage stays separate", () => {
+  const saved=new Map();
+  const bridge={
+    getItem:key=>saved.get(key)??null,
+    setItem:(key,value)=>saved.set(key,value),
+  };
+  const {run,memory}=gameRuntime(bridge);
+  run("newCareer('brick');");
+  assert.equal(JSON.parse(saved.get("rcc-career")).wid,"brick");
+  assert.equal(memory.has("rcc-career"),false);
+  assert.equal(gameRuntime(bridge).run("loadCareer().wid"),"brick");
 });
