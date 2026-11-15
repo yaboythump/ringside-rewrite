@@ -393,10 +393,11 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
   .battle-actions{grid-column:1/-1}
 }
 /* Use the roomier layout when the actual touch viewport can fit both panels. */
+.live-ring{display:none}
 @media(min-width:560px) and (min-height:510px) and (pointer:coarse){
   .app:has(>.battle){max-width:1100px}
-  .battle{grid-template-columns:minmax(0,4fr) minmax(0,5fr);grid-template-rows:minmax(0,1fr) auto;gap:12px}
-  .battle-hud{grid-column:1;grid-row:1/-1;grid-template-columns:minmax(0,1fr);align-content:start;gap:8px;
+  .battle{grid-template-columns:minmax(0,4fr) minmax(0,5fr);grid-template-rows:minmax(0,1fr) clamp(108px,25dvh,228px) auto;gap:8px}
+  .battle-hud{grid-column:1;grid-row:1;grid-template-columns:minmax(0,1fr);align-content:start;gap:6px;
     min-height:0;overflow:auto;overscroll-behavior:contain}
   .battle .fighter.me,.battle .fighter.them{grid-area:auto}
   .battle .fighter.them{grid-row:3}
@@ -405,6 +406,7 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
   .battle .fighter .portrait{width:38px}
   .battle .fighter .name{margin-right:40px}
   .battle .intent{flex-direction:row;align-items:center;gap:5px}
+  .battle .ticker{position:sticky;bottom:0;z-index:4;background:#121217}
   .battle .ticker .now{font-size:19px}
   .battle .ticker .prev{display:block;font-size:12px}
   .battle-hand{grid-column:2;grid-row:1}
@@ -412,7 +414,57 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
   .battle .card{min-height:108px;padding:8px 9px 10px}
   .battle .card:has(.combo){padding-bottom:24px}
   .battle .card p{font-size:13px}
-  .battle-actions{grid-column:2;grid-row:2}
+  .battle-actions{grid-column:2;grid-row:3}
+  .live-ring{display:block;grid-area:2/1/3/-1;position:relative;isolation:isolate;overflow:hidden;container-type:size;
+    border:1px solid #9c763f;background:radial-gradient(ellipse at 50% 0,#6b413a,transparent 63%),linear-gradient(#0b0b12,#251d2b 56%,#0b0b12);box-shadow:inset 0 0 22px #000}
+  .ring-mat{position:absolute;inset:43% 6% 6%;background:radial-gradient(ellipse,#c9c5c3,#706976);clip-path:polygon(13% 0,87% 0,100% 100%,0 100%);box-shadow:inset 0 -7px #302335}
+  .ring-ropes{position:absolute;inset:24% 13% 44%;border-block:2px solid #ac5261;
+    background:linear-gradient(transparent 47%,#d16e7b 47% 53%,transparent 53%);box-shadow:0 0 14px #b9253b40}
+  .ring-ropes::before,.ring-ropes::after{content:"";position:absolute;top:-8px;bottom:-8px;width:6px;background:linear-gradient(90deg,#392938,#9b7d87,#241c26)}
+  .ring-ropes::before{left:0}.ring-ropes::after{right:0}
+  .ring-apron{position:absolute;bottom:5%;left:6%;right:6%;height:8%;background:#2c2133;border-top:2px solid #b78957}
+  .ring-call{position:absolute;z-index:3;top:5px;left:8px;right:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    color:var(--gold-hi);font:700 11px var(--label);letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 4px #000}
+  .ring-actor{--sign:1;--reach:42cqh;position:absolute;bottom:15%;left:calc(50% - 54cqh);width:43cqh;height:61cqh;
+    transform-origin:50% 94%;z-index:2;filter:drop-shadow(0 4px 4px #100812a8)}
+  .ring-actor.opponent{--sign:-1;left:auto;right:calc(50% - 54cqh)}
+  .ring-body{position:absolute;inset:0;transform:scaleX(var(--sign))}
+  .ring-part{position:absolute;display:block;border:1px solid #17101b;background:linear-gradient(115deg,#fff4,transparent 42%,#0006),var(--skin);box-sizing:border-box}
+  .ring-body .portrait{position:absolute;z-index:3;top:0;left:30%;width:40%;aspect-ratio:1.03;border-radius:48%;clip-path:none;outline:1px solid #120d15}
+  .ring-body .portrait img{position:absolute;inset:0 auto auto -32%;width:164%;height:164%;object-fit:cover;object-position:center top}
+  .ring-body .portrait::after,.ring-body .crest{display:none}
+  .ring-torso{z-index:2;left:23%;right:23%;top:21%;height:37%;border-radius:36% 36% 24% 24%;
+    background:linear-gradient(125deg,#fff5,transparent 40%,#0008),var(--gear);border-bottom:3px solid #d7ae68}
+  .ring-arm{top:26%;height:29%;width:20%;border-radius:45%;transform-origin:50% 19%}
+  .ring-arm.rear{left:16%;transform:rotate(24deg)}
+  .ring-arm.lead{right:12%;z-index:3;transform:rotate(-37deg);border-bottom:4px solid var(--gear)}
+  .ring-leg{top:54%;width:20%;height:45%;border-radius:24%;transform-origin:50% 10%;
+    background:linear-gradient(115deg,#fff3,transparent 40%,#0007),var(--gear);border-bottom:7px solid #17131d}
+  .ring-leg.rear{left:27%;transform:rotate(18deg)}.ring-leg.lead{right:27%;transform:rotate(-20deg)}
+  .ring-actor[data-reaction="hit"]{animation:ring-recoil .58s ease-out}
+  .ring-actor[data-reaction="throw"]{animation:ring-thrown .73s ease-out}
+  .ring-actor[data-reaction="held"]{animation:ring-held .72s ease-out}
+  .ring-actor[data-reaction="guard"] .ring-arm.lead{animation:ring-guard .6s ease-out}
+  .ring-actor[data-action="strike"],.ring-actor[data-action="grapple"],.ring-actor[data-action="hold"],.ring-actor[data-action="finisher"]{animation:ring-step .65s ease-out}
+  .ring-actor[data-action="strike"] .ring-arm.lead{animation:ring-strike .58s ease-out}
+  .ring-actor[data-action="grapple"] .ring-arm,.ring-actor[data-action="hold"] .ring-arm,.ring-actor[data-action="finisher"] .ring-arm{animation:ring-grab .65s ease-out}
+  .ring-actor[data-action="air"]{animation:ring-dive .73s ease-out}
+  .ring-actor[data-action="air"] .ring-leg.lead{animation:ring-kick .73s ease-out}
+  .ring-actor[data-action="defense"] .ring-arm.lead{animation:ring-guard .62s ease-out}
+  .ring-actor[data-action="hype"] .ring-arm{animation:ring-cheer .68s ease-out}
+  .ring-actor[data-action="tag"]{animation:ring-entry .62s ease-out}
+  .live-ring[data-still] .ring-actor,.live-ring[data-still] .ring-part{animation:none!important}
+  @keyframes ring-step{35%,55%{transform:translateX(calc(var(--reach)*var(--sign))) rotate(calc(11deg*var(--sign)))}}
+  @keyframes ring-strike{37%,52%{transform:rotate(-94deg) scaleY(1.42)}}
+  @keyframes ring-grab{32%,58%{transform:rotate(-83deg) scaleY(1.25)}}
+  @keyframes ring-dive{42%{transform:translate(calc(var(--reach)*var(--sign)),-27%) rotate(calc(40deg*var(--sign)))}}
+  @keyframes ring-kick{42%{transform:rotate(-77deg)}}
+  @keyframes ring-recoil{38%,58%{transform:translateX(calc(-14px*var(--sign))) rotate(calc(-21deg*var(--sign)))}}
+  @keyframes ring-thrown{40%{transform:translate(calc(-28px*var(--sign)),-18%) rotate(calc(-75deg*var(--sign)))}65%{transform:translateX(calc(-22px*var(--sign))) rotate(calc(-55deg*var(--sign)))}}
+  @keyframes ring-held{35%,65%{transform:translateX(calc(9px*var(--sign))) rotate(calc(32deg*var(--sign))) scaleY(.78)}}
+  @keyframes ring-guard{25%,67%{transform:translateY(-13%) rotate(-146deg)}}
+  @keyframes ring-cheer{25%,65%{transform:rotate(-159deg)}}
+  @keyframes ring-entry{from{opacity:.2;transform:translateX(calc(-45px*var(--sign)))}}
 }
 @media(min-width:820px) and (min-height:510px) and (pointer:coarse){
   .battle .hand{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -440,6 +492,7 @@ const MOTION_KEY=PREVIEW?"rcc-preview-low-motion":"rcc-low-motion";
 let lowMotion=false;
 try{lowMotion=gameStorage.getItem(MOTION_KEY)==="1";}catch(e){}
 const still=()=>RM||lowMotion;
+const ringSpace=matchMedia("(min-width:560px) and (min-height:510px) and (pointer:coarse)");
 
 
 const WRESTLERS = {
@@ -959,6 +1012,7 @@ function playerTag(){
   if(G.mode!=="tag"||G.busy||G.over)return;
   const next=swapTag("p","pBench");
   next.energy=0;
+  ringAction("p","tag",`${next.w.name} tags in`);
   say(`${next.w.name} tags in!`);SFX.tag();crowd(75);
   endTurn();
 }
@@ -1076,7 +1130,7 @@ async function startMatch(){
     G.log=[`${label}. ${G.o.w.name} is waiting in the ring.`];
   }
   if(typeof scrollTo==="function") scrollTo(0,0);
-  G.turn=1; G.busy=true; G.over=false; G.bars={}; G.stats={fin:0,kicks:0,rev:0}; G.lastType=null;
+  G.turn=1; G.busy=true; G.over=false; G.bars={}; G.stats={fin:0,kicks:0,rev:0}; G.lastType=null; G.ring=null;
   pickIntent(); dealHand(); render();
   await vsSplash();
   G.busy=false; render();
@@ -1152,12 +1206,14 @@ function playCard(i){
   if(!Object.hasOwn(CARDS,id)||c.cost>p.energy) return;
   p.energy-=c.cost;p.hand.splice(i,1);p.discard.push(id);G.dealt=false;SFX.card();
   let msg=`${c.name}!`;
+  let ringHit=null;
   if(c.dmg){
     const combo=c.type==="grapple"&&G.lastType==="strike";
     let d=cardDmg(c);
     if(p.weak>0) d=Math.max(0,d-3);
     const previousBlock=o.block;
     const dealt=damage(o,d,{ignoreBlock:c.pierce});
+    ringHit=dealt;
     const blocked=previousBlock-o.block;
     msg=`${combo?"COMBO! ":""}${c.name} for ${dealt}${blocked?` (${blocked} blocked)`:""}!`;
     impact("o",dealt,false);G.lastType=c.type;if(combo)crowd(60);
@@ -1186,6 +1242,9 @@ function playCard(i){
   if(c.reversal){p.reversal=true;msg="Reversal ready.";}
   if(c.energy){p.energy+=c.energy;msg=`${c.name}! +${c.energy} energy.`;}
   if(c.draw) draw(p,c.draw);
+  const air=["dropkick","springboard","moonsault","elbow","crossbody","rolling"].includes(id);
+  const hold=["headlock","sleeper","anklelock","crab","heelhook"].includes(id);
+  ringAction("p",air?"air":hold?"hold":c.type,c.name,ringHit);
   say(msg);
   if(checkPin(o,p)) return;
   render();
@@ -1213,6 +1272,7 @@ async function useFinisher(){
   await finisherSplash(p.w,true);
   p.hype=0;G.stats.fin++;
   const dealt=finishMove(p,o);
+  ringAction("p","finisher",f.name,dealt);
   impact("o",dealt,true);
   say(`${f.name}! ${dealt} damage!`);
   gainHype(o,1);
@@ -1234,25 +1294,31 @@ function oppAct(){
   if(it.type==="finisher"){
     o.hype=0;G.stats.fin++;
     const dealt=finishMove(o,p);
+    ringAction("o","finisher",it.label,dealt);
     impact("p",dealt,true);msg=`${o.w.name} hits the ${it.label}! ${dealt} damage!`;
   } else if((it.type==="grapple"&&p.reversal)||(it.type==="strike"&&p.strikeCounter)){
     const tech=it.type==="grapple"&&p.w.archetype==="tech";
     const back=it.type==="strike"?4:tech?8:5;
     if(tech) p.block+=3;
     const dealt=damage(o,back);impact("o",dealt,false);crowd(60);
+    ringAction("p","strike","Reversal",dealt);
     gainHype(p,2);G.stats.rev++;msg=`REVERSED! You counter for ${dealt}!`;
   } else if(it.type==="strike"||it.type==="grapple"){
     if(p.reversal&&it.type==="strike") p.block+=3;
     let d=it.dmg;if(o.weak>0)d=Math.max(0,d-3);
     const dealt=damage(p,d);impact("p",dealt,false);
+    ringAction("o",it.type,it.label,dealt);
     gainHype(o,it.type==="grapple"?2:1);gainHype(p,1);
     msg=`${o.w.name} ${it.type==="grapple"?"grapples":"strikes"} for ${dealt}${dealt<d?` (${d-dealt} blocked)`:""}.`;
   } else if(it.type==="tag"){
     const next=swapTag("o","oBench");SFX.tag();crowd(75);msg=`${next.w.name} tags in!`;
+    ringAction("o","tag",msg);
   } else if(it.type==="defense"){
     o.block=it.block;msg=`${o.w.name} covers up. Blocking ${it.block}.`;
+    ringAction("o","defense","Block");
   } else {
     gainHype(o,it.hype);crowd(30);msg=`${o.w.name} plays to the crowd. +${it.hype} hype.`;
+    ringAction("o","hype","Play to the crowd");
   }
   if(o.weak>0&&it.type!=="defense"&&it.type!=="hype") o.weak--;
   say(msg);
@@ -1267,7 +1333,8 @@ function checkPin(down,up,afterOpponent=false){
   if(down.hp>0) return false;
   G.busy=true;render();
   const canKick=!down.kicked&&down.hype>=5&&G.stip!=="cage";
-  pinCount(canKick).then(()=>{
+  const beat=ringSpace.matches&&!still()&&G.ring?wait(430):Promise.resolve();
+  beat.then(()=>pinCount(canKick)).then(()=>{
     if(canKick){
       down.kicked=true;down.hype-=5;down.hp=5;G.stats.kicks++;crowd(120);
       say(`${down.w.name} KICKS OUT AT TWO!`);
@@ -2031,6 +2098,27 @@ function tipHTML(){
 /* ---------- render ---------- */
 let pendingFx=[];
 function fx(who,amount,big){pendingFx.push({who,amount,big});}
+function ringAction(side,kind,label,hit=null){
+  const reaction=hit===null?"":hit===0?"guard":kind==="hold"?"held":kind==="grapple"||kind==="finisher"?"throw":"hit";
+  G.ring={side,kind,label,reaction,fresh:true};
+}
+function ringActor(fighter,side,action){
+  const w=fighter.w,skin=w.appearance?.skin??0;
+  const cue=action?.fresh?(action.side===side?` data-action="${action.kind}"`:action.reaction?` data-reaction="${action.reaction}"`:""):"";
+  return `<div class="ring-actor ${side==="p"?"player":"opponent"}" data-wrestler="${esc(w.id)}"${cue} style="--gear:${w.color};--skin:${SKINS[skin]}">
+    <div class="ring-body">${portrait(w)}<i class="ring-part ring-torso"></i>
+      <i class="ring-part ring-arm rear"></i><i class="ring-part ring-arm lead"></i>
+      <i class="ring-part ring-leg rear"></i><i class="ring-part ring-leg lead"></i>
+    </div></div>`;
+}
+function liveRingHTML(){
+  const cue=G.ring;
+  return `<div class="live-ring" aria-hidden="true"${still()?" data-still":""}>
+    <div class="ring-ropes"></div><div class="ring-mat"></div><div class="ring-apron"></div>
+    <div class="ring-call">${esc(cue?`${G[cue.side].w.name} · ${cue.label}`:`${G.p.w.name} vs ${G.o.w.name}`)}</div>
+    ${ringActor(G.p,"p",cue)}${ringActor(G.o,"o",cue)}
+  </div>`;
+}
 
 function fighterHTML(f,who){
   const pct=(f.hp/f.max*100);
@@ -2084,6 +2172,7 @@ function render(){
     ${tipHTML()}
     <div class="hand">${p.hand.map((id,i)=>cardHTML(id,i,p)).join("")||`<p class="howto">No cards left. End your turn.</p>`}</div>
   </div>
+  ${liveRingHTML()}
   <div class="actions battle-actions">
     <button class="btn fin" id="fin" ${p.hype<HYPE_MAX||G.busy?"disabled":""}>${esc(p.w.fin.name)}</button>
     ${G.mode==="tag"?`<button class="btn" id="tag" ${G.busy?"disabled":""}>Tag partner</button>`:""}
@@ -2091,6 +2180,7 @@ function render(){
     <button class="btn primary" id="end" ${G.busy?"disabled":""}>End turn</button>
   </div></div>`;
   if(handScroll) app.querySelector(".battle-hand").scrollTop=handScroll;
+  if(G.ring) G.ring.fresh=false;
   G.fresh=false; G.dealt=false;
   app.querySelectorAll(".card").forEach(b=>b.onclick=()=>playCard(+b.dataset.i));
   $("#tag")?.addEventListener("click",playerTag);

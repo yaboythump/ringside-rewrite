@@ -136,25 +136,33 @@ const legacy={
         }));
         await p.setViewportSize({width:466,height:678});
         assert.deepEqual(await positions(),{split:false,atTop:true,controls:true},"Duo closed");
+        assert.equal(await button(".live-ring").isVisible(),false);
         const before=await turnState();
         for(const viewport of [{width:890,height:626},{width:626,height:890}]){
           await p.setViewportSize(viewport);
           assert.deepEqual(await positions(),{split:true,atTop:true,controls:true},"Duo open");
+          await visible(".live-ring");
+          assert.equal(await p.locator(".live-ring .ring-actor").count(),2);
+          assert.equal(await p.locator('.live-ring .ring-actor[data-wrestler="custom"]').count(),1);
           assert.deepEqual(await turnState(),before,"Unfolding or rotating preserves the live turn");
           await noOverflow();
         }
         // Set up a known strike within the live match, then use the real card click.
         await p.evaluate(()=>{G.p.hand[0]="chop";G.o.block=0;render();});
         await click('.hand [data-i="0"]');
+        await visible('.ring-actor.player[data-action="strike"]');
+        await visible('.ring-actor.opponent[data-reaction="hit"]');
+        assert.match(await button(".ring-call").textContent(),/Rose & Thorn · Chop/);
         const after=await turnState();
         assert.ok(after.hp[1]<before.hp[1]);
         assert.match(after.message,new RegExp("for "+(before.hp[1]-after.hp[1])));
         await p.setViewportSize({width:466,height:678});
         assert.deepEqual(await positions(),{split:false,atTop:true,controls:true},"Duo refolded");
+        assert.equal(await button(".live-ring").isVisible(),false);
         assert.deepEqual(await turnState(),after,"Refolding preserves damage and the remaining cards");
         assert.match(await button(".ticker .now").textContent(),/for [1-9]/);
         await p.setViewportSize(original);
-        console.log("iPhone Duo closed/open/rotated/refolded: controls visible, cards and damage preserved");
+        console.log("iPhone Duo closed/open/rotated/refolded: live wrestlers react to a card, controls and damage stay visible");
       }
       const career=await complete();
       const result=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
