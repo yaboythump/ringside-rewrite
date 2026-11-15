@@ -1,0 +1,300 @@
+"use strict";
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(path.join(__dirname, "..", "src.html"), "utf8");
+const script = html.split("<script>")[1]?.split("</script>")[0];
+assert.ok(script, "Game script exists");
+
+const start = script.indexOf("const WRESTLERS = {");
+const end = script.indexOf("let G=null;", start);
+assert.ok(start !== -1 && end > start, "Pure card and roster definitions exist");
+
+// Evaluate the actual production card definitions and gameplay helpers, not mocks.
+const sandbox = {};
+vm.runInNewContext(
+  script.slice(start, end) +
+  "\nglobalThis.testing={WRESTLERS,CARDS,BASE_DECK,cardCounts,normalizeLoadout,equipCard,unequipCard,unlockCard,MIN_CAMP_DECK,MAX_CAMP_DECK};",
+  sandbox
+);
+const {WRESTLERS,CARDS,BASE_DECK,cardCounts,normalizeLoadout,equipCard,unequipCard,unlockCard,MIN_CAMP_DECK,MAX_CAMP_DECK} = sandbox.testing;
+const initial = (id="raven") => [...BASE_DECK,...WRESTLERS[id].sig,...WRESTLERS[id].sig.slice(0,1)];
+
+test("whole game JavaScript parses", () => {
+  assert.doesNotThrow(() => new vm.Script(script));
+});
+
+test("older careers acquire a move collection without losing their deck", () => {
+  const cards = initial();
+  const save = {wid:"raven",deck:[...cards]};
+  normalizeLoadout(save);
+  assert.equal(save.deck.join(","),cards.join(","));
+  assert.equal(save.collection.join(","),cards.join(","));
+  assert.equal(save.deck.length,15);
+});
+
+test("repeated normalization cannot duplicate earned cards", () => {
+  const save = {wid:"raven",deck:initial()};
+  normalizeLoadout(save);
+  normalizeLoadout(save);
+  assert.equal(save.collection.length,save.deck.length);
+});
+
+test("unequipping keeps a permanent copy available for re-equipping", () => {
+  const save = normalizeLoadout({wid:"raven",deck:initial()});
+  const before = save.collection.length;
+  assert.equal(unequipCard(save,"chop"),true);
+  assert.equal(save.collection.length,before);
+  assert.equal(save.deck.length,14);
+  assert.equal(equipCard(save,"chop"),true);
+  assert.equal(save.deck.length,15);
+  assert.equal(save.collection.length,before);
+  assert.equal(equipCard(save,"spear"),false,"unearned moves cannot be equipped");
+});
+
+test("deck floor of 10 and ceiling of 20 are enforced", () => {
+  const save = normalizeLoadout({wid:"raven",deck:initial()});
+  while(save.deck.length>MIN_CAMP_DECK) assert.equal(unequipCard(save,save.deck[0]),true);
+  assert.equal(unequipCard(save,save.deck[0]),false);
+  assert.equal(save.deck.length,MIN_CAMP_DECK);
+  const missing = 11;
+  for(let i=0;i<missing;i++) save.collection.push("spear");
+  while(save.deck.length<MAX_CAMP_DECK) assert.equal(equipCard(save,"spear"),true);
+  assert.equal(equipCard(save,"spear"),false);
+  assert.equal(save.deck.length,MAX_CAMP_DECK);
+});
+
+test("training adds to the collection and automatically equips only when room exists", () => {
+  const save = normalizeLoadout({wid:"raven",deck:initial()});
+  const before = save.deck.length;
+  assert.equal(unlockCard(save,"spear"),true);
+  assert.equal(save.deck.length,before+1);
+  assert.equal(cardCounts(save.collection).spear,1);
+  while(save.deck.length<MAX_CAMP_DECK) unlockCard(save,"spear");
+  const wasEarned = save.collection.length;
+  assert.equal(unlockCard(save,"spear"),true);
+  assert.equal(save.deck.length,MAX_CAMP_DECK);
+  assert.equal(save.collection.length,wasEarned+1);
+});
+
+test("invalid and malformed saved card IDs do not enter the deck", () => {
+  const save = normalizeLoadout({wid:"brick",deck:[...initial("brick"),"not-a-card"],collection:["not-a-card"]});
+  assert.ok(save.deck.every(id=>!!CARDS[id]));
+  assert.ok(save.collection.every(id=>!!CARDS[id]));
+  assert.equal(equipCard(save,"not-a-card"),false);
+  assert.equal(unlockCard(save,"not-a-card"),false);
+});
+
+test("legacy decks above the new cap retain existing cards until the user removes them", () => {
+  const longDeck = [...initial(),...initial()];
+  const save = normalizeLoadout({wid:"raven",deck:longDeck});
+  assert.equal(save.deck.length,longDeck.length);
+  assert.equal(equipCard(save,"chop"),false);
+  assert.ok(save.collection.length>=save.deck.length);
+});
+
+test("the career UI exposes Fight Camp, weekly training and save protection", () => {
+  assert.match(html,/id="fight-camp"/);
+  assert.match(html,/function fightCamp\(\)/);
+  assert.match(html,/function train\(\)/);
+  assert.match(html,/collection:\[\.\.\.startingDeck\]/);
+  assert.match(html,/window\.confirm\("Start a new career\?/);
+  assert.match(html,/unlockCard\(C,id\)/);
+  assert.match(html,/rcc-career/);
+});
+
+function gameRuntime(){
+  const no = () => {};
+  const gradient = {addColorStop:no};
+  const ctx = new Proxy({}, {
+    get:(_,name)=>name==="createLinearGradient"||name==="createRadialGradient"?()=>gradient:no,
+    set:()=>true
+  });
+  const button = {onclick:null,classList:{add:no,remove:no},appendChild:no,addEventListener:no,focus:no,scrollIntoView:no,style:{}};
+  const app = {innerHTML:"",querySelectorAll:()=>[],querySelector:()=>button};
+  const cv = {getContext:()=>ctx};
+  const memory=new Map();
+  const doc={
+    body:{classList:{toggle:no},appendChild:no},
+    querySelector:sel=>sel==="#app"?app:sel==="#arena"?cv:button,
+    querySelectorAll:()=>[],
+    addEventListener:no,
+    createElement:()=>({className:"",style:{},innerHTML:"",remove:no,querySelector:()=>button})
+  };
+  const hot={ready:no,snapshot:no};
+  const win={claude:{hot},confirm:()=>true};
+  const runtime=vm.createContext({
+    document:doc,window:win,matchMedia:()=>({matches:true}),
+    Image:class{set src(value){this._src=value}},
+    addEventListener:no,requestAnimationFrame:no,setTimeout:fn=>{fn();},
+    innerWidth:375,innerHeight:740,devicePixelRatio:1,
+    localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)}
+  });
+  vm.runInContext(script,runtime,{timeout:3000});
+  return {app,memory,run:code=>vm.runInContext(code,runtime,{timeout:3000})};
+}
+
+test("Fight Camp can render after starting an actual career in a DOM harness", () => {
+  const {app,memory,run}=gameRuntime();
+  run("newCareer('raven');fightCamp();");
+  assert.match(app.innerHTML,/Scout your opponent/);
+  assert.match(app.innerHTML,/Unlocked reserves/);
+  assert.match(app.innerHTML,/Equipped deck/);
+  assert.match(app.innerHTML,/Coach.s read/);
+  assert.match(app.innerHTML,/To the ring/);
+  assert.ok(memory.has("rcc-career"),"Career state saved locally");
+});
+
+test("all 24 wrestlers have valid decks, a finisher and a divisional opponent pool", () => {
+  const {run}=gameRuntime();
+  assert.equal(run("roster().length"),24);
+  assert.equal(run("roster().filter(w=>divisionOf(w.id)==='women').length"),8);
+  assert.equal(run("roster().every(w=>w.hp>0&&w.fin.dmg>0&&w.sig.length>=2&&w.sig.every(id=>Object.hasOwn(CARDS,id)))"),true);
+});
+
+test("Create-a-Wrestler validates real selections and survives a save reload", () => {
+  const {run,app}=gameRuntime();
+  run(`
+    const input={name:'  <Rook>  & Rose ',style:'tech',palette:'jade',look:'mask',skin:3,gear:'elite',
+      personality:'villain',finisher:'dive',move:'haymaker',division:'women'};
+    const made=customWrestler(input);
+    newCareer(made.id,made);
+  `);
+  assert.match(app.innerHTML,/&lt;Rook&gt; &amp; Rose/);
+  assert.equal(run("loadCareer().profile.name"),"<Rook> & Rose");
+  assert.equal(run("C.champ"),"imani");
+  assert.equal(run("C.align"),-2);
+  assert.equal(run("C.deck.includes('haymaker')"),true);
+  assert.equal(run("WRESTLERS.custom.fin.pierce"),true);
+  assert.equal(run("customWrestler({...input,style:'constructor'})"),null);
+  assert.equal(run("customWrestler({...input,name:'   '})"),null);
+  assert.equal(run("C.contenders.every(id=>divisionOf(id)==='women')"),true);
+});
+
+test("legacy career keeps rank, deck, booking, records, defenses, and champion peak", () => {
+  const {run,memory}=gameRuntime();
+  const deck=initial();
+  memory.set("rcc-career",JSON.stringify({
+    wid:"raven",champ:"silas",contenders:["dutch","raven","kid","brick","tank","jett","ox"],
+    booked:{id:"dutch",title:false,stip:null},news:["Prior show"],week:13,w:8,l:4,peak:0,defenses:3,reigns:1,deck
+  }));
+  assert.equal(run("C=loadCareer(); C.contenders.indexOf('raven')"),1);
+  assert.equal(run("C.booked.id"),"dutch");
+  assert.equal(run("C.week"),13);
+  assert.equal(run("C.w+C.l"),12);
+  assert.equal(run("C.defenses"),3);
+  assert.equal(run("C.reigns"),1);
+  assert.equal(run("C.peak"),0);
+  assert.equal(run("C.deck.join(',')"),deck.join(","));
+  assert.equal(run("C.collection.join(',')"),deck.join(","));
+  assert.equal(run("C.history.length"),0);
+});
+
+test("World Championship booking takes priority over a rivalry, records a reign then defense and loss", () => {
+  const {run}=gameRuntime();
+  run(`newCareer('raven'); C.week=4; C.arc={foe:'kid',heat:5}; C.booked=null;
+    C.contenders=['raven',...C.contenders.filter(id=>id!=='raven')];`);
+  assert.equal(run("book().title"),"main");
+  assert.equal(run("C.booked.id"),"silas");
+  assert.equal(run("recordCareerMatch(true,4).wonTitle"),true);
+  assert.equal(run("C.champ"),"raven");
+  assert.equal(run("C.history[0].title"),"World Championship");
+  assert.equal(run("C.contenders.includes('raven')"),false);
+  run("C.week=8;book();recordCareerMatch(true,3);");
+  assert.equal(run("C.defenses"),1);
+  assert.equal(run("C.history[0].action"),"retained");
+  run("C.week=12;book();recordCareerMatch(false,3);");
+  assert.equal(run("C.contenders.filter(id=>id==='raven').length"),1);
+  assert.equal(run("C.contenders.includes(C.champ)"),false);
+  assert.equal(run("C.history.length"),3);
+  assert.equal(run("C.results.length"),3);
+});
+
+test("Continental win leaves the World holder and rankings intact", () => {
+  const {run}=gameRuntime();
+  run(`newCareer('brick'); C.week=4; C.booked=null;
+    C.contenders=C.contenders.filter(id=>id!=='brick');C.contenders.splice(1,0,'brick');`);
+  assert.equal(run("book().title"),"secondary");
+  run("recordCareerMatch(true,3);");
+  assert.equal(run("C.secondary"),"brick");
+  assert.equal(run("C.champ"),"silas");
+  assert.equal(run("myRank()"),1);
+  assert.equal(run("C.history[0].title"),"Continental Championship");
+});
+
+test("Women's career uses a separate roster and championship history", () => {
+  const {run}=gameRuntime();
+  run("newCareer('nova');C.week=4;C.booked=null;C.contenders=['nova',...C.contenders.filter(id=>id!=='nova')];book();recordCareerMatch(true,3);");
+  assert.equal(run("C.champ"),"nova");
+  assert.equal(run("C.secondary"),null);
+  assert.match(run("C.history[0].title"),/Women.s Championship/);
+});
+
+test("training tiers unlock with XP and match rewards remain owned", () => {
+  const {run}=gameRuntime();
+  run("newCareer('brick');");
+  assert.equal(run("availableTraining(C).includes('roundhouse')"),false);
+  assert.equal(run("availableTraining(C).includes('rolling')"),false);
+  assert.equal(run("C.xp=44; recordCareerMatch(true,3).level"),2);
+  assert.equal(run("C.collection.length"),16);
+  assert.equal(run("availableTraining(C).includes('roundhouse')"),true);
+  assert.equal(run("C.xp=135;availableTraining(C).includes('rolling')"),true);
+});
+
+test("faction pacts affect the next bout and betrayal sets up a persistent feud", () => {
+  const {run}=gameRuntime();
+  run("newCareer('brick');storyOffer(C).actions[0][1]();");
+  assert.equal(run("C.arc.faction"),"guild");
+  assert.equal(run("C.hpMod"),5);
+  run("const ally=C.arc.ally;storyOffer(C).actions[1][1]();saveCareer();C=loadCareer();");
+  assert.equal(run("C.arc.ally"),null);
+  assert.equal(run("C.arc.foe===ally&&C.arc.heat===4&&C.align<0"),true);
+});
+
+test("eight-entrant tournament advances all bracket sides and crowns one wrestler", () => {
+  const {run}=gameRuntime();
+  run(`const rounds=buildBracket(['brick','raven','dutch','kid','tank','jett','ox','silas']);
+    for(let i=0;i<3;i++) resolveBracket(rounds,i,'brick',true,(a,b)=>b);`);
+  assert.equal(run("rounds[0].filter(b=>b.winner).length"),4);
+  assert.equal(run("rounds[1].filter(b=>b.winner).length"),2);
+  assert.equal(run("rounds[2][0].winner"),"brick");
+  assert.equal(run("rounds[2][0].b"),"silas");
+});
+
+test("blocked hits preserve Exposed, piercing hits consume it, and finishers apply their effect", () => {
+  const {run}=gameRuntime();
+  run("const defender=makeFighter('brick'), attacker=makeFighter('raven');defender.exposed=true;defender.block=11;");
+  assert.equal(run("damage(defender,5)"),0);
+  assert.equal(run("defender.exposed"),true);
+  assert.equal(run("finishMove(attacker,defender)"),19);
+  assert.equal(run("defender.exposed"),false);
+  assert.equal(run("defender.block"),6);
+});
+
+test("a grapple reversal that drops the AI to zero resolves a pin", async () => {
+  const {run}=gameRuntime();
+  run(`G={mode:'exhibition',pid:'dutch',oid:'brick',round:0,log:[],turn:1,stats:{fin:0,kicks:0,rev:0},bars:{},
+    p:makeFighter('dutch'),o:makeFighter('brick'),intent:{type:'grapple',dmg:10}};
+    G.p.reversal=true;G.o.hp=4;oppAct();`);
+  assert.equal(run("G.busy"),true);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(run("G.over"),true);
+  assert.equal(run("G.stats.rev"),1);
+});
+
+test("tag commits the turn, preserves bench health and can award the belts", async () => {
+  const {run,memory}=gameRuntime();
+  assert.equal(run("startTag('brick','brick','silas','tank',false)"),false);
+  assert.equal(run("startTag('brick','raven','silas','tank',true)"),true);
+  await new Promise(resolve=>setImmediate(resolve));
+  run("G.intent={type:'hype',hype:3};G.p.hp=33;playerTag();");
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(run("G.p.w.id"),"raven");
+  assert.equal(run("G.pBench.hp"),33);
+  assert.equal(run("G.turn"),2);
+  run("finishMatch(true);");
+  assert.deepEqual(JSON.parse(memory.get("rcc-tag")),["brick","raven"]);
+});
