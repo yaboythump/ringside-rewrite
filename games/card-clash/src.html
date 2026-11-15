@@ -1,0 +1,1027 @@
+<title>Ringside Card Clash</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Extra+Condensed:ital,wght@0,600;0,800;0,900;1,800;1,900&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: fight-night broadcast column over a live arena canvas. Opponent up top, ring ticker in the middle, you below, foil cards at the bottom. Single dark arena look by choice. */
+:root{
+  --bg:#060608; --panel:rgba(18,18,22,.78); --panel-2:#1c1c22; --line:#2c2c34;
+  --fg:#f1efe8; --muted:#8f8f99; --steel:#c3c6cf;
+  --gold:#e2bd62; --gold-hi:#fff1c4; --gold-deep:#8f6a22; --crimson:#d1213b; --crimson-deep:#6d0f1d; --good:#64d18a;
+  --strike:#ff7a3d; --grapple:#ff3d5a; --defense:#7fb2ff; --hype:#ffd25e; --finisher:#ffe08a;
+  --display:"Saira Extra Condensed","Arial Narrow",Impact,sans-serif;
+  --body:Barlow,system-ui,sans-serif;
+  --label:"Barlow Condensed","Arial Narrow",sans-serif;
+  --metal:linear-gradient(180deg,var(--gold-hi) 0%,var(--gold) 38%,var(--gold-deep) 52%,var(--gold) 70%,var(--gold-hi) 100%);
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;overflow-x:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 28px}
+#arena{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#flash{position:fixed;inset:0;z-index:30;pointer-events:none;background:#fff;opacity:0}
+#flash.go{animation:flash .45s ease-out}
+@keyframes flash{0%{opacity:.75}100%{opacity:0}}
+.app{position:relative;z-index:1;max-width:760px;margin:0 auto;display:grid;gap:14px}
+.app.quake{animation:quake .5s cubic-bezier(.36,.07,.19,.97)}
+@keyframes quake{10%,90%{transform:translate(-2px,1px)}20%,80%{transform:translate(5px,-2px)}30%,50%,70%{transform:translate(-8px,3px)}40%,60%{transform:translate(8px,-3px)}}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+/* type */
+.metal{background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6)) drop-shadow(0 0 18px rgba(226,189,98,.25))}
+.brand{display:flex;align-items:flex-end;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
+.logo{margin:0;font-family:var(--display);font-weight:900;font-style:italic;text-transform:uppercase;line-height:.82;letter-spacing:-.01em}
+.logo .l1{display:block;font-size:clamp(22px,5vw,30px);color:var(--steel);letter-spacing:.18em;font-weight:800}
+.logo .l2{display:block;font-size:clamp(46px,12vw,78px)}
+.tag{font-family:var(--label);letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--muted)}
+.eyebrow{font-family:var(--label);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--gold)}
+
+/* select */
+.roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px}
+.pick{position:relative;text-align:left;display:grid;gap:8px;padding:10px 10px 14px;background:linear-gradient(170deg,rgba(40,40,48,.9),rgba(10,10,12,.92));
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);transition:transform .2s ease,filter .2s}
+.pick::before{content:"";position:absolute;inset:0;padding:1px;background:linear-gradient(160deg,var(--gold),transparent 40%,transparent 70%,var(--gold-deep));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.pick:hover{transform:translateY(-4px) scale(1.015);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}
+.pick h3{font-family:var(--display);font-weight:900;font-style:italic;font-size:30px;line-height:.9;margin:0;text-transform:uppercase}
+.pick p{margin:0;color:var(--steel);font-size:13px;line-height:1.4}
+.pick .fin{font-family:var(--label);font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.statline{display:flex;gap:8px;flex-wrap:wrap;font-family:var(--label);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-variant-numeric:tabular-nums}
+.statline b{color:var(--fg);font-weight:600}
+.tape{font-family:var(--label);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--crimson)}
+
+/* portraits */
+.portrait{aspect-ratio:1;width:100%;max-width:100%;overflow:hidden;position:relative;background:var(--panel-2);
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%)}
+.portrait img{width:100%;height:100%;object-fit:cover;display:block;filter:contrast(1.08) saturate(1.05)}
+.portrait::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.55));pointer-events:none}
+.plate{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden}
+.plate .beam{position:absolute;inset:-20%;background:radial-gradient(ellipse 40% 60% at 50% 0%,rgba(255,255,255,.35),transparent 70%)}
+.plate .ini{position:relative;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(40px,11vw,64px);line-height:1;letter-spacing:-.02em;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.85);text-shadow:0 0 24px rgba(255,255,255,.25)}
+.portrait .note{position:absolute;bottom:6px;left:6px;right:6px;z-index:1;font-family:var(--label);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.7);text-align:center}
+
+/* fighter panels */
+.fighter{position:relative;display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:14px 14px 12px;margin-top:8px;
+  background:linear-gradient(100deg,rgba(28,28,34,.92),rgba(10,10,12,.85));clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px))}
+.fighter::before{content:"";position:absolute;inset:0;padding:2px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
+  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px))}
+.fighter.me::before{background:linear-gradient(110deg,var(--gold-hi),var(--gold) 30%,var(--gold-deep) 60%,var(--gold))}
+.fighter.them::before{background:linear-gradient(110deg,#ff6a7e,var(--crimson) 40%,var(--crimson-deep))}
+.fighter.me{box-shadow:inset 0 0 40px rgba(226,189,98,.08)}
+.fighter.them{box-shadow:inset 0 0 40px rgba(209,33,59,.10)}
+.fighter .portrait{width:92px}
+.side{position:absolute;top:0;left:26px;padding:3px 12px 2px;font-family:var(--display);font-weight:900;font-style:italic;font-size:14px;letter-spacing:.14em;text-transform:uppercase;z-index:2;
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.me .side{background:var(--metal);color:#1a1405}
+.them .side{background:linear-gradient(180deg,#ff5a70,var(--crimson));color:#fff}
+.fighter .name{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(24px,6vw,32px);line-height:.9;text-transform:uppercase;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-top:6px}
+.fighter .name small{font-family:var(--label);font-style:normal;font-weight:600;font-size:12px;letter-spacing:.16em;color:var(--muted)}
+.bars{display:grid;gap:6px;min-width:0}
+.lbl{display:flex;justify-content:space-between;gap:8px;font-family:var(--label);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:-3px}
+.lbl .num{color:var(--fg);font-family:var(--display);font-weight:800;font-size:17px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.lbl .num.ready{background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;animation:glow 1s ease-in-out infinite}
+.bar{height:12px;background:#0a0a0c;position:relative;overflow:hidden;transform:skewX(-18deg);border:1px solid rgba(255,255,255,.08)}
+.bar .ghost{position:absolute;inset:0 auto 0 0;background:#fff;opacity:.85;transition:width .9s cubic-bezier(.2,.8,.2,1) .25s}
+.bar .fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(180deg,#ff6b7a,var(--crimson) 55%,#8c1225);transition:width .25s ease-out;box-shadow:0 0 12px rgba(209,33,59,.6)}
+.me .bar .fill{background:linear-gradient(180deg,#9ff0b8,#2fb565 55%,#147a3f);box-shadow:0 0 12px rgba(100,209,138,.45)}
+.bar .fill.low{animation:low .6s ease-in-out infinite}
+@keyframes low{50%{filter:brightness(1.6)}}
+.bar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),rgba(0,0,0,.5) calc(10% - 1px) 10%)}
+.hype{display:flex;gap:3px;align-items:center}
+.hype span{flex:1;height:8px;background:#0a0a0c;transform:skewX(-18deg);transition:background .2s,box-shadow .2s;border:1px solid rgba(255,255,255,.06)}
+.hype span.on{background:linear-gradient(180deg,var(--gold-hi),var(--gold));box-shadow:0 0 6px rgba(226,189,98,.55)}
+.hype.full span.on{animation:glow 1s ease-in-out infinite}
+@keyframes glow{50%{filter:brightness(1.45);box-shadow:0 0 14px rgba(255,224,138,.9)}}
+.chips{display:flex;gap:6px;flex-wrap:wrap;font-family:var(--label);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.chip{padding:2px 9px;background:rgba(255,255,255,.06);color:var(--steel);clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}
+.chip.block{color:var(--defense)} .chip.weak{color:var(--strike)} .chip.rev{color:var(--good)}
+.intent{display:flex;align-items:center;gap:8px;font-family:var(--label);font-size:14px}
+.intent .k{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.intent .v{padding:3px 12px;font-family:var(--display);font-weight:800;font-style:italic;font-size:17px;text-transform:uppercase;letter-spacing:.03em;background:rgba(255,255,255,.06);clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.intent .v.strike{color:var(--strike)} .intent .v.grapple{color:var(--grapple)} .intent .v.defense{color:var(--defense)} .intent .v.hype{color:var(--hype)}
+.intent .v.finisher{color:#1a1405;background:var(--metal);animation:glow .8s ease-in-out infinite}
+.hit{animation:hit .4s}
+@keyframes hit{0%{filter:brightness(2.2)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-3px)}100%{filter:none}}
+.float{position:absolute;right:18px;top:10px;z-index:3;font-family:var(--display);font-weight:900;font-style:italic;font-size:44px;line-height:1;pointer-events:none;-webkit-text-stroke:2px #000;animation:rise 1s ease-out forwards}
+.float.big{font-size:64px}
+@keyframes rise{0%{opacity:0;transform:translateY(10px) scale(.6)}15%{opacity:1;transform:translateY(0) scale(1.15)}100%{opacity:0;transform:translateY(-34px) scale(1)}}
+
+/* ring ticker */
+.ticker{position:relative;padding:12px 16px 10px;background:linear-gradient(180deg,rgba(10,10,12,.92),rgba(22,22,28,.9));display:grid;gap:3px}
+.ticker::before,.ticker::after{content:"";position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--crimson) 12%,#ff6a7e 50%,var(--crimson) 88%,transparent);box-shadow:0 0 10px rgba(209,33,59,.6)}
+.ticker::before{top:0} .ticker::after{bottom:0}
+.ticker .now{font-family:var(--display);font-weight:800;font-style:italic;font-size:21px;line-height:1.05;text-transform:uppercase;letter-spacing:.01em}
+.ticker .now.pop{animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(1.12);opacity:0}to{transform:none;opacity:1}}
+.ticker .prev{color:var(--muted);font-size:13px}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-family:var(--label);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.energy{display:flex;gap:7px;align-items:center}
+.energy i{width:20px;height:20px;transform:rotate(45deg);border:2px solid var(--gold-deep);display:block;transition:all .2s}
+.energy i.on{background:var(--metal);border-color:var(--gold-hi);box-shadow:0 0 10px rgba(226,189,98,.6)}
+.energy span{margin-left:6px;color:var(--fg)}
+
+/* foil cards */
+.hand{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:10px;perspective:900px}
+.card{--c:var(--steel);position:relative;text-align:left;display:grid;gap:5px;align-content:start;min-height:150px;padding:10px 10px 12px;overflow:hidden;
+  background:linear-gradient(165deg,color-mix(in srgb,var(--c) 32%,#16161b) 0%,#121216 42%,#0b0b0e 100%);
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+  transition:transform .18s ease,filter .18s;animation:deal .35s ease-out backwards;animation-delay:calc(var(--i) * 60ms)}
+.card::before{content:"";position:absolute;inset:0;padding:1.5px;background:linear-gradient(160deg,var(--c),transparent 45%,transparent 65%,var(--c));opacity:.9;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+.card::after{content:"";position:absolute;inset:-40%;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.22) 48%,rgba(255,240,200,.08) 52%,transparent 60%);transform:translateX(-60%);transition:transform .7s ease;pointer-events:none}
+.card:hover:not(:disabled){transform:translateY(-6px) rotateX(6deg);filter:drop-shadow(0 12px 18px color-mix(in srgb,var(--c) 45%,transparent))}
+.card:hover:not(:disabled)::after{transform:translateX(60%)}
+.card:disabled{filter:grayscale(.85) brightness(.55);cursor:not-allowed}
+@keyframes deal{from{opacity:0;transform:translateY(30px) rotate(-4deg)}to{opacity:1;transform:none}}
+.card .top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.card .cost{width:26px;height:26px;flex:none;display:grid;place-items:center;position:relative}
+.card .cost::before{content:"";position:absolute;inset:3px;transform:rotate(45deg);background:var(--metal);box-shadow:0 0 8px rgba(226,189,98,.5)}
+.card .cost b{position:relative;font-family:var(--display);font-weight:900;font-size:17px;color:#1a1405}
+.card .type{font-family:var(--label);font-weight:700;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--c)}
+.card h4{margin:2px 0 0;font-family:var(--display);font-weight:900;font-style:italic;font-size:23px;line-height:.9;text-transform:uppercase}
+.card .big{font-family:var(--display);font-weight:900;font-style:italic;font-size:30px;line-height:1;color:var(--c);text-shadow:0 0 14px color-mix(in srgb,var(--c) 60%,transparent)}
+.card p{margin:0;font-size:12.5px;line-height:1.35;color:var(--steel)}
+.card.sig{--sig:1}
+.card.sig .seal{position:absolute;right:8px;bottom:7px;font-family:var(--label);font-weight:700;font-size:9px;letter-spacing:.18em;text-transform:uppercase;background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent}
+.t-strike{--c:var(--strike)} .t-grapple{--c:var(--grapple)} .t-defense{--c:var(--defense)} .t-hype{--c:var(--hype)}
+
+/* buttons */
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+.btn{padding:13px 22px;font-family:var(--display);font-weight:900;font-style:italic;font-size:22px;text-transform:uppercase;letter-spacing:.04em;background:rgba(255,255,255,.06);color:var(--fg);
+  clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);transition:filter .15s,transform .15s}
+.btn:hover:not(:disabled){filter:brightness(1.2);transform:translateY(-1px)}
+.btn.primary{background:var(--metal);color:#1a1405}
+.btn.fin{background:linear-gradient(110deg,var(--crimson-deep),var(--crimson) 30%,#ff5a70 50%,var(--crimson) 70%,var(--crimson-deep));background-size:220% 100%;color:#fff;animation:sheen 1.4s linear infinite;text-shadow:0 0 12px rgba(255,255,255,.5)}
+@keyframes sheen{to{background-position:-220% 0}}
+.btn:disabled{opacity:.3;cursor:not-allowed;animation:none;filter:grayscale(1)}
+.grow{flex:1}
+
+/* overlays */
+.overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(ellipse at center,rgba(20,14,4,.75),rgba(3,3,4,.94) 70%);
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.count{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(120px,38vw,220px);line-height:1;color:var(--fg);text-align:center;animation:slam .35s cubic-bezier(.2,1.6,.4,1)}
+.count.three{background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 30px rgba(226,189,98,.6))}
+.count.out{color:var(--crimson);font-size:clamp(56px,16vw,110px);text-shadow:0 0 30px rgba(209,33,59,.7)}
+.ref{font-family:var(--label);font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);text-align:center;font-size:13px}
+@keyframes slam{from{transform:scale(2.4);opacity:0}to{transform:none;opacity:1}}
+.vs{width:100%;max-width:640px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
+.vs .side-l{animation:inL .5s cubic-bezier(.2,.9,.3,1.2) both}
+.vs .side-r{animation:inR .5s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes inL{from{transform:translateX(-120%);opacity:0}}
+@keyframes inR{from{transform:translateX(120%);opacity:0}}
+.vs .who{display:grid;gap:8px;justify-items:center;text-align:center}
+.vs .who .portrait{width:min(34vw,200px)}
+.vs .who h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(22px,6vw,38px);line-height:.9;text-transform:uppercase}
+.vs .who small{font-family:var(--label);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:11px}
+.vs .x{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(54px,15vw,110px);line-height:1;animation:slam .4s .35s cubic-bezier(.2,1.6,.4,1) both}
+.vs-foot{grid-column:1/-1;text-align:center;margin-top:8px}
+.finisher{text-align:center;display:grid;gap:6px;justify-items:center}
+.finisher .by{font-family:var(--label);font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--steel);animation:slam .3s both}
+.finisher h2{margin:0;font-family:var(--display);font-weight:900;font-style:italic;text-transform:uppercase;font-size:clamp(54px,16vw,120px);line-height:.85;animation:slam .45s .1s cubic-bezier(.2,1.6,.4,1) both}
+.finisher .streak{width:min(80vw,560px);height:4px;background:var(--metal);box-shadow:0 0 20px var(--gold);animation:streak .5s .2s ease-out both}
+@keyframes streak{from{transform:scaleX(0)}}
+.result{max-width:460px;text-align:center;display:grid;gap:14px;justify-items:center}
+.result h2{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(48px,13vw,84px);line-height:.85;margin:0;text-transform:uppercase;animation:slam .45s cubic-bezier(.2,1.6,.4,1)}
+.result p{margin:0;color:var(--steel);line-height:1.5}
+.belt{font-size:0;width:min(70vw,320px);aspect-ratio:3.2;position:relative;animation:slam .5s .2s cubic-bezier(.2,1.6,.4,1) both}
+.belt::before{content:"";position:absolute;inset:30% 0;background:linear-gradient(180deg,#2a2a2a,#0c0c0c);border-radius:6px}
+.belt::after{content:"";position:absolute;left:30%;right:30%;top:0;bottom:0;background:var(--metal);clip-path:polygon(15% 0,85% 0,100% 50%,85% 100%,15% 100%,0 50%);box-shadow:0 0 30px rgba(226,189,98,.7)}
+img.belt{aspect-ratio:auto;height:auto;filter:drop-shadow(0 0 22px rgba(226,189,98,.45))}
+img.belt.sm{width:min(60vw,240px);animation:none;justify-self:center}
+.ladder{display:flex;gap:6px;flex-wrap:wrap;font-family:var(--label);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.ladder span{padding:4px 10px;background:rgba(255,255,255,.06);color:var(--muted);clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.ladder span.done{color:var(--good)} .ladder span.cur{color:#1a1405;background:var(--metal)}
+.howto{color:var(--steel);font-size:14px;line-height:1.55;margin:0;max-width:65ch;padding:14px 16px;background:var(--panel);border-left:3px solid var(--gold)}
+.howto b{color:var(--gold)}
+.foot{color:var(--muted);font-size:11px;font-family:var(--label);letter-spacing:.08em}
+.skip{font-family:var(--label);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+/* title + career */
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.mode{position:relative;text-align:left;display:grid;gap:8px;padding:18px 18px 20px;background:linear-gradient(160deg,rgba(40,40,48,.9),rgba(10,10,12,.92));
+  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%);transition:transform .2s,filter .2s}
+.mode:hover{transform:translateY(-4px);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}
+.mode h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:40px;line-height:.85;text-transform:uppercase}
+.mode p{margin:0;color:var(--steel);line-height:1.45;font-size:14px}
+.mode .go{font-family:var(--label);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--gold)}
+.mode.primary::before{content:"";position:absolute;inset:0;padding:2px;background:linear-gradient(120deg,var(--gold-hi),var(--gold),var(--gold-deep));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%)}
+.panel{position:relative;padding:14px 16px;background:linear-gradient(160deg,rgba(28,28,34,.9),rgba(10,10,12,.88));display:grid;gap:10px;min-width:0}
+.panel h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:24px;line-height:.9;text-transform:uppercase}
+.hubtop{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:center}
+.hubtop .portrait{width:110px}
+.hubtop h2{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(30px,8vw,44px);line-height:.85;text-transform:uppercase}
+.stats{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.stats b{display:block;font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.02em;color:var(--fg);font-variant-numeric:tabular-nums}
+.align{display:grid;gap:4px}
+.align .track{position:relative;height:8px;background:linear-gradient(90deg,var(--crimson),#3a3a44 45%,#3a3a44 55%,#2f7fd1);transform:skewX(-18deg)}
+.align .mark{position:absolute;top:-5px;width:6px;height:18px;background:var(--fg);box-shadow:0 0 8px #fff;transition:left .4s}
+.align .ends{display:flex;justify-content:space-between;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.tonight{display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:center}
+.tonight .portrait{width:70px}
+.tonight .vsline{font-family:var(--display);font-weight:900;font-style:italic;font-size:26px;line-height:.9;text-transform:uppercase}
+.belt-chip{display:inline-block;padding:2px 10px;background:var(--metal);color:#1a1405;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.segs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.seg{text-align:left;display:grid;gap:4px;padding:12px 14px;background:rgba(255,255,255,.05);border-left:3px solid var(--c,var(--gold));transition:background .15s,transform .15s}
+.seg:hover:not(:disabled){background:rgba(255,255,255,.1);transform:translateX(3px)}
+.seg:disabled{opacity:.35;cursor:not-allowed}
+.seg b{font-family:var(--display);font-weight:900;font-style:italic;font-size:22px;line-height:.9;text-transform:uppercase}
+.seg span{font-size:12.5px;color:var(--steel);line-height:1.35}
+.ranks{display:grid;gap:4px;margin:0;padding:0;list-style:none;font-variant-numeric:tabular-nums}
+.ranks li{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:6px 10px;background:rgba(255,255,255,.04);font-family:var(--label);font-weight:600;font-size:14px;letter-spacing:.04em}
+.ranks li .n{font-family:var(--display);font-weight:900;font-style:italic;font-size:18px;color:var(--muted)}
+.ranks li.champ{background:linear-gradient(90deg,rgba(226,189,98,.22),rgba(226,189,98,.04))}
+.ranks li.champ .n{color:var(--gold)}
+.ranks li.me{outline:2px solid var(--gold);outline-offset:-2px}
+.ranks li .s{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.ranks li button{font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:4px 10px;background:var(--crimson);color:#fff;clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.news{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:13px;color:var(--steel)}
+.news li::before{content:"› ";color:var(--gold)}
+.promo-lines{display:grid;gap:10px}
+.line{text-align:left;padding:14px 16px;background:rgba(255,255,255,.05);border-left:3px solid var(--c);display:grid;gap:4px;transition:background .15s,transform .15s}
+.line:hover{background:rgba(255,255,255,.1);transform:translateX(4px)}
+.line q{font-family:var(--display);font-weight:800;font-style:italic;font-size:21px;line-height:1.1;quotes:"“" "”"}
+.line small{font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--c)}
+.l-face{--c:#5fa8ff} .l-heel{--c:#ff4d63} .l-wild{--c:var(--hype)}
+.crowdbar{height:12px;background:#0a0a0c;transform:skewX(-18deg);position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.crowdbar i{position:absolute;inset:0 auto 0 0;background:var(--metal);transition:width .5s}
+.react{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(28px,8vw,44px);line-height:.95;text-transform:uppercase;text-align:center;animation:slam .4s cubic-bezier(.2,1.6,.4,1)}
+.deck{display:flex;flex-wrap:wrap;gap:6px}
+.deck button,.deck span{font-family:var(--label);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;background:rgba(255,255,255,.06);border-left:3px solid var(--c)}
+.deck button:hover{background:rgba(209,33,59,.35)}
+.mutebtn{font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);padding:5px 12px;background:rgba(255,255,255,.06);clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}
+.tip{font-size:13px;line-height:1.4;color:var(--steel);padding:8px 12px;background:rgba(95,168,255,.1);border-left:3px solid var(--defense)}
+.tip b{color:var(--defense)}
+.stars{font-family:var(--display);font-weight:900;font-size:38px;letter-spacing:.06em;line-height:1;color:var(--gold);text-shadow:0 0 18px rgba(226,189,98,.5)}
+.stars small{display:block;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-shadow:none}
+.card .combo{position:absolute;left:8px;bottom:7px;font-family:var(--label);font-weight:700;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#1a1405;background:var(--metal);padding:1px 6px}
+.stip{display:inline-block;padding:2px 10px;background:var(--crimson);color:#fff;font-family:var(--label);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.goals{margin:0;padding:0;list-style:none;display:grid;gap:5px;font-family:var(--label);font-weight:600;font-size:14px;letter-spacing:.04em;color:var(--muted)}
+.goals li::before{content:"\25CB  "}
+.goals li.done{color:var(--fg)}
+.goals li.done::before{content:"\2605  ";color:var(--gold)}
+@media (max-width:440px){.hubtop{grid-template-columns:84px 1fr}.hubtop .portrait{width:84px}}
+@media (max-width:440px){.fighter{grid-template-columns:70px 1fr;gap:10px}.fighter .portrait{width:70px}.hand{grid-template-columns:repeat(2,minmax(0,1fr))}.btn{font-size:19px;padding:12px 16px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+<canvas id="arena" aria-hidden="true"></canvas>
+<div id="flash"></div>
+<div class="app" id="app"></div>
+
+<script>
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const WRESTLERS = {
+  brick:{id:"brick",name:"Brick Malone",tag:"The Wrecking Yard",style:"Powerhouse",hp:60,color:"#d1213b",
+    passive:"Grapples hit 2 harder.",fin:{name:"Brick Wall Bomb",dmg:18,text:"18 damage."},
+    sig:["pounce","ironchin"],ai:{strike:3,grapple:4,defense:2,hype:2}},
+  raven:{id:"raven",name:"Raven Vega",tag:"Gravity Is Optional",style:"High-Flyer",hp:50,color:"#6b3bd1",
+    passive:"Strikes build 1 extra hype.",fin:{name:"Raven's Fall",dmg:16,text:"16 damage. Ignores block."},
+    sig:["springboard","moonsault"],ai:{strike:5,grapple:2,defense:1,hype:3}},
+  dutch:{id:"dutch",name:"Dutch Harlan",tag:"Forty Minutes Of Pain",style:"Technician",hp:55,color:"#2f7fd1",
+    passive:"Reversals also give 3 block and hit 3 harder.",fin:{name:"Harlan Lock",dmg:14,text:"14 damage. Weakens for 2 turns."},
+    sig:["anklelock","chain"],ai:{strike:2,grapple:5,defense:3,hype:1}},
+  kid:{id:"kid",name:"Kid Voltage",tag:"Lights Up When He Walks In",style:"Showman",hp:50,color:"#d19a1f",
+    passive:"Starts with 4 hype. Hype cards give 1 extra.",fin:{name:"Voltage Drop",dmg:15,text:"15 damage. Heal 5."},
+    sig:["pose","showstopper"],ai:{strike:3,grapple:2,defense:2,hype:4}},
+  silas:{id:"silas",cpu:true,name:"Silas Crowe",tag:"The Last Word",style:"Ring General",hp:60,color:"#8f6a22",
+    passive:"",fin:{name:"Crowe's Nest",dmg:17,text:"17 damage."},sig:[],ai:{strike:3,grapple:4,defense:3,hype:2}},
+  tank:{id:"tank",cpu:true,name:"Tank Ferro",tag:"Built Like A Bridge",style:"Brawler",hp:62,color:"#5a6470",
+    passive:"",fin:{name:"Ferro Crusher",dmg:18,text:"18 damage."},sig:[],ai:{strike:5,grapple:3,defense:1,hype:1}},
+  jett:{id:"jett",cpu:true,name:"Jett Romano",tag:"Faster Than The Replay",style:"Cruiserweight",hp:48,color:"#1fa39a",
+    passive:"",fin:{name:"Jett Stream",dmg:15,text:"15 damage. Ignores block."},sig:[],ai:{strike:5,grapple:1,defense:1,hype:3}},
+  ox:{id:"ox",cpu:true,name:"Big Ox Duggan",tag:"Back Roads Bruiser",style:"Giant",hp:66,color:"#7a3f1c",
+    passive:"",fin:{name:"Ox Yoke Slam",dmg:19,text:"19 damage."},sig:[],ai:{strike:2,grapple:5,defense:2,hype:1}},
+};
+const BELT_IMG="__BELT__";
+const PORTRAITS={/*__PORTRAITS__*/};for(const k in PORTRAITS) if(WRESTLERS[k]) WRESTLERS[k].img=PORTRAITS[k];
+const PLAYABLE=Object.values(WRESTLERS).filter(w=>!w.cpu);
+
+const CARDS = {
+  chop:{name:"Chop",type:"strike",cost:1,dmg:4,hype:1,text:"+1 hype."},
+  dropkick:{name:"Dropkick",type:"strike",cost:1,dmg:5,text:"Quick and clean."},
+  clothesline:{name:"Clothesline",type:"strike",cost:2,dmg:8,hype:1,text:"+1 hype."},
+  suplex:{name:"Suplex",type:"grapple",cost:2,dmg:9,hype:2,text:"+2 hype."},
+  headlock:{name:"Headlock",type:"grapple",cost:1,dmg:3,weak:1,text:"Their next attack does 3 less."},
+  block:{name:"Block",type:"defense",cost:1,block:6,big:"BLOCK 6",text:"Absorbs damage this turn."},
+  reversal:{name:"Reversal",type:"defense",cost:1,reversal:true,big:"COUNTER",text:"If they grapple, cancel it and hit back for 5. Otherwise block 3."},
+  secondwind:{name:"Second Wind",type:"defense",cost:1,heal:6,big:"+6",text:"Recover 6 stamina."},
+  taunt:{name:"Taunt",type:"hype",cost:1,hypeGain:3,big:"+3",text:"Hype."},
+  crowdpop:{name:"Crowd Pop",type:"hype",cost:0,hypeGain:2,draw:1,big:"+2",text:"Hype. Draw a card."},
+  pounce:{name:"Pounce",type:"grapple",cost:2,dmg:11,hype:1,sig:true,text:"+1 hype."},
+  ironchin:{name:"Iron Chin",type:"defense",cost:1,block:9,sig:true,big:"BLOCK 9",text:"Absorbs damage this turn."},
+  springboard:{name:"Springboard Kick",type:"strike",cost:1,dmg:6,hype:2,sig:true,text:"+2 hype."},
+  moonsault:{name:"Moonsault",type:"strike",cost:2,dmg:11,self:2,hype:2,sig:true,text:"You take 2. +2 hype."},
+  anklelock:{name:"Ankle Lock",type:"grapple",cost:2,dmg:7,weak:2,sig:true,text:"Weakens for 2 turns."},
+  chain:{name:"Chain Wrestling",type:"defense",cost:1,block:3,draw:2,sig:true,big:"DRAW 2",text:"Block 3 and draw 2."},
+  pose:{name:"Pose",type:"hype",cost:0,hypeGain:3,sig:true,big:"+3",text:"Hype. Free."},
+  showstopper:{name:"Showstopper",type:"strike",cost:2,dmg:7,hype:3,sig:true,text:"+3 hype."},
+  // earned in career training
+  spear:{name:"Spear",type:"strike",cost:2,dmg:12,train:true,text:"Pure velocity."},
+  elbow:{name:"Top Rope Elbow",type:"strike",cost:2,dmg:10,hype:2,self:1,train:true,text:"You take 1. +2 hype."},
+  haymaker:{name:"Haymaker",type:"strike",cost:1,dmg:7,self:1,train:true,text:"You take 1."},
+  powerslam:{name:"Powerslam",type:"grapple",cost:2,dmg:10,hype:1,train:true,text:"+1 hype."},
+  sleeper:{name:"Sleeper Hold",type:"grapple",cost:2,dmg:6,weak:2,train:true,text:"Weakens for 2 turns."},
+  fortress:{name:"Fortress",type:"defense",cost:2,block:14,big:"BLOCK 14",train:true,text:"Absorbs damage this turn."},
+  comeback:{name:"Comeback",type:"defense",cost:2,heal:10,big:"+10",train:true,text:"Recover 10 stamina."},
+  ropebreak:{name:"Rope Break",type:"defense",cost:0,block:4,big:"BLOCK 4",train:true,text:"Free block."},
+  adrenaline:{name:"Adrenaline",type:"hype",cost:0,hypeGain:2,energy:1,big:"+1 ENERGY",train:true,text:"+1 energy and +2 hype."},
+  entrance:{name:"Big Entrance",type:"hype",cost:1,hypeGain:5,big:"+5",train:true,text:"Hype."},
+};
+const TRAIN_POOL=Object.keys(CARDS).filter(k=>CARDS[k].train);
+const BASE_DECK=["chop","chop","dropkick","clothesline","suplex","headlock","block","block","reversal","secondwind","taunt","crowdpop"];
+const HAND=5, ENERGY=3, HYPE_MAX=10;
+
+let G=null;
+const $=s=>document.querySelector(s);
+const app=$("#app");
+const rnd=n=>Math.floor(Math.random()*n);
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const wait=ms=>new Promise(r=>setTimeout(r,RM?Math.min(ms,150):ms));
+
+function loadBest(){try{return JSON.parse(localStorage.getItem("rcc-best")||"{}")}catch(e){return {}}}
+function saveBest(b){try{localStorage.setItem("rcc-best",JSON.stringify(b))}catch(e){}}
+
+/* ---------- arena canvas ---------- */
+const cv=$("#arena"), cx=cv.getContext("2d");
+let W=0,H=0,DPR=1,bulbs=[],burst=0,tint=null;
+const bg=new Image();let bgReady=false;bg.onload=()=>{bgReady=true;if(RM)drawArena(0);};bg.src="__ARENA__";
+function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);if(RM)drawArena(0);}
+addEventListener("resize",resize);
+function crowd(n=40,color){burst=Math.max(burst,n);tint=color||null;if(n>=60)SFX.crowd();}
+function drawArena(t){
+  const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0d0c10");g.addColorStop(.55,"#060608");g.addColorStop(1,"#0a0708");
+  cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  if(bgReady){const s=Math.max(W/bg.width,H/bg.height),bw=bg.width*s,bh=bg.height*s;cx.globalAlpha=.5;cx.drawImage(bg,(W-bw)/2,(H-bh)/2,bw,bh);cx.globalAlpha=1;}
+  // spotlights
+  cx.globalCompositeOperation="lighter";
+  const beams=[{x:.18,s:.00031,c:"255,236,190"},{x:.82,s:-.00027,c:"255,236,190"},{x:.5,s:.00019,c:tint||"226,189,98"}];
+  for(const b of beams){
+    const ang=Math.sin(t*b.s*3+b.x*7)*.38;
+    cx.save();cx.translate(W*b.x,-20);cx.rotate(ang);
+    const len=H*1.25,wd=Math.max(W,H)*.22;
+    const lg=cx.createLinearGradient(0,0,0,len);lg.addColorStop(0,`rgba(${b.c},.20)`);lg.addColorStop(1,`rgba(${b.c},0)`);
+    cx.fillStyle=lg;cx.beginPath();cx.moveTo(-8,0);cx.lineTo(8,0);cx.lineTo(wd,len);cx.lineTo(-wd,len);cx.closePath();cx.fill();cx.restore();
+  }
+  // haze
+  for(let i=0;i<3;i++){
+    const hx=(W*(.2+.3*i)+Math.sin(t*.0002+i)*W*.15),hy=H*(.35+.12*i);
+    const rg=cx.createRadialGradient(hx,hy,0,hx,hy,W*.5);rg.addColorStop(0,"rgba(120,110,130,.05)");rg.addColorStop(1,"rgba(0,0,0,0)");
+    cx.fillStyle=rg;cx.fillRect(0,0,W,H);
+  }
+  // camera flashes in the crowd
+  const rate=burst>0?6:.35; if(burst>0)burst-=1;
+  if(Math.random()<rate/6) for(let k=0;k<(burst>0?4:1);k++) bulbs.push({x:Math.random()*W,y:H*(.55+Math.random()*.45),life:1,r:1+Math.random()*2.2});
+  for(const p of bulbs){
+    const a=p.life;const rg=cx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*14);
+    rg.addColorStop(0,`rgba(255,255,255,${.9*a})`);rg.addColorStop(.2,`rgba(255,245,220,${.35*a})`);rg.addColorStop(1,"rgba(0,0,0,0)");
+    cx.fillStyle=rg;cx.fillRect(p.x-p.r*14,p.y-p.r*14,p.r*28,p.r*28);p.life-=.06;
+  }
+  bulbs=bulbs.filter(p=>p.life>0);
+  cx.globalCompositeOperation="source-over";
+  // vignette
+  const vg=cx.createRadialGradient(W/2,H*.45,Math.min(W,H)*.2,W/2,H*.45,Math.max(W,H)*.75);vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,"rgba(0,0,0,.7)");
+  cx.fillStyle=vg;cx.fillRect(0,0,W,H);
+}
+function loop(t){drawArena(t);requestAnimationFrame(loop);}
+resize(); if(!RM) requestAnimationFrame(loop);
+
+function flash(){const f=$("#flash");f.classList.remove("go");void f.offsetWidth;f.classList.add("go");}
+function quake(){app.classList.remove("quake");void app.offsetWidth;app.classList.add("quake");}
+
+/* ---------- sound (synthesized, no files) ---------- */
+let AC=null,muted=false,lastCrowd=0;
+try{muted=localStorage.getItem("rcc-mute")==="1"}catch(e){}
+function actx(){if(muted)return null;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();}catch(e){return null}return AC;}
+function tone(f,dur,gain,type="sine",to){const a=actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+.02);}
+function noise(dur,freq,gain,type="lowpass",attack=0){const a=actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(a.destination);s.start(t);}
+const SFX={
+  card(){noise(.05,2500,.12,"highpass")},
+  hit(){noise(.14,800,.5);tone(120,.14,.4,"sine",50)},
+  big(){noise(.4,500,.8);tone(80,.45,.7,"sine",28)},
+  block(){tone(240,.08,.22,"square",160)},
+  hype(){tone(440,.12,.12,"triangle",880)},
+  heal(){tone(330,.2,.12,"sine",660)},
+  count(){noise(.1,350,.7);tone(150,.12,.5,"sine",70)},
+  bell(){tone(1320,1.1,.2);tone(1985,.8,.09);tone(2640,.5,.04)},
+  crowd(){const n=Date.now();if(n-lastCrowd<900)return;lastCrowd=n;noise(1.4,1100,.2,"bandpass",.25)},
+  boo(){tone(140,.7,.12,"sawtooth",95)},
+};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-mute]");if(!b)return;muted=!muted;try{localStorage.setItem("rcc-mute",muted?"1":"0")}catch(e){}document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");if(!muted)SFX.bell();});
+const muteBtn=()=>`<button class="mutebtn" data-mute>${muted?"Sound off":"Sound on"}</button>`;
+
+/* ---------- pieces ---------- */
+function portrait(w,note){
+  if(w.img) return `<div class="portrait"><img src="${w.img}" alt="${esc(w.name)}"></div>`;
+  const ini=w.name.split(" ").map(s=>s[0]).join("");
+  return `<div class="portrait" style="background:radial-gradient(circle at 50% 30%,${w.color},#0b0b0e 75%)"><div class="plate"><div class="beam"></div><span class="ini">${ini}</span></div>${note?`<span class="note">Art coming soon</span>`:""}</div>`;
+}
+const logo=()=>`<h1 class="logo"><span class="l1">Ringside</span><span class="l2 metal">Card Clash</span></h1>`;
+
+/* ---------- screens ---------- */
+function titleScreen(){
+  G=null;
+  const saved=loadCareer();
+  app.innerHTML=`
+  <header class="brand">${logo()}<span class="tag">Wrestling history. Booked differently.</span></header>
+  <div class="modes">
+    ${saved?`<button class="mode primary" id="m-cont"><span class="go">Continue career</span><h3 class="metal">${esc(WRESTLERS[saved.wid].name)}</h3><p>Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?"Rewrite Champion":`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</p></button>`:""}
+    <button class="mode ${saved?"":"primary"}" id="m-career"><span class="go">${saved?"New career":"Career mode"}</span><h3 class="${saved?"":"metal"}">Career</h3><p>Start at the bottom of the rankings. Cut promos, call out the names above you, train new moves into your deck, and fight your way to the Rewrite Championship.</p></button>
+    <button class="mode" id="m-quick"><span class="go">Quick match</span><h3>Ladder</h3><p>Pick a wrestler and win three matches in a row for the title. No saves, no strings.</p></button>
+  </div>
+  <div class="foot">Original fictional wrestlers. Unofficial and fan-made. Portraits are AI-generated.</div>
+  <div class="actions">${muteBtn()}</div>`;
+  $("#m-cont")?.addEventListener("click",()=>{C=saved;hub();});
+  $("#m-career").onclick=()=>selectScreen("career");
+  $("#m-quick").onclick=()=>selectScreen("quick");
+}
+function selectScreen(mode){
+  const best=loadBest();
+  app.innerHTML=`
+  <header class="brand">${logo()}<span class="tag">${mode==="career"?"New career":"Quick match"}</span></header>
+  <div class="eyebrow">Choose your wrestler</div>
+  <div class="roster">${PLAYABLE.map(w=>`
+    <button class="pick" data-w="${w.id}">
+      ${portrait(w,true)}
+      <div class="tape">${esc(w.tag)}</div>
+      <h3>${esc(w.name)}</h3>
+      <div class="statline"><span>${w.style}</span><span><b>${w.hp}</b> stamina</span></div>
+      <p>${esc(w.passive)}</p>
+      <div class="fin metal">Finisher: ${esc(w.fin.name)}</div>
+      ${best[w.id]?`<div class="chip rev" style="justify-self:start">Champion ×${best[w.id]}</div>`:""}
+    </button>`).join("")}
+  </div>
+  <p class="howto"><b>How a match works.</b> Each turn you get 3 energy and 5 cards. Strikes and grapples do damage, defense keeps you standing, hype fills your meter. You can always see your opponent's next move, so block the big hits and save Reversal for their grapples. Land a strike and then a grapple in the same turn for a +3 combo. Fill hype to 10 to unleash your finisher. Drop them to 0 stamina for the pin, but anyone with 5 hype can kick out at two, once per match.</p>
+  <div class="actions"><button class="btn" id="back">Back</button></div>`;
+  app.querySelectorAll(".pick").forEach(b=>b.onclick=()=>mode==="career"?newCareer(b.dataset.w):startRun(b.dataset.w));
+  $("#back").onclick=titleScreen;
+}
+
+function makeFighter(id,opt={}){
+  const w=WRESTLERS[id], lvl=opt.level||0, hp=w.hp+lvl*8+(opt.hpPlus||0);
+  return {w,hp:Math.max(10,hp+(opt.hpMod||0)),max:hp,hype:Math.min(HYPE_MAX,(id==="kid"?4:0)+(opt.hype||0)),block:0,weak:0,kicked:false,
+    deck:shuffle(opt.deck?[...opt.deck]:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)]),hand:[],discard:[],energy:ENERGY,reversal:false};
+}
+function startRun(id){
+  G={mode:"quick",pid:id,ladder:shuffle(PLAYABLE.map(w=>w.id).filter(k=>k!==id)),round:0,log:[]};
+  startMatch();
+}
+async function startMatch(){
+  if(G.mode==="career"){
+    const plus=G.stip==="lastman"?15:0;
+    G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus+(C.hypeMod||0),hpMod:C.hpMod||0,hpPlus:plus}); G.o=makeFighter(G.oid,{level:G.level,hpPlus:plus});
+    G.log=[G.title?`${G.title}. The Rewrite Championship is on the line.`:`${showName()}. ${G.o.w.name} is waiting in the ring.`];
+    if(C.hypeBonus) G.log.unshift(`Your promo has the crowd buzzing. +${C.hypeBonus} hype to start.`);
+    if(G.stip) G.log.unshift(`${STIPS[G.stip][0]}! ${STIPS[G.stip][1]}`);
+  } else {
+    G.level=Math.min(G.round,2);
+    G.p=makeFighter(G.pid); G.o=makeFighter(G.ladder[G.round],{level:G.level});
+    G.log=[`Round ${G.round+1} of 3. ${G.o.w.name} is waiting in the ring.`];
+  }
+  G.turn=1; G.busy=true; G.over=false; G.bars={}; G.stats={fin:0,kicks:0,rev:0}; G.lastType=null;
+  pickIntent(); dealHand(); render();
+  await vsSplash();
+  G.busy=false; render();
+}
+function vsSplash(){
+  return new Promise(res=>{
+    const ov=document.createElement("div");ov.className="overlay";
+    const sub=G.mode==="career"?((G.stip?STIPS[G.stip][0]+" · ":"")+(G.title?"Championship match":showName())):`Round ${G.round+1} of 3`;
+    ov.innerHTML=`<div class="vs">
+      <div class="who side-l">${portrait(G.p.w)}<small class="metal">You</small><h3>${esc(G.p.w.name)}</h3></div>
+      <div class="x metal">VS</div>
+      <div class="who side-r">${portrait(G.o.w)}<small style="color:var(--crimson)">${esc(sub)}</small><h3>${esc(G.o.w.name)}</h3></div>
+      <div class="vs-foot skip">Tap to fight</div></div>`;
+    document.body.appendChild(ov); crowd(70);
+    let done=false;const end=()=>{if(done)return;done=true;ov.remove();SFX.bell();res();};
+    ov.onclick=end; setTimeout(end,RM?600:2200);
+  });
+}
+
+/* ---------- core ---------- */
+function draw(f,n){
+  for(let i=0;i<n;i++){
+    if(!f.deck.length){ if(!f.discard.length) return; f.deck=shuffle(f.discard); f.discard=[]; }
+    f.hand.push(f.deck.pop());
+  }
+}
+function dealHand(){const p=G.p;G.lastType=null;p.block=0;p.reversal=false;p.energy=ENERGY;p.discard.push(...p.hand);p.hand=[];draw(p,HAND);G.dealt=true;}
+function startTurn(){dealHand();render();}
+function say(t){G.log.unshift(t);G.log=G.log.slice(0,2);G.fresh=true;}
+function gainHype(f,n){f.hype=Math.min(HYPE_MAX,f.hype+n);}
+
+function pickIntent(){
+  const o=G.o,w=o.w;
+  if(o.hype>=HYPE_MAX){G.intent={type:"finisher",label:w.fin.name,dmg:w.fin.dmg};return;}
+  const bag=[];for(const [k,v] of Object.entries(w.ai)) for(let i=0;i<v;i++) bag.push(k);
+  if(o.hp<o.max*.35) bag.push("defense","defense");
+  const t=bag[rnd(bag.length)], lvl=G.level||0;
+  if(t==="strike"){const d=[7,8,9,10][rnd(4)]+lvl*2+stipBonus("strike");G.intent={type:"strike",label:`Strike ${d}`,dmg:d};}
+  else if(t==="grapple"){let d=[9,10,11,12][rnd(4)]+lvl*2+stipBonus("grapple");if(w.id==="brick")d+=2;G.intent={type:"grapple",label:`Grapple ${d}`,dmg:d};}
+  else if(t==="defense"){const b=6+rnd(4)+lvl*2;G.intent={type:"defense",label:`Block ${b}`,block:b};}
+  else G.intent={type:"hype",label:"Play to the crowd",hype:3+(w.id==="kid"?1:0)};
+}
+const STIPS={cage:["Steel Cage","No kick-outs. A pin is a pin."],street:["Street Fight","Every strike hits 2 harder, for both of you."],submission:["Submission Match","Every grapple hits 2 harder, for both of you."],lastman:["Last Man Standing","Both wrestlers get 15 extra stamina."]};
+function stipBonus(type){return (G.stip==="street"&&type==="strike")||(G.stip==="submission"&&type==="grapple")?2:0;}
+function cardDmg(c){let d=c.dmg+stipBonus(c.type);if(c.type==="grapple"&&G.pid==="brick")d+=2;if(c.type==="grapple"&&G.lastType==="strike")d+=3;return d;}
+function matchRating(won){
+  const s=G.stats||{fin:0,kicks:0,rev:0},win=won?G.p:G.o;
+  const r=1+Math.min(1,Math.max(0,G.turn-4)*.25)+Math.min(1,s.fin*.5)+Math.min(1.5,s.kicks*.75)+(s.rev?.25:0)+(win.hp<=win.max*.35?.5:0);
+  return Math.min(5,Math.round(r*4)/4);
+}
+function starsHTML(r){const full=Math.floor(r),fr=r-full;return `<div class="stars">${"★".repeat(full)}${fr>=.75?"¾":fr>=.5?"½":fr>=.25?"¼":""}<small>${r.toFixed(2)} star match</small></div>`;}
+function damage(t,amount,{ignoreBlock=false}={}){
+  let d=amount;
+  if(!ignoreBlock&&t.block>0){const u=Math.min(t.block,d);t.block-=u;d-=u;}
+  t.hp=Math.max(0,t.hp-d);return d;
+}
+function impact(who,amount,big){
+  fx(who,amount,big);
+  if(big)SFX.big();else if(amount>0)SFX.hit();else SFX.block();
+  if(amount>=8||big){quake();crowd(big?90:30);}
+  if(big) flash();
+}
+
+function playCard(i){
+  if(G.busy||G.over) return;
+  const p=G.p,o=G.o,id=p.hand[i],c=CARDS[id];
+  if(c.cost>p.energy) return;
+  p.energy-=c.cost;p.hand.splice(i,1);p.discard.push(id);G.dealt=false;SFX.card();
+  let msg=`${c.name}!`;
+  if(c.dmg){
+    const combo=c.type==="grapple"&&G.lastType==="strike";
+    let d=cardDmg(c);
+    if(p.weak>0) d=Math.max(0,d-3);
+    const dealt=damage(o,d);
+    msg=`${combo?"COMBO! ":""}${c.name} for ${dealt}${dealt<d?` (${d-dealt} blocked)`:""}!`;
+    impact("o",dealt,false);G.lastType=c.type;if(combo)crowd(60);
+    gainHype(p,(c.hype||0)+(c.type==="strike"&&G.pid==="raven"?1:0));
+    gainHype(o,1);
+  }
+  if(c.self){p.hp=Math.max(1,p.hp-c.self);fx("p",c.self);}
+  if(c.block){p.block+=c.block;msg+=` Blocking ${p.block}.`;SFX.block();}
+  if(c.weak){o.weak=Math.max(o.weak,c.weak);}
+  if(c.heal){p.hp=Math.min(p.max,p.hp+c.heal);msg=`${c.name}! +${c.heal} stamina.`;SFX.heal();}
+  if(c.hypeGain){gainHype(p,c.hypeGain+(G.pid==="kid"?1:0));crowd(25);SFX.hype();}
+  if(c.reversal){p.reversal=true;msg="Reversal ready.";}
+  if(c.energy){p.energy+=c.energy;msg=`${c.name}! +${c.energy} energy.`;}
+  if(c.draw) draw(p,c.draw);
+  say(msg);
+  if(checkPin(o,p)) return;
+  render();
+}
+
+function finisherSplash(w,byYou){
+  return new Promise(res=>{
+    const ov=document.createElement("div");ov.className="overlay";
+    ov.innerHTML=`<div class="finisher"><div class="by">${esc(w.name)}${byYou?"":" is going for it"}</div><h2 class="metal">${esc(w.fin.name)}</h2><div class="streak"></div></div>`;
+    document.body.appendChild(ov);flash();crowd(120);
+    setTimeout(()=>{ov.remove();res();},RM?500:1500);
+  });
+}
+async function useFinisher(){
+  const p=G.p,o=G.o,f=p.w.fin;
+  if(G.busy||G.over||p.hype<HYPE_MAX) return;
+  G.busy=true;render();
+  await finisherSplash(p.w,true);
+  p.hype=0;G.stats.fin++;
+  const dealt=damage(o,f.dmg,{ignoreBlock:G.pid==="raven"});
+  if(G.pid==="dutch") o.weak=Math.max(o.weak,2);
+  if(G.pid==="kid") p.hp=Math.min(p.max,p.hp+5);
+  impact("o",dealt,true);
+  say(`${f.name}! ${dealt} damage!`);
+  gainHype(o,1);
+  G.busy=false;
+  if(checkPin(o,p)) return;
+  render();
+}
+async function endTurn(){
+  if(G.busy||G.over) return;
+  G.busy=true;render();
+  await wait(450);
+  if(G.intent.type==="finisher") await finisherSplash(G.o.w,false);
+  oppAct();
+}
+function oppAct(){
+  const p=G.p,o=G.o,it=G.intent;
+  o.block=0;let msg="";
+  if((G.level||0)>=2&&it.type!=="finisher") gainHype(o,1);
+  if(it.type==="finisher"){
+    o.hype=0;G.stats.fin++;let d=it.dmg;if(o.weak>0)d=Math.max(0,d-3);
+    const dealt=damage(p,d,{ignoreBlock:o.w.id==="raven"});
+    if(o.w.id==="dutch") p.weak=Math.max(p.weak,2);
+    if(o.w.id==="kid") o.hp=Math.min(o.max,o.hp+5);
+    impact("p",dealt,true);msg=`${o.w.name} hits the ${it.label}! ${dealt} damage!`;
+  } else if(it.type==="grapple"&&p.reversal){
+    const back=5+(G.pid==="dutch"?3:0);
+    if(G.pid==="dutch") p.block+=3;
+    const dealt=damage(o,back);impact("o",dealt,false);crowd(60);
+    gainHype(p,2);G.stats.rev++;msg=`REVERSED! You counter for ${dealt}!`;
+  } else if(it.type==="strike"||it.type==="grapple"){
+    if(p.reversal&&it.type==="strike") p.block+=3;
+    let d=it.dmg;if(o.weak>0)d=Math.max(0,d-3);
+    const dealt=damage(p,d);impact("p",dealt,false);
+    gainHype(o,it.type==="grapple"?2:1);gainHype(p,1);
+    msg=`${o.w.name} ${it.type==="grapple"?"grapples":"strikes"} for ${dealt}${dealt<d?` (${d-dealt} blocked)`:""}.`;
+  } else if(it.type==="defense"){
+    o.block=it.block;msg=`${o.w.name} covers up. Blocking ${it.block}.`;
+  } else {
+    gainHype(o,it.hype);crowd(30);msg=`${o.w.name} plays to the crowd. +${it.hype} hype.`;
+  }
+  if(o.weak>0&&it.type!=="defense"&&it.type!=="hype") o.weak--;
+  say(msg);
+  if(p.weak>0) p.weak--;
+  if(checkPin(p,o)) return;
+  G.turn++;pickIntent();G.busy=false;startTurn();
+}
+
+/* ---------- pinfall ---------- */
+function checkPin(down,up){
+  if(down.hp>0) return false;
+  G.busy=true;render();
+  const canKick=!down.kicked&&down.hype>=5&&G.stip!=="cage";
+  pinCount(canKick).then(()=>{
+    if(canKick){
+      down.kicked=true;down.hype-=5;down.hp=5;G.stats.kicks++;crowd(120);
+      say(`${down.w.name} KICKS OUT AT TWO!`);
+      G.busy=false;
+      if(down===G.o) render(); else {G.turn++;pickIntent();startTurn();}
+    } else finishMatch(up===G.p);
+  });
+  return true;
+}
+async function pinCount(kick){
+  const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
+  const steps=kick?["1","2","KICK OUT!"]:["1","2","3"];
+  for(const s of steps){
+    ov.innerHTML=`<div><div class="ref">The referee counts</div><div class="count ${s==="3"?"three":""} ${s.length>2?"out":""}">${s}</div></div>`;
+    SFX.count();if(s==="3"){SFX.bell();setTimeout(SFX.bell,260);setTimeout(SFX.bell,520);}
+    if(s==="3"||s.length>2){flash();crowd(140);quake();}
+    await wait(s.length>2||s==="3"?1000:700);
+  }
+  ov.remove();
+}
+
+function finishMatch(won){
+  G.over=true;
+  if(G.mode==="career"){ careerResult(won); return; }
+  const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
+  const champ=won&&G.round===2;
+  if(champ){const b=loadBest();b[G.pid]=(b[G.pid]||0)+1;saveBest(b);}
+  if(won) crowd(200);
+  const ladder=G.ladder.map((k,i)=>`<span class="${i<G.round||(won&&i===G.round)?"done":i===G.round?"cur":""}">${WRESTLERS[k].name}</span>`).join("");
+  ov.innerHTML=`<div class="result">
+    <div class="eyebrow">${won?"Winner by pinfall":"Pinned, one two three"}</div>
+    ${champ?`<img class="belt" src="${BELT_IMG}" alt="Rewrite Championship belt">`:""}
+    <h2 class="${won?"metal":""}" ${won?"":'style="color:var(--crimson)"'}>${champ?"Rewrite Champion":won?`${esc(G.p.w.name)} wins`:`${esc(G.o.w.name)} wins`}</h2>
+    <div class="ladder">${ladder}</div>
+    ${starsHTML(matchRating(won))}
+    <p>${champ?`Three straight wins. ${esc(G.p.w.name)} walks out with the gold.`:won?`Next up: ${esc(WRESTLERS[G.ladder[G.round+1]].name)}. You start the next match fresh.`:`You lasted ${G.turn} turns. Run it back or pick someone new.`}</p>
+    <div class="actions">${won&&!champ?`<button class="btn primary" id="next">Next match</button>`:`<button class="btn primary" id="again">Run it back</button>`}<button class="btn" id="roster">Pick wrestler</button></div>
+  </div>`;
+  const close=()=>ov.remove();
+  ov.querySelector("#next")?.addEventListener("click",()=>{close();G.round++;startMatch();});
+  ov.querySelector("#again")?.addEventListener("click",()=>{close();startRun(G.pid);});
+  ov.querySelector("#roster").addEventListener("click",()=>{close();G=null;selectScreen("quick");});
+}
+
+/* ---------- career ---------- */
+let C=null;
+const PPVS=["Breaking Point","Gold Rush","Collision Course","Final Draft"];
+const isPPV=()=>C.week%4===0;
+const showName=()=>isPPV()?PPVS[(C.week/4-1)%PPVS.length]:"Monday Rewrite";
+function loadCareer(){try{const c=JSON.parse(localStorage.getItem("rcc-career")||"null");return c&&WRESTLERS[c.wid]?c:null}catch(e){return null}}
+function saveCareer(){try{localStorage.setItem("rcc-career",JSON.stringify(C))}catch(e){}}
+function fameTier(f){return f>=200?"Legend":f>=100?"Main eventer":f>=40?"Rising star":"Rookie";}
+function alignName(a){return a>=2?"Fan favorite":a<=-2?"Villain":"Tweener";}
+const isChamp=()=>C.champ===C.wid;
+const myRank=()=>C.contenders.indexOf(C.wid);
+function levelOf(id){if(C.champ===id)return 4;const i=C.contenders.indexOf(id);return Math.max(0,3-Math.floor(i/2));}
+
+function newCareer(wid){
+  const others=shuffle(Object.keys(WRESTLERS).filter(k=>k!==wid&&k!=="silas"));
+  const w=WRESTLERS[wid];
+  C={wid,week:1,fame:0,w:0,l:0,align:0,deck:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)],
+     champ:"silas",contenders:[...others,wid],rival:null,booked:null,hypeBonus:0,hpMod:0,hypeMod:0,best:0,peak:99,segDone:false,defenses:0,reigns:0,
+     news:[`${w.name} signs with Ringside Rewrite and starts at the bottom of the rankings.`,`Silas Crowe holds the Rewrite Championship.`]};
+  saveCareer();hub();
+}
+function book(){
+  if(C.booked) return C.booked;
+  const ppv=isPPV();let id,title=false;
+  if(C.rival&&C.rival!==C.champ){id=C.rival;}
+  else if(isChamp()){id=ppv?C.contenders[0]:C.contenders[rnd(Math.min(3,C.contenders.length))];title=ppv;}
+  else{
+    const r=myRank();
+    if(ppv&&r===0){id=C.champ;title=true;}
+    else if(r>0) id=C.contenders[r-1];
+    else id=C.contenders[1];
+  }
+  C.booked={id,title,stip:ppv?["cage","street","submission","lastman"][rnd(4)]:null};saveCareer();return C.booked;
+}
+function news(t){C.news.unshift(t);C.news=C.news.slice(0,5);}
+
+function hub(){
+  G=null;normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
+  const r=myRank();C.peak=Math.min(C.peak,isChamp()?0:r+1);
+  const goals=[["Win your first match",C.w>=1],["Crack the top 3",C.peak<=3],["Have a 4-star match",C.best>=4],["Win the Rewrite Championship",C.reigns>0],["Defend the title 3 times",C.defenses>=3],["Have a 5-star classic",C.best>=5]];
+  const rankRows=[`<li class="champ ${isChamp()?"me":""}"><span class="n">C</span><span>${esc(WRESTLERS[C.champ].name)} <span class="s">Champion</span></span><span></span></li>`]
+    .concat(C.contenders.map((id,i)=>{
+      const canCall=!isChamp()&&!C.segDone&&r>i&&r-i<=3&&id!==C.rival;
+      return `<li class="${id===C.wid?"me":""}"><span class="n">#${i+1}</span><span>${esc(WRESTLERS[id].name)}${id===C.wid?' <span class="s">You</span>':""}${id===C.rival?' <span class="s">Rival</span>':""}</span><span>${canCall?`<button data-call="${id}">Call out</button>`:""}</span></li>`;})).join("");
+  const markLeft=((C.align+5)/10*100).toFixed(0);
+  app.innerHTML=`
+  <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>${esc(showName())}</span></div></header>
+  <section class="panel">
+    <div class="hubtop">${portrait(me)}<div style="display:grid;gap:8px;min-width:0">
+      <div class="eyebrow">${fameTier(C.fame)}${isChamp()?` · <span class="belt-chip">Rewrite Champion</span>`:""}</div>
+      <h2>${esc(me.name)}</h2>
+      <div class="stats"><span>Record<b>${C.w}-${C.l}</b></span><span>Fame<b>${C.fame}</b></span><span>Rank<b>${isChamp()?"Champ":"#"+(r+1)}</b></span><span>Deck<b>${C.deck.length}</b></span></div>
+    </div></div>
+    ${isChamp()?`<img class="belt sm" src="${BELT_IMG}" alt="Rewrite Championship belt">`:""}
+    <div class="align"><div class="ends"><span>Villain</span><span style="color:var(--fg)">You: ${alignName(C.align)}</span><span>Fan favorite</span></div><div class="track"><span class="mark" style="left:calc(${markLeft}% - 3px)"></span></div></div>
+  </section>
+  <section class="panel">
+    <div class="eyebrow">${b.title?"Championship match tonight":isPPV()?`${esc(showName())} · big event`:"Tonight's main event"}</div>
+    ${b.title&&!isChamp()?`<img class="belt sm" src="${BELT_IMG}" alt="Rewrite Championship belt">`:""}
+    <div class="tonight">${portrait(o)}<div style="display:grid;gap:4px;min-width:0">
+      <div class="vsline">vs ${esc(o.name)}</div>
+      <div class="stats"><span>${esc(o.style)}</span><span>${C.champ===b.id?"Champion":"Rank #"+(C.contenders.indexOf(b.id)+1)}</span>${C.hypeBonus?`<span style="color:var(--gold)">+${C.hypeBonus} hype from your promo</span>`:""}${C.hypeMod?`<span style="color:var(--gold)">+${C.hypeMod} hype, crowd support</span>`:""}${C.hpMod?`<span style="color:var(--strike)">${C.hpMod} stamina, banged up</span>`:""}</div>
+    </div></div>
+    ${b.stip?`<div><span class="stip">${STIPS[b.stip][0]}</span> <span style="color:var(--steel);font-size:13px">${STIPS[b.stip][1]}</span></div>`:""}
+    ${C.segDone?`<p class="howto" style="padding:10px 14px">Segment done for the week. Head to the ring.</p>`:`<div class="eyebrow" style="color:var(--steel)">Pick one segment before the match</div>
+    <div class="segs">
+      <button class="seg" id="s-promo" style="--c:#5fa8ff"><b>Cut a promo</b><span>Talk about ${esc(o.name)}. Win the crowd and start the match with extra hype.</span></button>
+      <button class="seg" id="s-train" style="--c:var(--good)"><b>Train</b><span>Learn a new move for your deck, or cut a weak card.</span></button>
+      <button class="seg" id="s-call" style="--c:var(--crimson)" ${isChamp()||r===0?"disabled":""}><b>Call out</b><span>${isChamp()?"Champions get called out, not the other way around.":"Use the Call out button next to anyone up to 3 spots above you in the rankings."}</span></button>
+    </div>`}
+    <div class="actions"><button class="btn primary grow" id="fight">${b.title?"Title match":"To the ring"}</button></div>
+  </section>
+  <div class="cols">
+    <section class="panel"><h3>Rankings</h3><ol class="ranks">${rankRows}</ol></section>
+    <section class="panel"><h3>Around the promotion</h3><ul class="news">${C.news.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></section>
+    <section class="panel"><h3>Career goals</h3><ul class="goals">${goals.map(g=>`<li class="${g[1]?"done":""}">${g[0]}</li>`).join("")}</ul><div class="stats"><span>Best match<b>${C.best?C.best.toFixed(2)+" ★":"-"}</b></span><span>Title defenses<b>${C.defenses}</b></span></div></section>
+  </div>
+  <div class="actions"><button class="btn" id="quit">Main menu</button><span class="grow"></span>${muteBtn()}</div>`;
+  $("#fight").onclick=careerMatch;
+  $("#quit").onclick=titleScreen;
+  $("#s-promo")?.addEventListener("click",()=>promo(b.id));
+  $("#s-train")?.addEventListener("click",train);
+  $("#s-call")?.addEventListener("click",()=>{app.querySelector(".ranks button")?.focus();app.querySelector(".ranks")?.scrollIntoView({behavior:"smooth",block:"center"});});
+  app.querySelectorAll("[data-call]").forEach(bt=>bt.onclick=()=>callOut(bt.dataset.call));
+}
+
+/* promos */
+const LINES={
+  face:["These people paid to see a fight, {o}. I'm giving them one.","Every bruise I've got, I earned in front of you.","{o}, I respect you. That's exactly why I'm not holding back.","I don't need shortcuts. I've got this whole building behind me.","When the bell rings, it's you, me and every fan who believed in me.","Win or lose, {o}, you'll know you were in a fight."],
+  heel:["Look around, {o}. Half these people couldn't lace my boots.","{o}, you're a stepping stone with a theme song.","Cheer all you want. It won't save him.","I'm the best thing that ever happened to this building, and you know it.","Boo me louder. I get paid either way.","{o} has a lot of heart. I'm going to take that too."],
+  wild:["I'd call you a legend, {o}, but legends usually win.","I trained for this match by fighting a vending machine. I won.","{o}'s entrance music is the scariest thing about him.","Somebody get this man a map. He's about to get lost in my offense.","I've got two words for you, {o}. Actually I've got about forty.","Mama, if you're watching: sorry about the language later."],
+};
+function promo(oid){
+  const o=WRESTLERS[oid];let round=0,score=0,shift=0;
+  const pick=k=>LINES[k][rnd(LINES[k].length)].replaceAll("{o}",o.name.split(" ")[0]);
+  const step=(react)=>{
+    if(round===3) return promoDone();
+    const opts=shuffle(["face","heel","wild"]).map(k=>({k,t:pick(k)}));
+    const pct=Math.max(0,Math.min(100,50+score*8));
+    app.innerHTML=`
+    <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>Promo segment</span></div></header>
+    <section class="panel"><div class="eyebrow">You have the mic · line ${round+1} of 3</div><h3>Talking about ${esc(o.name)}</h3>
+      <div class="lbl"><span>Crowd</span><span class="num">${score>0?"+":""}${score}</span></div><div class="crowdbar"><i style="width:${pct}%"></i></div>
+      ${react?`<div class="react ${react.c}">${esc(react.t)}</div>`:""}
+    </section>
+    <div class="promo-lines">${opts.map((x,i)=>`<button class="line l-${x.k}" data-i="${i}"><small>${x.k==="face"?"Fan favorite":x.k==="heel"?"Villain":"Off the cuff"}</small><q>${esc(x.t)}</q></button>`).join("")}</div>
+    <p class="howto" style="padding:10px 14px">You're a ${alignName(C.align).toLowerCase()}. Lines that fit your character land harder. Off-the-cuff lines are a gamble.</p>`;
+    app.querySelectorAll(".line").forEach(bt=>bt.onclick=()=>{
+      const k=opts[+bt.dataset.i].k;let pts,t,c;
+      if(k==="wild"){pts=[-1,0,2,3][rnd(4)];t=pts>=2?"The place comes unglued!":pts===0?"A few chuckles.":"Crickets. Brutal.";}
+      else{
+        const fits=(k==="face"&&C.align>=2)||(k==="heel"&&C.align<=-2);
+        const clash=(k==="face"&&C.align<=-2)||(k==="heel"&&C.align>=2);
+        pts=fits?2:clash?-1:1;
+        t=k==="heel"?(pts>0?"Massive heat. They hate you.":"Mild boos. Nobody's buying it."):(pts>0?"The crowd roars with you!":"Polite applause. They don't believe you.");
+        shift+=k==="face"?1:-1;
+      }
+      score+=pts;round++;if(pts>=2)crowd(80);else if(pts>0)crowd(30);else if(pts<0)SFX.boo();
+      step({t,c:""});
+    });
+  };
+  const promoDone=()=>{
+    const bonus=Math.max(0,Math.min(5,score)), fame=Math.max(0,score*2);
+    C.hypeBonus=bonus;C.fame+=fame;C.align=Math.max(-5,Math.min(5,C.align+Math.sign(shift)*Math.min(2,Math.abs(shift))));
+    C.segDone=true;news(`${WRESTLERS[C.wid].name} cut a promo on ${o.name}. ${score>=4?"The crowd ate it up.":score>=1?"It landed.":"It fell flat."}`);saveCareer();
+    app.innerHTML=`<header class="brand">${logo()}</header><section class="panel" style="text-align:center;justify-items:center">
+      <div class="eyebrow">Promo over</div><div class="react">${score>=4?"Electric!":score>=1?"Solid promo":"Tough crowd"}</div>
+      <div class="stats" style="justify-content:center"><span>Start hype<b>+${bonus}</b></span><span>Fame<b>+${fame}</b></span><span>Now<b>${alignName(C.align)}</b></span></div>
+      <div class="actions"><button class="btn primary" id="go">Back to the show</button></div></section>`;
+    if(score>=4){flash();crowd(140);}
+    $("#go").onclick=hub;
+  };
+  step(null);
+}
+
+/* training */
+function train(){
+  const offer=shuffle([...TRAIN_POOL]).slice(0,3);
+  const counts={};C.deck.forEach(k=>counts[k]=(counts[k]||0)+1);
+  app.innerHTML=`
+  <header class="brand">${logo()}<div class="ladder"><span class="cur">Week ${C.week}</span><span>Training</span></div></header>
+  <section class="panel"><div class="eyebrow">Learn one new move</div><h3>Pick a card to add to your deck</h3>
+    <div class="hand">${offer.map((id,i)=>{const c=CARDS[id];const big=c.dmg?`${c.dmg} DMG`:(c.big||"");return `<button class="card t-${c.type}" style="--i:${i}" data-add="${id}"><div class="top"><span class="type">${c.type}</span><span class="cost"><b>${c.cost}</b></span></div><h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p></button>`}).join("")}</div>
+  </section>
+  <section class="panel"><div class="eyebrow">Or cut a card instead</div><h3>Your deck · ${C.deck.length} cards</h3>
+    <div class="deck">${Object.entries(counts).map(([id,n])=>`<button class="t-${CARDS[id].type}" data-cut="${id}" ${C.deck.length<=10?"disabled":""}>${esc(CARDS[id].name)} ×${n}</button>`).join("")}</div>
+    <p class="howto" style="padding:10px 14px">A thinner deck draws your best cards more often. Decks can't go below 10 cards.</p>
+  </section>
+  <div class="actions"><button class="btn" id="back">Back</button></div>`;
+  app.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{C.deck.push(b.dataset.add);C.segDone=true;news(`${WRESTLERS[C.wid].name} spent the week learning the ${CARDS[b.dataset.add].name}.`);saveCareer();hub();});
+  app.querySelectorAll("[data-cut]").forEach(b=>b.onclick=()=>{const i=C.deck.indexOf(b.dataset.cut);if(i>=0&&C.deck.length>10){C.deck.splice(i,1);C.segDone=true;news(`${WRESTLERS[C.wid].name} cut the ${CARDS[b.dataset.cut].name} from the playbook.`);saveCareer();hub();}});
+  $("#back").onclick=hub;
+}
+
+/* call outs */
+function callOut(id){
+  const o=WRESTLERS[id];
+  const line=shuffle([...LINES[C.align<=-2?"heel":"face"]])[0].replaceAll("{o}",o.name.split(" ")[0]);
+  C.rival=id;C.booked=null;C.segDone=true;C.fame+=3;
+  news(`${WRESTLERS[C.wid].name} called out ${o.name}: "${line}" ${o.name.split(" ")[0]} accepted.`);
+  saveCareer();
+  const ov=document.createElement("div");ov.className="overlay";
+  ov.innerHTML=`<div class="result"><div class="eyebrow">Call out</div><h2 class="metal">${esc(o.name)}</h2><p>"${esc(line)}"</p><p>${esc(o.name)} accepts. Beat a wrestler ranked above you and you take their spot.</p><div class="actions"><button class="btn primary" id="ok">Book it</button></div></div>`;
+  document.body.appendChild(ov);crowd(90);flash();
+  ov.querySelector("#ok").onclick=()=>{ov.remove();hub();};
+}
+
+function normC(){C.hpMod=C.hpMod||0;C.hypeMod=C.hypeMod||0;C.best=C.best||0;C.peak=C.peak||99;}
+const up=n=>{C.align=Math.max(-5,Math.min(5,C.align+n));};
+function weeklyEvent(){
+  normC();
+  if(Math.random()>.55) return hub();
+  const pool=C.contenders.filter(x=>x!==C.wid),other=WRESTLERS[pool[rnd(pool.length)]];
+  const EV=[
+    {t:"Backstage ambush",d:`${other.name} jumps you in the parking lot before the show.`,
+     a:["Fight back",()=>Math.random()<.55?(C.fame+=5,`You send ${other.name} running. +5 fame.`):(C.hpMod-=8,`${other.name} gets the better of you. You start this week's match down 8 stamina.`)],
+     b:["Walk away",()=>(up(1),"You keep your cool. The fans respect it.")]},
+    {t:"Sponsor offer",d:"An energy drink wants you in a commercial. The script is embarrassing.",
+     a:["Take the money",()=>(C.fame+=6,up(-1),"Sellout! But a famous one. +6 fame.")],
+     b:["Sign autographs instead",()=>(C.fame+=3,up(1),"The line goes around the block. +3 fame.")]},
+    {t:"Veteran's advice",d:"A retired champion offers you an hour in the ring.",
+     a:["Learn a new move",()=>{const id=TRAIN_POOL[rnd(TRAIN_POOL.length)];C.deck.push(id);return `You pick up the ${CARDS[id].name}. It's in your deck now.`}],
+     b:["Ask about working the crowd",()=>(C.hypeMod+=3,"He teaches you to work the room. +3 hype to start this week's match.")]},
+    {t:"Tweaked knee",d:"You landed wrong in training. The doctor says you can work, but carefully.",
+     a:["Work through it",()=>(C.hpMod-=6,C.fame+=2,"Tough as nails. You start this week's match down 6 stamina. +2 fame.")],
+     b:["Rest up",()=>(C.segDone=true,"You skip this week's segment to heal. Straight to the match.")]},
+    {t:"Sign in the crowd",d:"A kid in the front row holds up a sign with your name on it.",
+     a:["Hand over your wristband",()=>(C.hypeMod+=2,up(1),"The whole section is behind you. +2 hype to start this week's match.")],
+     b:["Tear the sign up",()=>(C.fame+=4,up(-2),"The building boos you out of it. +4 fame.")]},
+  ];
+  const ev=EV[rnd(EV.length)];
+  const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
+  ov.innerHTML=`<div class="result"><div class="eyebrow">Week ${C.week} · before the show</div><h2 style="font-size:clamp(36px,10vw,60px)">${esc(ev.t)}</h2><p>${esc(ev.d)}</p>
+    <div class="actions" style="justify-content:center"><button class="btn primary" id="ev-a">${esc(ev.a[0])}</button><button class="btn" id="ev-b">${esc(ev.b[0])}</button></div></div>`;
+  const pick=k=>{const out=ev[k][1]();saveCareer();
+    ov.innerHTML=`<div class="result"><div class="eyebrow">${esc(ev.t)}</div><p style="font-size:17px;color:var(--fg)">${esc(out)}</p><div class="actions"><button class="btn primary" id="ev-ok">Continue</button></div></div>`;
+    ov.querySelector("#ev-ok").onclick=()=>{ov.remove();hub();};};
+  ov.querySelector("#ev-a").onclick=()=>pick("a");ov.querySelector("#ev-b").onclick=()=>pick("b");
+}
+
+/* matches */
+function careerMatch(){
+  const b=book();
+  G={mode:"career",pid:C.wid,oid:b.id,level:levelOf(b.id),title:b.title?`${showName()}`:null,stip:b.stip||null,log:[]};
+  startMatch();
+}
+function careerResult(won){
+  const b=C.booked,oid=b.id,o=WRESTLERS[oid],me=WRESTLERS[C.wid];
+  const r=myRank(),or=C.contenders.indexOf(oid);let fame=0,lines=[];const rating=matchRating(won);C.best=Math.max(C.best||0,rating);
+  if(won){
+    C.w++;fame=2+levelOf(oid)*2+Math.round(rating*1.5);
+    if(b.title&&!isChamp()){ // win the title
+      C.contenders=C.contenders.filter(x=>x!==C.wid);C.contenders.unshift(C.champ);C.champ=C.wid;C.reigns++;fame+=20;
+      lines.push(`${me.name} defeats ${o.name} to become Rewrite Champion!`);
+    } else if(b.title&&isChamp()){
+      C.defenses++;fame+=12;lines.push(`${me.name} retains the Rewrite Championship against ${o.name}.`);
+    } else if(!isChamp()&&or>=0&&or<r){
+      C.contenders.splice(r,1);C.contenders.splice(or,0,C.wid);lines.push(`${me.name} beats ${o.name} and climbs to #${or+1}.`);
+    } else lines.push(`${me.name} beats ${o.name}.`);
+  } else {
+    C.l++;fame=Math.round(rating)-3;
+    if(b.title&&isChamp()){
+      C.champ=oid;C.contenders=C.contenders.filter(x=>x!==oid);C.contenders.splice(1,0,C.wid);
+      lines.push(`${o.name} pins ${me.name}. We have a new Rewrite Champion.`);
+    } else if(!isChamp()&&r<C.contenders.length-1&&!(or>=0&&or<r)){
+      [C.contenders[r],C.contenders[r+1]]=[C.contenders[r+1],C.contenders[r]];lines.push(`${me.name} loses to ${o.name} and slips to #${r+2}.`);
+    } else lines.push(`${o.name} pins ${me.name}.`);
+  }
+  C.fame=Math.max(0,C.fame+fame);
+  // the rest of the roster moves too
+  const others=C.contenders.map((x,i)=>i).filter(i=>i<C.contenders.length-1&&C.contenders[i]!==C.wid&&C.contenders[i+1]!==C.wid);
+  if(others.length&&Math.random()<.7){const i=others[rnd(others.length)];const up=C.contenders[i+1],dn=C.contenders[i];[C.contenders[i],C.contenders[i+1]]=[up,dn];news(`${WRESTLERS[up].name} upsets ${WRESTLERS[dn].name} and moves to #${i+1}.`);}
+  lines.forEach(news);
+  const champNow=isChamp(), wonTitle=won&&b.title&&C.reigns&&C.champ===C.wid&&lines[0].includes("become");
+  C.week++;C.booked=null;C.rival=null;C.hypeBonus=0;C.hpMod=0;C.hypeMod=0;C.segDone=false;saveCareer();
+  const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
+  if(won) crowd(wonTitle?240:120);
+  ov.innerHTML=`<div class="result">
+    <div class="eyebrow">${won?"Winner by pinfall":"Pinned, one two three"}</div>
+    ${wonTitle?`<img class="belt" src="${BELT_IMG}" alt="Rewrite Championship belt">`:""}
+    <h2 class="${won?"metal":""}" ${won?"":'style="color:var(--crimson)"'}>${wonTitle?"New Champion":won?"Victory":"Defeat"}</h2>
+    ${starsHTML(rating)}
+    <p>${esc(lines[0])}</p>
+    <div class="stats" style="justify-content:center"><span>Fame<b>${fame>=0?"+":""}${fame}</b></span><span>Record<b>${C.w}-${C.l}</b></span><span>Rank<b>${champNow?"Champ":"#"+(myRank()+1)}</b></span></div>
+    <div class="actions"><button class="btn primary" id="next">Week ${C.week}</button></div></div>`;
+  if(wonTitle) flash();
+  ov.querySelector("#next").onclick=()=>{ov.remove();weeklyEvent();};
+}
+
+function tipHTML(){
+  const novice=G.mode==="career"?(C.w+C.l<2):G.round===0;
+  if(!novice||G.busy) return "";
+  const it=G.intent,h=G.p.hand.map(id=>CARDS[id]);let t="";
+  if(G.p.hype>=HYPE_MAX) t="Your hype is full. Hit your <b>finisher</b>. It costs no energy.";
+  else if(it.type==="grapple"&&h.some(c=>c.reversal)&&!G.p.reversal) t="They're going for a grapple. Play <b>Reversal</b> to cancel it and hit back.";
+  else if((it.type==="finisher"||it.dmg>=9)&&h.some(c=>c.block)&&G.p.block<it.dmg&&!G.p.reversal) t=`A big hit is coming (${it.dmg}). Play a <b>block</b> card before you end your turn.`;
+  else if(G.lastType==="strike"&&h.some(c=>c.type==="grapple"&&c.dmg)) t="You just landed a strike. Follow with a <b>grapple</b> for a +3 combo.";
+  else if(it.type==="defense"||it.type==="hype") t="They're not attacking this turn. Spend everything on offense.";
+  return t?`<div class="tip"><b>Tip.</b> ${t}</div>`:"";
+}
+
+/* ---------- render ---------- */
+let pendingFx=[];
+function fx(who,amount,big){pendingFx.push({who,amount,big});}
+
+function fighterHTML(f,who){
+  const pct=(f.hp/f.max*100);
+  const prev=(G.bars&&G.bars[who]!=null)?G.bars[who]:pct;
+  const pips=Array.from({length:HYPE_MAX},(_,i)=>`<span class="${i<f.hype?"on":""}"></span>`).join("");
+  const chips=[f.block?`<span class="chip block">Block ${f.block}</span>`:"",f.weak?`<span class="chip weak">Weakened ${f.weak}</span>`:"",f.reversal?`<span class="chip rev">Reversal ready</span>`:"",f.kicked?`<span class="chip">Kick-out used</span>`:""].join("");
+  const intent=who==="o"?`<div class="intent"><span class="k">Next move</span><span class="v ${G.intent.type}">${esc(G.intent.label)}</span></div>`:"";
+  return `<section class="fighter ${who==="p"?"me":"them"}" id="f-${who}"><span class="side">${who==="p"?"You":"Opponent"}</span>
+    ${portrait(f.w,false)}
+    <div class="bars">
+      <div class="name">${esc(f.w.name)} <small>${esc(f.w.style)}</small></div>
+      <div class="lbl"><span>Stamina</span><span class="num">${f.hp} / ${f.max}</span></div>
+      <div class="bar"><div class="ghost" data-to="${pct.toFixed(1)}" style="width:${prev.toFixed(1)}%"></div><div class="fill ${pct<30?"low":""}" data-to="${pct.toFixed(1)}" style="width:${prev.toFixed(1)}%"></div></div>
+      <div class="lbl"><span>Hype</span><span class="num ${f.hype>=HYPE_MAX?"ready":""}">${f.hype>=HYPE_MAX?"Finisher ready":`${f.hype} / ${HYPE_MAX}`}</span></div>
+      <div class="hype ${f.hype>=HYPE_MAX?"full":""}">${pips}</div>
+      ${intent}
+      ${chips?`<div class="chips">${chips}</div>`:""}
+    </div></section>`;
+}
+function cardHTML(id,i,p){
+  const c=CARDS[id];
+  let big=c.big||"";
+  if(c.dmg){big=`${cardDmg(c)} DMG`;}
+  const combo=c.dmg&&c.type==="grapple"&&G.lastType==="strike";
+  return `<button class="card t-${c.type}${c.sig?" sig":""}" style="--i:${G.dealt?i:0}" data-i="${i}" ${c.cost>p.energy||G.busy?"disabled":""}>
+    <div class="top"><span class="type">${c.type}</span><span class="cost"><b>${c.cost}</b></span></div>
+    <h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p>${c.sig?`<span class="seal">Signature</span>`:""}${combo?`<span class="combo">Combo +3</span>`:""}</button>`;
+}
+function render(){
+  if(!G||!G.p) return;
+  const p=G.p,o=G.o;
+  const ladder=G.mode==="career"
+    ? `<span class="cur">Week ${C.week}</span><span>${esc(G.title||showName())}</span>${G.stip?`<span style="color:#ff6b7c">${STIPS[G.stip][0]}</span>`:""}`
+    : G.ladder.map((k,i)=>`<span class="${i<G.round?"done":i===G.round?"cur":""}">${WRESTLERS[k].name}</span>`).join("");
+  app.innerHTML=`
+  <header class="brand">${logo()}<div class="ladder">${ladder}</div></header>
+  <div class="eyebrow">You are ${esc(p.w.name)} · vs ${esc(o.w.name)}</div>
+  ${fighterHTML(p,"p")}
+  <div class="ticker"><div class="now ${G.fresh?"pop":""}">${esc(G.log[0]||"")}</div>${G.log[1]?`<div class="prev">${esc(G.log[1])}</div>`:""}</div>
+  ${fighterHTML(o,"o")}
+  <div class="meta"><div class="energy">${Array.from({length:ENERGY},(_,i)=>`<i class="${i<p.energy?"on":""}"></i>`).join("")}<span>${p.energy} energy</span></div>
+    <span>Turn ${G.turn} · Deck ${p.deck.length} · Discard ${p.discard.length}</span><span style="display:flex;gap:6px">${muteBtn()}<button class="mutebtn" id="menu">Quit</button></span></div>
+  ${tipHTML()}
+  <div class="hand">${p.hand.map((id,i)=>cardHTML(id,i,p)).join("")||`<p class="howto">No cards left. End your turn.</p>`}</div>
+  <div class="actions">
+    <button class="btn fin" id="fin" ${p.hype<HYPE_MAX||G.busy?"disabled":""}>${esc(p.w.fin.name)}</button>
+    <span class="grow"></span>
+    <button class="btn primary" id="end" ${G.busy?"disabled":""}>End turn</button>
+  </div>`;
+  G.fresh=false; G.dealt=false;
+  app.querySelectorAll(".card").forEach(b=>b.onclick=()=>playCard(+b.dataset.i));
+  $("#end").onclick=endTurn;$("#fin").onclick=useFinisher;$("#menu").onclick=()=>{if(!G.busy)titleScreen();};
+  // animate bars from previous to new values
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    app.querySelectorAll(".bar .ghost,.bar .fill").forEach(el=>el.style.width=el.dataset.to+"%");
+  }));
+  G.bars={p:p.hp/p.max*100,o:o.hp/o.max*100};
+  for(const e of pendingFx){
+    const el=$(`#f-${e.who}`);if(!el)continue;
+    el.classList.add("hit");
+    const n=document.createElement("span");n.className="float"+(e.big?" big":"");n.textContent=e.amount?`-${e.amount}`:"0";
+    n.style.color=e.big?"var(--finisher)":(e.who==="p"?"#ff5a70":"#fff");el.appendChild(n);
+  }
+  pendingFx=[];
+}
+
+/* ---------- boot ---------- */
+function start(data){
+  if(data&&data.C) C=data.C;
+  if(data&&data.G&&data.G.p){G=data.G;G.busy=false;render();} else titleScreen();
+}
+window.claude?.hot?.snapshot?.(()=>({G,C}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
