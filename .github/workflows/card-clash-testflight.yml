@@ -26,8 +26,8 @@ permissions:
   contents: read
 
 env:
-  RCC_RELEASE_SOURCE: 4bb6b41315d9c8ada510c8463e05d96332ae3acb
-  RCC_SOURCE: ${{ inputs.release_candidate && '4bb6b41315d9c8ada510c8463e05d96332ae3acb' || '93f90f0a6dd021285d31bc5dbfbc4270380916a3' }}
+  RCC_RELEASE_SOURCE: 8e5094076ab8ef21362f0dfa7f9f7a82e75f3fc2
+  RCC_SOURCE: ${{ inputs.release_candidate && '8e5094076ab8ef21362f0dfa7f9f7a82e75f3fc2' || '93f90f0a6dd021285d31bc5dbfbc4270380916a3' }}
   DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
   RCC_TEAM: J4Y8FY6JNZ
   RCC_BUNDLE: com.ctnetworkstudios.ringsidecardclash
