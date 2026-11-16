@@ -6,7 +6,7 @@ final class OfflineCareerTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let game = app.webViews.firstMatch
-        let settings = game.buttons["Settings & credits"]
+        let settings = game.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 20))
         settings.tap()
         let bell = game.buttons["Test ring bell"]
@@ -29,8 +29,16 @@ final class OfflineCareerTests: XCTestCase {
             return XCTFail("The bundled game did not load.")
         }
         exhibition.tap()
-        button("Brick Malone").tap()
-        button("To the ring").tap()
+        let brick = button("Brick Malone")
+        guard brick.waitForExistence(timeout: 10) else {
+            return XCTFail("Wrestler selection did not open after tapping Exhibition.")
+        }
+        brick.tap()
+        let start = button("To the ring")
+        guard start.waitForExistence(timeout: 10) else {
+            return XCTFail("Exhibition setup did not show the match start button.")
+        }
+        start.tap()
         let entrance = button("Ring the bell")
         if entrance.waitForExistence(timeout: 2), entrance.isHittable { entrance.tap() }
 
@@ -67,7 +75,7 @@ final class OfflineCareerTests: XCTestCase {
         }
 
         app.launch()
-        let career = game.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@ OR label BEGINSWITH[c] %@", "Career", "New career")).firstMatch
+        let career = game.buttons["New career"]
         guard career.waitForExistence(timeout: 20) else {
             return XCTFail("The bundled game did not load.")
         }
@@ -80,10 +88,12 @@ final class OfflineCareerTests: XCTestCase {
         XCTAssertTrue(button("Fight Camp").waitForExistence(timeout: 10))
         app.terminate()
         app.launch()
-        let continued = button("Continue career")
+        let continued = game.buttons["Continue career"]
         XCTAssertTrue(continued.waitForExistence(timeout: 15))
         continued.tap()
-        XCTAssertTrue(button("Fight Camp").waitForExistence(timeout: 10))
+        guard button("Fight Camp").waitForExistence(timeout: 10) else {
+            return XCTFail("The saved career did not reopen after tapping Continue career.")
+        }
 
         button("Main menu").tap()
         career.tap()
@@ -99,6 +109,8 @@ final class OfflineCareerTests: XCTestCase {
         XCTAssertTrue(fight.waitForExistence(timeout: 10))
         XCTAssertTrue(fight.isHittable)
         fight.tap()
-        XCTAssertTrue(button("End turn").waitForExistence(timeout: 10))
+        let endTurn = button("End turn")
+        XCTAssertTrue(endTurn.waitForExistence(timeout: 10))
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: endTurn)], timeout: 8) == .completed)
     }
 }

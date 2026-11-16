@@ -123,7 +123,7 @@ function gameRuntime(native){
     querySelector:sel=>sel==="#app"?app:sel==="#arena"?cv:button,
     querySelectorAll:()=>[],
     addEventListener:no,
-    createElement:()=>({className:"",style:{},innerHTML:"",remove:no,querySelector:()=>button})
+    createElement:()=>({className:"",style:{},innerHTML:"",remove:no,setAttribute:no,querySelector:()=>button})
   };
   const hot={ready:no,snapshot:no};
   const win={claude:{hot},confirm:()=>true,RingsideNative:native};
@@ -463,4 +463,24 @@ test("the iPhone bridge owns its career saves while browser storage stays separa
   assert.equal(JSON.parse(saved.get("rcc-career")).wid,"brick");
   assert.equal(memory.has("rcc-career"),false);
   assert.equal(gameRuntime(bridge).run("loadCareer().wid"),"brick");
+});
+
+test("partial legacy and malformed career fields recover without losing valid progress", () => {
+  const {run,memory}=gameRuntime();
+  run("startCareer('brick');");
+  const saved=JSON.parse(memory.get("rcc-career"));
+  Object.assign(saved,{week:13,w:8,l:4,peak:4,best:"bad",hypeBonus:null,hpMod:"bad",contenders:null,
+    history:[null,{week:12,title:"World",wrestler:"Brick Malone",action:"won"}],
+    results:[null,{week:12,opponent:"Raven",won:true,rating:4}]});
+  memory.set("rcc-career",JSON.stringify(saved));
+  memory.set("rcc-best","null");
+  run("titleScreen();C=loadCareer();hub('records');careerJournal();");
+  assert.equal(run("C.week"),13);
+  assert.equal(run("C.w"),8);
+  assert.equal(run("C.l"),4);
+  assert.equal(run("C.peak"),4);
+  assert.equal(run("C.best"),0);
+  assert.equal(run("C.history.length"),1);
+  assert.equal(run("C.results.length"),1);
+  assert.equal(run("C.deck.length"),saved.deck.length);
 });

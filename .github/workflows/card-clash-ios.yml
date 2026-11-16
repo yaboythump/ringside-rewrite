@@ -21,6 +21,8 @@ jobs:
           xcodebuild -version
           device=$(xcrun simctl create RingsideQA com.apple.CoreSimulator.SimDeviceType.iPhone-17)
           trap 'xcrun simctl delete "$device" || true' EXIT
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
           xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
             -destination "platform=iOS Simulator,id=$device" -derivedDataPath "$RUNNER_TEMP/rcc-ios" \
             -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
@@ -61,6 +63,8 @@ jobs:
           fi
           device=$(xcrun simctl create RingsideDuoQA "$type" "$runtime")
           trap 'xcrun simctl delete "$device" || true' EXIT
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
           xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
             -destination "platform=iOS Simulator,id=$device" -derivedDataPath "$RUNNER_TEMP/rcc-duo" \
             -parallel-testing-enabled NO -only-testing:RingsideCardClashUITests/OfflineCareerTests/testDamageAndEndTurnStayVisibleAfterPlayingCard \

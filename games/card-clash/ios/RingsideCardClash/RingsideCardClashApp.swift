@@ -65,9 +65,22 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
         "tag", "entrance", "card", "hit", "big", "block", "hype", "heal", "count", "bell", "crowd", "boo",
         "ref-1", "ref-2", "ref-3"
     ]
-    private let musicClip = "arena-loop"
+    private static let musicClips: Set<String> = ["menu-loop", "arena-loop"]
+    private var musicClip: String?
+    private var audioInterrupted = false
     private var players: [String: AVAudioPlayer] = [:]
     let gameURL = Bundle.main.url(forResource: "index", withExtension: "html")
+
+    override init() {
+        super.init()
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(audioInterruption(_:)),
+                           name: AVAudioSession.interruptionNotification, object: nil)
+        center.addObserver(self, selector: #selector(pauseForBackground),
+                           name: UIApplication.didEnterBackgroundNotification, object: nil)
+        center.addObserver(self, selector: #selector(resumeForForeground),
+                           name: UIApplication.didBecomeActiveNotification, object: nil)
+    }
 
     private var saveURL: URL {
         URL.applicationSupportDirectory.appending(path: "RingsideCardClash/game-saves.json")
@@ -130,8 +143,11 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
             guard let cue = body["cue"] as? String else { return }
             switch cue {
             case "stop-all": stopAudio()
-            case "music-stop": players[musicClip]?.stop()
-            case "music-start": playAudio(musicClip, looping: true)
+            case "music-stop": setMusic(nil)
+            case "music-menu": setMusic("menu-loop")
+            case "music-arena": setMusic("arena-loop")
+            case "effects-stop":
+                for clip in Self.soundEffects { players[clip]?.stop() }
             case "test-bell":
                 let started = playAudio("bell")
                 let event = started ? "ringside-audio-started" : "ringside-audio-failed"
@@ -144,8 +160,37 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
         }
     }
 
+    private func setMusic(_ clip: String?) {
+        if let previous = musicClip, previous != clip { players[previous]?.stop() }
+        musicClip = clip
+        if let clip { playAudio(clip, looping: Self.musicClips.contains(clip)) }
+    }
+
+    @objc private func pauseForBackground() {
+        stopAudio()
+    }
+
+    @objc private func resumeForForeground() {
+        if let musicClip { setMusic(musicClip) }
+    }
+
+    @objc private func audioInterruption(_ notification: Notification) {
+        guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        audioInterrupted = type == .began
+        if audioInterrupted {
+            stopAudio()
+        } else {
+            let flags = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            if AVAudioSession.InterruptionOptions(rawValue: flags).contains(.shouldResume) {
+                resumeForForeground()
+            }
+        }
+    }
+
     @discardableResult
     private func playAudio(_ clip: String, looping: Bool = false) -> Bool {
+        guard !audioInterrupted, UIApplication.shared.applicationState != .background else { return false }
         do {
             let player: AVAudioPlayer
             if let cached = players[clip] {

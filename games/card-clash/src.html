@@ -20,7 +20,7 @@
 }
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;overflow-x:hidden;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 28px}
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(18px,env(safe-area-inset-top)) max(28px,env(safe-area-inset-bottom))}
 #arena{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 #flash{position:fixed;inset:0;z-index:30;pointer-events:none;background:#fff;opacity:0}
 #flash.go{animation:flash .45s ease-out}
@@ -46,7 +46,8 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
   clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);transition:transform .2s ease,filter .2s}
 .pick::before{content:"";position:absolute;inset:0;padding:1px;background:linear-gradient(160deg,var(--gold),transparent 40%,transparent 70%,var(--gold-deep));
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
-.pick:hover{transform:translateY(-4px) scale(1.015);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}
+@media(hover:hover) and (pointer:fine){.pick:hover{transform:translateY(-4px) scale(1.015);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}}
+.pick:focus-visible{outline-offset:-4px}
 .pick h3{font-family:var(--display);font-weight:900;font-style:italic;font-size:30px;line-height:.9;margin:0;text-transform:uppercase}
 .pick p{margin:0;color:var(--steel);font-size:13px;line-height:1.4}
 .pick .fin{font-family:var(--label);font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
@@ -207,7 +208,7 @@ img.belt.sm{width:min(60vw,240px);animation:none;justify-self:center}
 .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,225px),1fr));gap:14px}
 .mode{position:relative;text-align:left;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;min-width:0;gap:8px;padding:18px 18px 20px;background:linear-gradient(160deg,rgba(40,40,48,.9),rgba(10,10,12,.92));
   clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%);transition:transform .2s,filter .2s}
-.mode:hover{transform:translateY(-4px);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}
+@media(hover:hover) and (pointer:fine){.mode:hover{transform:translateY(-4px);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}}
 .mode h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(24px,3vw,27px);line-height:1.04;letter-spacing:-.03em;overflow-wrap:anywhere;text-transform:uppercase}
 .mode p{margin:0;color:var(--steel);line-height:1.45;font-size:14px}
 .mode .go{font-family:var(--label);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--gold)}
@@ -425,7 +426,7 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
 .home-modes .mode{min-height:58px;padding:9px 10px;gap:3px}
 .home-modes .mode h3{font-size:clamp(16px,4.5vw,25px)}
 .home-modes .mode p{font-size:12px;line-height:1.25}
-.home-modes #m-cont{grid-column:1/-1}
+.home-modes #m-cont,.home-modes #m-career.primary{grid-column:1/-1}
 .home-actions .btn{font-size:15px;min-height:44px;padding:6px 12px}
 @media(max-width:600px), (pointer:coarse){
   body:has(.career-view){box-sizing:border-box;height:100dvh;overflow:hidden;
@@ -500,7 +501,7 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
 
 <canvas id="arena" aria-hidden="true"></canvas>
 <div id="flash"></div>
-<div class="app" id="app"></div>
+<main class="app" id="app"></main>
 
 <script>
 const NATIVE = typeof window==="undefined"?null:window.RingsideNative;
@@ -764,7 +765,13 @@ const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const wait=ms=>new Promise(r=>setTimeout(r,still()?Math.min(ms,150):ms));
 
-function loadBest(){try{return JSON.parse(gameStorage.getItem(BEST_KEY)||"{}")}catch(e){return {}}}
+function loadBest(){
+  try{
+    const best=JSON.parse(gameStorage.getItem(BEST_KEY)||"{}");
+    return Object.fromEntries(Object.entries(best||{}).filter(([id,wins])=>
+      Object.hasOwn(WRESTLERS,id)&&Number.isSafeInteger(wins)&&wins>0));
+  }catch(e){return {};}
+}
 function saveBest(b){try{gameStorage.setItem(BEST_KEY,JSON.stringify(b))}catch(e){}}
 
 /* ---------- arena canvas ---------- */
@@ -826,51 +833,59 @@ const PIN_VOICE=[/*__PIN_VOICE__*/];
 const nativeAudio=typeof NATIVE?.audio==="function"?NATIVE.audio:null;
 let pinVoice=[],voiceLoad=null;
 try{muted=gameStorage.getItem(MUTE_KEY)==="1";musicOff=gameStorage.getItem(MUSIC_KEY)==="1"}catch(e){}
+let musicBus=null,musicScene="menu";
 function unlockAudio(){
-  if(muted||nativeAudio)return;
+  if(nativeAudio)return;
   try{
     if(!AC){
       const audio=new (window.AudioContext||window.webkitAudioContext)();
       master=audio.createGain();
       master.connect(audio.destination);
+      master.gain.value=muted?0:1;
+      musicBus=audio.createGain();
+      musicBus.connect(audio.destination);
       AC=audio;
     }
     if(AC.state==="suspended"||AC.state==="interrupted")AC.resume().catch(()=>{});
+    if(!musicTimer&&!musicOff)syncMusic();
   }catch(e){}
 }
 // Unlock in the initiating gesture, before navigation or entrance timers.
 document.addEventListener("click",unlockAudio,true);
 document.addEventListener("keydown",unlockAudio,true);
 function actx(){return muted?null:AC;}
-function tone(f,dur,gain,type="sine",to){const a=actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);}
-function noise(dur,freq,gain,type="lowpass",attack=0){const a=actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t);}
+function tone(f,dur,gain,type="sine",to,output=master){const a=output===musicBus?AC:actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(output);o.start(t);o.stop(t+dur+.02);}
+function noise(dur,freq,gain,type="lowpass",attack=0,output=master){const a=output===musicBus?AC:actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(output);s.start(t);}
 const ARENA_RIFF=[110,110,0,130.81,110,0,146.83,130.81,98,98,0,110,98,0,130.81,146.83,110,0,110,164.81,146.83,130.81,110,0,87.31,87.31,98,0,130.81,110,98,0];
-function playArenaBeat(){
-  if(document.hidden||muted||musicOff||AC?.state!=="running")return;
-  const i=musicBeat++%ARENA_RIFF.length,f=ARENA_RIFF[i];
+const MENU_RIFF=[130.81,0,155.56,196,0,155.56,110,0,130.81,164.81,0,130.81,98,0,116.54,146.83];
+function playMusicBeat(){
+  if(document.hidden||musicOff||AC?.state!=="running")return;
+  const riff=musicScene==="arena"?ARENA_RIFF:MENU_RIFF;
+  const i=musicBeat++%riff.length,f=riff[i];
   if(f){
-    tone(f,.19,.085,"triangle");
-    tone(f*2,.15,.047,"triangle");
-    tone(f*3,.12,.025,"triangle");
-    if(i%8===0){tone(f*4,.32,.022,"triangle");tone(f*6,.26,.017,"triangle");}
+    tone(f,.25,.08,"triangle",null,musicBus);
+    tone(f*2,.2,.04,"triangle",null,musicBus);
+    if(i%4===0)tone(f*3,.32,.025,"triangle",null,musicBus);
   }
-  if(i%8===0||i%8===3||i%8===6)tone(108,.16,.145,"sine",44);
-  if(i%4===2){noise(.11,1700,.083,"bandpass");tone(185,.08,.036,"triangle",92);}
-  noise(.036,4800,i%2===1?.041:.022,"highpass");
+  if(i%8===0||i%8===6)tone(108,.16,.14,"sine",44,musicBus);
+  if(i%4===2)noise(.11,1700,.072,"bandpass",0,musicBus);
+  noise(.036,4800,i%2===1?.04:.02,"highpass",0,musicBus);
 }
-function stopArenaMusic(){
-  nativeAudio?.("music-stop");
+function syncMusic(){
   if(musicTimer)clearInterval(musicTimer);
   musicTimer=0;
-}
-function startArenaMusic(){
-  stopArenaMusic();
-  if(muted||musicOff||document.hidden)return;
-  if(nativeAudio){nativeAudio("music-start");return;}
-  if(!actx())return;
+  const active=!musicOff&&!document.hidden&&musicScene;
+  if(nativeAudio){nativeAudio(active?`music-${musicScene}`:"music-stop");return;}
+  if(musicBus)musicBus.gain.value=active?1:0;
+  if(!active||!AC)return;
   musicBeat=0;
-  playArenaBeat();
-  musicTimer=setInterval(playArenaBeat,235);
+  playMusicBeat();
+  musicTimer=setInterval(playMusicBeat,musicScene==="arena"?235:320);
+}
+function setMusicScene(scene){
+  if(musicScene===scene)return;
+  musicScene=scene;
+  syncMusic();
 }
 function loadPinVoice(){
   const audio=actx();
@@ -900,14 +915,17 @@ const WEB_SFX={
   bell(){tone(1320,1.1,.2);tone(1985,.8,.09);tone(2640,.5,.04)},
   crowd(){const n=Date.now();if(n-lastCrowd<900)return;lastCrowd=n;noise(1.4,1100,.2,"bandpass",.25)},
   boo(){tone(140,.7,.12,"sawtooth",95)},
+  menu(){tone(510,.065,.07,"triangle",640);},
+  victory(){tone(392,.25,.14,"triangle",523);tone(659,.55,.10,"sine");},
+  defeat(){tone(220,.52,.15,"triangle",82);},
 };
 const SFX=nativeAudio?Object.fromEntries(Object.keys(WEB_SFX).map(cue=>[cue,()=>{
-  if(!muted&&!document.hidden)nativeAudio(cue);
+  if(!muted&&!document.hidden)nativeAudio(cue==="menu"?"card":cue==="victory"?"crowd":cue==="defeat"?"boo":cue);
 }])):WEB_SFX;
 document.addEventListener("visibilitychange",()=>{
-  if(!nativeAudio)return;
-  if(document.hidden)nativeAudio("stop-all");
-  else if(G?.p&&!G.over)startArenaMusic();
+  if(document.hidden)nativeAudio?.("stop-all");
+  else if(AC?.state!=="running")AC?.resume().catch(()=>{});
+  syncMusic();
 });
 document.addEventListener("ringside-audio-started",()=>{
   const status=$("#sound-status");
@@ -918,18 +936,25 @@ document.addEventListener("ringside-audio-failed",()=>{
   if(status)status.textContent="iPhone audio couldn’t start. Check your audio output and try again.";
 });
 document.addEventListener("click",e=>{
-  if(!e.target.closest("[data-mute]"))return;
+  const button=e.target.closest?.("button");
+  if(!button)return;
+  if(!button.matches("[data-mute]")){
+    if(!G?.p||G.over)SFX.menu();
+    return;
+  }
   muted=!muted;
   try{gameStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}
-  document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");
+  document.querySelectorAll("[data-mute]").forEach(button=>{
+    button.textContent=muted?"Effects off":"Effects on";
+    button.setAttribute("aria-pressed",String(!muted));
+  });
   if(master)master.gain.value=muted?0:1;
-  if(muted){nativeAudio?.("stop-all");stopArenaMusic();return;}
+  if(muted){nativeAudio?.("effects-stop");return;}
   unlockAudio();
-  SFX.bell();
+  SFX.menu();
   loadPinVoice();
-  if(G?.p&&!G.over)startArenaMusic();
 });
-const muteBtn=()=>`<button class="mutebtn" data-mute>${muted?"Sound off":"Sound on"}</button>`;
+const muteBtn=()=>`<button class="mutebtn" data-mute aria-label="Sound effects" aria-pressed="${!muted}">${muted?"Effects off":"Effects on"}</button>`;
 
 /* ---------- pieces ---------- */
 function portrait(w){
@@ -942,22 +967,23 @@ const logo=()=>`<h1 class="logo"><span class="l1">Ringside</span><span class="l2
 
 /* ---------- screens ---------- */
 function titleScreen(){
-  stopArenaMusic();
+  setMusicScene("menu");
   G=null;
+  syncMusic();
   if(typeof scrollTo==="function")scrollTo(0,0);
   const saved=loadCareer(),cup=loadCup();
   app.innerHTML=`
   <header class="hero home-hero">${logo()}</header>
   ${PREVIEW?'<p class="release-notice">Playtest build · Uses its own career save.</p>':""}
   <div class="modes home-modes">
-    ${saved?`<button class="mode primary" id="m-cont"><span class="go">Continue career</span><h3 class="metal">${esc(WRESTLERS[saved.wid].name)}</h3><p>Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?mainTitle(saved.wid):`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</p></button>`:""}
-    <button class="mode ${saved?"":"primary"}" id="m-career"><h3>${saved?"New career":"Career"}</h3><p>Build your wrestler and chase titles.</p></button>
+    ${saved?`<button class="mode primary" id="m-cont" aria-label="Continue career"><span class="go">Continue career</span><h3 class="metal">${esc(WRESTLERS[saved.wid].name)}</h3><p>Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?mainTitle(saved.wid):`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</p></button>`:""}
+    <button class="mode ${saved?"":"primary"}" id="m-career" aria-label="New career"><h3>New career</h3><p>Build your wrestler and chase titles.</p></button>
     <button class="mode" id="m-quick"><h3>Quick Match</h3><p>Three-match ladder</p></button>
-    <button class="mode" id="m-exhibition"><h3>Exhibition</h3><p>Pick your matchup</p></button>
+    <button class="mode" id="m-exhibition" aria-label="Exhibition"><h3>Exhibition</h3><p>Pick your matchup</p></button>
     <button class="mode" id="m-tag"><h3>Tag Team</h3><p>Two on two</p></button>
     <button class="mode" id="m-tournament"><h3>Championship Cup</h3><p>${cup?`Saved bracket · ${esc(WRESTLERS[cup.pid].name)}${cup.bracket[2][0].winner?" · Final results":` · ${ROUND_NAMES[cup.round]}`}`:"Eight-wrestler bracket"}</p></button>
   </div>
-  <div class="actions home-actions"><button class="btn" id="m-help">How to play</button><button class="btn" id="m-settings">Settings &amp; credits</button></div>`;
+  <div class="actions home-actions"><button class="btn" id="m-help">How to play</button><button class="btn" id="m-settings">Settings</button></div>`;
   $("#m-cont")?.addEventListener("click",()=>{C=saved;hub();});
   $("#m-career").onclick=()=>selectScreen("career");
   $("#m-quick").onclick=()=>selectScreen("quick");
@@ -969,6 +995,7 @@ function titleScreen(){
 }
 const MODE_NAMES={career:"New career",quick:"Quick match ladder",exhibition:"Exhibition",tag:"Tag Team",tournament:"Championship Cup"};
 function selectScreen(mode,division="open"){
+  if(typeof scrollTo==="function")scrollTo(0,0);
   const best=loadBest();
   app.innerHTML=`
   <header class="brand">${logo()}<span class="tag">${MODE_NAMES[mode]}</span></header>
@@ -976,7 +1003,7 @@ function selectScreen(mode,division="open"){
   <div class="segmented" aria-label="Roster division"><button class="btn" data-division="open" aria-pressed="${division==="open"}">Open division</button><button class="btn" data-division="women" aria-pressed="${division==="women"}">Women’s division</button></div>
   <div class="eyebrow">Choose your wrestler</div>
   <div class="roster">${roster().filter(w=>divisionOf(w.id)===division).map(w=>`
-    <button class="pick" data-w="${w.id}">
+    <button class="pick" data-w="${w.id}" aria-label="${esc(w.name)}" aria-description="${esc(w.style)}, ${w.hp} stamina, finisher ${esc(w.fin.name)}">
       ${portrait(w)}
       <div class="tape">${esc(w.tag)}</div>
       <h3>${esc(w.name)}</h3>
@@ -1007,7 +1034,7 @@ function guideScreen(screen){
     <li>At 10 hype, use your finisher for zero energy or hold hype for a kick-out. You can kick out once at 5 hype, except in a steel cage.</li>
     <li>Career wins earn in-game cash. Buy cards in the Move Shop, then equip or swap them in Fight Camp. Training still costs one weekly segment. Your career and settings save on this device.</li>
   </ol><button class="btn primary" id="practice">Practice in exhibition</button>`
-  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}">Arena music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
+  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}" aria-label="Music">Music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
     ${RM?'<p class="howto">This device requests reduced motion.</p>':""}
     <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. The arena music and effects are synthesized in-game. Referee voice is synthesized with Festival Lite.</p>`}
   </section><div class="actions"><button class="btn" id="back">Main menu</button></div>`;
@@ -1015,7 +1042,7 @@ function guideScreen(screen){
   $("#practice")?.addEventListener("click",()=>exhibitionSetup("raven"));
   $("#test-sound")?.addEventListener("click",()=>{
     const status=$("#sound-status");
-    if(muted){status.textContent="Turn on Sound to hear the ring bell.";return;}
+    if(muted){status.textContent="Turn on Sound Effects to hear the ring bell.";return;}
     if(nativeAudio){status.textContent="Starting ring bell…";nativeAudio("test-bell");return;}
     SFX.bell();
     status.textContent="Ring bell test triggered.";
@@ -1023,7 +1050,9 @@ function guideScreen(screen){
   $("#music")?.addEventListener("click",()=>{
     musicOff=!musicOff;
     try{gameStorage.setItem(MUSIC_KEY,musicOff?"1":"0");}catch(e){}
-    guideScreen(screen);
+    syncMusic();
+    $("#music").setAttribute("aria-pressed",String(!musicOff));
+    $("#music").textContent=musicOff?"Music off":"Music on";
   });
   $("#motion")?.addEventListener("click",()=>{
     lowMotion=!lowMotion;
@@ -1264,7 +1293,7 @@ function tournamentScreen(){
 
 function makeFighter(id,opt={}){
   const w=WRESTLERS[id], lvl=opt.level||0, hp=w.hp+lvl*6+(opt.hpPlus||0);
-  return {w,hp:Math.max(10,hp+(opt.hpMod||0)),max:hp,hype:Math.min(HYPE_MAX,(w.archetype==="show"?4:0)+(opt.hype||0)),block:0,weak:0,exposed:false,strikeCounter:false,kicked:false,
+  return {w,hp:Math.max(10,hp+(opt.hpMod||0)),max:hp,hype:Math.max(0,Math.min(HYPE_MAX,(w.archetype==="show"?4:0)+(opt.hype||0))),block:0,weak:0,exposed:false,strikeCounter:false,kicked:false,
     deck:shuffle(opt.deck?[...opt.deck]:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)]),hand:[],discard:[],energy:ENERGY,reversal:false};
 }
 function startRun(id){
@@ -1273,7 +1302,7 @@ function startRun(id){
 }
 async function startMatch(){
   loadPinVoice();
-  startArenaMusic();
+  setMusicScene("arena");
   if(G.mode==="career"){
     const plus=G.stip==="lastman"?15:0;
     G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus+(C.hypeMod||0),hpMod:Math.min(0,C.hpMod||0)-injuryPenalty(C),hpPlus:plus+Math.max(0,C.hpMod||0)}); G.o=makeFighter(G.oid,{level:G.level,hpPlus:plus});
@@ -1507,7 +1536,9 @@ function checkPin(down,up,afterOpponent=false){
   return true;
 }
 async function pinCount(kick){
-  const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
+  const ov=document.createElement("div");ov.className="overlay";
+  ov.setAttribute("role","status");
+  document.body.appendChild(ov);
   const steps=kick?["1","2","KICK OUT!"]:["1","2","3"];
   for(const s of steps){
     ov.innerHTML=`<div><div class="ref">The referee counts</div><div class="count ${s==="3"?"three":""} ${s.length>2?"out":""}">${s}</div></div>`;
@@ -1525,8 +1556,9 @@ async function pinCount(kick){
 
 function finishMatch(won){
   if(G.over)return;
-  stopArenaMusic();
+  setMusicScene(null);
   G.over=true;
+  if(won)SFX.victory();else SFX.defeat();
   if(G.mode==="career"){careerResult(won);return;}
   if(G.mode!=="quick"){eventResult(won);return;}
   const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
@@ -1692,24 +1724,38 @@ function normalizeCareer(c){
     if(!w) return null;
     WRESTLERS.custom=w;
   }else if(!Object.hasOwn(WRESTLERS,c.wid)) return null;
-  if(!Array.isArray(c.contenders)||!Array.isArray(c.news)||!Number.isInteger(c.week)||c.week<1) return null;
+  if(!Number.isSafeInteger(c.week)||c.week<1) return null;
+  c.contenders=Array.isArray(c.contenders)?c.contenders:[];
+  c.news=Array.isArray(c.news)?c.news.filter(line=>typeof line==="string").slice(0,5):[];
+  for(const key of ["w","l","fame","defenses","reigns","secondaryDefenses"]){
+    c[key]=Number.isSafeInteger(c[key])&&c[key]>=0?c[key]:0;
+  }
   const division=divisionOf(c.wid);
   const pool=roster().filter(w=>divisionOf(w.id)===division).map(w=>w.id);
   if(![...pool,c.wid].includes(c.champ)) c.champ=division==="women"?"imani":"silas";
-  const eligible=new Set([...pool,c.wid].filter(id=>id!==c.champ));
+  const eligible=new Set([...pool.filter(id=>id!==c.wid),c.wid].filter(id=>id!==c.champ));
   c.contenders=[...new Set([...c.contenders,...eligible])].filter(id=>eligible.has(id));
   if(c.booked&&(![...eligible,c.champ].includes(c.booked.id)||c.booked.id===c.wid))c.booked=null;
-  if(c.booked&&!Object.hasOwn(STIPS,c.booked.stip)) c.booked.stip=null;
-  c.hpMod=c.hpMod||0;c.hypeMod=c.hypeMod||0;c.best=c.best||0;c.align=c.align||0;
+  if(c.booked){
+    c.booked.title=[true,"main","secondary"].includes(c.booked.title)?c.booked.title:false;
+    if(!Object.hasOwn(STIPS,c.booked.stip))c.booked.stip=null;
+  }
+  c.hpMod=Number.isFinite(c.hpMod)?Math.max(-30,Math.min(30,c.hpMod)):0;
+  c.hypeMod=Number.isFinite(c.hypeMod)?Math.max(-HYPE_MAX,Math.min(HYPE_MAX,c.hypeMod)):0;
+  c.hypeBonus=Number.isFinite(c.hypeBonus)?Math.max(0,Math.min(HYPE_MAX,c.hypeBonus)):0;
+  c.best=Number.isFinite(c.best)?Math.max(0,Math.min(5,c.best)):0;
+  c.align=Number.isFinite(c.align)?Math.max(-5,Math.min(5,c.align)):0;
   if(!Number.isFinite(c.peak))c.peak=99;
   c.xp=Number.isFinite(c.xp)&&c.xp>=0?c.xp:(c.w||0)*12+(c.l||0)*5;
   c.cash=Number.isSafeInteger(c.cash)&&c.cash>=0?Math.min(c.cash,CASH_CAP):
     Math.min(CASH_CAP,Number.isSafeInteger(c.w)&&c.w>0?c.w*45:0);
-  c.history=Array.isArray(c.history)?c.history:[];
-  c.results=Array.isArray(c.results)?c.results:[];
+  c.history=Array.isArray(c.history)?c.history.filter(entry=>Number.isSafeInteger(entry?.week)&&
+    typeof entry.title==="string"&&typeof entry.wrestler==="string"&&["won","retained"].includes(entry.action)):[];
+  c.results=Array.isArray(c.results)?c.results.filter(entry=>Number.isSafeInteger(entry?.week)&&
+    typeof entry.opponent==="string"&&typeof entry.won==="boolean"&&Number.isFinite(entry.rating)).slice(0,100):[];
   c.secondary=division==="open"?(pool.includes(c.secondary)||c.secondary===c.wid?c.secondary:pool.find(id=>id!==c.wid&&id!==c.champ)):null;
   c.secondaryDefenses=c.secondaryDefenses||0;
-  c.arc=c.arc&&typeof c.arc==="object"?c.arc:{};
+  c.arc=c.arc&&typeof c.arc==="object"&&!Array.isArray(c.arc)?c.arc:{};
   if(!eligible.has(c.arc.foe)&&c.arc.foe!==c.champ)c.arc.foe=null;
   if(!pool.includes(c.arc.ally)||c.arc.ally===c.wid)c.arc.ally=null;
   if(!Object.hasOwn(FACTIONS,c.arc.faction))c.arc.faction=null;
@@ -1926,7 +1972,7 @@ function careerJournal(){
 function news(t){C.news.unshift(t);C.news=C.news.slice(0,5);}
 
 function hub(initialPane="tonight"){
-  G=null;normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
+  G=null;setMusicScene("menu");normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
   const story=isPPV()||C.week%2===0;
   const rivalryBooked=C.office.active?.id==="rivalry";
   const r=myRank();C.peak=Math.min(C.peak,isChamp()?0:r+1);
@@ -1988,7 +2034,7 @@ function hub(initialPane="tonight"){
     <section class="panel"><h3>Career goals</h3><ul class="goals">${goals.map(g=>`<li class="${g[1]?"done":""}">${g[0]}</li>`).join("")}</ul><div class="stats"><span>Best match<b>${C.best?C.best.toFixed(2)+" ★":"-"}</b></span><span>Title defenses<b>${C.defenses}</b></span></div></section>
   </div>
   </div>
-  <div class="career-actions"><button class="btn" id="fight-camp">Fight Camp</button><button class="btn" id="move-shop">Move Shop · ${cashLabel(C.cash)}</button><button class="btn primary" id="fight">${b.title?"Title match":"To the ring"}</button></div>
+  <div class="career-actions"><button class="btn" id="fight-camp" aria-label="Fight Camp, move cards">Move Cards</button><button class="btn" id="move-shop">Move Shop · ${cashLabel(C.cash)}</button><button class="btn primary" id="fight" aria-label="${b.title?"Start title match":"To the ring"}">${b.title?"Title match":"To the ring"}</button></div>
   </div>`;
   const openPane=id=>{
     app.querySelectorAll("[data-career-tab]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.careerTab===id)));
