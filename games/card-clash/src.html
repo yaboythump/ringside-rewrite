@@ -164,6 +164,9 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 /* overlays */
 .overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(ellipse at center,rgba(20,14,4,.75),rgba(3,3,4,.94) 70%);
   padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.career-confirm{width:min(27rem,calc(100% - 32px));max-height:calc(100% - 32px);color:var(--fg)}
+.career-confirm:not([open]){display:none}
+.career-confirm::backdrop{background:rgba(0,0,0,.78)}
 .count{font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(120px,38vw,220px);line-height:1;color:var(--fg);text-align:center;animation:slam .35s cubic-bezier(.2,1.6,.4,1)}
 .count.three{background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 30px rgba(226,189,98,.6))}
 .count.out{color:var(--crimson);font-size:clamp(56px,16vw,110px);text-shadow:0 0 30px rgba(209,33,59,.7)}
@@ -1742,7 +1745,25 @@ const titleFor=(c,b)=>b.title==="secondary"?SECONDARY_TITLE:mainTitle(c.wid);
 function levelOf(id){if(C.champ===id)return 3;const i=C.contenders.indexOf(id);return Math.max(0,2-Math.floor(i/3));}
 
 function newCareer(wid,created){
-  if(loadCareer()&&!window.confirm("Start a new career? This replaces the existing career save.")) return;
+  const saved=loadCareer();
+  if(!saved){startCareer(wid,created);return;}
+  const dialog=document.createElement("dialog");
+  dialog.className="panel career-confirm";
+  dialog.setAttribute("aria-labelledby","career-confirm-title");
+  dialog.innerHTML=`<h3 id="career-confirm-title">Start a new career?</h3>
+    <p>Starting with ${esc((created||WRESTLERS[wid]).name)} replaces your existing career save.</p>
+    <form method="dialog" class="actions">
+      <button class="btn" value="cancel" autofocus>Keep my career</button>
+      <button class="btn primary" value="start">Start new career</button>
+    </form>`;
+  dialog.addEventListener("close",()=>{
+    dialog.remove();
+    if(dialog.returnValue==="start")startCareer(wid,created);
+  },{once:true});
+  document.body.append(dialog);
+  dialog.showModal();
+}
+function startCareer(wid,created){
   if(created)WRESTLERS[wid]=created;
   const division=divisionOf(wid);
   const pool=roster().filter(w=>divisionOf(w.id)===division).map(w=>w.id);

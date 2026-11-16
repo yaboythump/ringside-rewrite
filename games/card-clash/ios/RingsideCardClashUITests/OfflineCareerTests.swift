@@ -61,12 +61,13 @@ final class OfflineCareerTests: XCTestCase {
     @MainActor
     func testNewCareerSurvivesRelaunch() {
         let app = XCUIApplication()
+        let game = app.webViews.firstMatch
         func button(_ text: String) -> XCUIElement {
-            app.webViews.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", text)).firstMatch
+            game.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", text)).firstMatch
         }
 
         app.launch()
-        let career = button("Career")
+        let career = game.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@ OR label BEGINSWITH[c] %@", "Career", "New career")).firstMatch
         guard career.waitForExistence(timeout: 20) else {
             return XCTFail("The bundled game did not load.")
         }
@@ -74,6 +75,8 @@ final class OfflineCareerTests: XCTestCase {
         let brick = button("Brick Malone")
         XCTAssertTrue(brick.waitForExistence(timeout: 10))
         brick.tap()
+        let replace = game.buttons["Start new career"]
+        if replace.waitForExistence(timeout: 2) { replace.tap() }
         XCTAssertTrue(button("Fight Camp").waitForExistence(timeout: 10))
         app.terminate()
         app.launch()
@@ -81,5 +84,21 @@ final class OfflineCareerTests: XCTestCase {
         XCTAssertTrue(continued.waitForExistence(timeout: 15))
         continued.tap()
         XCTAssertTrue(button("Fight Camp").waitForExistence(timeout: 10))
+
+        button("Main menu").tap()
+        career.tap()
+        brick.tap()
+        let keep = game.buttons["Keep my career"]
+        XCTAssertTrue(keep.waitForExistence(timeout: 10))
+        keep.tap()
+        XCTAssertTrue(brick.isHittable)
+        brick.tap()
+        XCTAssertTrue(replace.waitForExistence(timeout: 10))
+        replace.tap()
+        let fight = button("To the ring")
+        XCTAssertTrue(fight.waitForExistence(timeout: 10))
+        XCTAssertTrue(fight.isHittable)
+        fight.tap()
+        XCTAssertTrue(button("End turn").waitForExistence(timeout: 10))
     }
 }

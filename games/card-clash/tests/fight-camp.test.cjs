@@ -101,7 +101,8 @@ test("the career UI exposes Fight Camp, weekly training and save protection", ()
   assert.match(html,/function fightCamp\(/);
   assert.match(html,/function train\(\)/);
   assert.match(html,/collection:\[\.\.\.startingDeck\]/);
-  assert.match(html,/window\.confirm\("Start a new career\?/);
+  assert.match(html,/Start a new career\?/);
+  assert.match(html,/if\(dialog\.returnValue==="start"\)startCareer/);
   assert.match(html,/unlockCard\(C,id\)/);
   assert.match(html,/rcc-career/);
 });

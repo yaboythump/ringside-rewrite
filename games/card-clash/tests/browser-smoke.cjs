@@ -89,6 +89,12 @@ const legacy={
         await click("#fight-camp");
         assert.match(await button(".camp-summary").textContent(),/Equipped 15/);
         await click("#camp-back");await click("#quit");
+        await click("#m-career");
+        await click('.pick[data-w="brick"]');
+        await visible(".career-confirm[open]");
+        await click('.career-confirm button[value="cancel"]');
+        assert.equal(await p.evaluate(key=>JSON.parse(localStorage.getItem(key)).wid,key),"raven");
+        await click("#back");
       }
       await click("#m-career");
       assert.equal(await p.locator(".pick").count(),16);
@@ -104,8 +110,8 @@ const legacy={
       await button('[name="gear"]').selectOption("elite");
       await button('[name="palette"]').selectOption("jade");
       await button('[name="move"]').selectOption("haymaker");
-      if(!isPreview)p.once("dialog",d=>d.accept());
       await click("#creation [type=submit]");
+      if(!isPreview)await click('.career-confirm button[value="start"]');
       await visible("#fight-camp");
       assert.equal(await p.locator(".career-pane:visible").count(),1);
       assert.equal(await p.locator("#career-tonight").isVisible(),true);
