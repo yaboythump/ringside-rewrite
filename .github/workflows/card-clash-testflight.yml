@@ -357,8 +357,6 @@ jobs:
     steps:
       - name: Check the game’s Apple release and TestFlight records
         env:
-          RCC_APPLY_29_1: >-
-            ${{ github.event_name == 'push' && github.event.head_commit.message == 'ci(card-clash): configure the validated 29.1 beta and store draft' }}
           ASC_PRIVATE_KEY: ${{ secrets.RCC_ASC_PRIVATE_KEY }}
           ASC_KEY_ID: ${{ secrets.RCC_ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.RCC_ASC_ISSUER_ID }}
@@ -393,16 +391,12 @@ jobs:
           host = "https://api.appstoreconnect.apple.com/v1/"
           headers = {"Authorization": "Bearer " + os.environ["RCC_STATUS_TOKEN"]}
 
-          apply = os.environ["RCC_APPLY_29_1"] == "true"
-
-          def fetch(path, params=None, method="GET", body=None):
+          def fetch(path, params=None):
               url = host + path + "?" + urllib.parse.urlencode(params or {})
               try:
-                  data = json.dumps(body).encode() if body is not None else None
-                  request = urllib.request.Request(url, data=data, method=method,
-                                                   headers={**headers, "Content-Type": "application/json"})
+                  request = urllib.request.Request(url, headers=headers)
                   with urllib.request.urlopen(request, timeout=18) as response:
-                      return {} if response.status == 204 else json.load(response)
+                      return json.load(response)
               except urllib.error.HTTPError as error:
                   print(f"Apple {path.split('/')[-1]} query returned HTTP {error.code}.")
               except (urllib.error.URLError, TimeoutError, ValueError):
@@ -412,23 +406,10 @@ jobs:
           def rows(response):
               return (response or {}).get("data", [])
 
-          def fill_missing(resource, record, copy):
-              fields = record["attributes"]
-              update = {key: value for key, value in copy.items() if not fields.get(key)}
-              if not update:
-                  return
-              result = fetch(f"{resource}/{record['id']}", method="PATCH", body={
-                  "data": {"type": resource, "id": record["id"], "attributes": update},
-              })
-              saved = (result or {}).get("data", {}).get("attributes", {})
-              fields.update({key: saved[key] for key in update if key in saved})
-              print(resource, "fields verified:", ", ".join(key for key in update if saved.get(key) == update[key]))
-
           apps = rows(fetch("apps", {"filter[bundleId]": os.environ["RCC_BUNDLE"]}))
           if len(apps) != 1:
               raise SystemExit("Expected exactly one matching app.")
           app = apps[0]["id"]
-          print("App title matches Ringside Card Clash:", apps[0]["attributes"].get("name") == "Ringside Card Clash")
           versions = rows(fetch(f"apps/{app}/appStoreVersions", {
               "filter[platform]": "IOS", "filter[versionString]": "1.0",
               "fields[appStoreVersions]": "versionString,appStoreState",
@@ -437,40 +418,19 @@ jobs:
               version_id = version["id"]
               print("Release state:", version["attributes"]["appStoreState"])
               localizations = rows(fetch(f"appStoreVersions/{version_id}/appStoreVersionLocalizations", {
-                  "fields[appStoreVersionLocalizations]": "locale,description,supportUrl,promotionalText,keywords",
+                  "fields[appStoreVersionLocalizations]": "locale,description,supportUrl",
               }))
               for loc in localizations:
                   fields = loc["attributes"]
-                  if apply and fields["locale"] == "en-US" and version["attributes"]["appStoreState"] == "PREPARE_FOR_SUBMISSION":
-                      fill_missing("appStoreVersionLocalizations", loc, {
-                          "description": (
-                              "Every turn is a chance to take control of the ring. Play strikes and grapples, "
-                              "counter your opponent’s next move, and build hype for your signature finisher. "
-                              "When your opponent hits the mat, hear the referee count.\n\n"
-                              "Create a wrestler or choose from 24 fictional wrestlers across two divisions. "
-                              "Start a career, make locker-room decisions, climb the rankings, and compete for gold. "
-                              "Earn in-game cash from wins, unlock moves, and swap cards at Fight Camp.\n\n"
-                              "Pick a matchup in Exhibition, try a Quick Match ladder, team up in tag matches, "
-                              "or enter the eight-wrestler Championship Cup. Play offline and continue your career "
-                              "on the same iPhone."
-                          ),
-                          "promotionalText": (
-                              "Play your hand, time your finisher, and pin your way to the title. "
-                              "Build a wrestler, earn new moves, and take on rivals in an offline career."
-                          ),
-                          "keywords": "deckbuilder,grapple,finisher,pinfall,champion,tag team,offline,career,tournament,card battle",
-                      })
                   print(fields["locale"], "store description set:", bool(fields.get("description")),
                         "support URL set:", bool(fields.get("supportUrl")))
           infos = rows(fetch(f"apps/{app}/appInfos", {"fields[appInfos]": "appStoreState"}))
           for info in infos:
               locs = rows(fetch(f"appInfos/{info['id']}/appInfoLocalizations", {
-                  "fields[appInfoLocalizations]": "locale,privacyPolicyUrl,subtitle",
+                  "fields[appInfoLocalizations]": "locale,privacyPolicyUrl",
               }))
               for loc in locs:
                   fields = loc["attributes"]
-                  if apply and fields["locale"] == "en-US" and info["attributes"]["appStoreState"] == "PREPARE_FOR_SUBMISSION":
-                      fill_missing("appInfoLocalizations", loc, {"subtitle": "Turn-Based Wrestling"})
                   print(fields["locale"], "privacy URL set:", bool(fields.get("privacyPolicyUrl")))
 
           builds = rows(fetch("builds", {
@@ -505,19 +465,6 @@ jobs:
                   accessible += 1
               elif group_builds.get("links", {}).get("next"):
                   unknown += 1
-          if apply and build_version == "29.1" and build["attributes"]["processingState"] == "VALID" and len(internal) == 1 and accessible == 0 and unknown == 0:
-              group = internal[0]
-              target = f"builds/{build['id']}/relationships/betaGroups"
-              if fetch(target, method="POST", body={"data": [{"type": "betaGroups", "id": group["id"]}]}) is not None:
-                  print("Apple accepted assignment to the existing internal tester group.")
-                  import time
-                  for attempt in range(5):
-                      group_builds = fetch(f"betaGroups/{group['id']}/relationships/builds", {"limit": 200})
-                      if any(candidate["id"] == build["id"] for candidate in rows(group_builds)):
-                          accessible = 1
-                          break
-                      if attempt < 4:
-                          time.sleep(4)
           print(f"Build {build_version}: internal groups with access={accessible}, "
                 f"groups checked={len(internal)}, group checks unresolved={unknown}")
           PYTHON
