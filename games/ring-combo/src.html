@@ -186,6 +186,7 @@ h1 span{color:var(--gold)}
 // Images are packed in by build.py. Anything missing falls back to the built-in look.
 const PORTRAITS = {/*__PORTRAITS__*/};
 const ART = {/*__ART__*/};
+const MATCH_MUSIC = "/*__MUSIC__*/";
 const pic = file => PORTRAITS[file.split('.')[0]] || '';
 const N = 7;
 const TYPES = ['strike','grapple','kick','show','heal'];
@@ -288,7 +289,7 @@ function findMove(who='p'){
 const hasMove = () => !!findMove();
 
 
-/* ---------- sound (synthesized, no files) ---------- */
+/* ---------- synthesized sound effects ---------- */
 const sfx = (() => {
   let ctx = null, master = null, noiseBuf = null;
   let muted = false;
@@ -310,7 +311,7 @@ const sfx = (() => {
     if (!unlockEl){
       try { unlockEl = new Audio(silentWav()); unlockEl.loop = true; unlockEl.setAttribute('playsinline',''); } catch {}
     }
-    if (unlockEl && unlockEl.paused) { const pr = unlockEl.play(); if (pr) pr.catch(()=>{}); }
+    if (!muted && unlockEl && unlockEl.paused) { const pr = unlockEl.play(); if (pr) pr.catch(()=>{}); }
     if (!ctx){
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
       ctx = new AC();
@@ -325,7 +326,7 @@ const sfx = (() => {
     try { const src = ctx.createBufferSource(); src.buffer = ctx.createBuffer(1,1,22050); src.connect(ctx.destination); src.start(0); } catch {}
   }
   // Retry the unlock on every kind of tap, not just the ones that call init directly.
-  ['pointerup','touchend','click','keydown'].forEach(ev => window.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running' || (unlockEl && unlockEl.paused)) init(); }, {capture:true, passive:true}));
+  ['pointerup','touchend','click','keydown'].forEach(ev => window.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running' || (!muted && unlockEl && unlockEl.paused)) init(); }, {capture:true, passive:true}));
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(()=>{}); });
   const ok = () => ctx && !muted;
   function tone(freq, dur, {type='sine', vol=0.4, to=null, at=0, attack=0.005}={}){
@@ -803,13 +804,38 @@ function lose(){
   showBetween(false);
 }
 function showBetween(champ){
+  musicActive = false;
+  syncMusic();
   $('ladder').innerHTML = LADDER.map((o,i)=>`<img src="${pic(o.img)}" alt="${o.name}" class="${champ||i<rung?'done':i===rung?'now':''}">`).join('');
   $('between').hidden = false;
 }
 $('bGo').onclick = () => { $('between').hidden=true; $('bBelt').hidden=true; start(); };
 $('bMenu').onclick = () => { $('between').hidden=true; rung=0; $('menu').hidden=false; };
 
-function start(){ sfx.init(); sfx.bellStart(); ended=false; busy=false; $('pin').hidden=true; newBout(); resetClock(); scheduleHint(); }
+const matchMusic = new Audio(MATCH_MUSIC);
+matchMusic.loop = true;
+matchMusic.preload = 'auto';
+matchMusic.setAttribute('playsinline', '');
+let musicActive = false;
+
+function syncMusic(){
+  if (!musicActive || sfx.muted || document.hidden) {
+    matchMusic.pause();
+  } else if (matchMusic.paused) {
+    matchMusic.play().catch(() => {});
+  }
+}
+
+document.addEventListener('visibilitychange', syncMusic);
+window.addEventListener('click', syncMusic, {capture: true});
+
+function start(){
+  sfx.init();
+  sfx.bellStart();
+  musicActive = true;
+  syncMusic();
+  ended=false; busy=false; $('pin').hidden=true; newBout(); resetClock(); scheduleHint();
+}
 
 /* ---------- turn clock: run out and you lose your turn ---------- */
 let clockLeft = 15, lastSecond = 99, lastTick = performance.now();
@@ -855,8 +881,11 @@ document.querySelectorAll('.legend div').forEach((d,i) => { const k = TYPES[i]; 
 if (ART.logo){ document.querySelector('.top h1').innerHTML = `<img class="logo" src="${ART.logo}" alt="Ringside Combo">`; }
 
 const muteBtn = $('mute');
-const syncMute = () => muteBtn.textContent = sfx.muted ? '🔇' : '🔊';
-muteBtn.onclick = () => { sfx.init(); sfx.toggle(); syncMute(); if (!sfx.muted) sfx.select(); };
+const syncMute = () => {
+  muteBtn.textContent = sfx.muted ? '🔇' : '🔊';
+  muteBtn.setAttribute('aria-pressed', String(sfx.muted));
+};
+muteBtn.onclick = () => { sfx.init(); sfx.toggle(); syncMute(); syncMusic(); if (!sfx.muted) sfx.select(); };
 syncMute();
 window.addEventListener('resize', sizeBoard);
 if (window.ResizeObserver) new ResizeObserver(() => sizeBoard()).observe($('boardWrap'));

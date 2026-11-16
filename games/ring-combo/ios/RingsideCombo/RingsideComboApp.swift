@@ -1,9 +1,18 @@
+import AVFAudio
 import SwiftUI
 import UIKit
 import WebKit
 
 @main
 struct RingsideComboApp: App {
+    init() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)
+        } catch {
+            NSLog("Ringside Combo audio session could not be configured: %@", error.localizedDescription)
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             GameView()

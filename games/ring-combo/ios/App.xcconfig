@@ -5,6 +5,7 @@ CURRENT_PROJECT_VERSION = 1
 DEVELOPMENT_TEAM = J4Y8FY6JNZ
 ENABLE_USER_SCRIPT_SANDBOXING = YES
 GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_FILE = Info.plist
 INFOPLIST_KEY_CFBundleDisplayName = Ringside Combo
 INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.games
 INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES

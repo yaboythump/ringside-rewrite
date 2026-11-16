@@ -48,6 +48,8 @@ jobs:
           app="$archive/Products/Applications/RingsideCombo.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$COMBO_BUNDLE"
           test -s "$app/index.html"
+          test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
+          grep -qF 'const MATCH_MUSIC = "data:audio/mpeg;base64,' "$app/index.html"
           grep -F 'strike:"data:image/png;base64,' "$app/index.html" >/dev/null
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/combo-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/combo-xcode-help.txt" >/dev/null
