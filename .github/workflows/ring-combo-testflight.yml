@@ -133,9 +133,9 @@ jobs:
             echo "::error::The signing secret does not contain a complete PKCS#12 file."
             exit 1
           }
-          if [[ ! -s "$signing/ringside.mobileprovision" ]]; then
-            # Download only the App Store profile created for Ringside.
-            token="$(ruby -ropenssl -rbase64 -rjson - "$auth_key" "$ASC_KEY_ID" "$ASC_ISSUER_ID" <<'RUBY'
+          openssl pkcs12 -in "$signing/distribution.p12" -passin pass: -clcerts -nokeys |
+            openssl x509 -outform DER -out "$signing/distribution.der"
+          token="$(ruby -ropenssl -rbase64 -rjson - "$auth_key" "$ASC_KEY_ID" "$ASC_ISSUER_ID" <<'RUBY'
           key_path, key_id, issuer = ARGV
           encode = ->(value) { Base64.urlsafe_encode64(value, padding: false) }
           now = Time.now.to_i
@@ -147,47 +147,80 @@ jobs:
           raw = OpenSSL::ASN1.decode(der).value.map { |part| part.value.to_s(2).rjust(32, "\x00") }.join
           puts "#{input}.#{encode.call(raw)}"
           RUBY
-            )"
-            echo "::add-mask::$token"
-            if ! curl --silent --show-error --fail --max-time 30 --get \
-              --header "Authorization: Bearer $token" \
-              --data-urlencode 'filter[name]=Ringside Combo App Store' \
-              --data-urlencode 'fields[profiles]=name,profileType,profileState,profileContent' \
-              --output "$signing/profile-response.json" https://api.appstoreconnect.apple.com/v1/profiles; then
-              echo "::error::Apple would not supply the Ringside Combo provisioning profile with the upload key."
-              exit 1
-            fi
-            if ! curl --silent --show-error --fail --max-time 30 --get \
-              --header "Authorization: Bearer $token" \
-              --data-urlencode "filter[bundleId]=$COMBO_BUNDLE" \
-              --data-urlencode 'fields[apps]=bundleId' \
-              --output "$signing/apps-response.json" https://api.appstoreconnect.apple.com/v1/apps; then
-              echo "::error::The upload key could not look up the Ringside Combo app record."
-              exit 1
-            fi
-            unset token
-            python3 - "$signing" <<'PY'
+          )"
+          echo "::add-mask::$token"
+          COMBO_ASC_TOKEN="$token" python3 - "$signing" <<'PY' 
           import base64
           import json
+          import os
           import sys
           from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
 
-          signing = Path(sys.argv[1])
-          apps = json.loads((signing / "apps-response.json").read_bytes())["data"]
-          if not apps:
+          directory = Path(sys.argv[1])
+          identifier = os.environ["COMBO_BUNDLE"]
+          profile_name = "Ringside Combo App Store"
+          headers = {"Authorization": f"Bearer {os.environ['COMBO_ASC_TOKEN']}",
+                     "Content-Type": "application/json"}
+
+
+          def apple(path, *, filters=None, data=None):
+              url = "https://api.appstoreconnect.apple.com/v1/" + path
+              if filters:
+                  url += "?" + urlencode(filters)
+              payload = json.dumps({"data": data}).encode() if data else None
+              try:
+                  with urlopen(Request(url, data=payload, headers=headers), timeout=30) as response:
+                      return json.load(response)["data"]
+              except HTTPError as error:
+                  method = "POST" if payload else "GET"
+                  sys.exit(f"::error::Apple rejected {method} {path} (HTTP {error.code}).")
+
+
+          bundle_ids = apple("bundleIds", filters={"filter[identifier]": identifier})
+          if bundle_ids:
+              bundle = bundle_ids[0]
+          else:
+              bundle = apple("bundleIds", data={
+                  "type": "bundleIds",
+                  "attributes": {"identifier": identifier, "name": "Ringside Combo", "platform": "IOS"},
+              })
+          print(f"Registered app ID is available for {identifier}.", flush=True)
+
+          profiles = apple(f"bundleIds/{bundle['id']}/profiles", filters={"limit": 200})
+          matching = [p for p in profiles
+                      if p["attributes"]["name"] == profile_name
+                      and p["attributes"]["profileState"] == "ACTIVE"
+                      and p["attributes"]["profileType"] == "IOS_APP_STORE"]
+          if len(matching) > 1:
+              sys.exit("::error::Multiple active Ringside Combo App Store profiles have the same name.")
+          if matching:
+              profile = matching[0]
+          else:
+              local_certificate = (directory / "distribution.der").read_bytes()
+              certificates = apple("certificates", filters={"limit": 200})
+              matches = [c for c in certificates
+                         if base64.b64decode(c["attributes"].get("certificateContent") or "") == local_certificate]
+              if len(matches) != 1:
+                  sys.exit("::error::Apple could not match the configured distribution certificate.")
+              profile = apple("profiles", data={
+                  "type": "profiles",
+                  "attributes": {"name": profile_name, "profileType": "IOS_APP_STORE"},
+                  "relationships": {
+                      "bundleId": {"data": {"type": "bundleIds", "id": bundle["id"]}},
+                      "certificates": {"data": [{"type": "certificates", "id": matches[0]["id"]}]},
+                  },
+              })
+          (directory / "ringside.mobileprovision").write_bytes(
+              base64.b64decode(profile["attributes"]["profileContent"], validate=True)
+          )
+          print("Ringside Combo App Store provisioning profile is ready.", flush=True)
+          if not apple("apps", filters={"filter[bundleId]": identifier, "fields[apps]": "bundleId"}):
               sys.exit("::error::Create the Ringside Combo app record in App Store Connect before uploading.")
-          records = json.loads((signing / "profile-response.json").read_bytes())["data"]
-          matches = [
-              row["attributes"]["profileContent"] for row in records
-              if row["attributes"]["name"] == "Ringside Combo App Store"
-              and row["attributes"]["profileType"] == "IOS_APP_STORE"
-              and row["attributes"]["profileState"] == "ACTIVE"
-          ]
-          if len(matches) != 1:
-              sys.exit("::error::Apple did not return exactly one active Ringside App Store profile.")
-          (signing / "ringside.mobileprovision").write_bytes(base64.b64decode(matches[0], validate=True))
           PY
-          fi
+          unset token
           security cms -D -i "$signing/ringside.mobileprovision" > "$signing/profile.plist"
           profile_id="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$signing/profile.plist")"
           profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$signing/profile.plist")"
