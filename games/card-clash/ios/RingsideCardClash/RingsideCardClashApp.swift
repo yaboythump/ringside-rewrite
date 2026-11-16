@@ -58,7 +58,7 @@ struct GameView: UIViewRepresentable {
 final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     static let bridgeName = "ringsideGame"
     private static let keys: Set<String> = [
-        "rcc-career", "rcc-best", "rcc-cup", "rcc-tag", "rcc-mute", "rcc-low-motion", "rcc-music-off"
+        "rcc-career", "rcc-best", "rcc-cup", "rcc-tag", "rcc-mute", "rcc-low-motion", "rcc-music-off", "rcc-commentary-off"
     ]
     private static let maximumSaveBytes = 512 * 1024
     private let audio = GameAudio()
@@ -200,6 +200,10 @@ private final class GameAudio: @unchecked Sendable {
         "tag", "entrance", "card", "hit", "big", "block", "hype", "heal", "count", "bell", "crowd", "boo",
         "ref-1", "ref-2", "ref-3"
     ]
+    private static let commentary: Set<String> = Set(["malik", "tasha"].flatMap { host in
+        ["entrance", "reversal", "finisher", "kickout", "upset", "result"].map { "comment-\(host)-\($0)" }
+    })
+    private var commentClip: String?
     private let queue = DispatchQueue(label: "com.ctnetworkstudios.ringsidecardclash.audio", qos: .userInitiated)
     private var players: [String: AVAudioPlayer] = [:]
     private var musicClip: String?
@@ -214,12 +218,20 @@ private final class GameAudio: @unchecked Sendable {
             case "music-stop": self.setMusic(nil)
             case "music-menu": self.setMusic("menu-loop")
             case "music-arena": self.setMusic("arena-loop")
+            case "comment-stop": self.stopCommentary()
             case "effects-stop":
+                self.stopCommentary()
                 for clip in Self.effects { self.players[clip]?.stop() }
             case "test-bell":
                 onPlayback?(self.play("bell"))
             default:
-                if Self.effects.contains(cue) { self.play(cue) }
+                if Self.commentary.contains(cue) {
+                    self.stopCommentary()
+                    if self.play(cue) {
+                        self.commentClip = cue
+                        if let music = self.musicClip { self.players[music]?.volume = 0.28 }
+                    }
+                } else if Self.effects.contains(cue) { self.play(cue) }
             }
         }
     }
@@ -249,10 +261,20 @@ private final class GameAudio: @unchecked Sendable {
     private func setMusic(_ clip: String?) {
         if let previous = musicClip, previous != clip { players[previous]?.stop() }
         musicClip = clip
-        if let clip { play(clip, looping: true) }
+        if let clip {
+            play(clip, looping: true)
+            players[clip]?.volume = commentClip == nil ? 0.65 : 0.28
+        }
+    }
+
+    private func stopCommentary() {
+        if let clip = commentClip { players[clip]?.stop() }
+        commentClip = nil
+        if let music = musicClip { players[music]?.volume = 0.65 }
     }
 
     private func pausePlayers() {
+        stopCommentary()
         for player in players.values { player.stop() }
         sessionActive = false
     }

@@ -516,6 +516,7 @@ const BEST_KEY=PREVIEW?"rcc-preview-best":"rcc-best";
 const CUP_KEY=PREVIEW?"rcc-preview-cup":"rcc-cup";
 const TAG_KEY=PREVIEW?"rcc-preview-tag":"rcc-tag";
 const MUTE_KEY=PREVIEW?"rcc-preview-mute":"rcc-mute";
+const COMMENTARY_KEY=PREVIEW?"rcc-preview-commentary-off":"rcc-commentary-off";
 const MUSIC_KEY=PREVIEW?"rcc-preview-music-off":"rcc-music-off";
 const MOTION_KEY=PREVIEW?"rcc-preview-low-motion":"rcc-low-motion";
 let lowMotion=false;
@@ -830,6 +831,10 @@ function quake(){if(still())return;app.classList.remove("quake");void app.offset
 /* ---------- sound ---------- */
 let AC=null,master=null,muted=false,musicOff=false,lastCrowd=0,musicTimer=0,musicBeat=0;
 const PIN_VOICE=[/*__PIN_VOICE__*/];
+const COMMENTARY={/*__COMMENTARY__*/};
+const commentaryBuffers=new Map();
+let commentaryOff=false,commentarySource=null,commentaryTimer=0,commentaryActive=false;
+try{commentaryOff=gameStorage.getItem(COMMENTARY_KEY)==="1";}catch(e){}
 const nativeAudio=typeof NATIVE?.audio==="function"?NATIVE.audio:null;
 let pinVoice=[],voiceLoad=null;
 try{muted=gameStorage.getItem(MUTE_KEY)==="1";musicOff=gameStorage.getItem(MUSIC_KEY)==="1"}catch(e){}
@@ -848,6 +853,7 @@ function unlockAudio(){
     }
     if(AC.state==="suspended"||AC.state==="interrupted")AC.resume().catch(()=>{});
     if(!musicTimer&&!musicOff)syncMusic();
+    loadCommentary();
   }catch(e){}
 }
 // Unlock in the initiating gesture, before navigation or entrance timers.
@@ -876,7 +882,7 @@ function syncMusic(){
   musicTimer=0;
   const active=!musicOff&&!document.hidden&&musicScene;
   if(nativeAudio){nativeAudio(active?`music-${musicScene}`:"music-stop");return;}
-  if(musicBus)musicBus.gain.value=active?1:0;
+  if(musicBus)musicBus.gain.value=active?(commentaryActive ? .32 : 1):0;
   if(!active||!AC)return;
   musicBeat=0;
   playMusicBeat();
@@ -902,6 +908,53 @@ function speakPin(number){
   source.start(audio.currentTime+.07);
   return true;
 }
+function loadCommentary(){
+  if(!AC||nativeAudio||commentaryOff||commentaryBuffers.size)return;
+  for(const [cue,[,encoded]] of Object.entries(COMMENTARY)){
+    commentaryBuffers.set(cue,AC.decodeAudioData(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0)).buffer)
+      .catch(()=>null));
+  }
+}
+function stopCommentary(){
+  clearTimeout(commentaryTimer);
+  commentaryTimer=0;
+  if(commentarySource){commentarySource.stop();commentarySource=null;}
+  if(commentaryActive)nativeAudio?.("comment-stop");
+  commentaryActive=false;
+  if(musicBus&&!musicOff&&musicScene&&!document.hidden)musicBus.gain.value=1;
+}
+function callCommentary(event,priority=false){
+  if(commentaryOff||muted||document.hidden||!G?.desk)return;
+  if(!priority&&(commentaryActive||Date.now()<G.desk.nextCall))return;
+  stopCommentary();
+  const desk=G.desk;
+  const alternating=event==="reversal"||event==="finisher";
+  const hosts=alternating?[desk.turns++%2?"tasha":"malik"]:["malik","tasha"];
+  const cues=hosts.map(host=>`comment-${host}-${event}`).filter(cue=>COMMENTARY[cue]);
+  if(!cues.length)return;
+  desk.nextCall=Date.now()+9500;
+  commentaryActive=true;
+  if(musicBus&&!musicOff&&musicScene)musicBus.gain.value=.32;
+  async function next(index){
+    const cue=cues[index];
+    if(!cue){stopCommentary();return;}
+    if(nativeAudio){nativeAudio(cue);}
+    else {
+      const audio=actx(),clip=await commentaryBuffers.get(cue);
+      // A stop or a newer call can happen while Web Audio decodes the clip.
+      if(commentaryTimer!==token||G?.desk!==desk)return;
+      if(!audio||audio.state!=="running"||!clip){stopCommentary();return;}
+      const source=audio.createBufferSource();
+      source.buffer=clip;
+      source.connect(master);
+      source.onended=()=>{if(commentarySource===source)commentarySource=null;};
+      commentarySource=source;
+      source.start();
+    }
+    token=commentaryTimer=setTimeout(()=>next(index+1),COMMENTARY[cue][0]+160);
+  }
+  let token=commentaryTimer=setTimeout(()=>next(0),0);
+}
 const WEB_SFX={
   tag(){tone(300,.12,.22,"triangle",160);tone(560,.16,.12,"sine",760);},
   entrance(){tone(110,.55,.20,"triangle",55);tone(220,.65,.095,"triangle",130);},
@@ -923,7 +976,7 @@ const SFX=nativeAudio?Object.fromEntries(Object.keys(WEB_SFX).map(cue=>[cue,()=>
   if(!muted&&!document.hidden)nativeAudio(cue==="menu"?"card":cue==="victory"?"crowd":cue==="defeat"?"boo":cue);
 }])):WEB_SFX;
 document.addEventListener("visibilitychange",()=>{
-  if(document.hidden)nativeAudio?.("stop-all");
+  if(document.hidden){stopCommentary();nativeAudio?.("stop-all");}
   else if(AC?.state!=="running")AC?.resume().catch(()=>{});
   syncMusic();
 });
@@ -949,7 +1002,7 @@ document.addEventListener("click",e=>{
     button.setAttribute("aria-pressed",String(!muted));
   });
   if(master)master.gain.value=muted?0:1;
-  if(muted){nativeAudio?.("effects-stop");return;}
+  if(muted){stopCommentary();nativeAudio?.("effects-stop");return;}
   unlockAudio();
   SFX.menu();
   loadPinVoice();
@@ -967,6 +1020,7 @@ const logo=()=>`<h1 class="logo"><span class="l1">Ringside</span><span class="l2
 
 /* ---------- screens ---------- */
 function titleScreen(){
+  stopCommentary();
   setMusicScene("menu");
   G=null;
   syncMusic();
@@ -1039,9 +1093,9 @@ function guideScreen(screen){
     <li>At 10 hype, use your finisher for zero energy or hold hype for a kick-out. You can kick out once at 5 hype, except in a steel cage.</li>
     <li>Career wins earn in-game cash. Buy cards in the Move Shop, then equip or swap them in Fight Camp. Training still costs one weekly segment. Your career and settings save on this device.</li>
   </ol><button class="btn primary" id="practice">Practice in exhibition</button>`
-  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound" aria-label="Test ring bell">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}" aria-label="Music">Music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
+  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound" aria-label="Test ring bell">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}" aria-label="Music">Music ${musicOff?"off":"on"}</button><button class="btn" id="commentary" aria-pressed="${!commentaryOff}" aria-label="Commentary">Commentary ${commentaryOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
     ${RM?'<p class="howto">This device requests reduced motion.</p>':""}
-    <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. The arena music and effects are synthesized in-game. Referee voice is synthesized with Festival Lite.</p>`}
+    <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. The arena music and effects are synthesized in-game. Malik and Tasha provide the match commentary. Malik is also the referee. Voices generated with ElevenLabs.</p>`}
   </section><div class="actions"><button class="btn" id="back">Main menu</button></div>`;
   $("#back").onclick=titleScreen;
   $("#practice")?.addEventListener("click",()=>exhibitionSetup("raven"));
@@ -1058,6 +1112,14 @@ function guideScreen(screen){
     syncMusic();
     $("#music").setAttribute("aria-pressed",String(!musicOff));
     $("#music").textContent=musicOff?"Music off":"Music on";
+  });
+  $("#commentary")?.addEventListener("click",()=>{
+    commentaryOff=!commentaryOff;
+    try{gameStorage.setItem(COMMENTARY_KEY,commentaryOff?"1":"0");}catch(e){}
+    if(commentaryOff)stopCommentary();
+    else loadCommentary();
+    $("#commentary").setAttribute("aria-pressed",String(!commentaryOff));
+    $("#commentary").textContent=commentaryOff?"Commentary off":"Commentary on";
   });
   $("#motion")?.addEventListener("click",()=>{
     lowMotion=!lowMotion;
@@ -1306,7 +1368,10 @@ function startRun(id){
   startMatch();
 }
 async function startMatch(){
+  stopCommentary();
+  G.desk={nextCall:0,turns:0};
   loadPinVoice();
+  loadCommentary();
   setMusicScene("arena");
   if(G.mode==="career"){
     const plus=G.stip==="lastman"?15:0;
@@ -1330,6 +1395,7 @@ async function startMatch(){
   pickIntent(); dealHand(); render();
   await vsSplash();
   G.busy=false; render();
+  callCommentary("entrance",true);
 }
 function vsSplash(){
   return new Promise(res=>{
@@ -1474,6 +1540,7 @@ async function useFinisher(){
   gainHype(o,1);
   G.busy=false;
   if(checkPin(o,p)) return;
+  if(dealt>0)callCommentary("finisher");
   render();
 }
 async function endTurn(){
@@ -1485,12 +1552,13 @@ async function endTurn(){
 }
 function oppAct(){
   const p=G.p,o=G.o,it=G.intent;
-  o.block=0;let msg="";
+  o.block=0;let msg="",call=null;
   if((G.level||0)>=2&&it.type!=="finisher") gainHype(o,1);
   if(it.type==="finisher"){
     o.hype=0;G.stats.fin++;
     const dealt=finishMove(o,p);
     ringAction("o","finisher",it.label,dealt);
+    if(dealt>0)call="finisher";
     impact("p",dealt,true);msg=`${o.w.name} hits the ${it.label}! ${dealt} damage!`;
   } else if((it.type==="grapple"&&p.reversal)||(it.type==="strike"&&p.strikeCounter)){
     const tech=it.type==="grapple"&&p.w.archetype==="tech";
@@ -1498,6 +1566,7 @@ function oppAct(){
     if(tech) p.block+=3;
     const dealt=damage(o,back);impact("o",dealt,false);crowd(60);
     ringAction("p","strike","Reversal",dealt);
+    call="reversal";
     gainHype(p,2);G.stats.rev++;msg=`REVERSED! You counter for ${dealt}!`;
   } else if(it.type==="strike"||it.type==="grapple"){
     if(p.reversal&&it.type==="strike") p.block+=3;
@@ -1520,6 +1589,7 @@ function oppAct(){
   say(msg);
   if(p.weak>0) p.weak--;
   if(checkPin(o,p,true)||checkPin(p,o,true)) return;
+  if(call)callCommentary(call);
   advanceTurn();
 }
 
@@ -1528,12 +1598,14 @@ function advanceTurn(){G.turn++;pickIntent();G.busy=false;startTurn();}
 function checkPin(down,up,afterOpponent=false){
   if(down.hp>0) return false;
   G.busy=true;render();
+  stopCommentary();
   const canKick=!down.kicked&&down.hype>=5&&G.stip!=="cage";
   const beat=ringSpace.matches&&!still()&&G.ring?wait(430):Promise.resolve();
   beat.then(()=>pinCount(canKick)).then(()=>{
     if(canKick){
       down.kicked=true;down.hype-=5;down.hp=5;G.stats.kicks++;crowd(120);
       say(`${down.w.name} KICKS OUT AT TWO!`);
+      callCommentary("kickout",true);
       if(afterOpponent) advanceTurn();
       else {G.busy=false;if(G.intent.type==="finisher"&&down.hype<HYPE_MAX)pickIntent();render();}
     } else finishMatch(up===G.p);
@@ -1563,6 +1635,8 @@ function finishMatch(won){
   if(G.over)return;
   setMusicScene(null);
   G.over=true;
+  const winner=won?G.p:G.o,loser=won?G.o:G.p;
+  if(winner&&loser)callCommentary(winner.max+10<=loser.max?"upset":"result",true);
   if(won)SFX.victory();else SFX.defeat();
   if(G.mode==="career"){careerResult(won);return;}
   if(G.mode!=="quick"){eventResult(won);return;}
@@ -1583,7 +1657,7 @@ function finishMatch(won){
   const close=()=>ov.remove();
   ov.querySelector("#next")?.addEventListener("click",()=>{close();G.round++;startMatch();});
   ov.querySelector("#again")?.addEventListener("click",()=>{close();startRun(G.pid);});
-  ov.querySelector("#roster").addEventListener("click",()=>{close();G=null;selectScreen("quick");});
+  ov.querySelector("#roster").addEventListener("click",()=>{close();stopCommentary();G=null;selectScreen("quick");});
 }
 
 function eventResult(won){
@@ -1977,7 +2051,7 @@ function careerJournal(){
 function news(t){C.news.unshift(t);C.news=C.news.slice(0,5);}
 
 function hub(initialPane="tonight"){
-  G=null;setMusicScene("menu");normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
+  stopCommentary();G=null;setMusicScene("menu");normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
   const story=isPPV()||C.week%2===0;
   const rivalryBooked=C.office.active?.id==="rivalry";
   const r=myRank();C.peak=Math.min(C.peak,isChamp()?0:r+1);

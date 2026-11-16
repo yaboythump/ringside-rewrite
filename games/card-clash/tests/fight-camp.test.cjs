@@ -107,7 +107,7 @@ test("the career UI exposes Fight Camp, weekly training and save protection", ()
   assert.match(html,/rcc-career/);
 });
 
-function gameRuntime(native){
+function gameRuntime(native,timers={}){
   const no = () => {};
   const gradient = {addColorStop:no};
   const ctx = new Proxy({}, {
@@ -130,7 +130,7 @@ function gameRuntime(native){
   const runtime=vm.createContext({
     document:doc,window:win,matchMedia:()=>({matches:true}),
     Image:class{set src(value){this._src=value}},
-    addEventListener:no,requestAnimationFrame:no,setTimeout:fn=>{fn();},
+    addEventListener:no,requestAnimationFrame:no,setTimeout:fn=>{fn();},clearTimeout:no,...timers,
     innerWidth:375,innerHeight:740,devicePixelRatio:1,
     localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)}
   });
@@ -483,4 +483,28 @@ test("partial legacy and malformed career fields recover without losing valid pr
   assert.equal(run("C.history.length"),1);
   assert.equal(run("C.results.length"),1);
   assert.equal(run("C.deck.length"),saved.deck.length);
+});
+
+test("stopping commentary clears the pending reply and a muted desk schedules no lines", async () => {
+  const cues = [];
+  const callbacks = new Map();
+  let nextId = 0;
+  const {run} = gameRuntime({audio:cue=>cues.push(cue)}, {
+    setTimeout: fn=>{const id=++nextId;callbacks.set(id,fn);return id;},
+    clearTimeout: id=>callbacks.delete(id)
+  });
+  run(`
+    G={desk:{nextCall:0,turns:0}};
+    COMMENTARY["comment-malik-entrance"]=[800,""];
+    COMMENTARY["comment-tasha-entrance"]=[800,""];
+    callCommentary("entrance",true);
+  `);
+  const [[id,play]]=callbacks;
+  callbacks.delete(id);
+  await play();
+  assert.deepEqual(cues,["comment-malik-entrance"]);
+  assert.equal(callbacks.size,1,"Tasha is waiting for Malik’s call to end");
+  run('stopCommentary();commentaryOff=true;callCommentary("entrance",true);');
+  assert.deepEqual(cues,["comment-malik-entrance","comment-stop"]);
+  assert.equal(callbacks.size,0,"The pin or mute clears the pending reply");
 });
