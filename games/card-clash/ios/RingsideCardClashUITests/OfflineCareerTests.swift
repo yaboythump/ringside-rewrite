@@ -45,11 +45,14 @@ final class OfflineCareerTests: XCTestCase {
             return XCTFail("Exhibition setup did not show the match start button.")
         }
         start.tap()
-        let entrance = button("Ring the bell")
-        if entrance.waitForExistence(timeout: 2), entrance.isHittable { entrance.tap() }
-
+        // The entrance dismisses on a timer. Waiting for the first playable turn
+        // avoids racing an optional skip button that can disappear during a tap.
         let endTurn = button("End turn")
         XCTAssertTrue(endTurn.waitForExistence(timeout: 10))
+        let turnReady = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: endTurn)
+        guard XCTWaiter.wait(for: [turnReady], timeout: 12) == .completed else {
+            return XCTFail("Exhibition did not advance to the first playable turn.")
+        }
         let attack = game.buttons.matching(
             NSPredicate(format: "label CONTAINS[c] %@ AND enabled == true", "DMG")
         ).firstMatch
