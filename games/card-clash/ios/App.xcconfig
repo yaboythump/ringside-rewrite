@@ -4,6 +4,7 @@ CODE_SIGN_STYLE = Automatic
 CURRENT_PROJECT_VERSION = 1
 ENABLE_USER_SCRIPT_SANDBOXING = YES
 GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_FILE = RingsideCardClash/ReleaseInfo.plist
 INFOPLIST_KEY_CFBundleDisplayName = Ringside Card Clash
 INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.games
 INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES
