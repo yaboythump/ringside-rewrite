@@ -22,7 +22,12 @@ test("the WebKit bootstrap restores saved UTF-8 data and posts saves and haptics
   assert.equal(bridge.getItem("rcc-career"),saved["rcc-career"]);
   bridge.setItem("rcc-mute","1");
   bridge.impact("heavy");
+  bridge.audio("music-start");
+  bridge.audio("ref-3");
   assert.equal(bridge.getItem("rcc-mute"),"1");
   assert.equal(messages[0].key,"rcc-mute");
   assert.equal(messages[1].strength,"heavy");
+  assert.equal(messages[2].action,"audio");
+  assert.equal(messages[2].cue,"music-start");
+  assert.equal(messages[3].cue,"ref-3");
 });

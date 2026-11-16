@@ -18,9 +18,6 @@ struct GameView: UIViewRepresentable {
     func makeCoordinator() -> GameController { GameController() }
 
     func makeUIView(context: Context) -> WKWebView {
-        // Keep game audio audible in Silent Mode. The game's sound setting
-        // still controls playback, and other apps may continue playing audio.
-        try? AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)
         let controller = context.coordinator
         let configuration = WKWebViewConfiguration()
         // Save files are owned by the app, including on devices where WebKit
@@ -50,6 +47,7 @@ struct GameView: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
     static func dismantleUIView(_ uiView: WKWebView, coordinator: GameController) {
+        coordinator.stopAudio()
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: GameController.bridgeName)
         uiView.navigationDelegate = nil
         uiView.stopLoading()
@@ -63,6 +61,12 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
         "rcc-career", "rcc-best", "rcc-cup", "rcc-tag", "rcc-mute", "rcc-low-motion", "rcc-music-off"
     ]
     private static let maximumSaveBytes = 512 * 1024
+    private static let soundEffects: Set<String> = [
+        "tag", "entrance", "card", "hit", "big", "block", "hype", "heal", "count", "bell", "crowd", "boo",
+        "ref-1", "ref-2", "ref-3"
+    ]
+    private let musicClip = "arena-loop"
+    private var players: [String: AVAudioPlayer] = [:]
     let gameURL = Bundle.main.url(forResource: "index", withExtension: "html")
 
     private var saveURL: URL {
@@ -91,7 +95,8 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
                     send({action:"save", key:key, value:value});
                     saves[key] = value;
                 },
-                impact(strength) { send({action:"impact", strength:strength}); }
+                impact(strength) { send({action:"impact", strength:strength}); },
+                audio(cue) { send({action:"audio", cue:cue}); }
             })});
         })();
         """
@@ -121,9 +126,53 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
             guard !UIAccessibility.isReduceMotionEnabled else { return }
             let heavy = body["strength"] as? String == "heavy"
             UIImpactFeedbackGenerator(style: heavy ? .heavy : .light).impactOccurred()
+        case "audio":
+            guard let cue = body["cue"] as? String else { return }
+            switch cue {
+            case "stop-all": stopAudio()
+            case "music-stop": players[musicClip]?.stop()
+            case "music-start": playAudio(musicClip, looping: true)
+            case "test-bell":
+                let started = playAudio("bell")
+                let event = started ? "ringside-audio-started" : "ringside-audio-failed"
+                message.webView?.evaluateJavaScript("document.dispatchEvent(new Event('\(event)'))")
+            default:
+                if Self.soundEffects.contains(cue) { playAudio(cue) }
+            }
         default:
             return
         }
+    }
+
+    @discardableResult
+    private func playAudio(_ clip: String, looping: Bool = false) -> Bool {
+        do {
+            let player: AVAudioPlayer
+            if let cached = players[clip] {
+                player = cached
+            } else {
+                guard let resource = Bundle.main.url(forResource: clip, withExtension: "mp3", subdirectory: "sound") else { return false }
+                player = try AVAudioPlayer(contentsOf: resource)
+                player.numberOfLoops = looping ? -1 : 0
+                player.volume = looping ? 0.65 : 1
+                players[clip] = player
+            }
+            if (looping || clip == "crowd") && player.isPlaying { return true }
+            let session = AVAudioSession.sharedInstance()
+            if session.category != .playback || !session.categoryOptions.contains(.mixWithOthers) {
+                try session.setCategory(.playback, options: .mixWithOthers)
+            }
+            try session.setActive(true)
+            player.currentTime = 0
+            return player.play()
+        } catch {
+            NSLog("Ringside audio could not play %@: %@", clip, error.localizedDescription)
+            return false
+        }
+    }
+
+    func stopAudio() {
+        for player in players.values { player.stop() }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
@@ -138,6 +187,7 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        stopAudio()
         // Refresh the injection from the last successful save after iOS reclaims WebKit.
         let controller = webView.configuration.userContentController
         controller.removeAllUserScripts()

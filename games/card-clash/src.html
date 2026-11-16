@@ -820,14 +820,13 @@ function quake(){if(still())return;app.classList.remove("quake");void app.offset
 /* ---------- sound ---------- */
 let AC=null,master=null,muted=false,musicOff=false,lastCrowd=0,musicTimer=0,musicBeat=0;
 const PIN_VOICE=[/*__PIN_VOICE__*/];
+const nativeAudio=typeof NATIVE?.audio==="function"?NATIVE.audio:null;
 let pinVoice=[],voiceLoad=null;
 try{muted=gameStorage.getItem(MUTE_KEY)==="1";musicOff=gameStorage.getItem(MUSIC_KEY)==="1"}catch(e){}
 function unlockAudio(){
-  if(muted)return;
+  if(muted||nativeAudio)return;
   try{
     if(!AC){
-      // WebKit can choose its own session category for Web Audio.
-      try{if(NATIVE&&navigator.audioSession)navigator.audioSession.type="playback";}catch(e){}
       const audio=new (window.AudioContext||window.webkitAudioContext)();
       master=audio.createGain();
       master.connect(audio.destination);
@@ -856,10 +855,16 @@ function playArenaBeat(){
   if(i%4===2){noise(.11,1700,.083,"bandpass");tone(185,.08,.036,"triangle",92);}
   noise(.036,4800,i%2===1?.041:.022,"highpass");
 }
-function stopArenaMusic(){if(musicTimer)clearInterval(musicTimer);musicTimer=0;}
+function stopArenaMusic(){
+  nativeAudio?.("music-stop");
+  if(musicTimer)clearInterval(musicTimer);
+  musicTimer=0;
+}
 function startArenaMusic(){
   stopArenaMusic();
-  if(musicOff||!actx())return;
+  if(muted||musicOff||document.hidden)return;
+  if(nativeAudio){nativeAudio("music-start");return;}
+  if(!actx())return;
   musicBeat=0;
   playArenaBeat();
   musicTimer=setInterval(playArenaBeat,235);
@@ -871,6 +876,7 @@ function loadPinVoice(){
     .then(clips=>{pinVoice=clips;}).catch(()=>{voiceLoad=null;});
 }
 function speakPin(number){
+  if(nativeAudio&&!muted&&!document.hidden){nativeAudio(`ref-${number}`);return true;}
   const audio=actx(),clip=pinVoice[number-1];
   if(!audio||!clip)return false;
   const source=audio.createBufferSource(),gain=audio.createGain();
@@ -878,7 +884,7 @@ function speakPin(number){
   source.start(audio.currentTime+.07);
   return true;
 }
-const SFX={
+const WEB_SFX={
   tag(){tone(300,.12,.22,"triangle",160);tone(560,.16,.12,"sine",760);},
   entrance(){tone(110,.55,.20,"triangle",55);tone(220,.65,.095,"triangle",130);},
   card(){noise(.05,2500,.12,"highpass")},
@@ -892,13 +898,29 @@ const SFX={
   crowd(){const n=Date.now();if(n-lastCrowd<900)return;lastCrowd=n;noise(1.4,1100,.2,"bandpass",.25)},
   boo(){tone(140,.7,.12,"sawtooth",95)},
 };
+const SFX=nativeAudio?Object.fromEntries(Object.keys(WEB_SFX).map(cue=>[cue,()=>{
+  if(!muted&&!document.hidden)nativeAudio(cue);
+}])):WEB_SFX;
+document.addEventListener("visibilitychange",()=>{
+  if(!nativeAudio)return;
+  if(document.hidden)nativeAudio("stop-all");
+  else if(G?.p&&!G.over)startArenaMusic();
+});
+document.addEventListener("ringside-audio-started",()=>{
+  const status=$("#sound-status");
+  if(status)status.textContent="Ring bell playback started.";
+});
+document.addEventListener("ringside-audio-failed",()=>{
+  const status=$("#sound-status");
+  if(status)status.textContent="iPhone audio couldn’t start. Check your audio output and try again.";
+});
 document.addEventListener("click",e=>{
   if(!e.target.closest("[data-mute]"))return;
   muted=!muted;
   try{gameStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}
   document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");
   if(master)master.gain.value=muted?0:1;
-  if(muted){stopArenaMusic();return;}
+  if(muted){nativeAudio?.("stop-all");stopArenaMusic();return;}
   unlockAudio();
   SFX.bell();
   loadPinVoice();
@@ -982,12 +1004,19 @@ function guideScreen(screen){
     <li>At 10 hype, use your finisher for zero energy or hold hype for a kick-out. You can kick out once at 5 hype, except in a steel cage.</li>
     <li>Career wins earn in-game cash. Buy cards in the Move Shop, then equip or swap them in Fight Camp. Training still costs one weekly segment. Your career and settings save on this device.</li>
   </ol><button class="btn primary" id="practice">Practice in exhibition</button>`
-  :`<div class="actions">${muteBtn()}<button class="btn" id="music" aria-pressed="${!musicOff}">Arena music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div>
+  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}">Arena music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
     ${RM?'<p class="howto">This device requests reduced motion.</p>':""}
     <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. The arena music and effects are synthesized in-game. Referee voice is synthesized with Festival Lite.</p>`}
   </section><div class="actions"><button class="btn" id="back">Main menu</button></div>`;
   $("#back").onclick=titleScreen;
   $("#practice")?.addEventListener("click",()=>exhibitionSetup("raven"));
+  $("#test-sound")?.addEventListener("click",()=>{
+    const status=$("#sound-status");
+    if(muted){status.textContent="Turn on Sound to hear the ring bell.";return;}
+    if(nativeAudio){status.textContent="Starting ring bell…";nativeAudio("test-bell");return;}
+    SFX.bell();
+    status.textContent="Ring bell test triggered.";
+  });
   $("#music")?.addEventListener("click",()=>{
     musicOff=!musicOff;
     try{gameStorage.setItem(MUSIC_KEY,musicOff?"1":"0");}catch(e){}

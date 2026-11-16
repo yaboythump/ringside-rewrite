@@ -2,6 +2,20 @@ import XCTest
 
 final class OfflineCareerTests: XCTestCase {
     @MainActor
+    func testNativeRingBellStartsPlayback() {
+        let app = XCUIApplication()
+        app.launch()
+        let game = app.webViews.firstMatch
+        let settings = game.buttons["Settings & credits"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 20))
+        settings.tap()
+        let bell = game.buttons["Test ring bell"]
+        XCTAssertTrue(bell.waitForExistence(timeout: 10))
+        bell.tap()
+        XCTAssertTrue(game.staticTexts["Ring bell playback started."].waitForExistence(timeout: 10))
+    }
+
+    @MainActor
     func testDamageAndEndTurnStayVisibleAfterPlayingCard() {
         let app = XCUIApplication()
         let game = app.webViews.firstMatch
