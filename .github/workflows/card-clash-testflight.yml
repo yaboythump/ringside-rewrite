@@ -26,8 +26,8 @@ permissions:
   contents: read
 
 env:
-  RCC_RELEASE_SOURCE: 8e5094076ab8ef21362f0dfa7f9f7a82e75f3fc2
-  RCC_SOURCE: ${{ inputs.release_candidate && '8e5094076ab8ef21362f0dfa7f9f7a82e75f3fc2' || '93f90f0a6dd021285d31bc5dbfbc4270380916a3' }}
+  RCC_RELEASE_SOURCE: 7877cc5252fe7f8bc461dc0167f945a57bc88731
+  RCC_SOURCE: ${{ inputs.release_candidate && '7877cc5252fe7f8bc461dc0167f945a57bc88731' || '93f90f0a6dd021285d31bc5dbfbc4270380916a3' }}
   DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
   RCC_TEAM: J4Y8FY6JNZ
   RCC_BUNDLE: com.ctnetworkstudios.ringsidecardclash
@@ -64,6 +64,11 @@ jobs:
           done
           if [[ "$RCC_SOURCE" == "$RCC_RELEASE_SOURCE" ]]; then
             test -s "$app/sound/menu-loop.mp3"
+            for host in malik tasha; do
+              for moment in entrance reversal finisher kickout upset result; do
+                test -s "$app/sound/comment-$host-$moment.mp3"
+              done
+            done
             test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$app/Info.plist")" = false
           fi
           node --test games/card-clash/tests/fight-camp.test.cjs games/card-clash/tests/ios-bridge.test.cjs
@@ -285,6 +290,38 @@ jobs:
               with urllib.request.urlopen(request, timeout=20) as response:
                   return json.load(response)
 
+          def check_internal_access(app, build_id, assign):
+              groups = get("betaGroups", {
+                  "filter[app]": app, "fields[betaGroups]": "isInternalGroup,hasAccessToAllBuilds",
+                  "limit": 200,
+              })
+              internal = [group for group in groups["data"] if group["attributes"]["isInternalGroup"]]
+              if any(group["attributes"].get("hasAccessToAllBuilds") for group in internal):
+                  return True
+              if len(internal) != 1 or groups.get("links", {}).get("next"):
+                  return False
+              group_id = internal[0]["id"]
+              membership_path = f"betaGroups/{group_id}/relationships/builds"
+              members = get(membership_path, {"limit": 200})
+              if any(member["id"] == build_id for member in members["data"]):
+                  return True
+              if not assign or members.get("links", {}).get("next"):
+                  return False
+              url = f"https://api.appstoreconnect.apple.com/v1/builds/{build_id}/relationships/betaGroups"
+              data = json.dumps({"data": [{"type": "betaGroups", "id": group_id}]}).encode()
+              request = urllib.request.Request(url, data=data, method="POST", headers={
+                  **headers, "Content-Type": "application/json",
+              })
+              with urllib.request.urlopen(request, timeout=20):
+                  print("Apple accepted assignment to the existing internal tester group.")
+              for attempt in range(5):
+                  members = get(membership_path, {"limit": 200})
+                  if any(member["id"] == build_id for member in members["data"]):
+                      return True
+                  if attempt < 4:
+                      time.sleep(4)
+              return False
+
           try:
               apps = get("apps", {"filter[bundleId]": os.environ["RCC_BUNDLE"], "fields[apps]": "bundleId"})["data"]
               if len(apps) != 1:
@@ -308,7 +345,9 @@ jobs:
               print("::warning::App Store Connect status could not be read. The build was uploaded.")
               raise SystemExit(0)
 
-          for attempt in range(12):
+          assign = os.environ["RCC_SOURCE"] == os.environ["RCC_RELEASE_SOURCE"]
+          attempts = 24 if assign else 12
+          for attempt in range(attempts):
               try:
                   response = get("builds", {
                       "filter[app]": app,
@@ -323,17 +362,11 @@ jobs:
                   beta = next((item["attributes"]["internalBuildState"] for item in response.get("included", [])
                                if item["type"] == "buildBetaDetails"), "UNKNOWN")
                   print(f"Build {build}: processing={state}; internal TestFlight={beta}", flush=True)
-                  if beta in {"READY_FOR_BETA_TESTING", "IN_BETA_TESTING"} and records:
-                      try:
-                          groups = get(f"builds/{records[0]['id']}/betaGroups", {
-                              "fields[betaGroups]": "isInternalGroup",
-                              "limit": 200,
-                          })["data"]
-                          internal = sum(group["attributes"]["isInternalGroup"] for group in groups)
-                          print(f"Build {build}: assigned internal TestFlight groups={internal}")
-                      except (urllib.error.URLError, TimeoutError, ValueError, KeyError):
-                          print("::warning::Internal TestFlight group assignments could not be confirmed.")
-                      break
+                  if state == "VALID" and beta in {"READY_FOR_BETA_TESTING", "IN_BETA_TESTING"}:
+                      accessible = check_internal_access(app, records[0]["id"], assign)
+                      print(f"Build {build}: internal TestFlight group access verified={accessible}")
+                      if accessible or not assign:
+                          break
                   if state in {"INVALID", "FAILED"} or beta in {
                       "MISSING_EXPORT_COMPLIANCE",
                       "PROCESSING_EXCEPTION", "IN_EXPORT_COMPLIANCE_REVIEW", "EXPIRED",
@@ -344,7 +377,7 @@ jobs:
                   break
               except (urllib.error.URLError, TimeoutError, ValueError, KeyError):
                   print("::warning::No build status returned on this attempt.")
-              if attempt < 11:
+              if attempt < attempts - 1:
                   time.sleep(20)
           PYTHON
           unset token
