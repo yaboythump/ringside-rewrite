@@ -350,7 +350,7 @@ jobs:
           unset token
 
   inspect:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.inspect_latest && !inputs.upload
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (inputs.inspect_latest && !inputs.upload))
     environment: ringside-testflight
     runs-on: ubuntu-24.04
     timeout-minutes: 5
