@@ -372,7 +372,12 @@ const sfx = (() => {
   let ctx = null, master = null, noiseBuf = null;
   const voice={};
   let track=null, trackGain=null, trackSource=null, trackStarted=0, trackOffset=0;
-  let trackFailed=false;
+  let trackFailed=false, noiseOffset=0;
+  // Keep sound scheduling independent of combat and board randomness.
+  function nextNoiseOffset(){
+    noiseOffset=(noiseOffset+0.161803)%0.5;
+    return noiseOffset;
+  }
   const decode=uri=>{
     const bytes=Uint8Array.from(atob(uri.split(',')[1]),character=>character.charCodeAt(0));
     return ctx.decodeAudioData(bytes.buffer);
@@ -435,7 +440,7 @@ const sfx = (() => {
     if (sweep) f.frequency.exponentialRampToValueAtTime(sweep, t+dur);
     const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(vol, t+attack); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
-    src.connect(f).connect(g).connect(master); src.start(t, Math.random()*0.5); src.stop(t+dur+0.02);
+    src.connect(f).connect(g).connect(master); src.start(t,nextNoiseOffset()); src.stop(t+dur+0.02);
   }
   const crowd = (dur, vol=0.18, at=0) => { noise(dur, {vol, freq:900, q:0.5, attack:dur*0.3, at}); noise(dur, {vol:vol*0.6, freq:2400, q:0.7, attack:dur*0.35, at}); };
   const bell = (at=0, vol=0.35) => { [880, 1320, 2210].forEach((f,i)=>tone(f, 1.1, {type:'sine', vol:vol/(i+1), at})); };
