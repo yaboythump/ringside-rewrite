@@ -353,7 +353,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (inputs.inspect_latest && !inputs.upload))
     environment: ringside-testflight
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Check the game’s Apple release and TestFlight records
         env:
@@ -437,11 +437,22 @@ jobs:
                   fields = loc["attributes"]
                   print(fields["locale"], "privacy URL set:", bool(fields.get("privacyPolicyUrl")))
 
-          builds = rows(fetch("builds", {
+          assigning = os.environ.get("RCC_ASSIGN_36_1") == "true"
+          filters = {
               "filter[app]": app, "filter[preReleaseVersion.version]": "1.0",
               "sort": "-uploadedDate", "limit": 1,
               "fields[builds]": "version,processingState",
-          }))
+          }
+          if assigning:
+              filters["filter[version]"] = "36.1"
+          import time
+          for attempt in range(20 if assigning else 1):
+              builds = rows(fetch("builds", filters))
+              if not assigning or (builds and builds[0]["attributes"]["processingState"] != "PROCESSING"):
+                  break
+              print("Waiting for Apple to finish processing Malik build 36.1.", flush=True)
+              if attempt < 19:
+                  time.sleep(20)
           if len(builds) != 1:
               raise SystemExit("Expected exactly one matching iPhone build.")
           build = builds[0]
