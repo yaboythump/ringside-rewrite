@@ -2,14 +2,20 @@ import XCTest
 
 final class OfflineCareerTests: XCTestCase {
     @MainActor
+    private func namedButton(_ name: String, in game: XCUIElement) -> XCUIElement {
+        // WebKit can expose CSS-uppercase visible button text through accessibility.
+        game.buttons.matching(NSPredicate(format: "label ==[c] %@", name)).firstMatch
+    }
+
+    @MainActor
     func testNativeRingBellStartsPlayback() {
         let app = XCUIApplication()
         app.launch()
         let game = app.webViews.firstMatch
-        let settings = game.buttons["Settings"]
+        let settings = namedButton("Settings", in: game)
         XCTAssertTrue(settings.waitForExistence(timeout: 20))
         settings.tap()
-        let bell = game.buttons["Test ring bell"]
+        let bell = namedButton("Test ring bell", in: game)
         XCTAssertTrue(bell.waitForExistence(timeout: 10))
         bell.tap()
         XCTAssertTrue(game.staticTexts["Ring bell playback started."].waitForExistence(timeout: 10))
@@ -75,7 +81,7 @@ final class OfflineCareerTests: XCTestCase {
         }
 
         app.launch()
-        let career = game.buttons["New career"]
+        let career = namedButton("New career", in: game)
         guard career.waitForExistence(timeout: 20) else {
             return XCTFail("The bundled game did not load.")
         }
@@ -83,12 +89,12 @@ final class OfflineCareerTests: XCTestCase {
         let brick = button("Brick Malone")
         XCTAssertTrue(brick.waitForExistence(timeout: 10))
         brick.tap()
-        let replace = game.buttons["Start new career"]
+        let replace = namedButton("Start new career", in: game)
         if replace.waitForExistence(timeout: 2) { replace.tap() }
         XCTAssertTrue(button("Fight Camp").waitForExistence(timeout: 10))
         app.terminate()
         app.launch()
-        let continued = game.buttons["Continue career"]
+        let continued = namedButton("Continue career", in: game)
         XCTAssertTrue(continued.waitForExistence(timeout: 15))
         continued.tap()
         guard button("Fight Camp").waitForExistence(timeout: 10) else {
@@ -98,7 +104,7 @@ final class OfflineCareerTests: XCTestCase {
         button("Main menu").tap()
         career.tap()
         brick.tap()
-        let keep = game.buttons["Keep my career"]
+        let keep = namedButton("Keep my career", in: game)
         XCTAssertTrue(keep.waitForExistence(timeout: 10))
         keep.tap()
         XCTAssertTrue(brick.isHittable)
