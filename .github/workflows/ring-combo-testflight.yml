@@ -1,8 +1,11 @@
 name: Ringside Combo TestFlight
 on:
-  push:
-    branches: [main]
+  pull_request:
     paths:
+      - "games/ring-combo/**"
+      - "games/ring-combo.html"
+      - "games/ringside-universe.json"
+      - "games/card-clash/assets/**"
       - ".github/workflows/ring-combo-testflight.yml"
   workflow_dispatch:
     inputs:
@@ -16,20 +19,38 @@ permissions:
   contents: read
 
 env:
-  COMBO_SOURCE: ${{ github.sha }}
-  DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+  COMBO_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
   COMBO_TEAM: J4Y8FY6JNZ
   COMBO_BUNDLE: com.ctnetworkstudios.ringsidecombo
   COMBO_PROJECT: games/ring-combo/ios/RingsideCombo.xcodeproj
 
 concurrency:
-  group: ringside-ring-combo-testflight
+  group: ringside-ring-combo-testflight-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: false
 
 jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.COMBO_SOURCE }}
+          persist-credentials: false
+      - name: Test the offline build and mobile layout
+        run: |
+          python3 -m venv "$RUNNER_TEMP/combo-venv"
+          "$RUNNER_TEMP/combo-venv/bin/pip" install 'playwright==1.62.0'
+          "$RUNNER_TEMP/combo-venv/bin/python" -m playwright install --with-deps chromium
+          "$RUNNER_TEMP/combo-venv/bin/python" games/ring-combo/test_game.py
+          python3 games/ring-combo/build.py "$RUNNER_TEMP/ring-combo.html"
+          cmp games/ring-combo.html "$RUNNER_TEMP/ring-combo.html"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ringside-combo-offline-preview
+          path: ${{ runner.temp }}/ring-combo.html
   verify:
-    if: github.ref == 'refs/heads/main'
-    runs-on: xcode-27
+    runs-on: macos-26
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -48,6 +69,9 @@ jobs:
           app="$archive/Products/Applications/RingsideCombo.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$COMBO_BUNDLE"
           test -s "$app/index.html"
+          test -s "$app/PrivacyInfo.xcprivacy"
+          test "$(/usr/libexec/PlistBuddy -c 'Print MinimumOSVersion' "$app/Info.plist")" = 17.0
+          /usr/libexec/PlistBuddy -c 'Print UISupportedInterfaceOrientations' "$app/Info.plist" | grep -q 'UIInterfaceOrientationPortrait'
           test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
           grep -qF 'const MATCH_MUSIC = "data:audio/mpeg;base64,' "$app/index.html"
           grep -F 'strike:"data:image/png;base64,' "$app/index.html" >/dev/null
@@ -56,10 +80,12 @@ jobs:
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/combo-xcode-help.txt" >/dev/null
 
   upload:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.upload)
-    needs: verify
+    if: github.event_name == 'workflow_dispatch' && inputs.upload && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/work/ringside-combo-expansion')
+    needs: [web, verify]
     environment: ringside-testflight
     runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

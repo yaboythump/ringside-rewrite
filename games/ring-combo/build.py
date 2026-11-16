@@ -11,14 +11,14 @@ Images:
   - The arena soundtrack comes from assets/arena-loop.mp3.
 """
 import base64
+import json
 import pathlib
-import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 CLASH = HERE.parent / "card-clash" / "assets"
 MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".mp3": "audio/mpeg"}
-ART_NAMES = ["strike", "grapple", "kick", "show", "heal", "fin", "chair", "knux", "arena", "mat", "logo", "belt"]
+ART_NAMES = ["strike", "grapple", "kick", "show", "heal", "reversal", "weapon", "fin", "chair", "knux", "arena", "mat", "logo", "belt"]
 
 
 def data_uri(path):
@@ -26,7 +26,9 @@ def data_uri(path):
 
 
 def find(folder, stem):
-    for ext in MIME:
+    for ext, media_type in MIME.items():
+        if not media_type.startswith("image/"):
+            continue
         path = folder / f"{stem}{ext}"
         if path.is_file():
             return path
@@ -36,14 +38,15 @@ def find(folder, stem):
 def main():
     dest = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parent / "ring-combo.html"
     src = (HERE / "src.html").read_text(encoding="utf-8")
-    universe = (HERE / "universe.js").read_text(encoding="utf-8")
+    universe = json.loads((HERE.parent / "ringside-universe.json").read_text(encoding="utf-8"))
     for marker in ("/*__PORTRAITS__*/", "/*__ART__*/", "/*__MUSIC__*/"):
-        if marker not in src:
+        if src.count(marker) != 1:
             sys.exit(f"src.html is missing the {marker} marker")
 
     portraits = []
-    for wid in sorted(set(re.findall(r"^  ([a-z]+):\{name:.*lore:", universe, re.M))):
-        path = find(CLASH / "portraits", wid)
+    for wid, wrestler in sorted(universe["characters"].items()):
+        portrait = HERE.parent / wrestler["portrait"]
+        path = find(portrait.parent, portrait.name)
         if not path:
             sys.exit(f"Missing portrait for {wid} in {CLASH / 'portraits'}")
         portraits.append(f'{wid}:"{data_uri(path)}"')
@@ -56,14 +59,16 @@ def main():
             used.append(f"{name} ({path.relative_to(HERE.parent)})")
 
     soundtrack = HERE / "assets" / "arena-loop.mp3"
-    music = "data:audio/mpeg;base64," + base64.b64encode(soundtrack.read_bytes()).decode()
-    voice = ",".join(f'"{i}":"{data_uri(HERE / "assets" / f"count-{i}.mp3")}"' for i in range(1,11))
+    music = data_uri(soundtrack)
+    voice = {str(i): data_uri(HERE / "assets" / f"count-{i}.mp3") for i in range(1, 11)}
+    voice["chant"] = data_uri(HERE / "assets" / "crowd-chant.mp3")
     for module in ("universe", "progression", "modes", "menus"):
         marker = "/*__" + module.upper() + "__*/"
         if src.count(marker) != 1:
             sys.exit(f"src.html must contain exactly one {marker} marker")
         src = src.replace(marker, (HERE / f"{module}.js").read_text(encoding="utf-8"))
-    out = (src.replace("/*__VOICE__*/", voice).replace("/*__PORTRAITS__*/", ",".join(portraits))
+    out = (src.replace("/*__UNIVERSE_DATA__*/", json.dumps(universe, ensure_ascii=False))
+           .replace("/*__VOICE__*/", json.dumps(voice)[1:-1]).replace("/*__PORTRAITS__*/", ",".join(portraits))
            .replace("/*__ART__*/", ",".join(art))
            .replace("/*__MUSIC__*/", music))
     dest.parent.mkdir(parents=True, exist_ok=True)

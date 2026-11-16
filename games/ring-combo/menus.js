@@ -50,14 +50,15 @@ function launchSelection(){
     if(roster[holder]?.stats) selection=roster[holder];
   }
   let opponent;
+  const titleChallenge=queue==='career'&&!careerEvent?contenderTitle(mode):null;
   if(queue==='weekly'){
     const cup=profile.weekly;
     if(cup.eliminated||cup.round>=3) return renderMenu('weekly');
     opponent=roster[cup.opponents[cup.round]];
-  } else if(queue==='career') opponent=careerOpponent(mode,careerEvent);
+  } else if(queue==='career') opponent=careerOpponent(mode,careerEvent,titleChallenge);
   else if(queue==='quick') opponent=LADDER[0];
   rung=opponent ? Math.max(0,LADDER.findIndex(w=>w.id===opponent.id)):0;
-  queued={mode,queue,event:careerEvent,cup:profile.weekly?.id,opponent,partner,starter:selection};
+  queued={mode,queue,titleChallenge,event:careerEvent,cup:profile.weekly?.id,opponent,partner,starter:selection};
   $('menu').hidden=true;
   entrance();
 }
@@ -105,7 +106,10 @@ function renderMenu(next){
     if(queue==='ladder'||queue==='quick'){
       selectField('Match type',[['ladder','Championship Ladder'],...Object.entries(rules).map(([id,[name]])=>[id,name])],
         queue==='ladder'?'ladder':mode,id=>{queue=id==='ladder'?'ladder':'quick';mode=id==='ladder'?'standard':id;renderMenu('setup');});
-    } else line(rules[mode][0],queue==='weekly'?'Weekly tournament':careerEvent?storyEvents[careerEvent].name:'Road to Gold');
+    } else {
+      const title=queue==='career'&&!careerEvent?contenderTitle(mode):null;
+      line(title?championship[title].name:rules[mode][0],queue==='weekly'?'Weekly tournament':careerEvent?storyEvents[careerEvent].name:'Road to Gold');
+    }
     profilePicker();
     if(mode==='tag') selectField('Tag partner',HEROES.filter(w=>w!==selection).map(w=>[w.id,w.name]),partner.id,id=>{partner=roster[id];});
     const instructions=node('details');instructions.append(node('summary','Match rules'),node('p',rules[mode][1]));
@@ -116,8 +120,10 @@ function renderMenu(next){
     const c=profile.career;
     const rank=Math.max(1,8-c.wins);
     line(c.wins?'Contender #'+rank:'Rookie debut',c.wins+' wins · '+c.losses+' losses · '+c.tagWins+' tag wins');
-    button(c.wins?'Book next match':'Make your debut',()=>setup('career'),{primary:true});
-    button('Tag title run',()=>setup('career','tag'));
+    const singlesTitle=contenderTitle('standard'),tagTitle=contenderTitle('tag');
+    button(singlesTitle?'Challenge for '+championship[singlesTitle].name:c.wins?'Book next match':'Make your debut',
+      ()=>setup('career'),{primary:true});
+    button(tagTitle?'Challenge for the tag titles':'Tag title run',()=>setup('career','tag'));
     const heat=Math.max(0,...Object.values(c.rivals).map(r=>r.heat));
     if(heat>=2) button(storyEvents.rematch.name,()=>setup('career','cage','rematch'));
     if(heat>=4) button(storyEvents.ambush.name,()=>setup('career','hardcore','ambush'));
@@ -125,7 +131,7 @@ function renderMenu(next){
     for(const [id,title] of Object.entries(championship)){
       const held=c.titles[id];
       line(title.name,held?(roster[held.holder]?.name||'Champion')+(held.partner?' & '+roster[held.partner]?.name:'')+' · '+held.defenses+' defenses':
-        'Unlock at '+title.wins+(id==='tag'?' tag wins':' singles wins'));
+        'Challenge after '+(title.wins-1)+(id==='tag'?' tag wins':' singles wins'));
     }
     button('Career statistics',()=>renderMenu('stats'));
     break;
@@ -288,6 +294,6 @@ $('bGo').onclick=()=>{
   else entrance();
 };
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){pauseMatch();if(st)persist();}
+  if(document.hidden && st && !ended){pauseMatch();persist();}
   sfx.sync();
 });

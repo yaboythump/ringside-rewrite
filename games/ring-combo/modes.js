@@ -16,7 +16,7 @@ let queued={mode:'standard',queue:'ladder'};
 function initMode(){
   Object.assign(st,{
     mode:queued.mode,queue:queued.queue,event:queued.event,cup:queued.cup,
-    originalOpponent:st.opp.id,originalHero:hero.id,signatureUses:0,climb:{p:0,o:0},
+    originalOpponent:st.opp.id,originalHero:hero.id,titleChallenge:queued.titleChallenge,signatureUses:0,climb:{p:0,o:0},
     pressure:{p:0,o:0},reversal:{p:0,o:0},rope:{p:1,o:1},falls:{p:0,o:0},
     remaining:120,downed:null,recovery:null,teamMomentum:{p:0,o:0},
     charge:{},active:{p:0,o:0},teams:null,

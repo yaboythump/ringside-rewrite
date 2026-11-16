@@ -40,6 +40,9 @@ const newSave = () => ({
 });
 function read(key){try{return (window.RingsideNative ?? localStorage).getItem(key)}catch{return null}}
 function write(key,value){(window.RingsideNative ?? localStorage).setItem(key,value)}
+const dailyGoals = {
+  wins:['Win two matches',2,50],moves:['Activate three signature moves',3,45],special:['Win a stipulation match',1,55]
+};
 function decode(raw){
   try {
     const value = JSON.parse(raw);
@@ -66,26 +69,55 @@ function decode(raw){
       const volume=value.settings[key];
       value.settings[key]=Number.isFinite(volume)?Math.min(1,Math.max(0,volume)):defaults.settings[key];
     }
-    if (!(value.daily?.objectives && Number.isInteger(value.daily?.id))) value.daily=null;
+    for(const [id,level] of Object.entries(value.cards)){
+      if(!moves[id]) delete value.cards[id];
+      else if(!Number.isInteger(level) || level<1 || level>3) value.cards[id]=defaults.cards[id]||1;
+    }
+    for(const section of ['stats','career']){
+      for(const [key,score] of Object.entries(defaults[section])){
+        if(typeof score==='number' && (!Number.isSafeInteger(value[section][key])||value[section][key]<0)) value[section][key]=score;
+      }
+    }
+    for(const [id,rival] of Object.entries(value.career.rivals)){
+      if(!roster[id]?.tricks || !rival || !Number.isFinite(rival.heat)) delete value.career.rivals[id];
+    }
+    for(const [id,title] of Object.entries(value.career.titles)){
+      if(!championship[id] || !roster[title?.holder]?.stats) delete value.career.titles[id];
+    }
+    if (!(Number.isInteger(value.daily?.id) && Number.isFinite(value.daily?.opened) &&
+          value.daily?.claimed && Object.keys(dailyGoals).every(id=>Number.isFinite(value.daily?.objectives?.[id])))) value.daily=null;
     if (!(Array.isArray(value.weekly?.opponents) && value.weekly.opponents.every(id=>roster[id]?.tricks) &&
-        value.weekly.opponents.length===3 && Number.isInteger(value.weekly?.id))) value.weekly=null;
+        value.weekly.opponents.length===3 && Number.isInteger(value.weekly?.id) && Number.isFinite(value.weekly.opened) &&
+        Number.isInteger(value.weekly.round) && value.weekly.round>=0 && value.weekly.round<=3)) value.weekly=null;
     return {...defaults,...value};
   }catch{return null}
 }
-const initialRaw = read(SAVE);
-const recovered = decode(initialRaw) || decode(read(BACKUP));
-let saveWarning = initialRaw && !decode(initialRaw) ? (recovered?'Recovered your last backup.':'Save could not be read. Existing data is preserved.') : '';
-const saveLocked = !!initialRaw && !recovered;
-let profile = recovered || newSave();
+let savedSnapshot=read(SAVE);
+const current=decode(savedSnapshot);
+const recovered=current || decode(read(BACKUP));
+let saveWarning=savedSnapshot && !current ? (recovered?'Recovered your last backup.':'Save could not be read. Existing data is preserved.') : '';
+let saveLocked=!!savedSnapshot && !recovered;
+let profile=recovered || newSave();
+function warnSave(message){
+  saveWarning=message;
+  $('saveNotice').textContent=message;
+}
 function persist(){
-  if (saveLocked) return false;
+  if(saveLocked) return false;
   try {
-    const old = read(SAVE);
-    if (old && decode(old)) write(BACKUP, old);
-    write(SAVE, JSON.stringify(profile));
+    const old=read(SAVE);
+    if(old!==savedSnapshot){
+      saveLocked=true;
+      warnSave('Another session changed your save. Reopen the game to continue saving.');
+      return false;
+    }
+    if(old && decode(old)) write(BACKUP,old);
+    const updated=JSON.stringify(profile);
+    write(SAVE,updated);
+    savedSnapshot=updated;
     return true;
   } catch {
-    saveWarning='Storage unavailable. Progress is available for this session.';
+    warnSave('Storage unavailable. Progress is available for this session.');
     return false;
   }
 }
@@ -132,27 +164,32 @@ function events(){
     persist();
   }
 }
-const dailyGoals = {
-  wins:['Win two matches',2,50],moves:['Activate three signature moves',3,45],special:['Win a stipulation match',1,55]
-};
 const storyEvents = {
   rematch:{name:'Settle the score',description:'A familiar rival wants a rematch. Meet them in a Steel Cage.',mode:'cage',bonus:45},
   ambush:{name:'Payback in the ring',description:'Your rival jumps you before the bell. Start hurt and fight back under Hardcore rules.',mode:'hardcore',bonus:65},
   defense:{name:'Fight for your title',description:'Put your latest title on the line in an Iron Man defense.',mode:'iron',bonus:95},
 };
-function careerOpponent(mode,choice){
+function contenderTitle(mode){
+  const c=profile.career;
+  return Object.keys(championship).find(id=>{
+    const tag=id==='tag';
+    return tag===(mode==='tag') && (tag?c.tagWins:c.wins)>=championship[id].wins-1 && !c.titles[id];
+  });
+}
+function careerOpponent(mode,choice,title){
   const c=profile.career;
   const rival=Object.entries(c.rivals).filter(([id])=>roster[id]?.tricks)
     .sort((a,b)=>b[1].heat-a[1].heat)[0];
   const wins=mode==='tag'?c.tagWins:c.wins;
   const ladderOpponent=LADDER[Math.min(3,Math.floor(wins/2))];
-  const base=choice && rival ? roster[rival[0]] : ladderOpponent;
+  const champions={prospect:'tank',arena:'ox',world:'silas',tag:'ox'};
+  const base=title ? roster[champions[title]] : choice && rival ? roster[rival[0]] : ladderOpponent;
   return {...base,hp:base.hp+Math.min(20,wins*2),smart:Math.min(1,base.smart+wins*0.04)};
 }
 function titleChange(id,result,reason){
   const c=profile.career;
   if (!id) return;
-  c.titles[id]=result==='Lost'?null:{holder:hero.id,partner:st.mode==='tag'?st.teams.p.find(w=>w.wrestler!==hero)?.wrestler.id:null,defenses:(c.titles[id]?.defenses||0)+(result==='Defended'?1:0)};
+  c.titles[id]=result==='Lost'?null:{holder:st.originalHero,partner:st.mode==='tag'?st.teams.p[1].wrestler.id:null,defenses:(c.titles[id]?.defenses||0)+(result==='Defended'?1:0)};
   c.history.unshift({title:id,result,opponent:st.originalOpponent,reason});
   c.history=c.history.slice(0,60);
 }
@@ -164,16 +201,13 @@ function settleCareer(result){
   const defend=st.event==='defense' ? ['world','arena','prospect'].find(id=>c.titles[id]) : null;
   if (result==='lose'){
     c.losses++; rival.losses++;
-    if (defend) titleChange(defend,'Lost','Title defense');
+    if (defend) {titleChange(defend,'Lost','Title defense');rival.titles++;}
     return defend ? 'The title changed hands.' : '';
   }
   if (result!=='win') return '';
   rival.wins++;
   if (st.mode==='tag') c.tagWins++; else c.wins++;
-  const title=Object.keys(championship).find(key => {
-    const wins=key==='tag'?c.tagWins:c.wins;
-    return (key==='tag')===(st.mode==='tag') && wins>=championship[key].wins && !c.titles[key];
-  });
+  const title=st.titleChallenge;
   if (defend || title){
     const id=defend || title;
     titleChange(id,defend?'Defended':'Won',defend?'Title defense':'Career milestone');
@@ -198,7 +232,7 @@ function settleResult(result){
   let note='';
   if (st.queue==='career'){
     note=settleCareer(result);
-    if(won && st.event) profile.cash+=storyEvents[st.event].bonus;
+    if(won && storyEvents[st.event]) profile.cash+=storyEvents[st.event].bonus;
     profile.career.choice=null;
   }
   if (st.queue==='weekly' && profile.weekly.id===st.cup){

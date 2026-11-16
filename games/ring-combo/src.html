@@ -168,7 +168,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .spotlight strong,.spotlight b{font-size:clamp(27px,8vw,46px);letter-spacing:.06em;font-weight:1000;font-style:italic;line-height:1.02;text-shadow:0 3px #211032}
 .spotlight b{color:var(--gold)}
 .navButton{width:100%;margin:4px 0;text-transform:uppercase;letter-spacing:.08em;text-align:left}
-.navButton::after{content:'›';float:right}
+.navButton{background-image:linear-gradient(45deg,transparent 62%,currentColor 62%,currentColor 72%,transparent 72%),linear-gradient(135deg,transparent 62%,currentColor 62%,currentColor 72%,transparent 72%);background-position:right 14px top calc(50% - 3px),right 14px top calc(50% + 3px);background-size:7px 7px;background-repeat:no-repeat}
 .rosterGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:5px 0}
 .rosterCard{background:#211830;color:var(--ink);border:2px solid #543965;border-radius:10px;overflow:hidden;text-align:left;padding:5px;font:inherit;min-width:0}
 .rosterCard[aria-pressed=true]{border-color:var(--gold);box-shadow:0 0 12px #f2b33d44}
@@ -431,8 +431,13 @@ const sfx = (() => {
   }
   const crowd = (dur, vol=0.18, at=0) => { noise(dur, {vol, freq:900, q:0.5, attack:dur*0.3, at}); noise(dur, {vol:vol*0.6, freq:2400, q:0.7, attack:dur*0.35, at}); };
   const bell = (at=0, vol=0.35) => { [880, 1320, 2210].forEach((f,i)=>tone(f, 1.1, {type:'sine', vol:vol/(i+1), at})); };
+  function sample(id){
+    if(!ok() || !voice[id]) return;
+    const source=ctx.createBufferSource();source.buffer=voice[id];source.connect(master);source.start();
+  }
   return {
     init,
+    chant(){sample('chant');crowd(1.8,0.20);},
     sync(){if(master) master.gain.value=volume();},
     theme(wrestler,ending=false){
       if(!ctx || profile.settings.muted || !profile.settings.music) return;
@@ -473,7 +478,7 @@ const sfx = (() => {
     knuxTick(){ tone(1000, 0.05, {type:'square', vol:0.06}); },
     knuxBoom(){ tone(55, 0.6, {vol:0.9, to:25}); noise(0.5, {vol:0.6, freq:500, type:'lowpass'}); },
     weaponGone(){ tone(700, 0.3, {type:'square', vol:0.06, to:200}); crowd(0.5, 0.12); },
-    refCount(count){ if(count && ok() && voice[count]){const node=ctx.createBufferSource();node.buffer=voice[count];node.connect(master);node.start();} noise(0.07, {vol:0.7, freq:350, type:'lowpass', q:0.7}); tone(80, 0.12, {vol:0.6, to:50}); },
+    refCount(count){ if(count) sample(count); noise(0.07, {vol:0.7, freq:350, type:'lowpass', q:0.7}); tone(80, 0.12, {vol:0.6, to:50}); },
     kickout(){ crowd(1.6, 0.32); tone(200, 0.3, {type:'sawtooth', vol:0.06, to:600}); },
     win(){ bell(0); bell(0.35); bell(0.7); crowd(2.5, 0.3, 0.1); },
     lose(){ bell(0, 0.25); tone(220, 0.8, {type:'triangle', vol:0.12, to:110, at:0.3}); },
@@ -499,7 +504,9 @@ function ui(){
   $('oHpN').textContent = `${Math.max(0,Math.round(st.ohp))} / ${st.omax}`;
   $('crowdBar').style.width = st.crowd+'%';
   $('crowdN').textContent = Math.round(st.crowd)+'%' + (st.crowd>=100?' — ON FIRE':'');
-  $('crowd').classList.toggle('hot', st.crowd>=100);
+  if(st.crowd>=100 && !st.crowdHot) sfx.chant();
+  st.crowdHot=st.crowd>=100;
+  $('crowd').classList.toggle('hot',st.crowdHot);
   const trickName = {guard:'Guard',chair:'Chairs',knux:'Knucks'}[st.nextTrick];
   $('oStat').innerHTML = (st.guard?'<span class="chip guard">🛡 Guard</span>':'') + (st.reversal.o?'<span class="chip guard">Counter ready</span>':'') +
     (st.pin ? '' : `<span class="chip next">${trickName} in ${st.trickIn}</span>`);
@@ -797,6 +804,7 @@ async function oppTurn(){
     st.trickIn=o.trickEvery;st.nextTrick=pickOne(o.tricks);
   }
   if(advanceSpecial('o')) return ended?undefined:yourTurn();
+  if((st.mode==='last'||st.mode==='submission') && st.ohp<=0 && advanceSpecial('p')) return rivalRecovery();
   if(st.ohp<=0 && pins){startPin();return yourTurn();}
   if(st.php<=0 && pins) startKickout();
   if(st.mode==='cage'){st.php=Math.max(1,st.php);st.ohp=Math.max(1,st.ohp);}
