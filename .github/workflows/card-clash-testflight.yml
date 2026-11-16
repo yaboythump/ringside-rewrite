@@ -21,8 +21,8 @@ permissions:
   contents: read
 
 env:
-  RCC_RELEASE_SOURCE: 45c5b142d6f1ef5cc5d2a6bc1f00e4db3eb81e46
-  RCC_SOURCE: ${{ inputs.release_candidate && '45c5b142d6f1ef5cc5d2a6bc1f00e4db3eb81e46' || '93f90f0a6dd021285d31bc5dbfbc4270380916a3' }}
+  RCC_RELEASE_SOURCE: 4bb6b41315d9c8ada510c8463e05d96332ae3acb
+  RCC_SOURCE: ${{ inputs.release_candidate && '4bb6b41315d9c8ada510c8463e05d96332ae3acb' || '93f90f0a6dd021285d31bc5dbfbc4270380916a3' }}
   DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
   RCC_TEAM: J4Y8FY6JNZ
   RCC_BUNDLE: com.ctnetworkstudios.ringsidecardclash
@@ -59,6 +59,7 @@ jobs:
           done
           if [[ "$RCC_SOURCE" == "$RCC_RELEASE_SOURCE" ]]; then
             test -s "$app/sound/menu-loop.mp3"
+            test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$app/Info.plist")" = false
           fi
           node --test games/card-clash/tests/fight-camp.test.cjs games/card-clash/tests/ios-bridge.test.cjs
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rcc-xcode-help.txt"
@@ -230,6 +231,9 @@ jobs:
           app="$archive/Products/Applications/RingsideCardClash.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$RCC_BUNDLE"
           test -s "$app/index.html"
+          if [[ "$RCC_SOURCE" == "$RCC_RELEASE_SOURCE" ]]; then
+            test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$app/Info.plist")" = false
+          fi
           codesign --verify --strict "$app"
           export_options="$signing/ExportOptions.plist"
           plutil -create xml1 "$export_options"
@@ -314,8 +318,19 @@ jobs:
                   beta = next((item["attributes"]["internalBuildState"] for item in response.get("included", [])
                                if item["type"] == "buildBetaDetails"), "UNKNOWN")
                   print(f"Build {build}: processing={state}; internal TestFlight={beta}", flush=True)
+                  if beta in {"READY_FOR_BETA_TESTING", "IN_BETA_TESTING"} and records:
+                      try:
+                          groups = get(f"builds/{records[0]['id']}/betaGroups", {
+                              "fields[betaGroups]": "isInternalGroup",
+                              "limit": 200,
+                          })["data"]
+                          internal = sum(group["attributes"]["isInternalGroup"] for group in groups)
+                          print(f"Build {build}: assigned internal TestFlight groups={internal}")
+                      except (urllib.error.URLError, TimeoutError, ValueError, KeyError):
+                          print("::warning::Internal TestFlight group assignments could not be confirmed.")
+                      break
                   if state in {"INVALID", "FAILED"} or beta in {
-                      "READY_FOR_BETA_TESTING", "IN_BETA_TESTING", "MISSING_EXPORT_COMPLIANCE",
+                      "MISSING_EXPORT_COMPLIANCE",
                       "PROCESSING_EXCEPTION", "IN_EXPORT_COMPLIANCE_REVIEW", "EXPIRED",
                   }:
                       break
