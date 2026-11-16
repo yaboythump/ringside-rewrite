@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 env:
-  RCC_SOURCE: 00908844bee3fdc7b7993b76db13e42fb05643d2
+  RCC_SOURCE: cef8023d3b03b33840b274191c95be72cc5395a1
   DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
   RCC_TEAM: J4Y8FY6JNZ
   RCC_BUNDLE: com.ctnetworkstudios.ringsidecardclash
@@ -48,6 +48,9 @@ jobs:
           app="$archive/Products/Applications/RingsideCardClash.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$RCC_BUNDLE"
           test -s "$app/index.html"
+          for cue in arena-loop tag entrance card hit big block hype heal count bell crowd boo ref-1 ref-2 ref-3; do
+            test -s "$app/sound/$cue.mp3"
+          done
           node --test games/card-clash/tests/fight-camp.test.cjs games/card-clash/tests/ios-bridge.test.cjs
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rcc-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rcc-xcode-help.txt" >/dev/null
