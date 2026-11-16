@@ -98,7 +98,7 @@ final class OfflineCareerTests: XCTestCase {
         XCTAssertTrue(continued.waitForExistence(timeout: 15))
         continued.tap()
         guard button("Fight Camp").waitForExistence(timeout: 10) else {
-            return XCTFail("The saved career did not reopen after tapping Continue career.")
+            return XCTFail("The saved career did not reopen after tapping Continue career. \(game.debugDescription)")
         }
 
         button("Main menu").tap()

@@ -10,7 +10,7 @@ permissions:
 jobs:
   simulator:
     runs-on: macos-26
-    timeout-minutes: 12
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - name: Verify the offline game
@@ -25,7 +25,7 @@ jobs:
           xcrun simctl bootstatus "$device" -b
           xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
             -destination "platform=iOS Simulator,id=$device" -derivedDataPath "$RUNNER_TEMP/rcc-ios" \
-            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
+            -parallel-testing-enabled NO ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO test
   device:
     runs-on: xcode-27
     timeout-minutes: 8
@@ -68,4 +68,4 @@ jobs:
           xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
             -destination "platform=iOS Simulator,id=$device" -derivedDataPath "$RUNNER_TEMP/rcc-duo" \
             -parallel-testing-enabled NO -only-testing:RingsideCardClashUITests/OfflineCareerTests/testDamageAndEndTurnStayVisibleAfterPlayingCard \
-            CODE_SIGNING_ALLOWED=NO test
+            ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO test

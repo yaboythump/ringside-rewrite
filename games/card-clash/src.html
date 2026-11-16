@@ -28,7 +28,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px
 .app{position:relative;z-index:1;max-width:760px;margin:0 auto;display:grid;gap:14px}
 .app.quake{animation:quake .5s cubic-bezier(.36,.07,.19,.97)}
 @keyframes quake{10%,90%{transform:translate(-2px,1px)}20%,80%{transform:translate(5px,-2px)}30%,50%,70%{transform:translate(-8px,3px)}40%,60%{transform:translate(8px,-3px)}}
-button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;touch-action:manipulation}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 
 /* type */
@@ -209,9 +209,9 @@ img.belt.sm{width:min(60vw,240px);animation:none;justify-self:center}
 .mode{position:relative;text-align:left;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;min-width:0;gap:8px;padding:18px 18px 20px;background:linear-gradient(160deg,rgba(40,40,48,.9),rgba(10,10,12,.92));
   clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%);transition:transform .2s,filter .2s}
 @media(hover:hover) and (pointer:fine){.mode:hover{transform:translateY(-4px);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}}
-.mode h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(24px,3vw,27px);line-height:1.04;letter-spacing:-.03em;overflow-wrap:anywhere;text-transform:uppercase}
-.mode p{margin:0;color:var(--steel);line-height:1.45;font-size:14px}
-.mode .go{font-family:var(--label);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--gold)}
+.mode .mode-title{display:block;margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(24px,3vw,27px);line-height:1.04;letter-spacing:-.03em;overflow-wrap:anywhere;text-transform:uppercase}
+.mode .mode-detail{display:block;margin:0;color:var(--steel);line-height:1.45;font-size:14px}
+.mode > span{pointer-events:none}
 .mode.primary::before{content:"";position:absolute;inset:0;padding:2px;background:linear-gradient(120deg,var(--gold-hi),var(--gold),var(--gold-deep));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%)}
 .panel{position:relative;padding:14px 16px;background:linear-gradient(160deg,rgba(28,28,34,.9),rgba(10,10,12,.88));display:grid;gap:10px;min-width:0}
 .panel h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:24px;line-height:.9;text-transform:uppercase}
@@ -424,8 +424,8 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
 .home-hero .logo .l2{font-size:clamp(38px,9vw,60px)}
 .home-modes{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
 .home-modes .mode{min-height:58px;padding:9px 10px;gap:3px}
-.home-modes .mode h3{font-size:clamp(16px,4.5vw,25px)}
-.home-modes .mode p{font-size:12px;line-height:1.25}
+.home-modes .mode .mode-title{font-size:clamp(16px,4.5vw,25px)}
+.home-modes .mode .mode-detail{font-size:12px;line-height:1.25}
 .home-modes #m-cont,.home-modes #m-career.primary{grid-column:1/-1}
 .home-actions .btn{font-size:15px;min-height:44px;padding:6px 12px}
 @media(max-width:600px), (pointer:coarse){
@@ -976,15 +976,20 @@ function titleScreen(){
   <header class="hero home-hero">${logo()}</header>
   ${PREVIEW?'<p class="release-notice">Playtest build · Uses its own career save.</p>':""}
   <div class="modes home-modes">
-    ${saved?`<button class="mode primary" id="m-cont" aria-label="Continue career"><span class="go">Continue career</span><h3 class="metal">${esc(WRESTLERS[saved.wid].name)}</h3><p>Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?mainTitle(saved.wid):`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</p></button>`:""}
-    <button class="mode ${saved?"":"primary"}" id="m-career" aria-label="New career"><h3>New career</h3><p>Build your wrestler and chase titles.</p></button>
-    <button class="mode" id="m-quick"><h3>Quick Match</h3><p>Three-match ladder</p></button>
-    <button class="mode" id="m-exhibition" aria-label="Exhibition"><h3>Exhibition</h3><p>Pick your matchup</p></button>
-    <button class="mode" id="m-tag"><h3>Tag Team</h3><p>Two on two</p></button>
-    <button class="mode" id="m-tournament"><h3>Championship Cup</h3><p>${cup?`Saved bracket · ${esc(WRESTLERS[cup.pid].name)}${cup.bracket[2][0].winner?" · Final results":` · ${ROUND_NAMES[cup.round]}`}`:"Eight-wrestler bracket"}</p></button>
+    ${saved?`<button class="mode primary" id="m-cont" aria-label="Continue career"><span class="mode-title metal">Continue career</span><span class="mode-detail">${esc(WRESTLERS[saved.wid].name)} · Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?mainTitle(saved.wid):`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</span></button>`:""}
+    <button class="mode ${saved?"":"primary"}" id="m-career" aria-label="New career"><span class="mode-title">New career</span><span class="mode-detail">Build your wrestler and chase titles.</span></button>
+    <button class="mode" id="m-quick"><span class="mode-title">Quick Match</span><span class="mode-detail">Three-match ladder</span></button>
+    <button class="mode" id="m-exhibition" aria-label="Exhibition"><span class="mode-title">Exhibition</span><span class="mode-detail">Pick your matchup</span></button>
+    <button class="mode" id="m-tag"><span class="mode-title">Tag Team</span><span class="mode-detail">Two on two</span></button>
+    <button class="mode" id="m-tournament"><span class="mode-title">Championship Cup</span><span class="mode-detail">${cup?`Saved bracket · ${esc(WRESTLERS[cup.pid].name)}${cup.bracket[2][0].winner?" · Final results":` · ${ROUND_NAMES[cup.round]}`}`:"Eight-wrestler bracket"}</span></button>
   </div>
-  <div class="actions home-actions"><button class="btn" id="m-help">How to play</button><button class="btn" id="m-settings">Settings</button></div>`;
-  $("#m-cont")?.addEventListener("click",()=>{C=saved;hub();});
+  <div class="actions home-actions"><button class="btn" id="m-help">How to play</button><button class="btn" id="m-settings" aria-label="Settings">Settings</button></div>`;
+  const continueCareer=$("#m-cont");
+  if(continueCareer)continueCareer.onclick=()=>{
+    C=loadCareer();
+    if(C)hub();
+    else titleScreen();
+  };
   $("#m-career").onclick=()=>selectScreen("career");
   $("#m-quick").onclick=()=>selectScreen("quick");
   $("#m-exhibition").onclick=()=>selectScreen("exhibition");
@@ -1034,7 +1039,7 @@ function guideScreen(screen){
     <li>At 10 hype, use your finisher for zero energy or hold hype for a kick-out. You can kick out once at 5 hype, except in a steel cage.</li>
     <li>Career wins earn in-game cash. Buy cards in the Move Shop, then equip or swap them in Fight Camp. Training still costs one weekly segment. Your career and settings save on this device.</li>
   </ol><button class="btn primary" id="practice">Practice in exhibition</button>`
-  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}" aria-label="Music">Music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
+  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound" aria-label="Test ring bell">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}" aria-label="Music">Music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
     ${RM?'<p class="howto">This device requests reduced motion.</p>':""}
     <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. The arena music and effects are synthesized in-game. Referee voice is synthesized with Festival Lite.</p>`}
   </section><div class="actions"><button class="btn" id="back">Main menu</button></div>`;
