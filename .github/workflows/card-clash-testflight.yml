@@ -357,6 +357,8 @@ jobs:
     steps:
       - name: Check the game’s Apple release and TestFlight records
         env:
+          RCC_ASSIGN_36_1: >-
+            ${{ github.event_name == 'push' && github.event.head_commit.message == 'ci(card-clash): assign Malik build 36.1 to internal testers' }}
           ASC_PRIVATE_KEY: ${{ secrets.RCC_ASC_PRIVATE_KEY }}
           ASC_KEY_ID: ${{ secrets.RCC_ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.RCC_ASC_ISSUER_ID }}
@@ -391,12 +393,14 @@ jobs:
           host = "https://api.appstoreconnect.apple.com/v1/"
           headers = {"Authorization": "Bearer " + os.environ["RCC_STATUS_TOKEN"]}
 
-          def fetch(path, params=None):
+          def fetch(path, params=None, method="GET", body=None):
               url = host + path + "?" + urllib.parse.urlencode(params or {})
               try:
-                  request = urllib.request.Request(url, headers=headers)
+                  data = json.dumps(body).encode() if body is not None else None
+                  request = urllib.request.Request(url, data=data, method=method,
+                                                   headers={**headers, "Content-Type": "application/json"})
                   with urllib.request.urlopen(request, timeout=18) as response:
-                      return json.load(response)
+                      return {} if response.status == 204 else json.load(response)
               except urllib.error.HTTPError as error:
                   print(f"Apple {path.split('/')[-1]} query returned HTTP {error.code}.")
               except (urllib.error.URLError, TimeoutError, ValueError):
@@ -465,6 +469,19 @@ jobs:
                   accessible += 1
               elif group_builds.get("links", {}).get("next"):
                   unknown += 1
+          if os.environ.get("RCC_ASSIGN_36_1") == "true" and build_version == "36.1" and build["attributes"]["processingState"] == "VALID" and len(internal) == 1 and accessible == 0 and unknown == 0:
+              group = internal[0]
+              target = f"builds/{build['id']}/relationships/betaGroups"
+              if fetch(target, method="POST", body={"data": [{"type": "betaGroups", "id": group["id"]}]}) is not None:
+                  print("Apple accepted assignment to the existing internal tester group.")
+                  import time
+                  for attempt in range(5):
+                      group_builds = fetch(f"betaGroups/{group['id']}/relationships/builds", {"limit": 200})
+                      if any(candidate["id"] == build["id"] for candidate in rows(group_builds)):
+                          accessible = 1
+                          break
+                      if attempt < 4:
+                          time.sleep(4)
           print(f"Build {build_version}: internal groups with access={accessible}, "
                 f"groups checked={len(internal)}, group checks unresolved={unknown}")
           PYTHON
