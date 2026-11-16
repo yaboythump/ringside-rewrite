@@ -14,7 +14,7 @@ ROSTER = ("Brick Malone", "Raven Vega", "Dutch Harlan", "Kid Voltage")
 QA = """
 window.qa = {
   state:() => st, profile:() => profile, settings:() => profile.settings,
-  clock:() => clockLeft, ready:() => !busy && !ended, music:() => !matchMusic.paused,
+  clock:() => clockLeft, ready:() => !busy && !ended, music:() => sfx.musicPlaying || !!fallbackMusic && !fallbackMusic.paused,
   seed(initial) {
     Math.random=()=>{initial=(Math.imul(initial,1664525)+1013904223)>>>0;return initial/4294967296};
   },
@@ -47,6 +47,7 @@ window.qa = {
   save() {return persist()},
   sessions() {events();return [profile.daily.id,profile.weekly.id]},
   async turn() {busy=true;return endPlayerTurn()},
+  mixer:() => [sfx.musicPlaying, sfx.qaSamples, sfx.qaEffects, sfx.qaMusicGain],
   startPin, startKickout, beginRecovery, resolveKickout, scoreFall, ironExpired, damage,
   async countPin() {return pinTick()},
   async tally(type,n,who='p') {
@@ -111,14 +112,19 @@ def combat(page, fixture):
     for x, y in page.evaluate("qa.tilePoints()"):
         page.touchscreen.tap(x, y)
     page.wait_for_function("qa.brief().moves===1 && qa.ready()")
-    assert page.evaluate("qa.music()")
+    page.wait_for_function("qa.mixer()[0] && qa.mixer()[1]===11")
+    original = page.evaluate("qa.mixer()")
+    page.evaluate("qa.mutate((s,p)=>p.settings.music=0)")
+    assert not page.evaluate("qa.music()")
+    assert page.evaluate("qa.mixer()[2]") == original[2]
+    page.evaluate("qa.mutate((s,p)=>p.settings.music=0.38)")
     clock = page.evaluate("qa.clock()")
     page.locator("#pauseBtn").tap()
     page.wait_for_timeout(250)
     assert abs(page.evaluate("qa.clock()") - clock) < .25
     assert not page.evaluate("qa.music()")
     page.locator("#resumeBtn").tap()
-    assert page.evaluate("qa.music()")
+    page.wait_for_function("qa.music()")
     # Outcomes are set up as deterministic fixtures to cover late-match branches.
     page.evaluate("""async () => {
       qa.state().ohp=0;qa.startPin();qa.state().pin.got=99;
@@ -126,6 +132,7 @@ def combat(page, fixture):
     }""")
     assert "You win" in page.locator("#bTitle").inner_text()
     assert page.evaluate("qa.profile().stats.wins") == 1
+    assert page.evaluate("window.qaHaptics") > 0
     home(page)
     open_play(page)
     page.evaluate("async () => {qa.startKickout();await qa.resolveKickout();await qa.resolveKickout()}")
@@ -140,7 +147,7 @@ def combat(page, fixture):
     page.evaluate("async () => {await qa.tally('reversal',3);qa.damage('p',30,'finish')}")
     assert page.evaluate("qa.state().reversal.p") == 0
     home(page)
-    print("PASS real touch swap and AI turn, music pause/resume, three-counts, loss, near fall, kick-out, finisher counter")
+    print("PASS real touch swap and AI turn, music pause/resume, music gain, all embedded samples, haptic callback, three-counts, loss, near fall, kick-out, finisher counter")
 
 
 def full_match(page):
@@ -293,6 +300,9 @@ def main():
         fixture.write_text(
             content.replace("async function sleep(ms){", "async function sleep(ms){ms=Math.min(8,ms);")
             .replace("setTimeout(beginMatch,1550)","setTimeout(beginMatch,80)")
+            .replace("get musicPlaying()", "get qaSamples(){return Object.keys(voice).length},"
+                "get qaEffects(){return master?.gain.value},get qaMusicGain(){return trackGain?.gain.value},"
+                "get musicPlaying()")
             .replace("\n})();\n</script>", "\n" + QA + "\n})();\n</script>"),
             encoding="utf-8",
         )
@@ -302,6 +312,10 @@ def main():
             args=["--no-sandbox", "--single-process", "--no-zygote"] if executable else [],
         )
         context = browser.new_context(viewport={"width":375,"height":667}, is_mobile=True, has_touch=True, offline=True)
+        context.add_init_script("""
+            window.qaHaptics=0;
+            Object.defineProperty(navigator,'vibrate',{value:()=>{window.qaHaptics++;return true}});
+        """)
         page = context.new_page()
         page.set_default_timeout(10000)
         errors = []

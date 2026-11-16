@@ -370,7 +370,13 @@ const hasMove = () => !!findMove();
 /* ---------- synthesized sound effects ---------- */
 const sfx = (() => {
   let ctx = null, master = null, noiseBuf = null;
-  let voice={};
+  const voice={};
+  let track=null, trackGain=null, trackSource=null, trackStarted=0, trackOffset=0;
+  let trackFailed=false;
+  const decode=uri=>{
+    const bytes=Uint8Array.from(atob(uri.split(',')[1]),character=>character.charCodeAt(0));
+    return ctx.decodeAudioData(bytes.buffer);
+  };
   const volume=()=>paused||document.hidden||profile.settings.muted?0:profile.settings.effects*1.6;
   // A short silent WAV. Playing it through an <audio> element during a tap moves iOS into
   // "playback" mode, so the game is audible even with the ring/silent switch on.
@@ -391,15 +397,17 @@ const sfx = (() => {
     }
     if (!profile.settings.muted && unlockEl && unlockEl.paused) { const pr = unlockEl.play(); if (pr) pr.catch(()=>{}); }
     if (!ctx){
-      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC){trackFailed=true;return;}
       ctx = new AC();
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -14; comp.ratio.value = 6; comp.connect(ctx.destination);
       master = ctx.createGain(); master.gain.value = volume(); master.connect(comp);
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      trackGain=ctx.createGain();trackGain.connect(ctx.destination);
+      decode(MATCH_MUSIC).then(buffer=>{track=buffer;syncMusic();}).catch(()=>{trackFailed=true;syncMusic();});
+      ctx.onstatechange=syncMusic;
       for(const [count,url] of Object.entries({/*__VOICE__*/})){
-        const bytes=Uint8Array.from(atob(url.split(',')[1]),character=>character.charCodeAt(0));
-        ctx.decodeAudioData(bytes.buffer).then(buffer=>{voice[count]=buffer;}).catch(()=>{});
+        decode(url).then(buffer=>{voice[count]=buffer;}).catch(()=>{});
       }
       const d = noiseBuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
     }
@@ -438,7 +446,27 @@ const sfx = (() => {
   return {
     init,
     chant(){sample('chant');crowd(1.8,0.20);},
-    sync(){if(master) master.gain.value=volume();},
+    sync(){
+      if(master) master.gain.value=volume();
+      if((profile.settings.muted||document.hidden) && unlockEl) unlockEl.pause();
+    },
+    music(level){
+      if(trackFailed) return false;
+      if(!ctx || !track || !trackGain) return true;
+      trackGain.gain.value=level;
+      if(level>0 && ctx.state==='running'){
+        if(!trackSource){
+          const source=ctx.createBufferSource();source.buffer=track;source.loop=true;
+          source.connect(trackGain);source.start(0,trackOffset);
+          trackStarted=ctx.currentTime;trackSource=source;
+        }
+      }else if(trackSource){
+        trackOffset=(trackOffset+ctx.currentTime-trackStarted)%track.duration;
+        trackSource.stop();trackSource.disconnect();trackSource=null;
+      }
+      return true;
+    },
+    get musicPlaying(){return !!trackSource},
     theme(wrestler,ending=false){
       if(!ctx || profile.settings.muted || !profile.settings.music) return;
       const index=Math.max(0,HEROES.findIndex(w=>w.id===wrestler.id));
@@ -970,19 +998,17 @@ function finishMatch(result,method){
   ui();musicActive=false;syncMusic();$('between').hidden=false;
 }
 
-const matchMusic = new Audio(MATCH_MUSIC);
-matchMusic.loop = true;
-matchMusic.preload = 'auto';
-matchMusic.setAttribute('playsinline', '');
-let musicActive = false;
-
+let fallbackMusic=null, musicActive=false;
 function syncMusic(){
-  matchMusic.volume=Math.min(1,profile.settings.music*(st?.crowd>=80?1.25:1));
-  if (!musicActive || profile.settings.muted || paused || document.hidden || !profile.settings.music) {
-    matchMusic.pause();
-  } else if (matchMusic.paused) {
-    matchMusic.play().catch(() => {});
+  const active=musicActive && !profile.settings.muted && !paused && !document.hidden;
+  const volume=active ? Math.min(1,profile.settings.music*(st?.crowd>=80?1.25:1)) : 0;
+  if(sfx.music(volume)) return;
+  if(!fallbackMusic){
+    fallbackMusic=new Audio(MATCH_MUSIC);fallbackMusic.loop=true;fallbackMusic.setAttribute('playsinline','');
   }
+  fallbackMusic.volume=volume;
+  if(!volume) fallbackMusic.pause();
+  else if(fallbackMusic.paused) fallbackMusic.play().catch(()=>{});
 }
 
 document.addEventListener('visibilitychange', syncMusic);

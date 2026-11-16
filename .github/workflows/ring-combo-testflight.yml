@@ -325,18 +325,23 @@ jobs:
           def read(path, filters):
               url = "https://api.appstoreconnect.apple.com/v1/" + path + "?" + urlencode(filters)
               with urlopen(Request(url, headers=headers), timeout=20) as response:
-                  return json.load(response)["data"]
+                  return json.load(response)
 
           try:
-              app = read("apps", {"filter[bundleId]": os.environ["COMBO_BUNDLE"]})[0]["id"]
+              app = read("apps", {"filter[bundleId]": os.environ["COMBO_BUNDLE"]})["data"][0]["id"]
               for attempt in range(8):
-                  builds = read("builds", {"filter[app]": app, "filter[version]": number})
+                  response = read("builds", {"filter[app]": app, "filter[version]": number, "include": "buildBetaDetail"})
+                  builds = response["data"]
                   if builds:
                       result = builds[0]["attributes"]["processingState"]
                       print(f"App Store Connect build {number}: {result}.", flush=True)
                       if result != "PROCESSING":
                           if result != "VALID":
                               raise SystemExit(f"::error::Apple processing ended in {result}.")
+                          detail = next((item["attributes"] for item in response.get("included", [])
+                                         if item["type"] == "buildBetaDetails"), {})
+                          if detail:
+                              print("TestFlight internal state: " + detail.get("internalBuildState", "unknown"), flush=True)
                           break
                   if attempt < 7:
                       time.sleep(20)
