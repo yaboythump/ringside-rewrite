@@ -16,10 +16,11 @@ on:
         required: true
         type: boolean
         default: false
-      inspect_build:
-        description: Read Apple status and internal tester access for a build number
-        required: false
-        type: string
+      inspect_latest:
+        description: Read Apple status and internal tester access for the latest iPhone build
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,7 +39,7 @@ concurrency:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main' && !inputs.inspect_build
+    if: github.ref == 'refs/heads/main' && !inputs.inspect_latest
     runs-on: xcode-27
     timeout-minutes: 10
     steps:
@@ -71,7 +72,7 @@ jobs:
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/rcc-xcode-help.txt" >/dev/null
 
   upload:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload && !inputs.inspect_build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload && !inputs.inspect_latest
     needs: verify
     environment: ringside-testflight
     runs-on: xcode-27
@@ -349,20 +350,18 @@ jobs:
           unset token
 
   inspect:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.inspect_build && !inputs.upload
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.inspect_latest && !inputs.upload
     environment: ringside-testflight
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Check the game’s Apple release and TestFlight records
         env:
-          RCC_BUILD: ${{ inputs.inspect_build }}
           ASC_PRIVATE_KEY: ${{ secrets.RCC_ASC_PRIVATE_KEY }}
           ASC_KEY_ID: ${{ secrets.RCC_ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.RCC_ASC_ISSUER_ID }}
         run: |
           set -euo pipefail
-          [[ "$RCC_BUILD" =~ ^[0-9]+\.[0-9]+$ ]]
           umask 077
           auth_key="$(mktemp "$RUNNER_TEMP/rcc-status.XXXXXX")"
           trap 'rm -f -- "$auth_key"' EXIT
@@ -391,7 +390,6 @@ jobs:
 
           host = "https://api.appstoreconnect.apple.com/v1/"
           headers = {"Authorization": "Bearer " + os.environ["RCC_STATUS_TOKEN"]}
-          build_version = os.environ["RCC_BUILD"]
 
           def fetch(path, params=None):
               url = host + path + "?" + urllib.parse.urlencode(params or {})
@@ -436,12 +434,14 @@ jobs:
                   print(fields["locale"], "privacy URL set:", bool(fields.get("privacyPolicyUrl")))
 
           builds = rows(fetch("builds", {
-              "filter[app]": app, "filter[version]": build_version,
-              "filter[preReleaseVersion.version]": "1.0", "fields[builds]": "version,processingState",
+              "filter[app]": app, "filter[preReleaseVersion.version]": "1.0",
+              "sort": "-uploadedDate", "limit": 1,
+              "fields[builds]": "version,processingState",
           }))
           if len(builds) != 1:
               raise SystemExit("Expected exactly one matching iPhone build.")
           build = builds[0]
+          build_version = build["attributes"]["version"]
           print("Build", build_version, "processing:", build["attributes"]["processingState"])
           group_response = fetch("betaGroups", {
               "filter[app]": app, "fields[betaGroups]": "isInternalGroup,hasAccessToAllBuilds",
