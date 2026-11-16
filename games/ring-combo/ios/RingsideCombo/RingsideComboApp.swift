@@ -66,7 +66,7 @@ struct GameView: UIViewRepresentable {
 final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     static let bridgeName = "ringsideGame"
     private static let keys: Set<String> = [
-        "ringcombo-muted"
+        "ringcombo-muted", "ringcombo-profile", "ringcombo-profile-backup"
     ]
     private static let maximumSaveBytes = 512 * 1024
     let gameURL = Bundle.main.url(forResource: "index", withExtension: "html")
@@ -93,6 +93,7 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
                 getItem(key) {
                     return Object.hasOwn(saves, key) ? saves[key] : null;
                 },
+                haptic() { send({action:"haptic"}); },
                 setItem(key, value) {
                     send({action:"save", key:key, value:value});
                     saves[key] = value;
@@ -122,6 +123,8 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
             } catch {
                 message.webView?.evaluateJavaScript("document.dispatchEvent(new Event('ringside-save-error'))")
             }
+        case "haptic":
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         default:
             return
         }

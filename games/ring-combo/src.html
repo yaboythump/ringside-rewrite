@@ -127,11 +127,86 @@ h1 span{color:var(--gold)}
 .ladder img.now{opacity:1;border-color:var(--gold)}
 .howto{text-align:left;font-size:13px;color:var(--ink);margin:8px 0;padding-left:18px}
 .howto li{margin:3px 0}
+/* Full-height screens keep the primary action in view independently of content. */
+[hidden]{display:none!important}
+body{touch-action:manipulation}
+#app{padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+.btn,.mute,select{min-height:44px}
+button:disabled{opacity:.52;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mute{width:44px;min-height:32px;color:var(--ink)}
+.t-reversal .face{background:linear-gradient(140deg,#4e6d90,#283248)}
+.t-weapon .face{background:linear-gradient(140deg,#777,#68401e)}
+.blueRopes#board{border-color:#458cfb;box-shadow:0 0 0 3px #184ebe88}
+.goldAttire img{outline:2px solid var(--gold);filter:sepia(.65) saturate(1.65)}
+#app[data-mode=cage] #board{background:repeating-linear-gradient(45deg,#c4c9da24 0 1px,transparent 1px 13px),repeating-linear-gradient(-45deg,#888ca42e 0 1px,#171422 1px 13px);border-color:#8b92aa}
+#app[data-mode=hardcore] #board{border-color:#d08340}
+#app[data-mode=submission] #stipulation{color:#aee6cf}
+#app[data-mode=iron] #stipulation{color:#ffcc64}
+#app[data-mode=last] #stipulation{color:#ff98a6}
+#stipulation{text-align:center;color:#d8c6fb;font-size:12px;font-weight:800}
+#moveBar{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+#moveBar button{font:700 12px system-ui;background:linear-gradient(#372957,#231931);color:var(--ink);border:1px solid #9f70df;border-radius:8px;min-height:42px;padding:3px}
+#moveBar button:not(:disabled){background:linear-gradient(#ffd274,#e5a32e);color:#24122e}
+#tagTools{text-align:center}
+#tagTools .btn{margin:0 2px;padding:0 12px;min-height:40px}
+#pin{top:31%;z-index:6}
+#pin .count{font-size:clamp(25px,8vw,52px)}
+.overlay{padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+.menuCard{display:flex;flex-direction:column;max-height:100%;padding:12px;margin:auto;border:1px solid #614879;background:linear-gradient(#231833,#151222);overflow:hidden}
+.menuCard header{position:relative;padding:5px 52px 8px;min-height:48px;display:grid;align-content:center}
+.menuCard h2{margin:0;font-size:clamp(17px,4vw,23px)}
+#menuBack{position:absolute;left:0;top:0;margin:0;padding:0 7px;min-width:48px;font-size:12px}
+.menuContent{overflow:auto;min-height:0;overscroll-behavior:contain;padding:0 4px 4px;touch-action:pan-y}
+.menuCard footer:empty,#saveNotice:empty{display:none}
+.menuCard footer{flex:none;padding-top:6px;border-top:1px solid #543966;display:flex;gap:6px}
+.menuCard footer .btn{flex:1;margin:0}
+#saveNotice{color:#ffc480;padding:6px 0 0;font-size:12px}
+.spotlight{min-height:160px;display:grid;align-content:center;justify-items:center;margin-bottom:6px;border-radius:10px;
+ background:linear-gradient(0deg,#130a21,#40205265),var(--arena) center/cover;color:#fff}
+.spotlight span{font-size:10px;letter-spacing:.18em;font-weight:800}
+.spotlight strong,.spotlight b{font-size:clamp(27px,8vw,46px);letter-spacing:.06em;font-weight:1000;font-style:italic;line-height:1.02;text-shadow:0 3px #211032}
+.spotlight b{color:var(--gold)}
+.navButton{width:100%;margin:4px 0;text-transform:uppercase;letter-spacing:.08em;text-align:left}
+.navButton::after{content:'›';float:right}
+.rosterGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:5px 0}
+.rosterCard{background:#211830;color:var(--ink);border:2px solid #543965;border-radius:10px;overflow:hidden;text-align:left;padding:5px;font:inherit;min-width:0}
+.rosterCard[aria-pressed=true]{border-color:var(--gold);box-shadow:0 0 12px #f2b33d44}
+.rosterCard img{display:block;width:100%;height:clamp(59px,12dvh,102px);object-fit:cover;object-position:center 32%;border-radius:5px}
+.rosterCard b,.rosterCard small{display:block;padding-left:2px}
+.rosterCard b{font-size:13px}
+.rosterCard small{color:var(--dim);font-size:11px}
+.menuRow{padding:8px;margin:5px 0;border:1px solid #4e3b66;border-radius:9px;text-align:left;background:#221932}
+.menuRow small,.menuRow strong{display:block}
+.menuRow small{color:#c7b9d8}
+.field{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:4px 0;text-align:left;font-weight:700;font-size:13px}
+.field select{min-width:0;max-width:67%;background:#302241;color:var(--ink);border:1px solid #775295;border-radius:8px;padding:5px 7px;font:inherit}
+.field input[type=range]{width:54%;accent-color:var(--gold)}
+.field.check{min-height:47px}
+.field.check input{width:22px;height:22px;accent-color:var(--gold)}
+details{text-align:left;padding:7px 0}
+summary{cursor:pointer;color:#ded0f4}
+#entrancePic{width:min(100%,245px);max-height:37dvh;object-fit:cover;border-radius:12px;border:2px solid var(--gold)}
+#entrance .card{animation:arrival .35s ease-out}
+#entrance.pyro .card,.celebration .card{box-shadow:0 0 85px #e4a42f;color:#ffe8b3}
+@keyframes arrival{from{opacity:.2;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+.reducedMotion *, .reducedMotion *::before,.reducedMotion *::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+@media(max-height:700px){
+ .spotlight{min-height:115px}
+ #app{gap:4px}
+ #ticker{font-size:12px;min-height:31px;padding:3px 6px}
+ #moveBar button{min-height:38px}
+}
+@media(orientation:landscape) and (max-height:620px){
+ #app{grid-template-rows:repeat(7,min-content);align-content:stretch}
+ #boardWrap{grid-row:1 / -1}
+}
 </style>
 </head>
 <body>
 <div id="app">
-  <div class="top"><h1>Ringside <span>Combo</span></h1><button id="mute" class="mute" aria-label="Toggle sound">🔊</button></div>
+  <div class="top"><h1>Ringside <span>Combo</span></h1><button id="pauseBtn" class="mute" aria-label="Pause match">Ⅱ</button></div>
   <div class="fighters">
     <div class="fighter" id="pBox"><img id="pImg" alt=""><div class="meta"><div class="name" id="pName"></div>
       <div class="bar"><i id="pHp"></i></div><div class="hpnum" id="pHpN"></div><div class="status" id="pStat"></div></div></div>
@@ -145,30 +220,32 @@ h1 span{color:var(--gold)}
   </div>
   <div id="boardWrap"><div id="board"><div id="float"></div></div></div>
   <div id="ticker">Ring the bell!</div>
-  <div class="legend">
-    <div><span>👊</span>Strike</div><div><span>🤼</span>Grapple</div><div><span>🦶</span>Kick</div><div><span>⭐</span>Showboat</div><div><span>🩹</span>Recover</div>
-  </div>
+  <div id="stipulation" hidden></div>
+  <div id="moveBar" aria-label="Signature moves"><button></button><button></button><button></button><button></button></div>
+  <div id="tagTools" hidden><button id="tagBtn" class="btn ghost"></button><button id="teamBtn" class="btn ghost"></button></div>
 </div>
 
 <div id="pin" hidden><div class="count" id="pinCount">1</div><div class="need" id="pinNeed"></div></div>
 
-<div class="overlay" id="menu">
-  <div class="card">
-    <h2>Ringside Combo</h2>
-    <p>Wrestling meets match-3. Pick your wrestler.</p>
-    <div class="pick" id="pick"></div>
-    <ul class="howto">
-      <li>It's turn-based: you make one move, then your opponent makes one on the same board. Their matches hit you.</li>
-      <li>Swap neighbouring tiles to match 3 or more.</li>
-      <li>Match 4 → <b>Clothesline</b> tile (clears a line). Match 5 → <b>Finisher</b> 🌀.</li>
-      <li>Swap your gold-ringed Finisher with any tile to hit it. Red-ringed ones belong to your opponent. If yours lands with them under 30% health, you go for the pin.</li>
-      <li>During a pin, clear enough tiles before the ref counts 3.</li>
-      <li>Hit 0 health and they cover you: clear enough tiles in one move to kick out.</li>
-      <li>⏱ Don't stall! If your turn clock runs out, you lose your turn.</li>
-      <li>🦶 Kicks break the opponent's guard 🛡. Match next to 🪑 chairs or 🥊 knucks to clear them.</li>
-    </ul>
+<section class="overlay" id="menu" aria-label="Main navigation">
+  <div class="card menuCard">
+    <header><button id="menuBack" class="btn ghost" hidden>‹ Back</button><h2 id="menuTitle">Ringside Combo</h2></header>
+    <div id="menuContent" class="menuContent"></div>
+    <footer id="menuFooter"></footer>
+    <div id="saveNotice" role="status"></div>
   </div>
-</div>
+</section>
+<section id="pauseMenu" class="overlay" hidden>
+  <div class="card"><h2>Match paused</h2><p id="pauseRules"></p>
+    <button class="btn" id="resumeBtn">Resume</button>
+    <button class="btn ghost" id="restartBtn">Restart match</button>
+    <button class="btn ghost" id="exitBtn">Exit match</button>
+  </div>
+</section>
+<section id="entrance" class="overlay" hidden>
+  <div class="card"><img id="entrancePic" alt=""><h2 id="entranceName"></h2><p id="entranceRules"></p>
+  <button class="btn" id="bellBtn">Ring the bell</button></div>
+</section>
 
 <div class="overlay" id="between" hidden>
   <div class="card">
@@ -177,7 +254,7 @@ h1 span{color:var(--gold)}
     <p id="bText"></p>
     <div class="ladder" id="ladder"></div>
     <button class="btn" id="bGo"></button>
-    <button class="btn ghost" id="bMenu">Change wrestler</button>
+    <button class="btn ghost" id="bMenu">Main menu</button>
   </div>
 </div>
 
@@ -189,38 +266,39 @@ const ART = {/*__ART__*/};
 const MATCH_MUSIC = "/*__MUSIC__*/";
 const pic = file => PORTRAITS[file.split('.')[0]] || '';
 const N = 7;
-const TYPES = ['strike','grapple','kick','show','heal'];
-const ICON = {strike:'👊',grapple:'🤼',kick:'🦶',show:'⭐',heal:'🩹',fin:'🌀',chair:'🪑',knux:'🥊'};
+const TYPES = ['strike','grapple','kick','show','heal','reversal'];
+const ICON = {strike:'👊',grapple:'🤼',kick:'🦶',show:'⭐',heal:'🩹',fin:'🌀',chair:'🪑',knux:'🥊',reversal:'🛡',weapon:'🔧'};
 
-const HEROES = [
-  {id:'brick',img:'brick.jpg',name:'Brick Malone',style:'Powerhouse',perk:'Grapples hit 50% harder',mod:{grapple:1.5}},
-  {id:'raven',img:'raven.jpg',name:'Raven Vega',style:'High-Flyer',perk:'Clotheslines deal +8 damage',mod:{line:8}},
-  {id:'dutch',img:'dutch.jpg',name:'Dutch Harlan',style:'Technician',perk:'Can pin below 40% health',mod:{pinAt:0.4}},
-  {id:'kid',img:'kid.jpg',name:'Kid Voltage',style:'Showman',perk:'Crowd builds 50% faster',mod:{crowd:1.5}},
-];
-// Opponent ladder. power = damage multiplier on their matches; smart = how often they take
-// their best move instead of a random one; tricks are used every trickEvery turns;
-// clock = seconds you get for each of your turns.
-const LADDER = [
-  {id:'jett',img:'jett.jpg',name:'Jett Romano',hp:90,power:0.8,smart:0.35,tricks:['guard'],trickEvery:4,clock:15},
-  {id:'tank',img:'tank.jpg',name:'Tank Ferro',hp:110,power:1.0,smart:0.6,tricks:['chair'],trickEvery:3,clock:13},
-  {id:'ox',img:'ox.jpg',name:'Big Ox Duggan',hp:130,power:1.25,smart:0.8,tricks:['guard','chair'],trickEvery:3,clock:12},
-  {id:'silas',img:'silas.jpg',name:'Silas Crowe',hp:150,power:1.15,smart:1,tricks:['knux','guard','chair'],trickEvery:2,clock:10},
-];
+/*__UNIVERSE__*/
 
 const $ = id => document.getElementById(id);
 const board = $('board'), floatEl = $('float');
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+const cancelled = Symbol('cancelled match');
+let epoch=0, paused=false;
+async function sleep(ms){
+  const generation=epoch;
+  while(ms>0){
+    const slice=Math.min(40,ms);
+    await new Promise(resolve=>setTimeout(resolve,slice));
+    if(generation!==epoch) throw cancelled;
+    if(!paused && !document.hidden) ms-=slice;
+  }
+}
+function runTurn(promise){
+  promise.catch(error=>{if(error!==cancelled) console.error(error);});
+}
 const rnd = n => Math.floor(Math.random()*n);
 const pickOne = a => a[rnd(a.length)];
 
 let S = 48, grid = [], nextId = 1, busy = false, sel = null;
 let hero, rung = 0, st;
+/*__PROGRESSION__*/
+/*__MODES__*/
 
 function sizeBoard(){
   const wrap = $('boardWrap');
   const avail = Math.min(wrap.clientWidth, wrap.clientHeight) - 6; // 6 = board border
-  S = Math.max(28, Math.floor(avail / N));
+  S = Math.max(18, Math.floor(avail / N));
   document.documentElement.style.setProperty('--S', S + 'px');
   for (let r=0;r<N;r++) for (let c=0;c<N;c++) if (grid[r]?.[c]) place(grid[r][c], r, c);
 }
@@ -241,7 +319,7 @@ function paint(t){
   t.el.firstChild.innerHTML = face + (t.type==='knux' ? `<span class="cd">${t.cd}</span>` : '');
 }
 function place(t, r, c){ t.el.style.transform = `translate(${c*S}px,${r*S}px)`; }
-const matchable = t => t && TYPES.includes(t.type);
+const matchable = t => t && tilePool().includes(t.type);
 const blocker = t => t && (t.type==='chair' || t.type==='knux');
 function posOf(t){ for (let r=0;r<N;r++) for (let c=0;c<N;c++) if (grid[r][c]===t) return [r,c]; }
 
@@ -249,7 +327,7 @@ function fillFresh(){
   board.querySelectorAll('.tile').forEach(e => e.remove());
   grid = [];
   for (let r=0;r<N;r++){ grid[r]=[]; for (let c=0;c<N;c++){
-    let type; do { type = pickOne(TYPES); } while (
+    let type; do { type = pickOne(tilePool()); } while (
       (c>=2 && grid[r][c-1].type===type && grid[r][c-2].type===type) ||
       (r>=2 && grid[r-1][c].type===type && grid[r-2][c].type===type));
     grid[r][c] = makeTile(type, r, c);
@@ -292,8 +370,8 @@ const hasMove = () => !!findMove();
 /* ---------- synthesized sound effects ---------- */
 const sfx = (() => {
   let ctx = null, master = null, noiseBuf = null;
-  let muted = false;
-  try { muted = (window.RingsideNative ?? localStorage).getItem('ringcombo-muted') === '1'; } catch {}
+  let voice={};
+  const volume=()=>paused||document.hidden||profile.settings.muted?0:profile.settings.effects*1.6;
   // A short silent WAV. Playing it through an <audio> element during a tap moves iOS into
   // "playback" mode, so the game is audible even with the ring/silent switch on.
   let unlockEl = null;
@@ -311,14 +389,18 @@ const sfx = (() => {
     if (!unlockEl){
       try { unlockEl = new Audio(silentWav()); unlockEl.loop = true; unlockEl.setAttribute('playsinline',''); } catch {}
     }
-    if (!muted && unlockEl && unlockEl.paused) { const pr = unlockEl.play(); if (pr) pr.catch(()=>{}); }
+    if (!profile.settings.muted && unlockEl && unlockEl.paused) { const pr = unlockEl.play(); if (pr) pr.catch(()=>{}); }
     if (!ctx){
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
       ctx = new AC();
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -14; comp.ratio.value = 6; comp.connect(ctx.destination);
-      master = ctx.createGain(); master.gain.value = muted ? 0 : 1.6; master.connect(comp);
+      master = ctx.createGain(); master.gain.value = volume(); master.connect(comp);
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      for(const [count,url] of Object.entries({/*__VOICE__*/})){
+        const bytes=Uint8Array.from(atob(url.split(',')[1]),character=>character.charCodeAt(0));
+        ctx.decodeAudioData(bytes.buffer).then(buffer=>{voice[count]=buffer;}).catch(()=>{});
+      }
       const d = noiseBuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
     }
     if (ctx.state !== 'running') { const pr = ctx.resume(); if (pr) pr.catch(()=>{}); }
@@ -326,9 +408,9 @@ const sfx = (() => {
     try { const src = ctx.createBufferSource(); src.buffer = ctx.createBuffer(1,1,22050); src.connect(ctx.destination); src.start(0); } catch {}
   }
   // Retry the unlock on every kind of tap, not just the ones that call init directly.
-  ['pointerup','touchend','click','keydown'].forEach(ev => window.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running' || (!muted && unlockEl && unlockEl.paused)) init(); }, {capture:true, passive:true}));
+  ['pointerup','touchend','click','keydown'].forEach(ev => window.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running' || (!profile.settings.muted && unlockEl && unlockEl.paused)) init(); }, {capture:true, passive:true}));
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(()=>{}); });
-  const ok = () => ctx && !muted;
+  const ok = () => ctx && volume()>0;
   function tone(freq, dur, {type='sine', vol=0.4, to=null, at=0, attack=0.005}={}){
     if (!ok()) return; const t = ctx.currentTime + at;
     const o = ctx.createOscillator(), g = ctx.createGain();
@@ -351,10 +433,26 @@ const sfx = (() => {
   const bell = (at=0, vol=0.35) => { [880, 1320, 2210].forEach((f,i)=>tone(f, 1.1, {type:'sine', vol:vol/(i+1), at})); };
   return {
     init,
-    get muted(){ return muted; },
-    toggle(){ muted = !muted; try { (window.RingsideNative ?? localStorage).setItem('ringcombo-muted', muted?'1':'0'); } catch {}
-      if (master) master.gain.value = muted ? 0 : 1.6;
-      if (unlockEl) { if (muted) unlockEl.pause(); else unlockEl.play().catch(()=>{}); } return muted; },
+    sync(){if(master) master.gain.value=volume();},
+    theme(wrestler,ending=false){
+      if(!ctx || profile.settings.muted || !profile.settings.music) return;
+      const index=Math.max(0,HEROES.findIndex(w=>w.id===wrestler.id));
+      const notes=ending?[48,55,60,64,67]:[[36,36,43,46,43],[42,49,54,57,54],[40,47,45,43,40],[45,48,52,57,60]][index];
+      const gain=ctx.createGain();gain.gain.value=profile.settings.music*0.35;gain.connect(ctx.destination);
+      notes.forEach((note,i)=>{
+        const osc=ctx.createOscillator(), envelope=ctx.createGain(), at=ctx.currentTime+i*0.18;
+        osc.type=index%2?'triangle':'sawtooth';osc.frequency.value=440*2**((note-69)/12);
+        envelope.gain.setValueAtTime(0.001,at);envelope.gain.exponentialRampToValueAtTime(0.25,at+0.02);
+        envelope.gain.exponentialRampToValueAtTime(0.001,at+0.32);
+        osc.connect(envelope).connect(gain);osc.start(at);osc.stop(at+0.33);
+      });
+      setTimeout(()=>gain.disconnect(),1400);
+    },
+    reversal(){tone(720,0.15,{to:300,vol:0.2});},
+    weapon(){noise(0.18,{freq:4300,vol:0.4});tone(490,0.27,{type:'triangle',to:150});},
+    cage(){noise(0.23,{freq:3400,sweep:900,vol:0.23});tone(350,0.35,{type:'triangle',to:110});},
+    hold(){tone(140,0.55,{type:'triangle',to:70});crowd(0.65,0.12);},
+    tag(){tone(700,0.1,{type:'triangle',vol:0.24});crowd(1.05,0.15);},
     select(){ tone(660, 0.05, {type:'triangle', vol:0.15}); },
     swap(){ noise(0.14, {vol:0.12, freq:600, sweep:2400, q:1.5}); },
     bad(){ tone(140, 0.18, {type:'square', vol:0.12}); tone(110, 0.18, {type:'square', vol:0.1, at:0.09}); },
@@ -375,7 +473,7 @@ const sfx = (() => {
     knuxTick(){ tone(1000, 0.05, {type:'square', vol:0.06}); },
     knuxBoom(){ tone(55, 0.6, {vol:0.9, to:25}); noise(0.5, {vol:0.6, freq:500, type:'lowpass'}); },
     weaponGone(){ tone(700, 0.3, {type:'square', vol:0.06, to:200}); crowd(0.5, 0.12); },
-    refCount(){ noise(0.07, {vol:0.7, freq:350, type:'lowpass', q:0.7}); tone(80, 0.12, {vol:0.6, to:50}); },
+    refCount(count){ if(count && ok() && voice[count]){const node=ctx.createBufferSource();node.buffer=voice[count];node.connect(master);node.start();} noise(0.07, {vol:0.7, freq:350, type:'lowpass', q:0.7}); tone(80, 0.12, {vol:0.6, to:50}); },
     kickout(){ crowd(1.6, 0.32); tone(200, 0.3, {type:'sawtooth', vol:0.06, to:600}); },
     win(){ bell(0); bell(0.35); bell(0.7); crowd(2.5, 0.3, 0.1); },
     lose(){ bell(0, 0.25); tone(220, 0.8, {type:'triangle', vol:0.12, to:110, at:0.3}); },
@@ -385,12 +483,13 @@ const sfx = (() => {
 
 /* ---------- state & UI ---------- */
 function newBout(){
-  const o = LADDER[rung];
-  st = {php:100, pmax:100, ohp:o.hp, omax:o.hp, crowd:0, guard:false, opp:o, turn:'p',
+  const o = queued.opponent || LADDER[rung];
+  const health=100+stat(hero,2)*2;
+  st = {php:health, pmax:health, ohp:o.hp, omax:o.hp, crowd:0, guard:false, opp:o, turn:'p',
         trickIn:o.trickEvery, nextTrick:pickOne(o.tricks), pin:null, kick:null, kickouts:0, finUsed:false, moves:0};
   $('pImg').src = pic(hero.img); $('pName').textContent = hero.name;
   $('oImg').src = pic(o.img); $('oName').textContent = o.name;
-  fillFresh(); ui();
+  initMode();applyLook();fillFresh();ui();
   say(`<b>${o.name}</b> is in the ring. You have the first move!`);
 }
 function ui(){
@@ -402,12 +501,12 @@ function ui(){
   $('crowdN').textContent = Math.round(st.crowd)+'%' + (st.crowd>=100?' — ON FIRE':'');
   $('crowd').classList.toggle('hot', st.crowd>=100);
   const trickName = {guard:'Guard',chair:'Chairs',knux:'Knucks'}[st.nextTrick];
-  $('oStat').innerHTML = (st.guard?'<span class="chip guard">🛡 Guard</span>':'') +
+  $('oStat').innerHTML = (st.guard?'<span class="chip guard">🛡 Guard</span>':'') + (st.reversal.o?'<span class="chip guard">Counter ready</span>':'') +
     (st.pin ? '' : `<span class="chip next">${trickName} in ${st.trickIn}</span>`);
-  $('pStat').innerHTML = `<span class="chip">${hero.style}</span>`;
+  $('pStat').innerHTML = `<span class="chip">${hero.style}</span>`+(st.reversal.p?'<span class="chip guard">Counter ready</span>':'');
   $('pBox').classList.toggle('active', st.turn==='p' && !ended);
   $('oBox').classList.toggle('active', st.turn==='o' && !ended);
-  drawClock();
+  drawClock();showMode();syncMusic();
 }
 function say(html){ $('ticker').innerHTML = html; }
 function fx(text, color, r=3, c=3){
@@ -421,30 +520,32 @@ const first = name => name.split(' ').slice(-1)[0];
 /* ---------- input ---------- */
 let down = null;
 function onDown(e, t){
-  sfx.init();
-  if (busy) return;
+  if (busy || overlayOpen() || ended || !st || !e.isPrimary) return;
   e.preventDefault();
-  down = {t, x:e.clientX, y:e.clientY};
+  down = {t,id:e.pointerId,x:e.clientX,y:e.clientY};
 }
 window.addEventListener('pointerup', e => {
-  if (!down || busy) { down=null; return; }
+  if (!down || down.id!==e.pointerId) return;
+  if (busy || ended || overlayOpen()){down=null;return;}
   const {t, x, y} = down; down = null;
   const dx = e.clientX-x, dy = e.clientY-y;
-  const [r,c] = posOf(t);
+  const position=posOf(t);if(!position)return;
+  const [r,c]=position;
   if (Math.hypot(dx,dy) > S*0.35){
     const [r2,c2] = Math.abs(dx)>Math.abs(dy) ? [r, c+Math.sign(dx)] : [r+Math.sign(dy), c];
     clearSel();
-    if (r2>=0&&r2<N&&c2>=0&&c2<N) tryMove(r,c,r2,c2);
+    if (r2>=0&&r2<N&&c2>=0&&c2<N) runTurn(tryMove(r,c,r2,c2));
     return;
   }
   if (sel && sel!==t){
-    const [sr,sc] = posOf(sel);
-    if (Math.abs(sr-r)+Math.abs(sc-c)===1){ clearSel(); tryMove(sr,sc,r,c); return; }
+    const [sr,sc] = posOf(sel)||[-2,-2];
+    if (Math.abs(sr-r)+Math.abs(sc-c)===1){ clearSel(); runTurn(tryMove(sr,sc,r,c)); return; }
   }
   const wasSel = sel===t;
   clearSel();
   if (!wasSel){ sel=t; t.el.classList.add('sel'); sfx.select(); }
 });
+window.addEventListener('pointercancel',()=>{down=null;});
 function clearSel(){ if (sel) sel.el.classList.remove('sel'); sel = null; }
 
 /* ---------- moves ---------- */
@@ -455,7 +556,7 @@ async function tryMove(r1,c1,r2,c2){
     sfx.bad(); say(`That red-ringed 🌀 is ${st.opp.name}'s finisher. Only gold-ringed finishers are yours.`); return;
   }
   busy = true; hideHint();
-  if (!await doSwap(r1,c1,r2,c2,'p')){ busy=false; return; }
+  if (!await doSwap(r1,c1,r2,c2,'p')){ busy=false;ui();return; }
   await endPlayerTurn();
 }
 // Swap two tiles for either side. Returns false (and swaps back) if nothing matched.
@@ -479,7 +580,7 @@ async function doSwap(r1,c1,r2,c2,who){
 
 async function cascade(swapA, swapB, who){
   let step = 0;
-  while (true){
+  while (step<16){
     const runs = findRuns();
     if (!runs.length) break;
     step++;
@@ -509,11 +610,12 @@ async function cascade(swapA, swapB, who){
     for (const k of [...clear]){ const r=Math.floor(k/N), c=k%N;
       for (const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){ const rr=r+dr, cc=c+dc;
         if (rr>=0&&rr<N&&cc>=0&&cc<N && blocker(grid[rr][cc]) && !clear.has(key(rr,cc))){ clear.add(key(rr,cc)); } } }
-    const tally = {strike:0,grapple:0,kick:0,show:0,heal:0};
+    const tally = Object.fromEntries(tilePool().map(type=>[type,0]));
+    tally.weapon??=0;
     for (const k of clear){
       if (keep.has(k)) continue;
       const r=Math.floor(k/N), c=k%N, t=grid[r][c]; if (!t) continue;
-      if (TYPES.includes(t.type)) tally[t.type]++; else if (blocker(t)) blocks++;
+      if (tilePool().includes(t.type)) tally[t.type]++; else if (blocker(t)) blocks++;
       t.el.classList.add('pop'); grid[r][c]=null;
       setTimeout(()=>t.el.remove(), 220);
     }
@@ -531,6 +633,7 @@ async function cascade(swapA, swapB, who){
     await gravity();
     swapA = swapB = null;
   }
+  if(findRuns().length) fillFresh();
 }
 
 function playTally(t, step, lineHits, blocks){
@@ -539,25 +642,27 @@ function playTally(t, step, lineHits, blocks){
   if (step>=2) setTimeout(()=>sfx.combo(step), 60);
   if (lineHits) sfx.line();
   if (blocks) setTimeout(sfx.weaponGone, 120);
-  if (st.pin || st.kick) setTimeout(sfx.refCount, 30);
 }
 function applyTally(t, step, lineHits, blocks, who){
   const chain = 1 + 0.25*(step-1);
-  const tiles = t.strike+t.grapple+t.kick+t.show+t.heal+blocks;
+  const tiles = Object.values(t).reduce((sum,n)=>sum+n,blocks);
+  if (!st.pin && !st.kick && modeTally(t,who,blocks,tiles)) return;
+  if (t.reversal && !st.pin && !st.kick) st.reversal[who]=1;
   if (who==='o') return applyOppTally(t, chain, step, lineHits);
   const m = hero.mod;
-  let crowdGain = (t.grapple*3 + t.show*8 + blocks*6 + (step>1?step*3:0)) * (m.crowd||1);
+  let crowdGain = (t.grapple*3 + t.show*8 + blocks*6 + (step>1?step*3:0)) * (m.crowd||1) * (0.91+stat(hero,3)*0.03);
   if (st.pin || st.kick){
     (st.pin || st.kick).got += tiles;
+    if(st.kick?.rope && t.heal>=3)st.kick.broke=true;
     st.crowd = Math.min(100, st.crowd+crowdGain);
     st.pin ? renderPin() : renderKick(); return;
   }
   let msgs = [];
   if (t.kick && st.guard){ st.guard=false; msgs.push('A kick breaks the guard!'); }
   let dmg = (t.strike*2.5 + t.grapple*3*(m.grapple||1)) * (st.guard?0.5:1) + t.kick*2 + lineHits*(m.line||0);
-  dmg *= chain;
-  if (dmg>0){ st.ohp -= dmg; shake('oBox'); fx('-'+Math.round(dmg), '#ff6b80', 1, 5); }
-  if (t.heal){ const h=Math.round(t.heal*1.5); st.php=Math.min(st.pmax, st.php+h); fx('+'+h, '#3ec97a', 1, 1); }
+  dmg *= chain*activeStamina('p')*(0.94+stat(hero,0)*0.02);
+  damage('o',dmg);
+  if (t.heal){ const h=Math.round(t.heal*(1.3+stat(hero,2)*0.08)); st.php=Math.min(st.pmax, st.php+h); fx('+'+h, '#3ec97a', 1, 1); }
   st.crowd = Math.min(100, st.crowd+crowdGain);
   if (blocks) msgs.push('Weapon knocked out of the ring!');
   if (step>=2) msgs.unshift(`<b>${step}x COMBO!</b>`);
@@ -569,8 +674,8 @@ function applyTally(t, step, lineHits, blocks, who){
 // The opponent's matches: attacks hurt you, showboating steals your crowd, recovering heals them.
 function applyOppTally(t, chain, step, lineHits){
   const o = st.opp, n = first(o.name);
-  const dmg = (t.strike*2.5 + t.grapple*3 + t.kick*2 + lineHits*4) * chain * o.power;
-  if (dmg>0){ st.php -= dmg; shake('pBox'); fx('-'+Math.round(dmg), '#ff6b80', 1, 1); }
+  const dmg = (t.strike*2.5 + t.grapple*3 + t.kick*2 + lineHits*4) * chain * o.power * activeStamina('o');
+  damage('p',dmg);
   if (t.heal){ const h=Math.round(t.heal*1.5); st.ohp=Math.min(st.omax, st.ohp+h); fx('+'+h, '#3ec97a', 1, 5); }
   if (t.show){ st.crowd = Math.max(0, st.crowd - t.show*5); }
   const msgs = [];
@@ -586,7 +691,7 @@ async function gravity(){
     let w = N-1;
     for (let r=N-1;r>=0;r--){ const t=grid[r][c]; if (t){ if (w!==r){ grid[w][c]=t; grid[r][c]=null; place(t,w,c); } w--; } }
     let spawn = -1;
-    for (let r=w;r>=0;r--){ const t = makeTile(pickOne(TYPES), r, c, spawn--); grid[r][c]=t; }
+    for (let r=w;r>=0;r--){ const t = makeTile(pickOne(tilePool()), r, c, spawn--); grid[r][c]=t; }
   }
   await sleep(30);
   for (let r=0;r<N;r++) for (let c=0;c<N;c++) place(grid[r][c], r, c);
@@ -600,19 +705,19 @@ async function finisher(fin, other, who){
   let cleared = 0;
   for (let r=0;r<N;r++) for (let c=0;c<N;c++){ const t=grid[r][c];
     if (t && (target===null ? !blocker(t) : t.type===target)){ t.el.classList.add('pop'); grid[r][c]=null; setTimeout(()=>t.el.remove(),220); cleared++; } }
-  if (who==='o'){
-    const dmg = 24 * st.opp.power;
-    st.php -= dmg; shake('pBox'); fx('-'+Math.round(dmg), '#ff3b3b', 2, 2); sfx.finisher();
-    say(`<b>${st.opp.name.toUpperCase()} HITS THE FINISHER!</b>`);
+  if((st.recovery||st.downed)?.side===who){
+    const challenge=st.recovery||st.downed;challenge.got+=st.downed?cleared+5:3;
+  } else if (who==='o'){
+    const landed=damage('p',24*st.opp.power,'finish');sfx.finisher();haptic(28);
+    if(landed) say(`<b>${st.opp.name.toUpperCase()} HITS THE FINISHER!</b>`);
   } else if (st.pin || st.kick){
     (st.pin || st.kick).got += cleared + 6; st.pin ? renderPin() : renderKick(); sfx.grapple();
   } else {
     const hot = st.crowd>=100;
     let dmg = 22 + st.crowd*0.12; if (hot) dmg *= 1.5;
     st.guard = false;
-    st.ohp -= dmg; st.crowd = 0; st.finUsed = true;
-    shake('oBox'); fx('-'+Math.round(dmg), '#f2b33d', 2, 4); sfx.finisher();
-    say(`<b>${hero.name.toUpperCase()} HITS THE FINISHER!</b> ${hot?'The crowd is going insane!':''}`);
+    st.finUsed=!!damage('o',dmg,'finish');st.crowd=0;sfx.finisher();haptic(35);shake('boardWrap');
+    if(st.finUsed) say(`<b>${hero.name.toUpperCase()} HITS THE FINISHER!</b> ${hot?'The crowd is going insane!':''}`);
   }
   ui(); await sleep(260); await gravity();
   await cascade(null,null,who);
@@ -621,45 +726,81 @@ async function finisher(fin, other, who){
 /* ---------- turns: you move, then they move ---------- */
 async function endPlayerTurn(){
   st.moves++;
+  if (ironExpired()) return;
+  if (st.recovery || st.downed){
+    const action=st.recovery||st.downed;
+    if (action.got>=action.need){
+      finishRecovery(true,!!st.recovery);
+      return oppTurn();
+    }
+    if (st.recovery && --action.turns<=0) return finishRecovery(false,true);
+    if (st.downed && action.time<=0) return finishRecovery(false,false);
+    return yourTurn();
+  }
   if (st.kick) return resolveKickout();
   if (st.pin){
-    const r = await pinTick();
-    if (r==='win') return;
-    if (r==='counting') return yourTurn();   // they're pinned, so they can't take a turn
+    const result=await pinTick();
+    if (result==='win') return;
+    if (result==='counting') return yourTurn();
   } else {
-    const pinLine = (hero.mod.pinAt||0.3);
-    if (st.ohp<=0 || (st.finUsed && st.ohp <= st.omax*pinLine)){ st.finUsed=false; startPin(); return yourTurn(); }
+    if(advanceSpecial('p')) return ended?undefined:rivalRecovery();
+    if(st.php<=0){
+      if(['standard','hardcore','tag','iron'].includes(st.mode)){startKickout();return yourTurn();}
+      if(st.mode==='last'||st.mode==='submission'){beginRecovery('p',st.mode==='submission');return yourTurn();}
+      if(st.mode==='cage') st.php=1;
+    }
+    const pinLine=hero.mod.pinAt||0.3;
+    if (['standard','hardcore','tag','iron'].includes(st.mode) &&
+        (st.ohp<=0 || (st.finUsed && st.ohp<=st.omax*pinLine))){
+      st.finUsed=false;startPin();return yourTurn();
+    }
     st.finUsed=false;
   }
   await oppTurn();
 }
 function yourTurn(){
   if (ended) return;
-  st.turn='p'; ui(); busy=false; afterSettle();
+  st.turn='p';busy=false;ui();afterSettle();
 }
 async function oppTurn(){
-  if (ended) return;
-  const o = st.opp;
-  st.turn='o'; busy=true; clearSel(); hideHint(); ui();
-  await sleep(500);
+  if (ended || ironExpired()) return;
+  st.turn='o';busy=true;clearSel();hideHint();ui();
+  await sleep(410);
+  if(st.mode==='tag' && st.php>0){
+    const team=st.teams.o, partner=team[1-st.active.o];
+    if(weak('o') && partner.hp>st.ohp+18 && tagSide('o')){await sleep(350);return yourTurn();}
+    if(st.teamMomentum.o>=100 || (weak('p') && st.teamMomentum.o>=60)){
+      teamAttack('o');
+      if(st.php<=0) startKickout();
+      return yourTurn();
+    }
+  }
   await tickKnux();
-  if (st.php<=0){ startKickout(); return yourTurn(); }
-  if (!findMove('o')) await reshuffle();
-  const mv = aiPick();
+  const pins=['standard','hardcore','tag','iron'].includes(st.mode);
+  if (pins && st.php<=0){startKickout();return yourTurn();}
+  if (!findMove('o')){await reshuffle();if(!findMove('o'))fillFresh();}
+  const mv=aiPick();
   if (mv){
-    const [[r1,c1],[r2,c2]] = mv;
+    const [[r1,c1],[r2,c2]]=mv;
     const a=grid[r1][c1], b=grid[r2][c2];
-    a.el.classList.add('ai'); b.el.classList.add('ai'); sfx.select();
-    await sleep(550);
-    a.el.classList.remove('ai'); b.el.classList.remove('ai');
+    a.el.classList.add('ai');b.el.classList.add('ai');sfx.select();
+    await sleep(380);
+    a.el.classList.remove('ai');b.el.classList.remove('ai');
     await doSwap(r1,c1,r2,c2,'o');
   }
-  if (ended) return;
+  if (ended || ironExpired()) return;
+  const o=st.opp;
   st.trickIn--;
-  if (st.trickIn<=0){ await sleep(300); await doTrick(st.nextTrick); st.trickIn=o.trickEvery; st.nextTrick=pickOne(o.tricks); }
-  ui();
-  if (st.php<=0) startKickout();
-  await sleep(300);
+  if (st.trickIn<=0){
+    await sleep(200);
+    await doTrick(st.nextTrick);
+    st.trickIn=o.trickEvery;st.nextTrick=pickOne(o.tricks);
+  }
+  if(advanceSpecial('o')) return ended?undefined:yourTurn();
+  if(st.ohp<=0 && pins){startPin();return yourTurn();}
+  if(st.php<=0 && pins) startKickout();
+  if(st.mode==='cage'){st.php=Math.max(1,st.php);st.ohp=Math.max(1,st.ohp);}
+  await sleep(180);
   yourTurn();
 }
 // The opponent looks at every legal swap. Smarter opponents take the best one more often.
@@ -677,7 +818,11 @@ function aiPick(){
 function scoreMove(r1,c1,r2,c2){
   const a=grid[r1][c1], b=grid[r2][c2];
   if (a.type==='fin'||b.type==='fin') return 100;
-  const W = {strike:2.5, grapple:3, kick:2, show:1.5, heal: st.ohp < st.omax*0.5 ? 3 : 0.5};
+  const W = {strike:2.5,grapple:3,kick:2,show:1.5,heal:weak('o')?3:0.5,reversal:1.9,weapon:6};
+  if(st.mode==='cage') W.show=weak('p')?10:4.5;
+  if(st.mode==='submission') W.grapple=7;
+  if(st.recovery?.side==='o') Object.assign(W,{strike:0,grapple:0,kick:4,show:0,heal:11,reversal:11,weapon:0});
+  if(st.downed?.side==='o') for(const key of Object.keys(W)) W[key]=5;
   grid[r1][c1]=b; grid[r2][c2]=a;
   let sc = 0;
   for (const run of findRuns()){
@@ -708,62 +853,72 @@ async function doTrick(a){
 async function tickKnux(){
   for (let r=0;r<N;r++) for (let c=0;c<N;c++){ const t=grid[r][c];
     if (t?.type==='knux'){ t.cd--; paint(t); if (t.cd>0) sfx.knuxTick();
-      if (t.cd<=0){ sfx.knuxBoom(); st.php -= 15; shake('pBox'); fx('-15', '#ff3b3b', r, c);
+      if (t.cd<=0){ sfx.knuxBoom(); damage('p',15);
         say(`KNUCKS SHOT! ${st.opp.name} cheats to get ahead!`);
-        t.type=pickOne(TYPES); paint(t); ui(); await sleep(300); } } }
+        t.type=pickOne(tilePool()); paint(t); ui(); await sleep(300); } } }
 }
 
 /* ---------- your pin attempt ---------- */
 function startPin(){
-  const need = 12 + Math.round(Math.max(0, st.ohp)/3) + rung*3;
-  st.pin = {count:0, need, got:0};
-  sfx.refCount();
-  say(`<b>THE COVER!</b> Clear ${need} tiles before the 3-count!`);
-  renderPin(); ui();
+  const need=9+Math.round(Math.max(0,st.ohp)/4)+rung*2;
+  st.pin={count:0,need,got:0,nearRope:st.mode!=='hardcore'&&st.rope.o&&st.ohp>0&&st.ohp>=st.omax*0.23};
+  say(`<b>THE COVER!</b> Clear ${need} tiles in three moves.`);
+  renderPin();ui();
 }
 function renderPin(){
-  const p = st.pin; if (!p) return;
-  $('pin').hidden = false;
-  $('pinCount').textContent = p.count===0 ? 'COVER!' : p.count+'…';
-  $('pinNeed').textContent = `Tiles cleared ${Math.min(p.got,p.need)} / ${p.need} — ${3-p.count} move${3-p.count===1?'':'s'} left`;
+  const p=st.pin;
+  $('pin').hidden=false;
+  $('pinCount').textContent=p.count===0?'COVER!':p.count+'…';
+  $('pinNeed').textContent=`Tiles cleared ${Math.min(p.got,p.need)} / ${p.need} · ${3-p.count} moves left`;
 }
 async function pinTick(){
-  const p = st.pin;
-  if (p.got>=p.need){ sfx.refCount(); $('pinCount').textContent='3!'; await sleep(700); $('pin').hidden=true; st.pin=null; win(); return 'win'; }
-  p.count++; renderPin(); sfx.refCount();
-  if (p.count<3) return 'counting';
-  await sleep(500);
-  $('pinCount').textContent='KICK OUT!'; sfx.kickout(); await sleep(800); $('pin').hidden=true;
-  st.pin=null; st.ohp = Math.max(st.ohp,0) + 15; st.crowd = Math.min(100, st.crowd+20);
-  say(`<b>${st.opp.name} KICKS OUT AT 2.9!</b> The crowd can't believe it!`);
-  ui();
-  return 'kickout';
+  const p=st.pin;
+  p.count++;renderPin();
+  if(p.count<3){sfx.refCount(p.count);return 'counting';}
+  if(p.got>=p.need && !p.nearRope){
+    sfx.refCount(3);$('pinCount').textContent='3!';await sleep(750);
+    $('pin').hidden=true;st.pin=null;scoreFall('p');return 'win';
+  }
+  st.pin=null;
+  if(p.nearRope) st.rope.o=0;
+  $('pinCount').textContent=p.nearRope?'ROPE BREAK!':'2.9!';
+  sfx.kickout();haptic(20);await sleep(730);$('pin').hidden=true;
+  st.ohp=Math.max(st.ohp,0)+15;st.crowd=Math.min(100,st.crowd+20);
+  say(p.nearRope?'<b>ROPE BREAK!</b> Drag them away from the ropes with more damage.':
+    `<b>${st.opp.name} KICKS OUT AT 2.9!</b>`);
+  ui();return 'kickout';
 }
-
-/* ---------- their pin attempt: one move to kick out ---------- */
 function startKickout(){
-  const need = 10 + rung*2 + st.kickouts*4;
-  st.kick = {need, got:0}; st.php = 0;
-  sfx.refCount();
-  $('pin').hidden = false; $('pinCount').textContent = '1… 2…';
-  renderKick(); ui();
-  say(`<b>${st.opp.name.toUpperCase()} COVERS YOU!</b> Clear ${need} tiles this move to kick out!`);
+  const need=Math.max(6,8+rung*2+st.kickouts*3-Math.floor(stat(hero,1)/2));
+  st.kick={need,got:0,count:0,rope:st.mode!=='hardcore'&&st.rope.p};
+  st.php=0;
+  $('pin').hidden=false;
+  $('pinCount').textContent='COVER!';
+  renderKick();ui();
+  say(`<b>${st.opp.name.toUpperCase()} COVERS YOU!</b> Clear ${need} tiles in two moves.`);
 }
 function renderKick(){
-  const k = st.kick; if (!k) return;
-  $('pinNeed').textContent = `KICK OUT! Clear ${Math.min(k.got,k.need)} / ${k.need} tiles in one move`;
+  const k=st.kick;
+  $('pinNeed').textContent=`KICK OUT · ${Math.min(k.got,k.need)} / ${k.need} tiles`+(k.rope?' · Recover match reaches rope':'');
 }
 async function resolveKickout(){
-  const k = st.kick; st.kick = null;
-  if (k.got >= k.need){
-    $('pinCount').textContent='KICK OUT!'; sfx.kickout(); await sleep(900); $('pin').hidden=true;
-    st.kickouts++; st.php = 20;
-    say(`<b>YOU KICK OUT AT 2.9!</b> ${st.opp.name} can't believe it!`);
-    ui(); await oppTurn();
-  } else {
-    sfx.refCount(); $('pinCount').textContent='3!'; await sleep(700); $('pin').hidden=true;
-    lose();
+  const k=st.kick;
+  if(k.count<2){
+    k.count++;sfx.refCount(k.count);
+    $('pinCount').textContent=k.count+'…';
+    if(k.count===1) return yourTurn();
+    await sleep(470);
   }
+  st.kick=null;
+  if (k.got>=k.need || k.broke){
+    $('pinCount').textContent=k.broke?'ROPE BREAK!':'2.9!';sfx.kickout();haptic(20);
+    await sleep(780);$('pin').hidden=true;
+    st.kickouts++;st.php=20;if(k.broke)st.rope.p=0;
+    say(k.broke?'<b>YOU REACH THE ROPE!</b>':'<b>YOU KICK OUT AT 2.9!</b>');
+    ui();return oppTurn();
+  }
+  sfx.refCount(3);$('pinCount').textContent='3!';await sleep(710);$('pin').hidden=true;
+  scoreFall('o');
 }
 
 /* ---------- flow ---------- */
@@ -772,13 +927,14 @@ function afterSettle(){
   if (ended) return;
   resetClock();
   if (!hasMove()) reshuffle();
+  if(st.downed?.side==='p') clockLeft=st.downed.time;
   scheduleHint();
 }
 async function reshuffle(){
   say('No moves left. Ref resets the action!'); sfx.swap();
   const ts=[]; for (let r=0;r<N;r++) for (let c=0;c<N;c++) if (matchable(grid[r][c])) ts.push(grid[r][c]);
   let tries=0;
-  do { ts.forEach(t=>{ t.type=pickOne(TYPES); t.special=null; paint(t); }); tries++; }
+  do { ts.forEach(t=>{ t.type=pickOne(tilePool()); t.special=null; paint(t); }); tries++; }
   while ((findRuns().length || !hasMove()) && tries<50);
   if (tries>=50) fillFresh();
 }
@@ -786,31 +942,25 @@ let hintT=null;
 function hideHint(){ clearTimeout(hintT); board.querySelectorAll('.hint').forEach(e=>e.classList.remove('hint')); }
 function scheduleHint(){ hideHint(); hintT=setTimeout(()=>{ const m=findMove('p'); if (m && !busy) m.forEach(([r,c])=>grid[r][c].el.classList.add('hint')); }, 6000); }
 
-function win(){
-  ended = true; busy = true; sfx.win(); ui();
-  const last = rung===LADDER.length-1;
-  $('bTitle').textContent = last ? '🏆 NEW CHAMPION!' : '1… 2… 3! You win!';
-  if (last && ART.belt){ $('bBelt').src = ART.belt; $('bBelt').hidden = false; }
-  $('bText').textContent = last ? `${hero.name} cleared the whole card in ${st.moves} moves.` : `${st.opp.name} is down. Next up: ${LADDER[rung+1].name}.`;
-  rung = last ? 0 : rung+1;
-  $('bGo').textContent = last ? 'Run it back' : 'Next match';
-  showBetween(last);
+function finishMatch(result,method){
+  if(ended) return;
+  ended=true;busy=true;hideHint();$('pin').hidden=true;
+  const reward=settleResult(result);
+  const won=result==='win', ladder=st.queue==='ladder';
+  const champion=won && ladder && rung===LADDER.length-1;
+  if(won){sfx.win();sfx.theme(hero,true);haptic([20,35,30]);}
+  else sfx.lose();
+  $('bTitle').textContent=st.titleWon?championship[st.titleWon].name:
+    champion?'New Ringside Champion':won?'You win':result==='draw'?'Match drawn':st.opp.name+' wins';
+  $('bText').textContent=method+(reward.cash?' · +'+reward.cash+' cash':'')+(reward.note?' · '+reward.note:'');
+  $('bBelt').hidden=!(ART.belt&&(champion||st.titleWon));
+  if(!$('bBelt').hidden) $('bBelt').src=ART.belt;
+  $('between').classList.toggle('celebration',won&&owns('celebration',hero)&&wrestlerData(hero).look?.celebration);
+  $('ladder').innerHTML=ladder?LADDER.map((o,i)=>`<img src="${pic(o.img)}" alt="${o.name}" class="${champion||i<rung?'done':i===rung?'now':''}">`).join(''):'';
+  if(ladder&&won) rung=champion?0:rung+1;
+  $('bGo').textContent=ladder?(won?(champion?'Run it back':'Next match'):'Rematch'):st.queue==='quick'?'Rematch':'Continue';
+  ui();musicActive=false;syncMusic();$('between').hidden=false;
 }
-function lose(){
-  ended = true; busy = true; sfx.lose(); ui();
-  $('bTitle').textContent = `${st.opp.name} pins you`;
-  $('bText').textContent = 'The ref counts three. Get back in there.';
-  $('bGo').textContent = 'Rematch';
-  showBetween(false);
-}
-function showBetween(champ){
-  musicActive = false;
-  syncMusic();
-  $('ladder').innerHTML = LADDER.map((o,i)=>`<img src="${pic(o.img)}" alt="${o.name}" class="${champ||i<rung?'done':i===rung?'now':''}">`).join('');
-  $('between').hidden = false;
-}
-$('bGo').onclick = () => { $('between').hidden=true; $('bBelt').hidden=true; start(); };
-$('bMenu').onclick = () => { $('between').hidden=true; rung=0; $('menu').hidden=false; };
 
 const matchMusic = new Audio(MATCH_MUSIC);
 matchMusic.loop = true;
@@ -819,7 +969,8 @@ matchMusic.setAttribute('playsinline', '');
 let musicActive = false;
 
 function syncMusic(){
-  if (!musicActive || sfx.muted || document.hidden) {
+  matchMusic.volume=Math.min(1,profile.settings.music*(st?.crowd>=80?1.25:1));
+  if (!musicActive || profile.settings.muted || paused || document.hidden || !profile.settings.music) {
     matchMusic.pause();
   } else if (matchMusic.paused) {
     matchMusic.play().catch(() => {});
@@ -831,10 +982,12 @@ window.addEventListener('click', syncMusic, {capture: true});
 
 function start(){
   sfx.init();
+  sfx.sync();
   sfx.bellStart();
   musicActive = true;
   syncMusic();
-  ended=false; busy=false; $('pin').hidden=true; newBout(); resetClock(); scheduleHint();
+  ended=false;busy=false;paused=false;clearSel();down=null;
+  $('pin').hidden=true;newBout();resetClock();scheduleHint();
 }
 
 /* ---------- turn clock: run out and you lose your turn ---------- */
@@ -848,45 +1001,52 @@ function drawClock(){
   $('clock').classList.toggle('theirs', theirs);
   $('clock').classList.toggle('low', !theirs && secs <= 3);
 }
-const overlayOpen = () => !$('menu').hidden || !$('between').hidden;
-setInterval(async () => {
-  const now = performance.now(), dt = (now - lastTick)/1000; lastTick = now;
-  if (!st || ended || busy || st.turn!=='p' || overlayOpen() || document.hidden) return;
-  clockLeft -= dt;
-  const secs = Math.ceil(clockLeft);
-  if (secs <= 3 && secs > 0 && secs !== lastSecond){ lastSecond = secs; sfx.clockTick(); }
-  drawClock();
-  if (clockLeft > 0) return;
-  busy = true; clearSel(); hideHint();
-  if (st.kick){ say('Too slow to kick out!'); return resolveKickout(); }
-  if (st.pin){
-    say(`Too slow! The ref keeps counting…`);
-    const r = await pinTick();
-    if (r==='win') return;
-    if (r==='counting') return yourTurn();
-    return oppTurn();
+const overlayOpen=()=>['menu','between','pauseMenu','entrance'].some(id=>!$(id).hidden);
+let playedUnflushed=0;
+setInterval(()=>{
+  const now=performance.now(),dt=Math.min(0.25,(now-lastTick)/1000);
+  lastTick=now;
+  if(!st||ended||overlayOpen()||document.hidden) return;
+  playedUnflushed+=dt;profile.played+=dt;
+  if(playedUnflushed>=60){playedUnflushed=0;persist();}
+  if(st.mode==='iron'){
+    st.remaining=Math.max(0,st.remaining-dt);showMode();
+    if(!busy && ironExpired()) return;
   }
-  sfx.bad(); say(`<b>TOO SLOW!</b> You lose your turn.`);
-  await sleep(400);
-  await oppTurn();
-}, 100);
+  if(st.downed?.side==='p'){
+    const d=st.downed;
+    d.time=Math.max(0,d.time-dt);
+    const count=10-Math.ceil(d.time);
+    if(count>d.count && d.time>0){d.count=count;sfx.refCount(count);showRecovery();}
+    if(!busy && d.time<=0){finishRecovery(false,false);return;}
+  }
+  if(busy || st.turn!=='p') return;
+  clockLeft-=dt;
+  const secs=Math.ceil(clockLeft);
+  if(secs<=3 && secs>0 && secs!==lastSecond){lastSecond=secs;sfx.clockTick();}
+  drawClock();
+  if(clockLeft>0 || st.downed) return;
+  busy=true;clearSel();hideHint();
+  if(st.pin || st.kick || st.recovery) runTurn(endPlayerTurn());
+  else{
+    sfx.bad();say('<b>TOO SLOW!</b> You lose your turn.');
+    runTurn(oppTurn());
+  }
+},100);
 
-$('pick').innerHTML = HEROES.map((h,i)=>`<button data-i="${i}"><img src="${pic(h.img)}" alt=""><b>${h.name}</b><small>${h.style} · ${h.perk}</small></button>`).join('');
-$('pick').onclick = e => { const b=e.target.closest('button'); if (!b) return; hero=HEROES[+b.dataset.i]; rung=0; $('menu').hidden=true; start(); };
+function haptic(pattern){
+  if(!profile.settings.haptics) return;
+  if(navigator.vibrate) navigator.vibrate(pattern);
+  else window.RingsideNative?.haptic();
+}
+
+/*__MENUS__*/
 
 // Optional art: arena backdrop, ring-mat board, logo.
 if (ART.arena){ document.documentElement.classList.add('has-arena'); document.documentElement.style.setProperty('--arena', `url("${ART.arena}")`); }
 if (ART.mat){ document.documentElement.classList.add('has-mat'); document.documentElement.style.setProperty('--mat', `url("${ART.mat}")`); }
-document.querySelectorAll('.legend div').forEach((d,i) => { const k = TYPES[i]; if (ART[k]) d.firstChild.innerHTML = `<img src="${ART[k]}" alt="" style="width:20px;height:20px;object-fit:contain">`; });
-if (ART.logo){ document.querySelector('.top h1').innerHTML = `<img class="logo" src="${ART.logo}" alt="Ringside Combo">`; }
-
-const muteBtn = $('mute');
-const syncMute = () => {
-  muteBtn.textContent = sfx.muted ? '🔇' : '🔊';
-  muteBtn.setAttribute('aria-pressed', String(sfx.muted));
-};
-muteBtn.onclick = () => { sfx.init(); sfx.toggle(); syncMute(); syncMusic(); if (!sfx.muted) sfx.select(); };
-syncMute();
+if (ART.logo){document.querySelector('.top h1').innerHTML=`<img class="logo" src="${ART.logo}" alt="Ringside Combo">`;}
+renderMenu('home');
 window.addEventListener('resize', sizeBoard);
 if (window.ResizeObserver) new ResizeObserver(() => sizeBoard()).observe($('boardWrap'));
 if (window.visualViewport) visualViewport.addEventListener('resize', sizeBoard);
