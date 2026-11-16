@@ -16,6 +16,10 @@ on:
         required: true
         type: boolean
         default: false
+      inspect_build:
+        description: Read Apple status and internal tester access for a build number
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -34,7 +38,7 @@ concurrency:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && !inputs.inspect_build
     runs-on: xcode-27
     timeout-minutes: 10
     steps:
@@ -67,7 +71,7 @@ jobs:
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/rcc-xcode-help.txt" >/dev/null
 
   upload:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload && !inputs.inspect_build
     needs: verify
     environment: ringside-testflight
     runs-on: xcode-27
@@ -341,5 +345,127 @@ jobs:
                   print("::warning::No build status returned on this attempt.")
               if attempt < 11:
                   time.sleep(20)
+          PYTHON
+          unset token
+
+  inspect:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.inspect_build && !inputs.upload
+    environment: ringside-testflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check the game’s Apple release and TestFlight records
+        env:
+          RCC_BUILD: ${{ inputs.inspect_build }}
+          ASC_PRIVATE_KEY: ${{ secrets.RCC_ASC_PRIVATE_KEY }}
+          ASC_KEY_ID: ${{ secrets.RCC_ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.RCC_ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          [[ "$RCC_BUILD" =~ ^[0-9]+\.[0-9]+$ ]]
+          umask 077
+          auth_key="$(mktemp "$RUNNER_TEMP/rcc-status.XXXXXX")"
+          trap 'rm -f -- "$auth_key"' EXIT
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$auth_key"
+          unset ASC_PRIVATE_KEY
+          token="$(ruby -ropenssl -rbase64 -rjson - "$auth_key" "$ASC_KEY_ID" "$ASC_ISSUER_ID" <<'RUBY'
+          key_path, key_id, issuer = ARGV
+          encode = ->(value) { Base64.urlsafe_encode64(value, padding: false) }
+          now = Time.now.to_i
+          header = encode.call(JSON.generate(alg: "ES256", kid: key_id, typ: "JWT"))
+          claims = encode.call(JSON.generate(iss: issuer, iat: now, exp: now + 600, aud: "appstoreconnect-v1"))
+          input = "#{header}.#{claims}"
+          key = OpenSSL::PKey.read(File.binread(key_path))
+          der = key.sign("SHA256", input)
+          raw = OpenSSL::ASN1.decode(der).value.map { |part| part.value.to_s(2).rjust(32, "\x00") }.join
+          puts "#{input}.#{encode.call(raw)}"
+          RUBY
+          )"
+          echo "::add-mask::$token"
+          RCC_STATUS_TOKEN="$token" python3 - <<'PYTHON'
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          host = "https://api.appstoreconnect.apple.com/v1/"
+          headers = {"Authorization": "Bearer " + os.environ["RCC_STATUS_TOKEN"]}
+          build_version = os.environ["RCC_BUILD"]
+
+          def fetch(path, params=None):
+              url = host + path + "?" + urllib.parse.urlencode(params or {})
+              try:
+                  request = urllib.request.Request(url, headers=headers)
+                  with urllib.request.urlopen(request, timeout=18) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as error:
+                  print(f"Apple {path.split('/')[-1]} query returned HTTP {error.code}.")
+              except (urllib.error.URLError, TimeoutError, ValueError):
+                  print(f"Apple {path.split('/')[-1]} query did not return a usable response.")
+              return None
+
+          def rows(response):
+              return (response or {}).get("data", [])
+
+          apps = rows(fetch("apps", {"filter[bundleId]": os.environ["RCC_BUNDLE"]}))
+          if len(apps) != 1:
+              raise SystemExit("Expected exactly one matching app.")
+          app = apps[0]["id"]
+          versions = rows(fetch(f"apps/{app}/appStoreVersions", {
+              "filter[platform]": "IOS", "filter[versionString]": "1.0",
+              "fields[appStoreVersions]": "versionString,appStoreState",
+          }))
+          for version in versions:
+              version_id = version["id"]
+              print("Release state:", version["attributes"]["appStoreState"])
+              localizations = rows(fetch(f"appStoreVersions/{version_id}/appStoreVersionLocalizations", {
+                  "fields[appStoreVersionLocalizations]": "locale,description,supportUrl",
+              }))
+              for loc in localizations:
+                  fields = loc["attributes"]
+                  print(fields["locale"], "store description set:", bool(fields.get("description")),
+                        "support URL set:", bool(fields.get("supportUrl")))
+          infos = rows(fetch(f"apps/{app}/appInfos", {"fields[appInfos]": "appStoreState"}))
+          for info in infos:
+              locs = rows(fetch(f"appInfos/{info['id']}/appInfoLocalizations", {
+                  "fields[appInfoLocalizations]": "locale,privacyPolicyUrl",
+              }))
+              for loc in locs:
+                  fields = loc["attributes"]
+                  print(fields["locale"], "privacy URL set:", bool(fields.get("privacyPolicyUrl")))
+
+          builds = rows(fetch("builds", {
+              "filter[app]": app, "filter[version]": build_version,
+              "filter[preReleaseVersion.version]": "1.0", "fields[builds]": "version,processingState",
+          }))
+          if len(builds) != 1:
+              raise SystemExit("Expected exactly one matching iPhone build.")
+          build = builds[0]
+          print("Build", build_version, "processing:", build["attributes"]["processingState"])
+          group_response = fetch("betaGroups", {
+              "filter[app]": app, "fields[betaGroups]": "isInternalGroup,hasAccessToAllBuilds",
+              "limit": 200,
+          })
+          if group_response is None:
+              raise SystemExit("Internal TestFlight groups could not be checked with this key.")
+          internal = [g for g in rows(group_response) if g["attributes"].get("isInternalGroup")]
+          accessible = 0
+          unknown = 0
+          for group in internal:
+              if group["attributes"].get("hasAccessToAllBuilds"):
+                  accessible += 1
+                  continue
+              group_builds = fetch(f"betaGroups/{group['id']}/builds", {
+                  "fields[builds]": "version", "limit": 200,
+              })
+              if group_builds is None:
+                  unknown += 1
+              elif any(candidate["id"] == build["id"] for candidate in rows(group_builds)):
+                  accessible += 1
+              elif group_builds.get("links", {}).get("next"):
+                  unknown += 1
+          print(f"Build {build_version}: internal groups with access={accessible}, "
+                f"groups checked={len(internal)}, group checks unresolved={unknown}")
           PYTHON
           unset token
