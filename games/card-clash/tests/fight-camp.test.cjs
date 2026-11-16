@@ -98,15 +98,16 @@ test("legacy decks above the new cap retain existing cards until the user remove
 
 test("the career UI exposes Fight Camp, weekly training and save protection", () => {
   assert.match(html,/id="fight-camp"/);
-  assert.match(html,/function fightCamp\(\)/);
+  assert.match(html,/function fightCamp\(/);
   assert.match(html,/function train\(\)/);
   assert.match(html,/collection:\[\.\.\.startingDeck\]/);
-  assert.match(html,/window\.confirm\("Start a new career\?/);
+  assert.match(html,/Start a new career\?/);
+  assert.match(html,/if\(dialog\.returnValue==="start"\)startCareer/);
   assert.match(html,/unlockCard\(C,id\)/);
   assert.match(html,/rcc-career/);
 });
 
-function gameRuntime(){
+function gameRuntime(native){
   const no = () => {};
   const gradient = {addColorStop:no};
   const ctx = new Proxy({}, {
@@ -125,7 +126,7 @@ function gameRuntime(){
     createElement:()=>({className:"",style:{},innerHTML:"",remove:no,querySelector:()=>button})
   };
   const hot={ready:no,snapshot:no};
-  const win={claude:{hot},confirm:()=>true};
+  const win={claude:{hot},confirm:()=>true,RingsideNative:native};
   const runtime=vm.createContext({
     document:doc,window:win,matchMedia:()=>({matches:true}),
     Image:class{set src(value){this._src=value}},
@@ -146,6 +147,29 @@ test("Fight Camp can render after starting an actual career in a DOM harness", (
   assert.match(app.innerHTML,/Coach.s read/);
   assert.match(app.innerHTML,/To the ring/);
   assert.ok(memory.has("rcc-career"),"Career state saved locally");
+});
+
+test("Career purses fund permanent shop cards and swaps keep the deck size", () => {
+  const {run,memory}=gameRuntime();
+  run("newCareer('raven')");
+  assert.equal(run("C.cash"),0);
+  assert.equal(run("buyCard(C,'shopPalm')"),false);
+  assert.equal(run("awardPurse(C,false,true,true)"),0);
+  assert.equal(run("awardPurse(C,true)"),45);
+  assert.equal(run("buyCard(C,'shopPalm')"),true);
+  assert.equal(run("C.cash"),0);
+  assert.equal(run("buyCard(C,'shopPalm')"),false);
+  assert.equal(run("C.deck.includes('shopPalm')"),false);
+  assert.equal(run("swapCard(C,'shopPalm','chop')"),true);
+  assert.equal(run("swapCard(C,'shopPalm','taunt')"),false);
+  assert.equal(run("C.deck.length"),15);
+  assert.equal(run("cardCounts(C.collection).chop"),2);
+  run("saveCareer()");
+  const stored=JSON.parse(memory.get("rcc-career"));
+  assert.equal(stored.cash,0);
+  assert.ok(stored.deck.includes("shopPalm"));
+  assert.equal(run("loadCareer().cash"),0);
+  assert.equal(run("normalizeCareer({...C,w:8,cash:undefined}).cash"),360);
 });
 
 test("all 24 wrestlers have valid decks, a finisher and a divisional opponent pool", () => {
@@ -426,4 +450,17 @@ test("embedded portrait assets bind to both the original and expanded rosters", 
   const loaded=script.slice(start,end).replace("/*__PORTRAITS__*/",'raven:"original",hana:"expanded"');
   const result=vm.runInNewContext(loaded+'\n[WRESTLERS.raven.img,WRESTLERS.hana.img].join(",")');
   assert.equal(result,"original,expanded");
+});
+
+test("the iPhone bridge owns its career saves while browser storage stays separate", () => {
+  const saved=new Map();
+  const bridge={
+    getItem:key=>saved.get(key)??null,
+    setItem:(key,value)=>saved.set(key,value),
+  };
+  const {run,memory}=gameRuntime(bridge);
+  run("newCareer('brick');");
+  assert.equal(JSON.parse(saved.get("rcc-career")).wid,"brick");
+  assert.equal(memory.has("rcc-career"),false);
+  assert.equal(gameRuntime(bridge).run("loadCareer().wid"),"brick");
 });

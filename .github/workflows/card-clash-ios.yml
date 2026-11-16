@@ -1,0 +1,67 @@
+name: Card Clash iPhone build
+on:
+  pull_request:
+    paths:
+      - "games/card-clash/**"
+      - ".github/workflows/card-clash-ios.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  simulator:
+    runs-on: macos-26
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the offline game
+        run: node --test games/card-clash/tests/fight-camp.test.cjs games/card-clash/tests/ios-bridge.test.cjs
+      - name: Build and run the iPhone simulator test
+        working-directory: games/card-clash/ios
+        run: |
+          xcodebuild -version
+          device=$(xcrun simctl create RingsideQA com.apple.CoreSimulator.SimDeviceType.iPhone-17)
+          trap 'xcrun simctl delete "$device" || true' EXIT
+          xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
+            -destination "platform=iOS Simulator,id=$device" -derivedDataPath "$RUNNER_TEMP/rcc-ios" \
+            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
+  device:
+    runs-on: xcode-27
+    timeout-minutes: 8
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the device release target
+        working-directory: games/card-clash/ios
+        run: |
+          xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/rcc-ios-device" CODE_SIGNING_ALLOWED=NO build
+  duo:
+    runs-on: xcode-27
+    timeout-minutes: 22
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the iPhone Duo simulator
+        working-directory: games/card-clash/ios
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          type=$(xcrun simctl list devicetypes -j | jq -er '.devicetypes[] | select(.name == "iPhone Duo") | .identifier')
+          runtime_for_duo() {
+            xcrun simctl list runtimes -j | jq -er --arg type "$type" '
+              [.runtimes[] | select(.isAvailable and .version == "27.1") |
+               select(any(.supportedDeviceTypes[]?; .identifier == $type)) | .identifier] | first // empty'
+          }
+          if ! runtime=$(runtime_for_duo); then
+            xcodebuild -downloadPlatform iOS -buildVersion 27.1
+            runtime=$(runtime_for_duo)
+          fi
+          device=$(xcrun simctl create RingsideDuoQA "$type" "$runtime")
+          trap 'xcrun simctl delete "$device" || true' EXIT
+          xcodebuild -project RingsideCardClash.xcodeproj -scheme RingsideCardClash \
+            -destination "platform=iOS Simulator,id=$device" -derivedDataPath "$RUNNER_TEMP/rcc-duo" \
+            -parallel-testing-enabled NO -only-testing:RingsideCardClashUITests/OfflineCareerTests/testDamageAndEndTurnStayVisibleAfterPlayingCard \
+            CODE_SIGNING_ALLOWED=NO test

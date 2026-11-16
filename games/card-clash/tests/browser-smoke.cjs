@@ -76,9 +76,25 @@ const legacy={
       assert.equal(await button("#m-cont").count(),isPreview?0:1);
       if(!isPreview){
         await click("#m-cont");
+        await click("#move-shop");
+        await p.getByText("Career balance · $360",{exact:true}).waitFor();
+        await click('[data-buy="shopPalm"]');
+        await p.getByText("Career balance · $315",{exact:true}).waitFor();
+        await click("#shop-camp");
+        await click('[data-swap="shopPalm"]');
+        await p.locator('#camp-swap select').selectOption("chop");
+        await click('#camp-swap [type="submit"]');
+        assert.equal(await p.locator('[data-unequip="shopPalm"]').count(),1);
+        await click("#camp-back");
         await click("#fight-camp");
         assert.match(await button(".camp-summary").textContent(),/Equipped 15/);
         await click("#camp-back");await click("#quit");
+        await click("#m-career");
+        await click('.pick[data-w="brick"]');
+        await visible(".career-confirm[open]");
+        await click('.career-confirm button[value="cancel"]');
+        assert.equal(await p.evaluate(key=>JSON.parse(localStorage.getItem(key)).wid,key),"raven");
+        await click("#back");
       }
       await click("#m-career");
       assert.equal(await p.locator(".pick").count(),16);
@@ -94,13 +110,29 @@ const legacy={
       await button('[name="gear"]').selectOption("elite");
       await button('[name="palette"]').selectOption("jade");
       await button('[name="move"]').selectOption("haymaker");
-      if(!isPreview)p.once("dialog",d=>d.accept());
       await click("#creation [type=submit]");
+      if(!isPreview)await click('.career-confirm button[value="start"]');
       await visible("#fight-camp");
+      assert.equal(await p.locator(".career-pane:visible").count(),1);
+      assert.equal(await p.locator("#career-tonight").isVisible(),true);
+      assert.equal(await p.locator("#career-rankings").isVisible(),false);
+      if(label!=="desktop"){
+        for(const id of ["#fight","#move-shop","#fight-camp","#quit"]){
+          const rect=await button(id).boundingBox();
+          assert.ok(rect&&rect.y>=0&&rect.y+rect.height<=p.viewportSize().height+1,id+" is in the first viewport");
+        }
+        await click('[data-career-tab="rankings"]');
+        await p.locator(".career-content").evaluate(el=>el.scrollTop=el.scrollHeight);
+        assert.equal(await p.evaluate(()=>scrollY),0);
+        const fight=await button("#fight").boundingBox();
+        assert.ok(fight&&fight.y+fight.height<=p.viewportSize().height+1,"Match controls stay visible while scrolling");
+      }
+      await click('[data-career-tab="locker"]');
       await click("#career-office");
       await click('[data-contract="wins"]');
       await p.getByText(/Win Streak · 0\/2 · due week 4/).waitFor();
       await click("#back");
+      await click('[data-career-tab="tonight"]');
       await click("#s-train");
       const learned=await p.locator("[data-add]").first().getAttribute("data-add");
       await click(`[data-add="${learned}"]`);
@@ -108,6 +140,7 @@ const legacy={
       await click(`[data-unequip="${learned}"]`);
       await click(`[data-equip="${learned}"]`);
       await click("#camp-back");
+      await click('[data-career-tab="records"]');
       await click("#journal");
       await p.getByRole("heading",{name:"Event calendar"}).waitFor();
       await click("#back");
@@ -120,10 +153,61 @@ const legacy={
       if(isPreview)assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem("rcc-career")).week),13);
       await click("#fight");
       await ring();
+      await p.waitForFunction(()=>AC?.state==="running"&&musicBeat>0&&pinVoice.length===3);
+      await click('[data-mute]');
+      assert.deepEqual(await p.evaluate(()=>[muted,musicTimer,master.gain.value]),[true,0,0]);
+      await click('[data-mute]');
+      await p.waitForFunction(()=>!muted&&master.gain.value===1&&musicBeat>0);
+      if(label==="iPhone"&&!mode){
+        await p.waitForFunction(()=>pinVoice.length===3&&musicTimer!==0);
+        const original=p.viewportSize();
+        const positions=()=>p.evaluate(()=>{
+          const bounds=selector=>document.querySelector(selector).getBoundingClientRect();
+          const hud=bounds(".battle-hud"),hand=bounds(".battle-hand");
+          return {split:hud.right<=hand.left,atTop:scrollY===0,
+            controls:["#end",".ticker","#f-p","#f-o"].every(selector=>{
+              const {top,bottom,left,right}=bounds(selector);
+              return top>=0&&left>=0&&right<=innerWidth&&bottom<=innerHeight+1;
+            })};
+        });
+        const turnState=()=>p.evaluate(()=>({
+          turn:G.turn,hp:[G.p.hp,G.o.hp],energy:G.p.energy,hand:[...G.p.hand],message:G.log[0]
+        }));
+        await p.setViewportSize({width:466,height:678});
+        assert.deepEqual(await positions(),{split:false,atTop:true,controls:true},"Duo closed");
+        assert.equal(await button(".live-ring").isVisible(),false);
+        const before=await turnState();
+        for(const viewport of [{width:890,height:626},{width:626,height:890}]){
+          await p.setViewportSize(viewport);
+          assert.deepEqual(await positions(),{split:true,atTop:true,controls:true},"Duo open");
+          await visible(".live-ring");
+          assert.equal(await p.locator(".live-ring .ring-actor").count(),2);
+          assert.equal(await p.locator('.live-ring .ring-actor[data-wrestler="custom"]').count(),1);
+          assert.deepEqual(await turnState(),before,"Unfolding or rotating preserves the live turn");
+          await noOverflow();
+        }
+        // Set up a known strike within the live match, then use the real card click.
+        await p.evaluate(()=>{G.p.hand[0]="chop";G.o.block=0;render();});
+        await click('.hand [data-i="0"]');
+        await visible('.ring-actor.player[data-action="strike"]');
+        await visible('.ring-actor.opponent[data-reaction="hit"]');
+        assert.match(await button(".ring-call").textContent(),/Rose & Thorn · Chop/);
+        const after=await turnState();
+        assert.ok(after.hp[1]<before.hp[1]);
+        assert.match(after.message,new RegExp("for "+(before.hp[1]-after.hp[1])));
+        await p.setViewportSize({width:466,height:678});
+        assert.deepEqual(await positions(),{split:false,atTop:true,controls:true},"Duo refolded");
+        assert.equal(await button(".live-ring").isVisible(),false);
+        assert.deepEqual(await turnState(),after,"Refolding preserves damage and the remaining cards");
+        assert.match(await button(".ticker .now").textContent(),/for [1-9]/);
+        await p.setViewportSize(original);
+        console.log("iPhone Duo closed/open/rotated/refolded: live wrestlers react to a card, controls and damage stay visible");
+      }
       const career=await complete();
       const result=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
       assert.equal(result.week,2);
       assert.equal(result.w+result.l,1);
+      assert.equal(result.cash,result.w*45);
       assert.equal(result.office.active.id,"wins");
       assert.equal(result.office.active.progress,result.w);
       console.log(label,"career",career,"saved week",result.week);
@@ -170,12 +254,14 @@ const legacy={
           localStorage.setItem(key,JSON.stringify(saved));
         },key);
         await menu();await click("#m-cont");
+        await click('[data-career-tab="locker"]');
         await p.getByRole("heading",{name:"Career Tag Team"}).waitFor();
         await click("#career-tag");await ring();
         console.log(label,"career tag title",await complete());
         await click("#event-next");
         await visible("#fight");
         assert.equal(await button("#career-tag").count(),0);
+        await click('[data-career-tab="records"]');
         await click("#journal");
         await p.locator("section").filter({has:p.getByRole("heading",{name:"Career tag title history"})})
           .getByText(/Week 4.* the belts/).waitFor();
