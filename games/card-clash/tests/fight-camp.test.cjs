@@ -298,6 +298,34 @@ test("blocked hits preserve Exposed, piercing hits consume it, and finishers app
   assert.equal(run("defender.block"),6);
 });
 
+test("the damage on a card matches the stamina removed by playing it", () => {
+  const {run}=gameRuntime();
+  run(`G={mode:"exhibition",round:1,turn:1,log:[],p:makeFighter("brick"),o:makeFighter("raven"),
+    intent:{type:"hype",label:"Play to the crowd"}};
+    G.p.hand=["pounce"];
+    G.p.energy=3;
+    G.o.block=9;`);
+  assert.equal(run("cardDmg(CARDS.pounce)"),13);
+  assert.match(run('cardHTML("pounce",0,G.p)'),/4 DMG.*9 blocked/);
+  assert.equal(run("G.o.block"),9,"preview must leave block intact");
+  const stamina=run("G.o.hp");
+  run("playCard(0)");
+  assert.equal(run("G.o.hp"),stamina-4);
+  assert.match(run("G.log[0]"),/Pounce for 4 \(9 blocked\)/);
+  assert.equal(run("G.o.block"),0);
+  assert.match(run('cardHTML("pounce",0,G.p)'),/13 DMG/);
+
+  run("G.p.weak=1;G.o.exposed=true;G.o.block=10;");
+  assert.match(run('cardHTML("pounce",0,G.p)'),/0 DMG.*10 blocked.*−3 weakened/);
+  assert.equal(run("G.o.exposed"),true);
+  run("G.o.hp=6;");
+  assert.match(run('cardHTML("knee",0,G.p)'),/6 DMG.*−3 weakened.*\+3 exposed.*stamina left/);
+  assert.equal(run("applyDamage(G.o,cardHit(CARDS.knee))"),6);
+  assert.equal(run("G.o.block"),10,"piercing leaves block intact");
+  assert.equal(run("G.o.exposed"),false);
+  assert.equal(run("G.o.hp"),0);
+});
+
 test("a grapple reversal that drops the AI to zero resolves a pin", async () => {
   const {run}=gameRuntime();
   run(`G={mode:'exhibition',pid:'dutch',oid:'brick',round:0,log:[],turn:1,stats:{fin:0,kicks:0,rev:0},bars:{},

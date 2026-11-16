@@ -147,6 +147,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .card h4{margin:2px 0 0;font-family:var(--display);font-weight:900;font-style:italic;font-size:23px;line-height:.9;text-transform:uppercase}
 .card .big{font-family:var(--display);font-weight:900;font-style:italic;font-size:30px;line-height:1;color:var(--c);text-shadow:0 0 14px color-mix(in srgb,var(--c) 60%,transparent)}
 .card p{margin:0;font-size:12.5px;line-height:1.35;color:var(--steel)}
+.card .damage-note{color:var(--gold);font-weight:700}
 .card.sig{--sig:1}
 .card.sig .seal{position:absolute;right:8px;bottom:7px;font-family:var(--label);font-weight:700;font-size:9px;letter-spacing:.18em;text-transform:uppercase;background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent}
 .t-strike{--c:var(--strike)} .t-grapple{--c:var(--grapple)} .t-defense{--c:var(--defense)} .t-hype{--c:var(--hype)}
@@ -1088,7 +1089,8 @@ function guideScreen(screen){
   app.innerHTML=`<header class="brand">${logo()}</header><section class="panel"><h3>${help?"How to wrestle":"Settings"}</h3>
   ${help?`<ol class="news">
     <li>Each turn starts with five cards and three energy. A card's top-right number is its cost.</li>
-    <li>Read Next move before committing. Block absorbs damage. Reversal cancels grapples. Slip &amp; Rip counters strikes.</li>
+    <li>Damage on a card in your hand shows how much stamina that move will take right now. Block and Weakened reduce the hit. Exposed adds 3 if the hit gets through.</li>
+    <li>Read Next move before committing. Reversal cancels grapples. Slip &amp; Rip counters strikes.</li>
     <li>Land a strike before a grapple in the same turn for +3 damage. Exposed adds +3 to the next hit that gets through. Anchor Stance clears Exposed and Weakened.</li>
     <li>At 10 hype, use your finisher for zero energy or hold hype for a kick-out. You can kick out once at 5 hype, except in a steel cage.</li>
     <li>Career wins earn in-game cash. Buy cards in the Move Shop, then equip or swap them in Fight Camp. Training still costs one weekly segment. Your career and settings save on this device.</li>
@@ -1448,11 +1450,36 @@ function matchRating(won){
   return Math.min(5,Math.round(r*4)/4);
 }
 function starsHTML(r){const full=Math.floor(r),fr=r-full;return `<div class="stars">${"★".repeat(full)}${fr>=.75?"¾":fr>=.5?"½":fr>=.25?"¼":""}<small>${r.toFixed(2)} star match</small></div>`;}
-function damage(t,amount,{ignoreBlock=false}={}){
-  let d=amount;
-  if(!ignoreBlock&&t.block>0){const u=Math.min(t.block,d);t.block-=u;d-=u;}
-  if(d>0&&t.exposed){d+=3;t.exposed=false;}
-  t.hp=Math.max(0,t.hp-d);return d;
+function damagePreview(target,amount,{ignoreBlock=false}={}){
+  const blocked=ignoreBlock?0:Math.min(target.block,amount);
+  const hit=amount-blocked;
+  const exposure=hit>0&&target.exposed?3:0;
+  const dealt=Math.min(target.hp,hit+exposure);
+  return {dealt,blocked,exposure,capped:dealt<hit+exposure};
+}
+function applyDamage(target,{dealt,blocked,exposure}){
+  target.hp-=dealt;
+  target.block-=blocked;
+  if(exposure)target.exposed=false;
+  return dealt;
+}
+function damage(target,amount,options){
+  return applyDamage(target,damagePreview(target,amount,options));
+}
+function attackPreview(attacker,target,power,pierce){
+  const weakened=attacker.weak>0?Math.min(3,power):0;
+  return {...damagePreview(target,power-weakened,{ignoreBlock:pierce}),weakened};
+}
+function cardHit(c){
+  return attackPreview(G.p,G.o,cardDmg(c),c.pierce);
+}
+function damageModifiers({blocked,weakened,exposure,capped}){
+  return [
+    blocked?`${blocked} blocked`:"",
+    weakened?`−${weakened} weakened`:"",
+    exposure?`+${exposure} exposed`:"",
+    capped?"stamina left":""
+  ].filter(Boolean).join(" · ");
 }
 function impact(who,amount,big){
   if(!still()&&amount>0)NATIVE?.impact(big?"heavy":"light");
@@ -1471,13 +1498,11 @@ function playCard(i){
   let ringHit=null;
   if(c.dmg){
     const combo=c.type==="grapple"&&G.lastType==="strike";
-    let d=cardDmg(c);
-    if(p.weak>0) d=Math.max(0,d-3);
-    const previousBlock=o.block;
-    const dealt=damage(o,d,{ignoreBlock:c.pierce});
+    const hit=cardHit(c);
+    const dealt=applyDamage(o,hit);
     ringHit=dealt;
-    const blocked=previousBlock-o.block;
-    msg=`${combo?"COMBO! ":""}${c.name} for ${dealt}${blocked?` (${blocked} blocked)`:""}!`;
+    const modifiers=damageModifiers(hit);
+    msg=`${combo?"COMBO! ":""}${c.name} for ${dealt}${modifiers?` (${modifiers})`:""}!`;
     impact("o",dealt,false);G.lastType=c.type;if(combo)crowd(60);
     gainHype(p,(c.hype||0)+(c.type==="strike"&&p.w.archetype==="aerial"?1:0));
     gainHype(o,1);
@@ -1522,7 +1547,7 @@ function finisherSplash(w,byYou){
 }
 function finishMove(attacker,target){
   const f=attacker.w.fin;
-  const dealt=damage(target,Math.max(0,f.dmg-(attacker.weak>0?3:0)),{ignoreBlock:f.pierce});
+  const dealt=applyDamage(target,attackPreview(attacker,target,f.dmg,f.pierce));
   if(f.weak&&dealt) target.weak=Math.max(target.weak,f.weak);
   if(f.heal) attacker.hp=Math.min(attacker.max,attacker.hp+f.heal);
   return dealt;
@@ -2508,17 +2533,21 @@ function fighterHTML(f,who){
 }
 function cardHTML(id,i,p){
   const c=CARDS[id];
-  let big=c.big||"";
-  if(c.dmg){big=`${cardDmg(c)} DMG`;}
+  const hit=c.dmg?cardHit(c):null;
+  const big=hit?`${hit.dealt} DMG`:(c.big||"");
+  const modifiers=hit?damageModifiers(hit):"";
   const badge=rarity(c);
   const combo=c.dmg&&c.type==="grapple"&&G.lastType==="strike";
   return `<button class="card t-${c.type}${c.sig?" sig":""}" style="--i:${G.dealt?i:0}" data-i="${i}" ${c.cost>p.energy||G.busy?"disabled":""}>
     <div class="top"><span class="type">${c.type}</span><span class="cost"><b>${c.cost}</b></span></div>
-    <h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p>${badge!=="common"?`<span class="seal">${badge}</span>`:""}${combo?`<span class="combo">Combo +3</span>`:""}</button>`;
+    <h4>${esc(c.name)}</h4><div class="big">${big}</div>${modifiers?`<p class="damage-note">${modifiers}</p>`:""}<p>${esc(c.text)}</p>${badge!=="common"?`<span class="seal">${badge}</span>`:""}${combo?`<span class="combo">Combo +3</span>`:""}</button>`;
 }
 function render(){
   if(!G||!G.p) return;
   const p=G.p,o=G.o;
+  const fin=p.w.fin;
+  const finReady=p.hype>=HYPE_MAX&&!G.busy;
+  const finDamage=finReady?attackPreview(p,o,fin.dmg,fin.pierce).dealt:null;
   const handScroll=G.dealt?0:(app.querySelector(".battle-hand")?.scrollTop||0);
   const ladder=G.mode==="career"
     ? `<span class="cur">Week ${C.week}</span><span>${esc(G.title||showName())}</span>${G.stip?`<span style="color:#ff6b7c">${STIPS[G.stip][0]}</span>`:""}`
@@ -2540,7 +2569,7 @@ function render(){
   </div>
   ${liveRingHTML()}
   <div class="actions battle-actions">
-    <button class="btn fin" id="fin" ${p.hype<HYPE_MAX||G.busy?"disabled":""}>${esc(p.w.fin.name)}</button>
+    <button class="btn fin" id="fin" ${finReady?"":"disabled"}>${esc(fin.name)}${finReady?` · ${finDamage} DMG`:""}</button>
     ${G.mode==="tag"?`<button class="btn" id="tag" ${G.busy?"disabled":""}>Tag partner</button>`:""}
     <span class="grow"></span>
     <button class="btn primary" id="end" ${G.busy?"disabled":""}>End turn</button>
