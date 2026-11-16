@@ -11,12 +11,18 @@ on:
         required: true
         type: boolean
         default: false
+      release_candidate:
+        description: Build the isolated Version 1.0 release candidate
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 env:
-  RCC_SOURCE: 93f90f0a6dd021285d31bc5dbfbc4270380916a3
+  RCC_RELEASE_SOURCE: 45c5b142d6f1ef5cc5d2a6bc1f00e4db3eb81e46
+  RCC_SOURCE: ${{ inputs.release_candidate && '45c5b142d6f1ef5cc5d2a6bc1f00e4db3eb81e46' || '93f90f0a6dd021285d31bc5dbfbc4270380916a3' }}
   DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
   RCC_TEAM: J4Y8FY6JNZ
   RCC_BUNDLE: com.ctnetworkstudios.ringsidecardclash
@@ -51,6 +57,9 @@ jobs:
           for cue in arena-loop tag entrance card hit big block hype heal count bell crowd boo ref-1 ref-2 ref-3; do
             test -s "$app/sound/$cue.mp3"
           done
+          if [[ "$RCC_SOURCE" == "$RCC_RELEASE_SOURCE" ]]; then
+            test -s "$app/sound/menu-loop.mp3"
+          fi
           node --test games/card-clash/tests/fight-camp.test.cjs games/card-clash/tests/ios-bridge.test.cjs
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rcc-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rcc-xcode-help.txt" >/dev/null
@@ -234,3 +243,88 @@ jobs:
           plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
           xcodebuild -exportArchive -archivePath "$archive" \
             -exportPath "$RUNNER_TEMP/rcc-testflight-export" -exportOptionsPlist "$export_options" "${auth[@]}"
+
+          # Read Apple’s processing and TestFlight state with the existing upload key.
+          token="$(ruby -ropenssl -rbase64 -rjson - "$auth_key" "$ASC_KEY_ID" "$ASC_ISSUER_ID" <<'RUBY'
+          key_path, key_id, issuer = ARGV
+          encode = ->(value) { Base64.urlsafe_encode64(value, padding: false) }
+          now = Time.now.to_i
+          header = encode.call(JSON.generate(alg: "ES256", kid: key_id, typ: "JWT"))
+          claims = encode.call(JSON.generate(iss: issuer, iat: now, exp: now + 600, aud: "appstoreconnect-v1"))
+          input = "#{header}.#{claims}"
+          key = OpenSSL::PKey.read(File.binread(key_path))
+          der = key.sign("SHA256", input)
+          raw = OpenSSL::ASN1.decode(der).value.map { |part| part.value.to_s(2).rjust(32, "\x00") }.join
+          puts "#{input}.#{encode.call(raw)}"
+          RUBY
+          )"
+          echo "::add-mask::$token"
+          RCC_STATUS_TOKEN="$token" RCC_BUILD="$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" python3 - <<'PYTHON'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          build = os.environ["RCC_BUILD"]
+          headers = {"Authorization": "Bearer " + os.environ["RCC_STATUS_TOKEN"]}
+
+          def get(path, filters):
+              url = "https://api.appstoreconnect.apple.com/v1/" + path
+              request = urllib.request.Request(url + "?" + urllib.parse.urlencode(filters), headers=headers)
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  return json.load(response)
+
+          try:
+              apps = get("apps", {"filter[bundleId]": os.environ["RCC_BUNDLE"], "fields[apps]": "bundleId"})["data"]
+              if len(apps) != 1:
+                  print("::warning::Apple accepted the upload, but did not return one matching app record.")
+                  raise SystemExit(0)
+
+              app = apps[0]["id"]
+              versions = get(f"apps/{app}/appStoreVersions", {
+                  "filter[platform]": "IOS",
+                  "filter[versionString]": "1.0",
+                  "fields[appStoreVersions]": "versionString,appStoreState",
+              })["data"]
+              for version in versions:
+                  print("App Store 1.0 state:", version["attributes"]["appStoreState"])
+              if not versions:
+                  print("App Store 1.0 version record not found.")
+          except urllib.error.HTTPError as error:
+              print(f"::warning::App Store Connect status query returned HTTP {error.code}. The build was uploaded.")
+              raise SystemExit(0)
+          except (urllib.error.URLError, TimeoutError, ValueError, KeyError):
+              print("::warning::App Store Connect status could not be read. The build was uploaded.")
+              raise SystemExit(0)
+
+          for attempt in range(12):
+              try:
+                  response = get("builds", {
+                      "filter[app]": app,
+                      "filter[preReleaseVersion.version]": "1.0",
+                      "filter[version]": build,
+                      "include": "buildBetaDetail",
+                      "fields[builds]": "version,processingState,buildBetaDetail",
+                      "fields[buildBetaDetails]": "internalBuildState",
+                  })
+                  records = response["data"]
+                  state = records[0]["attributes"]["processingState"] if records else "NOT_INDEXED"
+                  beta = next((item["attributes"]["internalBuildState"] for item in response.get("included", [])
+                               if item["type"] == "buildBetaDetails"), "UNKNOWN")
+                  print(f"Build {build}: processing={state}; internal TestFlight={beta}", flush=True)
+                  if state in {"INVALID", "FAILED"} or beta in {
+                      "READY_FOR_BETA_TESTING", "IN_BETA_TESTING", "MISSING_EXPORT_COMPLIANCE",
+                      "PROCESSING_EXCEPTION", "IN_EXPORT_COMPLIANCE_REVIEW", "EXPIRED",
+                  }:
+                      break
+              except urllib.error.HTTPError as error:
+                  print(f"::warning::Apple upload succeeded, but build status returned HTTP {error.code}.")
+                  break
+              except (urllib.error.URLError, TimeoutError, ValueError, KeyError):
+                  print("::warning::No build status returned on this attempt.")
+              if attempt < 11:
+                  time.sleep(20)
+          PYTHON
+          unset token
