@@ -58,16 +58,22 @@ struct GameView: UIViewRepresentable {
 final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     static let bridgeName = "ringsideGame"
     private static let keys: Set<String> = [
-        "rcc-career", "rcc-best", "rcc-cup", "rcc-tag", "rcc-mute", "rcc-low-motion", "rcc-music-off"
+        "rcc-career", "rcc-best", "rcc-cup", "rcc-tag", "rcc-mute", "rcc-low-motion", "rcc-music-off", "rcc-commentary-off"
     ]
     private static let maximumSaveBytes = 512 * 1024
-    private static let soundEffects: Set<String> = [
-        "tag", "entrance", "card", "hit", "big", "block", "hype", "heal", "count", "bell", "crowd", "boo",
-        "ref-1", "ref-2", "ref-3"
-    ]
-    private let musicClip = "arena-loop"
-    private var players: [String: AVAudioPlayer] = [:]
+    private let audio = GameAudio()
     let gameURL = Bundle.main.url(forResource: "index", withExtension: "html")
+
+    override init() {
+        super.init()
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(audioInterruption(_:)),
+                           name: AVAudioSession.interruptionNotification, object: nil)
+        center.addObserver(self, selector: #selector(pauseForBackground),
+                           name: UIApplication.didEnterBackgroundNotification, object: nil)
+        center.addObserver(self, selector: #selector(resumeForForeground),
+                           name: UIApplication.didBecomeActiveNotification, object: nil)
+    }
 
     private var saveURL: URL {
         URL.applicationSupportDirectory.appending(path: "RingsideCardClash/game-saves.json")
@@ -128,51 +134,41 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
             UIImpactFeedbackGenerator(style: heavy ? .heavy : .light).impactOccurred()
         case "audio":
             guard let cue = body["cue"] as? String else { return }
-            switch cue {
-            case "stop-all": stopAudio()
-            case "music-stop": players[musicClip]?.stop()
-            case "music-start": playAudio(musicClip, looping: true)
-            case "test-bell":
-                let started = playAudio("bell")
-                let event = started ? "ringside-audio-started" : "ringside-audio-failed"
-                message.webView?.evaluateJavaScript("document.dispatchEvent(new Event('\(event)'))")
-            default:
-                if Self.soundEffects.contains(cue) { playAudio(cue) }
+            if cue == "test-bell" {
+                let webView = message.webView
+                audio.handle(cue) { [weak webView] started in
+                    DispatchQueue.main.async {
+                        let event = started ? "ringside-audio-started" : "ringside-audio-failed"
+                        webView?.evaluateJavaScript("document.dispatchEvent(new Event('\(event)'))")
+                    }
+                }
+            } else {
+                audio.handle(cue)
             }
         default:
             return
         }
     }
 
-    @discardableResult
-    private func playAudio(_ clip: String, looping: Bool = false) -> Bool {
-        do {
-            let player: AVAudioPlayer
-            if let cached = players[clip] {
-                player = cached
-            } else {
-                guard let resource = Bundle.main.url(forResource: clip, withExtension: "mp3", subdirectory: "sound") else { return false }
-                player = try AVAudioPlayer(contentsOf: resource)
-                player.numberOfLoops = looping ? -1 : 0
-                player.volume = looping ? 0.65 : 1
-                players[clip] = player
-            }
-            if (looping || clip == "crowd") && player.isPlaying { return true }
-            let session = AVAudioSession.sharedInstance()
-            if session.category != .playback || !session.categoryOptions.contains(.mixWithOthers) {
-                try session.setCategory(.playback, options: .mixWithOthers)
-            }
-            try session.setActive(true)
-            player.currentTime = 0
-            return player.play()
-        } catch {
-            NSLog("Ringside audio could not play %@: %@", clip, error.localizedDescription)
-            return false
-        }
+    @objc private func pauseForBackground() {
+        audio.setBackgrounded(true)
+    }
+
+    @objc private func resumeForForeground() {
+        audio.setBackgrounded(false)
+    }
+
+    @objc private func audioInterruption(_ notification: Notification) {
+        guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        let flags = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+        let shouldResume = AVAudioSession.InterruptionOptions(rawValue: flags).contains(.shouldResume)
+        audio.setInterrupted(type == .began, shouldResume: shouldResume)
     }
 
     func stopAudio() {
-        for player in players.values { player.stop() }
+        audio.handle("music-stop")
+        audio.handle("stop-all")
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
@@ -193,5 +189,124 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
         controller.removeAllUserScripts()
         controller.addUserScript(WKUserScript(source: bootstrap(), injectionTime: .atDocumentStart, forMainFrameOnly: true))
         if let gameURL { webView.loadFileURL(gameURL, allowingReadAccessTo: gameURL) }
+    }
+}
+
+
+// Session activation and decoding can block while iOS selects an output.
+// Keep that work off the WebKit message handler and serialize player state.
+private final class GameAudio: @unchecked Sendable {
+    private static let effects: Set<String> = [
+        "tag", "entrance", "card", "hit", "big", "block", "hype", "heal", "count", "bell", "crowd", "boo",
+        "ref-1", "ref-2", "ref-3"
+    ]
+    private static let commentary: Set<String> = Set(["malik", "tasha"].flatMap { host in
+        ["entrance", "reversal", "finisher", "kickout", "upset", "result"].map { "comment-\(host)-\($0)" }
+    })
+    private var commentClip: String?
+    private let queue = DispatchQueue(label: "com.ctnetworkstudios.ringsidecardclash.audio", qos: .userInitiated)
+    private var players: [String: AVAudioPlayer] = [:]
+    private var musicClip: String?
+    private var backgrounded = false
+    private var interrupted = false
+    private var sessionActive = false
+
+    func handle(_ cue: String, onPlayback: (@Sendable (Bool) -> Void)? = nil) {
+        queue.async {
+            switch cue {
+            case "stop-all": self.pausePlayers()
+            case "music-stop": self.setMusic(nil)
+            case "music-menu": self.setMusic("menu-loop")
+            case "music-arena": self.setMusic("arena-loop")
+            case "comment-stop": self.stopCommentary()
+            case "effects-stop":
+                self.stopCommentary()
+                for clip in Self.effects { self.players[clip]?.stop() }
+            case "test-bell":
+                onPlayback?(self.play("bell"))
+            default:
+                if Self.commentary.contains(cue) {
+                    self.stopCommentary()
+                    if self.play(cue) {
+                        self.commentClip = cue
+                        if let music = self.musicClip { self.players[music]?.volume = 0.28 }
+                    }
+                } else if Self.effects.contains(cue) { self.play(cue) }
+            }
+        }
+    }
+
+    func setBackgrounded(_ backgrounded: Bool) {
+        queue.async {
+            self.backgrounded = backgrounded
+            if backgrounded {
+                self.pausePlayers()
+            } else if let clip = self.musicClip {
+                self.play(clip, looping: true)
+            }
+        }
+    }
+
+    func setInterrupted(_ interrupted: Bool, shouldResume: Bool) {
+        queue.async {
+            self.interrupted = interrupted
+            if interrupted {
+                self.pausePlayers()
+            } else if shouldResume, let clip = self.musicClip {
+                self.play(clip, looping: true)
+            }
+        }
+    }
+
+    private func setMusic(_ clip: String?) {
+        if let previous = musicClip, previous != clip { players[previous]?.stop() }
+        musicClip = clip
+        if let clip {
+            play(clip, looping: true)
+            players[clip]?.volume = commentClip == nil ? 0.65 : 0.28
+        }
+    }
+
+    private func stopCommentary() {
+        if let clip = commentClip { players[clip]?.stop() }
+        commentClip = nil
+        if let music = musicClip { players[music]?.volume = 0.65 }
+    }
+
+    private func pausePlayers() {
+        stopCommentary()
+        for player in players.values { player.stop() }
+        sessionActive = false
+    }
+
+    @discardableResult
+    private func play(_ clip: String, looping: Bool = false) -> Bool {
+        guard !backgrounded, !interrupted else { return false }
+        do {
+            let player: AVAudioPlayer
+            if let cached = players[clip] {
+                player = cached
+            } else {
+                guard let resource = Bundle.main.url(forResource: clip, withExtension: "mp3", subdirectory: "sound") else { return false }
+                player = try AVAudioPlayer(contentsOf: resource)
+                player.numberOfLoops = looping ? -1 : 0
+                player.volume = looping ? 0.65 : 1
+                players[clip] = player
+            }
+            if (looping || clip == "crowd") && player.isPlaying { return true }
+            if !sessionActive {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, options: .mixWithOthers)
+                try session.setActive(true)
+                sessionActive = true
+            }
+            player.currentTime = 0
+            if player.play() { return true }
+            sessionActive = false
+        } catch {
+            sessionActive = false
+            NSLog("Ringside audio could not play %@: %@", clip, error.localizedDescription)
+        }
+        return false
     }
 }

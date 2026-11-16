@@ -6,6 +6,7 @@ Default output: ../card-clash.html
 """
 import base64
 import io
+import json
 import pathlib
 import re
 import subprocess
@@ -52,6 +53,15 @@ def build_page(src, dest, assets):
                 sys.exit(f"Missing audio: assets/{name}")
             clips.append(f'"{base64.b64encode(assets[name]).decode()}"')
         out = out.replace("/*__PIN_VOICE__*/", ",".join(clips))
+    if "/*__COMMENTARY__*/" in src:
+        durations = json.loads(assets["commentary.json"])
+        clips = {}
+        for cue, duration in durations.items():
+            name = f"sound/{cue}.mp3"
+            if name not in assets or not assets[name] or type(duration) is not int or duration <= 0:
+                sys.exit(f"Invalid commentary asset: {name}")
+            clips[cue] = [duration, base64.b64encode(assets[name]).decode()]
+        out = out.replace("/*__COMMENTARY__*/", json.dumps(clips, separators=(",", ":"))[1:-1])
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(out, encoding="utf-8")
     print(f"wrote {dest} ({len(out.encode('utf-8')) // 1024} KB)")

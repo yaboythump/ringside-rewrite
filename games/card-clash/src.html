@@ -20,7 +20,7 @@
 }
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;overflow-x:hidden;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 28px}
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(18px,env(safe-area-inset-top)) max(28px,env(safe-area-inset-bottom))}
 #arena{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 #flash{position:fixed;inset:0;z-index:30;pointer-events:none;background:#fff;opacity:0}
 #flash.go{animation:flash .45s ease-out}
@@ -28,7 +28,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px
 .app{position:relative;z-index:1;max-width:760px;margin:0 auto;display:grid;gap:14px}
 .app.quake{animation:quake .5s cubic-bezier(.36,.07,.19,.97)}
 @keyframes quake{10%,90%{transform:translate(-2px,1px)}20%,80%{transform:translate(5px,-2px)}30%,50%,70%{transform:translate(-8px,3px)}40%,60%{transform:translate(8px,-3px)}}
-button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;touch-action:manipulation}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 
 /* type */
@@ -46,7 +46,8 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
   clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);transition:transform .2s ease,filter .2s}
 .pick::before{content:"";position:absolute;inset:0;padding:1px;background:linear-gradient(160deg,var(--gold),transparent 40%,transparent 70%,var(--gold-deep));
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
-.pick:hover{transform:translateY(-4px) scale(1.015);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}
+@media(hover:hover) and (pointer:fine){.pick:hover{transform:translateY(-4px) scale(1.015);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}}
+.pick:focus-visible{outline-offset:-4px}
 .pick h3{font-family:var(--display);font-weight:900;font-style:italic;font-size:30px;line-height:.9;margin:0;text-transform:uppercase}
 .pick p{margin:0;color:var(--steel);font-size:13px;line-height:1.4}
 .pick .fin{font-family:var(--label);font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
@@ -146,6 +147,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .card h4{margin:2px 0 0;font-family:var(--display);font-weight:900;font-style:italic;font-size:23px;line-height:.9;text-transform:uppercase}
 .card .big{font-family:var(--display);font-weight:900;font-style:italic;font-size:30px;line-height:1;color:var(--c);text-shadow:0 0 14px color-mix(in srgb,var(--c) 60%,transparent)}
 .card p{margin:0;font-size:12.5px;line-height:1.35;color:var(--steel)}
+.card .damage-note{color:var(--gold);font-weight:700}
 .card.sig{--sig:1}
 .card.sig .seal{position:absolute;right:8px;bottom:7px;font-family:var(--label);font-weight:700;font-size:9px;letter-spacing:.18em;text-transform:uppercase;background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent}
 .t-strike{--c:var(--strike)} .t-grapple{--c:var(--grapple)} .t-defense{--c:var(--defense)} .t-hype{--c:var(--hype)}
@@ -207,10 +209,10 @@ img.belt.sm{width:min(60vw,240px);animation:none;justify-self:center}
 .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,225px),1fr));gap:14px}
 .mode{position:relative;text-align:left;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;min-width:0;gap:8px;padding:18px 18px 20px;background:linear-gradient(160deg,rgba(40,40,48,.9),rgba(10,10,12,.92));
   clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%);transition:transform .2s,filter .2s}
-.mode:hover{transform:translateY(-4px);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}
-.mode h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(24px,3vw,27px);line-height:1.04;letter-spacing:-.03em;overflow-wrap:anywhere;text-transform:uppercase}
-.mode p{margin:0;color:var(--steel);line-height:1.45;font-size:14px}
-.mode .go{font-family:var(--label);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--gold)}
+@media(hover:hover) and (pointer:fine){.mode:hover{transform:translateY(-4px);filter:drop-shadow(0 10px 24px rgba(226,189,98,.25))}}
+.mode .mode-title{display:block;margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:clamp(24px,3vw,27px);line-height:1.04;letter-spacing:-.03em;overflow-wrap:anywhere;text-transform:uppercase}
+.mode .mode-detail{display:block;margin:0;color:var(--steel);line-height:1.45;font-size:14px}
+.mode > span{pointer-events:none}
 .mode.primary::before{content:"";position:absolute;inset:0;padding:2px;background:linear-gradient(120deg,var(--gold-hi),var(--gold),var(--gold-deep));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%)}
 .panel{position:relative;padding:14px 16px;background:linear-gradient(160deg,rgba(28,28,34,.9),rgba(10,10,12,.88));display:grid;gap:10px;min-width:0}
 .panel h3{margin:0;font-family:var(--display);font-weight:900;font-style:italic;font-size:24px;line-height:.9;text-transform:uppercase}
@@ -423,9 +425,9 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
 .home-hero .logo .l2{font-size:clamp(38px,9vw,60px)}
 .home-modes{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
 .home-modes .mode{min-height:58px;padding:9px 10px;gap:3px}
-.home-modes .mode h3{font-size:clamp(16px,4.5vw,25px)}
-.home-modes .mode p{font-size:12px;line-height:1.25}
-.home-modes #m-cont{grid-column:1/-1}
+.home-modes .mode .mode-title{font-size:clamp(16px,4.5vw,25px)}
+.home-modes .mode .mode-detail{font-size:12px;line-height:1.25}
+.home-modes #m-cont,.home-modes #m-career.primary{grid-column:1/-1}
 .home-actions .btn{font-size:15px;min-height:44px;padding:6px 12px}
 @media(max-width:600px), (pointer:coarse){
   body:has(.career-view){box-sizing:border-box;height:100dvh;overflow:hidden;
@@ -500,7 +502,7 @@ body{margin:0;padding-top:max(18px,env(safe-area-inset-top));padding-bottom:max(
 
 <canvas id="arena" aria-hidden="true"></canvas>
 <div id="flash"></div>
-<div class="app" id="app"></div>
+<main class="app" id="app"></main>
 
 <script>
 const NATIVE = typeof window==="undefined"?null:window.RingsideNative;
@@ -515,6 +517,7 @@ const BEST_KEY=PREVIEW?"rcc-preview-best":"rcc-best";
 const CUP_KEY=PREVIEW?"rcc-preview-cup":"rcc-cup";
 const TAG_KEY=PREVIEW?"rcc-preview-tag":"rcc-tag";
 const MUTE_KEY=PREVIEW?"rcc-preview-mute":"rcc-mute";
+const COMMENTARY_KEY=PREVIEW?"rcc-preview-commentary-off":"rcc-commentary-off";
 const MUSIC_KEY=PREVIEW?"rcc-preview-music-off":"rcc-music-off";
 const MOTION_KEY=PREVIEW?"rcc-preview-low-motion":"rcc-low-motion";
 let lowMotion=false;
@@ -764,7 +767,13 @@ const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const wait=ms=>new Promise(r=>setTimeout(r,still()?Math.min(ms,150):ms));
 
-function loadBest(){try{return JSON.parse(gameStorage.getItem(BEST_KEY)||"{}")}catch(e){return {}}}
+function loadBest(){
+  try{
+    const best=JSON.parse(gameStorage.getItem(BEST_KEY)||"{}");
+    return Object.fromEntries(Object.entries(best||{}).filter(([id,wins])=>
+      Object.hasOwn(WRESTLERS,id)&&Number.isSafeInteger(wins)&&wins>0));
+  }catch(e){return {};}
+}
 function saveBest(b){try{gameStorage.setItem(BEST_KEY,JSON.stringify(b))}catch(e){}}
 
 /* ---------- arena canvas ---------- */
@@ -823,54 +832,67 @@ function quake(){if(still())return;app.classList.remove("quake");void app.offset
 /* ---------- sound ---------- */
 let AC=null,master=null,muted=false,musicOff=false,lastCrowd=0,musicTimer=0,musicBeat=0;
 const PIN_VOICE=[/*__PIN_VOICE__*/];
+const COMMENTARY={/*__COMMENTARY__*/};
+const commentaryBuffers=new Map();
+let commentaryOff=false,commentarySource=null,commentaryTimer=0,commentaryActive=false;
+try{commentaryOff=gameStorage.getItem(COMMENTARY_KEY)==="1";}catch(e){}
 const nativeAudio=typeof NATIVE?.audio==="function"?NATIVE.audio:null;
 let pinVoice=[],voiceLoad=null;
 try{muted=gameStorage.getItem(MUTE_KEY)==="1";musicOff=gameStorage.getItem(MUSIC_KEY)==="1"}catch(e){}
+let musicBus=null,musicScene="menu";
 function unlockAudio(){
-  if(muted||nativeAudio)return;
+  if(nativeAudio)return;
   try{
     if(!AC){
       const audio=new (window.AudioContext||window.webkitAudioContext)();
       master=audio.createGain();
       master.connect(audio.destination);
+      master.gain.value=muted?0:1;
+      musicBus=audio.createGain();
+      musicBus.connect(audio.destination);
       AC=audio;
     }
     if(AC.state==="suspended"||AC.state==="interrupted")AC.resume().catch(()=>{});
+    if(!musicTimer&&!musicOff)syncMusic();
+    loadCommentary();
   }catch(e){}
 }
 // Unlock in the initiating gesture, before navigation or entrance timers.
 document.addEventListener("click",unlockAudio,true);
 document.addEventListener("keydown",unlockAudio,true);
 function actx(){return muted?null:AC;}
-function tone(f,dur,gain,type="sine",to){const a=actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);}
-function noise(dur,freq,gain,type="lowpass",attack=0){const a=actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t);}
+function tone(f,dur,gain,type="sine",to,output=master){const a=output===musicBus?AC:actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(output);o.start(t);o.stop(t+dur+.02);}
+function noise(dur,freq,gain,type="lowpass",attack=0,output=master){const a=output===musicBus?AC:actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(output);s.start(t);}
 const ARENA_RIFF=[110,110,0,130.81,110,0,146.83,130.81,98,98,0,110,98,0,130.81,146.83,110,0,110,164.81,146.83,130.81,110,0,87.31,87.31,98,0,130.81,110,98,0];
-function playArenaBeat(){
-  if(document.hidden||muted||musicOff||AC?.state!=="running")return;
-  const i=musicBeat++%ARENA_RIFF.length,f=ARENA_RIFF[i];
+const MENU_RIFF=[130.81,0,155.56,196,0,155.56,110,0,130.81,164.81,0,130.81,98,0,116.54,146.83];
+function playMusicBeat(){
+  if(document.hidden||musicOff||AC?.state!=="running")return;
+  const riff=musicScene==="arena"?ARENA_RIFF:MENU_RIFF;
+  const i=musicBeat++%riff.length,f=riff[i];
   if(f){
-    tone(f,.19,.085,"triangle");
-    tone(f*2,.15,.047,"triangle");
-    tone(f*3,.12,.025,"triangle");
-    if(i%8===0){tone(f*4,.32,.022,"triangle");tone(f*6,.26,.017,"triangle");}
+    tone(f,.25,.08,"triangle",null,musicBus);
+    tone(f*2,.2,.04,"triangle",null,musicBus);
+    if(i%4===0)tone(f*3,.32,.025,"triangle",null,musicBus);
   }
-  if(i%8===0||i%8===3||i%8===6)tone(108,.16,.145,"sine",44);
-  if(i%4===2){noise(.11,1700,.083,"bandpass");tone(185,.08,.036,"triangle",92);}
-  noise(.036,4800,i%2===1?.041:.022,"highpass");
+  if(i%8===0||i%8===6)tone(108,.16,.14,"sine",44,musicBus);
+  if(i%4===2)noise(.11,1700,.072,"bandpass",0,musicBus);
+  noise(.036,4800,i%2===1?.04:.02,"highpass",0,musicBus);
 }
-function stopArenaMusic(){
-  nativeAudio?.("music-stop");
+function syncMusic(){
   if(musicTimer)clearInterval(musicTimer);
   musicTimer=0;
-}
-function startArenaMusic(){
-  stopArenaMusic();
-  if(muted||musicOff||document.hidden)return;
-  if(nativeAudio){nativeAudio("music-start");return;}
-  if(!actx())return;
+  const active=!musicOff&&!document.hidden&&musicScene;
+  if(nativeAudio){nativeAudio(active?`music-${musicScene}`:"music-stop");return;}
+  if(musicBus)musicBus.gain.value=active?(commentaryActive ? .32 : 1):0;
+  if(!active||!AC)return;
   musicBeat=0;
-  playArenaBeat();
-  musicTimer=setInterval(playArenaBeat,235);
+  playMusicBeat();
+  musicTimer=setInterval(playMusicBeat,musicScene==="arena"?235:320);
+}
+function setMusicScene(scene){
+  if(musicScene===scene)return;
+  musicScene=scene;
+  syncMusic();
 }
 function loadPinVoice(){
   const audio=actx();
@@ -887,6 +909,53 @@ function speakPin(number){
   source.start(audio.currentTime+.07);
   return true;
 }
+function loadCommentary(){
+  if(!AC||nativeAudio||commentaryOff||commentaryBuffers.size)return;
+  for(const [cue,[,encoded]] of Object.entries(COMMENTARY)){
+    commentaryBuffers.set(cue,AC.decodeAudioData(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0)).buffer)
+      .catch(()=>null));
+  }
+}
+function stopCommentary(){
+  clearTimeout(commentaryTimer);
+  commentaryTimer=0;
+  if(commentarySource){commentarySource.stop();commentarySource=null;}
+  if(commentaryActive)nativeAudio?.("comment-stop");
+  commentaryActive=false;
+  if(musicBus&&!musicOff&&musicScene&&!document.hidden)musicBus.gain.value=1;
+}
+function callCommentary(event,priority=false){
+  if(commentaryOff||muted||document.hidden||!G?.desk)return;
+  if(!priority&&(commentaryActive||Date.now()<G.desk.nextCall))return;
+  stopCommentary();
+  const desk=G.desk;
+  const alternating=event==="reversal"||event==="finisher";
+  const hosts=alternating?[desk.turns++%2?"tasha":"malik"]:["malik","tasha"];
+  const cues=hosts.map(host=>`comment-${host}-${event}`).filter(cue=>COMMENTARY[cue]);
+  if(!cues.length)return;
+  desk.nextCall=Date.now()+9500;
+  commentaryActive=true;
+  if(musicBus&&!musicOff&&musicScene)musicBus.gain.value=.32;
+  async function next(index){
+    const cue=cues[index];
+    if(!cue){stopCommentary();return;}
+    if(nativeAudio){nativeAudio(cue);}
+    else {
+      const audio=actx(),clip=await commentaryBuffers.get(cue);
+      // A stop or a newer call can happen while Web Audio decodes the clip.
+      if(commentaryTimer!==token||G?.desk!==desk)return;
+      if(!audio||audio.state!=="running"||!clip){stopCommentary();return;}
+      const source=audio.createBufferSource();
+      source.buffer=clip;
+      source.connect(master);
+      source.onended=()=>{if(commentarySource===source)commentarySource=null;};
+      commentarySource=source;
+      source.start();
+    }
+    token=commentaryTimer=setTimeout(()=>next(index+1),COMMENTARY[cue][0]+160);
+  }
+  let token=commentaryTimer=setTimeout(()=>next(0),0);
+}
 const WEB_SFX={
   tag(){tone(300,.12,.22,"triangle",160);tone(560,.16,.12,"sine",760);},
   entrance(){tone(110,.55,.20,"triangle",55);tone(220,.65,.095,"triangle",130);},
@@ -900,14 +969,17 @@ const WEB_SFX={
   bell(){tone(1320,1.1,.2);tone(1985,.8,.09);tone(2640,.5,.04)},
   crowd(){const n=Date.now();if(n-lastCrowd<900)return;lastCrowd=n;noise(1.4,1100,.2,"bandpass",.25)},
   boo(){tone(140,.7,.12,"sawtooth",95)},
+  menu(){tone(510,.065,.07,"triangle",640);},
+  victory(){tone(392,.25,.14,"triangle",523);tone(659,.55,.10,"sine");},
+  defeat(){tone(220,.52,.15,"triangle",82);},
 };
 const SFX=nativeAudio?Object.fromEntries(Object.keys(WEB_SFX).map(cue=>[cue,()=>{
-  if(!muted&&!document.hidden)nativeAudio(cue);
+  if(!muted&&!document.hidden)nativeAudio(cue==="menu"?"card":cue==="victory"?"crowd":cue==="defeat"?"boo":cue);
 }])):WEB_SFX;
 document.addEventListener("visibilitychange",()=>{
-  if(!nativeAudio)return;
-  if(document.hidden)nativeAudio("stop-all");
-  else if(G?.p&&!G.over)startArenaMusic();
+  if(document.hidden){stopCommentary();nativeAudio?.("stop-all");}
+  else if(AC?.state!=="running")AC?.resume().catch(()=>{});
+  syncMusic();
 });
 document.addEventListener("ringside-audio-started",()=>{
   const status=$("#sound-status");
@@ -918,18 +990,25 @@ document.addEventListener("ringside-audio-failed",()=>{
   if(status)status.textContent="iPhone audio couldn’t start. Check your audio output and try again.";
 });
 document.addEventListener("click",e=>{
-  if(!e.target.closest("[data-mute]"))return;
+  const button=e.target.closest?.("button");
+  if(!button)return;
+  if(!button.matches("[data-mute]")){
+    if(!G?.p||G.over)SFX.menu();
+    return;
+  }
   muted=!muted;
   try{gameStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}
-  document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");
+  document.querySelectorAll("[data-mute]").forEach(button=>{
+    button.textContent=muted?"Effects off":"Effects on";
+    button.setAttribute("aria-pressed",String(!muted));
+  });
   if(master)master.gain.value=muted?0:1;
-  if(muted){nativeAudio?.("stop-all");stopArenaMusic();return;}
+  if(muted){stopCommentary();nativeAudio?.("effects-stop");return;}
   unlockAudio();
-  SFX.bell();
+  SFX.menu();
   loadPinVoice();
-  if(G?.p&&!G.over)startArenaMusic();
 });
-const muteBtn=()=>`<button class="mutebtn" data-mute>${muted?"Sound off":"Sound on"}</button>`;
+const muteBtn=()=>`<button class="mutebtn" data-mute aria-label="Sound effects" aria-pressed="${!muted}">${muted?"Effects off":"Effects on"}</button>`;
 
 /* ---------- pieces ---------- */
 function portrait(w){
@@ -942,23 +1021,30 @@ const logo=()=>`<h1 class="logo"><span class="l1">Ringside</span><span class="l2
 
 /* ---------- screens ---------- */
 function titleScreen(){
-  stopArenaMusic();
+  stopCommentary();
+  setMusicScene("menu");
   G=null;
+  syncMusic();
   if(typeof scrollTo==="function")scrollTo(0,0);
   const saved=loadCareer(),cup=loadCup();
   app.innerHTML=`
   <header class="hero home-hero">${logo()}</header>
   ${PREVIEW?'<p class="release-notice">Playtest build · Uses its own career save.</p>':""}
   <div class="modes home-modes">
-    ${saved?`<button class="mode primary" id="m-cont"><span class="go">Continue career</span><h3 class="metal">${esc(WRESTLERS[saved.wid].name)}</h3><p>Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?mainTitle(saved.wid):`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</p></button>`:""}
-    <button class="mode ${saved?"":"primary"}" id="m-career"><h3>${saved?"New career":"Career"}</h3><p>Build your wrestler and chase titles.</p></button>
-    <button class="mode" id="m-quick"><h3>Quick Match</h3><p>Three-match ladder</p></button>
-    <button class="mode" id="m-exhibition"><h3>Exhibition</h3><p>Pick your matchup</p></button>
-    <button class="mode" id="m-tag"><h3>Tag Team</h3><p>Two on two</p></button>
-    <button class="mode" id="m-tournament"><h3>Championship Cup</h3><p>${cup?`Saved bracket · ${esc(WRESTLERS[cup.pid].name)}${cup.bracket[2][0].winner?" · Final results":` · ${ROUND_NAMES[cup.round]}`}`:"Eight-wrestler bracket"}</p></button>
+    ${saved?`<button class="mode primary" id="m-cont" aria-label="Continue career"><span class="mode-title metal">Continue career</span><span class="mode-detail">${esc(WRESTLERS[saved.wid].name)} · Week ${saved.week} · ${saved.w}-${saved.l} · ${saved.champ===saved.wid?mainTitle(saved.wid):`Ranked #${saved.contenders.indexOf(saved.wid)+1}`}</span></button>`:""}
+    <button class="mode ${saved?"":"primary"}" id="m-career" aria-label="New career"><span class="mode-title">New career</span><span class="mode-detail">Build your wrestler and chase titles.</span></button>
+    <button class="mode" id="m-quick"><span class="mode-title">Quick Match</span><span class="mode-detail">Three-match ladder</span></button>
+    <button class="mode" id="m-exhibition" aria-label="Exhibition"><span class="mode-title">Exhibition</span><span class="mode-detail">Pick your matchup</span></button>
+    <button class="mode" id="m-tag"><span class="mode-title">Tag Team</span><span class="mode-detail">Two on two</span></button>
+    <button class="mode" id="m-tournament"><span class="mode-title">Championship Cup</span><span class="mode-detail">${cup?`Saved bracket · ${esc(WRESTLERS[cup.pid].name)}${cup.bracket[2][0].winner?" · Final results":` · ${ROUND_NAMES[cup.round]}`}`:"Eight-wrestler bracket"}</span></button>
   </div>
-  <div class="actions home-actions"><button class="btn" id="m-help">How to play</button><button class="btn" id="m-settings">Settings &amp; credits</button></div>`;
-  $("#m-cont")?.addEventListener("click",()=>{C=saved;hub();});
+  <div class="actions home-actions"><button class="btn" id="m-help">How to play</button><button class="btn" id="m-settings" aria-label="Settings">Settings</button></div>`;
+  const continueCareer=$("#m-cont");
+  if(continueCareer)continueCareer.onclick=()=>{
+    C=loadCareer();
+    if(C)hub();
+    else titleScreen();
+  };
   $("#m-career").onclick=()=>selectScreen("career");
   $("#m-quick").onclick=()=>selectScreen("quick");
   $("#m-exhibition").onclick=()=>selectScreen("exhibition");
@@ -969,6 +1055,7 @@ function titleScreen(){
 }
 const MODE_NAMES={career:"New career",quick:"Quick match ladder",exhibition:"Exhibition",tag:"Tag Team",tournament:"Championship Cup"};
 function selectScreen(mode,division="open"){
+  if(typeof scrollTo==="function")scrollTo(0,0);
   const best=loadBest();
   app.innerHTML=`
   <header class="brand">${logo()}<span class="tag">${MODE_NAMES[mode]}</span></header>
@@ -976,7 +1063,7 @@ function selectScreen(mode,division="open"){
   <div class="segmented" aria-label="Roster division"><button class="btn" data-division="open" aria-pressed="${division==="open"}">Open division</button><button class="btn" data-division="women" aria-pressed="${division==="women"}">Women’s division</button></div>
   <div class="eyebrow">Choose your wrestler</div>
   <div class="roster">${roster().filter(w=>divisionOf(w.id)===division).map(w=>`
-    <button class="pick" data-w="${w.id}">
+    <button class="pick" data-w="${w.id}" aria-label="${esc(w.name)}" aria-description="${esc(w.style)}, ${w.hp} stamina, finisher ${esc(w.fin.name)}">
       ${portrait(w)}
       <div class="tape">${esc(w.tag)}</div>
       <h3>${esc(w.name)}</h3>
@@ -1002,20 +1089,21 @@ function guideScreen(screen){
   app.innerHTML=`<header class="brand">${logo()}</header><section class="panel"><h3>${help?"How to wrestle":"Settings"}</h3>
   ${help?`<ol class="news">
     <li>Each turn starts with five cards and three energy. A card's top-right number is its cost.</li>
-    <li>Read Next move before committing. Block absorbs damage. Reversal cancels grapples. Slip &amp; Rip counters strikes.</li>
+    <li>Damage on a card in your hand shows how much stamina that move will take right now. Block and Weakened reduce the hit. Exposed adds 3 if the hit gets through.</li>
+    <li>Read Next move before committing. Reversal cancels grapples. Slip &amp; Rip counters strikes.</li>
     <li>Land a strike before a grapple in the same turn for +3 damage. Exposed adds +3 to the next hit that gets through. Anchor Stance clears Exposed and Weakened.</li>
     <li>At 10 hype, use your finisher for zero energy or hold hype for a kick-out. You can kick out once at 5 hype, except in a steel cage.</li>
     <li>Career wins earn in-game cash. Buy cards in the Move Shop, then equip or swap them in Fight Camp. Training still costs one weekly segment. Your career and settings save on this device.</li>
   </ol><button class="btn primary" id="practice">Practice in exhibition</button>`
-  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}">Arena music ${musicOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
+  :`<div class="actions">${muteBtn()}<button class="btn" id="test-sound" aria-label="Test ring bell">Test ring bell</button><button class="btn" id="music" aria-pressed="${!musicOff}" aria-label="Music">Music ${musicOff?"off":"on"}</button><button class="btn" id="commentary" aria-pressed="${!commentaryOff}" aria-label="Commentary">Commentary ${commentaryOff?"off":"on"}</button><button class="btn" id="motion" aria-pressed="${lowMotion}">Reduced effects ${lowMotion?"on":"off"}</button></div><p id="sound-status" role="status"></p>
     ${RM?'<p class="howto">This device requests reduced motion.</p>':""}
-    <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. The arena music and effects are synthesized in-game. Referee voice is synthesized with Festival Lite.</p>`}
+    <h3>Credits</h3><p>Ringside Card Clash is a CTInteractive game from CTNETWORK Studios. Wrestlers and promotions are fictional. The 24 preset wrestlers use AI-generated backstage portraits. The arena music and effects are synthesized in-game. Malik and Tasha provide the match commentary. Malik is also the referee. Voices generated with ElevenLabs.</p>`}
   </section><div class="actions"><button class="btn" id="back">Main menu</button></div>`;
   $("#back").onclick=titleScreen;
   $("#practice")?.addEventListener("click",()=>exhibitionSetup("raven"));
   $("#test-sound")?.addEventListener("click",()=>{
     const status=$("#sound-status");
-    if(muted){status.textContent="Turn on Sound to hear the ring bell.";return;}
+    if(muted){status.textContent="Turn on Sound Effects to hear the ring bell.";return;}
     if(nativeAudio){status.textContent="Starting ring bell…";nativeAudio("test-bell");return;}
     SFX.bell();
     status.textContent="Ring bell test triggered.";
@@ -1023,7 +1111,17 @@ function guideScreen(screen){
   $("#music")?.addEventListener("click",()=>{
     musicOff=!musicOff;
     try{gameStorage.setItem(MUSIC_KEY,musicOff?"1":"0");}catch(e){}
-    guideScreen(screen);
+    syncMusic();
+    $("#music").setAttribute("aria-pressed",String(!musicOff));
+    $("#music").textContent=musicOff?"Music off":"Music on";
+  });
+  $("#commentary")?.addEventListener("click",()=>{
+    commentaryOff=!commentaryOff;
+    try{gameStorage.setItem(COMMENTARY_KEY,commentaryOff?"1":"0");}catch(e){}
+    if(commentaryOff)stopCommentary();
+    else loadCommentary();
+    $("#commentary").setAttribute("aria-pressed",String(!commentaryOff));
+    $("#commentary").textContent=commentaryOff?"Commentary off":"Commentary on";
   });
   $("#motion")?.addEventListener("click",()=>{
     lowMotion=!lowMotion;
@@ -1264,7 +1362,7 @@ function tournamentScreen(){
 
 function makeFighter(id,opt={}){
   const w=WRESTLERS[id], lvl=opt.level||0, hp=w.hp+lvl*6+(opt.hpPlus||0);
-  return {w,hp:Math.max(10,hp+(opt.hpMod||0)),max:hp,hype:Math.min(HYPE_MAX,(w.archetype==="show"?4:0)+(opt.hype||0)),block:0,weak:0,exposed:false,strikeCounter:false,kicked:false,
+  return {w,hp:Math.max(10,hp+(opt.hpMod||0)),max:hp,hype:Math.max(0,Math.min(HYPE_MAX,(w.archetype==="show"?4:0)+(opt.hype||0))),block:0,weak:0,exposed:false,strikeCounter:false,kicked:false,
     deck:shuffle(opt.deck?[...opt.deck]:[...BASE_DECK,...w.sig,...w.sig.slice(0,1)]),hand:[],discard:[],energy:ENERGY,reversal:false};
 }
 function startRun(id){
@@ -1272,8 +1370,11 @@ function startRun(id){
   startMatch();
 }
 async function startMatch(){
+  stopCommentary();
+  G.desk={nextCall:0,turns:0};
   loadPinVoice();
-  startArenaMusic();
+  loadCommentary();
+  setMusicScene("arena");
   if(G.mode==="career"){
     const plus=G.stip==="lastman"?15:0;
     G.p=makeFighter(G.pid,{deck:C.deck,hype:C.hypeBonus+(C.hypeMod||0),hpMod:Math.min(0,C.hpMod||0)-injuryPenalty(C),hpPlus:plus+Math.max(0,C.hpMod||0)}); G.o=makeFighter(G.oid,{level:G.level,hpPlus:plus});
@@ -1296,6 +1397,7 @@ async function startMatch(){
   pickIntent(); dealHand(); render();
   await vsSplash();
   G.busy=false; render();
+  callCommentary("entrance",true);
 }
 function vsSplash(){
   return new Promise(res=>{
@@ -1348,11 +1450,36 @@ function matchRating(won){
   return Math.min(5,Math.round(r*4)/4);
 }
 function starsHTML(r){const full=Math.floor(r),fr=r-full;return `<div class="stars">${"★".repeat(full)}${fr>=.75?"¾":fr>=.5?"½":fr>=.25?"¼":""}<small>${r.toFixed(2)} star match</small></div>`;}
-function damage(t,amount,{ignoreBlock=false}={}){
-  let d=amount;
-  if(!ignoreBlock&&t.block>0){const u=Math.min(t.block,d);t.block-=u;d-=u;}
-  if(d>0&&t.exposed){d+=3;t.exposed=false;}
-  t.hp=Math.max(0,t.hp-d);return d;
+function damagePreview(target,amount,{ignoreBlock=false}={}){
+  const blocked=ignoreBlock?0:Math.min(target.block,amount);
+  const hit=amount-blocked;
+  const exposure=hit>0&&target.exposed?3:0;
+  const dealt=Math.min(target.hp,hit+exposure);
+  return {dealt,blocked,exposure,capped:dealt<hit+exposure};
+}
+function applyDamage(target,{dealt,blocked,exposure}){
+  target.hp-=dealt;
+  target.block-=blocked;
+  if(exposure)target.exposed=false;
+  return dealt;
+}
+function damage(target,amount,options){
+  return applyDamage(target,damagePreview(target,amount,options));
+}
+function attackPreview(attacker,target,power,pierce){
+  const weakened=attacker.weak>0?Math.min(3,power):0;
+  return {...damagePreview(target,power-weakened,{ignoreBlock:pierce}),weakened};
+}
+function cardHit(c){
+  return attackPreview(G.p,G.o,cardDmg(c),c.pierce);
+}
+function damageModifiers({blocked,weakened,exposure,capped}){
+  return [
+    blocked?`${blocked} blocked`:"",
+    weakened?`−${weakened} weakened`:"",
+    exposure?`+${exposure} exposed`:"",
+    capped?"stamina left":""
+  ].filter(Boolean).join(" · ");
 }
 function impact(who,amount,big){
   if(!still()&&amount>0)NATIVE?.impact(big?"heavy":"light");
@@ -1371,13 +1498,11 @@ function playCard(i){
   let ringHit=null;
   if(c.dmg){
     const combo=c.type==="grapple"&&G.lastType==="strike";
-    let d=cardDmg(c);
-    if(p.weak>0) d=Math.max(0,d-3);
-    const previousBlock=o.block;
-    const dealt=damage(o,d,{ignoreBlock:c.pierce});
+    const hit=cardHit(c);
+    const dealt=applyDamage(o,hit);
     ringHit=dealt;
-    const blocked=previousBlock-o.block;
-    msg=`${combo?"COMBO! ":""}${c.name} for ${dealt}${blocked?` (${blocked} blocked)`:""}!`;
+    const modifiers=damageModifiers(hit);
+    msg=`${combo?"COMBO! ":""}${c.name} for ${dealt}${modifiers?` (${modifiers})`:""}!`;
     impact("o",dealt,false);G.lastType=c.type;if(combo)crowd(60);
     gainHype(p,(c.hype||0)+(c.type==="strike"&&p.w.archetype==="aerial"?1:0));
     gainHype(o,1);
@@ -1422,7 +1547,7 @@ function finisherSplash(w,byYou){
 }
 function finishMove(attacker,target){
   const f=attacker.w.fin;
-  const dealt=damage(target,Math.max(0,f.dmg-(attacker.weak>0?3:0)),{ignoreBlock:f.pierce});
+  const dealt=applyDamage(target,attackPreview(attacker,target,f.dmg,f.pierce));
   if(f.weak&&dealt) target.weak=Math.max(target.weak,f.weak);
   if(f.heal) attacker.hp=Math.min(attacker.max,attacker.hp+f.heal);
   return dealt;
@@ -1440,6 +1565,7 @@ async function useFinisher(){
   gainHype(o,1);
   G.busy=false;
   if(checkPin(o,p)) return;
+  if(dealt>0)callCommentary("finisher");
   render();
 }
 async function endTurn(){
@@ -1451,12 +1577,13 @@ async function endTurn(){
 }
 function oppAct(){
   const p=G.p,o=G.o,it=G.intent;
-  o.block=0;let msg="";
+  o.block=0;let msg="",call=null;
   if((G.level||0)>=2&&it.type!=="finisher") gainHype(o,1);
   if(it.type==="finisher"){
     o.hype=0;G.stats.fin++;
     const dealt=finishMove(o,p);
     ringAction("o","finisher",it.label,dealt);
+    if(dealt>0)call="finisher";
     impact("p",dealt,true);msg=`${o.w.name} hits the ${it.label}! ${dealt} damage!`;
   } else if((it.type==="grapple"&&p.reversal)||(it.type==="strike"&&p.strikeCounter)){
     const tech=it.type==="grapple"&&p.w.archetype==="tech";
@@ -1464,6 +1591,7 @@ function oppAct(){
     if(tech) p.block+=3;
     const dealt=damage(o,back);impact("o",dealt,false);crowd(60);
     ringAction("p","strike","Reversal",dealt);
+    call="reversal";
     gainHype(p,2);G.stats.rev++;msg=`REVERSED! You counter for ${dealt}!`;
   } else if(it.type==="strike"||it.type==="grapple"){
     if(p.reversal&&it.type==="strike") p.block+=3;
@@ -1486,6 +1614,7 @@ function oppAct(){
   say(msg);
   if(p.weak>0) p.weak--;
   if(checkPin(o,p,true)||checkPin(p,o,true)) return;
+  if(call)callCommentary(call);
   advanceTurn();
 }
 
@@ -1494,12 +1623,14 @@ function advanceTurn(){G.turn++;pickIntent();G.busy=false;startTurn();}
 function checkPin(down,up,afterOpponent=false){
   if(down.hp>0) return false;
   G.busy=true;render();
+  stopCommentary();
   const canKick=!down.kicked&&down.hype>=5&&G.stip!=="cage";
   const beat=ringSpace.matches&&!still()&&G.ring?wait(430):Promise.resolve();
   beat.then(()=>pinCount(canKick)).then(()=>{
     if(canKick){
       down.kicked=true;down.hype-=5;down.hp=5;G.stats.kicks++;crowd(120);
       say(`${down.w.name} KICKS OUT AT TWO!`);
+      callCommentary("kickout",true);
       if(afterOpponent) advanceTurn();
       else {G.busy=false;if(G.intent.type==="finisher"&&down.hype<HYPE_MAX)pickIntent();render();}
     } else finishMatch(up===G.p);
@@ -1507,7 +1638,9 @@ function checkPin(down,up,afterOpponent=false){
   return true;
 }
 async function pinCount(kick){
-  const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
+  const ov=document.createElement("div");ov.className="overlay";
+  ov.setAttribute("role","status");
+  document.body.appendChild(ov);
   const steps=kick?["1","2","KICK OUT!"]:["1","2","3"];
   for(const s of steps){
     ov.innerHTML=`<div><div class="ref">The referee counts</div><div class="count ${s==="3"?"three":""} ${s.length>2?"out":""}">${s}</div></div>`;
@@ -1525,8 +1658,11 @@ async function pinCount(kick){
 
 function finishMatch(won){
   if(G.over)return;
-  stopArenaMusic();
+  setMusicScene(null);
   G.over=true;
+  const winner=won?G.p:G.o,loser=won?G.o:G.p;
+  if(winner&&loser)callCommentary(winner.max+10<=loser.max?"upset":"result",true);
+  if(won)SFX.victory();else SFX.defeat();
   if(G.mode==="career"){careerResult(won);return;}
   if(G.mode!=="quick"){eventResult(won);return;}
   const ov=document.createElement("div");ov.className="overlay";document.body.appendChild(ov);
@@ -1546,7 +1682,7 @@ function finishMatch(won){
   const close=()=>ov.remove();
   ov.querySelector("#next")?.addEventListener("click",()=>{close();G.round++;startMatch();});
   ov.querySelector("#again")?.addEventListener("click",()=>{close();startRun(G.pid);});
-  ov.querySelector("#roster").addEventListener("click",()=>{close();G=null;selectScreen("quick");});
+  ov.querySelector("#roster").addEventListener("click",()=>{close();stopCommentary();G=null;selectScreen("quick");});
 }
 
 function eventResult(won){
@@ -1692,24 +1828,38 @@ function normalizeCareer(c){
     if(!w) return null;
     WRESTLERS.custom=w;
   }else if(!Object.hasOwn(WRESTLERS,c.wid)) return null;
-  if(!Array.isArray(c.contenders)||!Array.isArray(c.news)||!Number.isInteger(c.week)||c.week<1) return null;
+  if(!Number.isSafeInteger(c.week)||c.week<1) return null;
+  c.contenders=Array.isArray(c.contenders)?c.contenders:[];
+  c.news=Array.isArray(c.news)?c.news.filter(line=>typeof line==="string").slice(0,5):[];
+  for(const key of ["w","l","fame","defenses","reigns","secondaryDefenses"]){
+    c[key]=Number.isSafeInteger(c[key])&&c[key]>=0?c[key]:0;
+  }
   const division=divisionOf(c.wid);
   const pool=roster().filter(w=>divisionOf(w.id)===division).map(w=>w.id);
   if(![...pool,c.wid].includes(c.champ)) c.champ=division==="women"?"imani":"silas";
-  const eligible=new Set([...pool,c.wid].filter(id=>id!==c.champ));
+  const eligible=new Set([...pool.filter(id=>id!==c.wid),c.wid].filter(id=>id!==c.champ));
   c.contenders=[...new Set([...c.contenders,...eligible])].filter(id=>eligible.has(id));
   if(c.booked&&(![...eligible,c.champ].includes(c.booked.id)||c.booked.id===c.wid))c.booked=null;
-  if(c.booked&&!Object.hasOwn(STIPS,c.booked.stip)) c.booked.stip=null;
-  c.hpMod=c.hpMod||0;c.hypeMod=c.hypeMod||0;c.best=c.best||0;c.align=c.align||0;
+  if(c.booked){
+    c.booked.title=[true,"main","secondary"].includes(c.booked.title)?c.booked.title:false;
+    if(!Object.hasOwn(STIPS,c.booked.stip))c.booked.stip=null;
+  }
+  c.hpMod=Number.isFinite(c.hpMod)?Math.max(-30,Math.min(30,c.hpMod)):0;
+  c.hypeMod=Number.isFinite(c.hypeMod)?Math.max(-HYPE_MAX,Math.min(HYPE_MAX,c.hypeMod)):0;
+  c.hypeBonus=Number.isFinite(c.hypeBonus)?Math.max(0,Math.min(HYPE_MAX,c.hypeBonus)):0;
+  c.best=Number.isFinite(c.best)?Math.max(0,Math.min(5,c.best)):0;
+  c.align=Number.isFinite(c.align)?Math.max(-5,Math.min(5,c.align)):0;
   if(!Number.isFinite(c.peak))c.peak=99;
   c.xp=Number.isFinite(c.xp)&&c.xp>=0?c.xp:(c.w||0)*12+(c.l||0)*5;
   c.cash=Number.isSafeInteger(c.cash)&&c.cash>=0?Math.min(c.cash,CASH_CAP):
     Math.min(CASH_CAP,Number.isSafeInteger(c.w)&&c.w>0?c.w*45:0);
-  c.history=Array.isArray(c.history)?c.history:[];
-  c.results=Array.isArray(c.results)?c.results:[];
+  c.history=Array.isArray(c.history)?c.history.filter(entry=>Number.isSafeInteger(entry?.week)&&
+    typeof entry.title==="string"&&typeof entry.wrestler==="string"&&["won","retained"].includes(entry.action)):[];
+  c.results=Array.isArray(c.results)?c.results.filter(entry=>Number.isSafeInteger(entry?.week)&&
+    typeof entry.opponent==="string"&&typeof entry.won==="boolean"&&Number.isFinite(entry.rating)).slice(0,100):[];
   c.secondary=division==="open"?(pool.includes(c.secondary)||c.secondary===c.wid?c.secondary:pool.find(id=>id!==c.wid&&id!==c.champ)):null;
   c.secondaryDefenses=c.secondaryDefenses||0;
-  c.arc=c.arc&&typeof c.arc==="object"?c.arc:{};
+  c.arc=c.arc&&typeof c.arc==="object"&&!Array.isArray(c.arc)?c.arc:{};
   if(!eligible.has(c.arc.foe)&&c.arc.foe!==c.champ)c.arc.foe=null;
   if(!pool.includes(c.arc.ally)||c.arc.ally===c.wid)c.arc.ally=null;
   if(!Object.hasOwn(FACTIONS,c.arc.faction))c.arc.faction=null;
@@ -1926,7 +2076,7 @@ function careerJournal(){
 function news(t){C.news.unshift(t);C.news=C.news.slice(0,5);}
 
 function hub(initialPane="tonight"){
-  G=null;normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
+  stopCommentary();G=null;setMusicScene("menu");normC();const b=book(),o=WRESTLERS[b.id],me=WRESTLERS[C.wid];
   const story=isPPV()||C.week%2===0;
   const rivalryBooked=C.office.active?.id==="rivalry";
   const r=myRank();C.peak=Math.min(C.peak,isChamp()?0:r+1);
@@ -1988,7 +2138,7 @@ function hub(initialPane="tonight"){
     <section class="panel"><h3>Career goals</h3><ul class="goals">${goals.map(g=>`<li class="${g[1]?"done":""}">${g[0]}</li>`).join("")}</ul><div class="stats"><span>Best match<b>${C.best?C.best.toFixed(2)+" ★":"-"}</b></span><span>Title defenses<b>${C.defenses}</b></span></div></section>
   </div>
   </div>
-  <div class="career-actions"><button class="btn" id="fight-camp">Fight Camp</button><button class="btn" id="move-shop">Move Shop · ${cashLabel(C.cash)}</button><button class="btn primary" id="fight">${b.title?"Title match":"To the ring"}</button></div>
+  <div class="career-actions"><button class="btn" id="fight-camp" aria-label="Fight Camp, move cards">Move Cards</button><button class="btn" id="move-shop">Move Shop · ${cashLabel(C.cash)}</button><button class="btn primary" id="fight" aria-label="${b.title?"Start title match":"To the ring"}">${b.title?"Title match":"To the ring"}</button></div>
   </div>`;
   const openPane=id=>{
     app.querySelectorAll("[data-career-tab]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.careerTab===id)));
@@ -2383,17 +2533,21 @@ function fighterHTML(f,who){
 }
 function cardHTML(id,i,p){
   const c=CARDS[id];
-  let big=c.big||"";
-  if(c.dmg){big=`${cardDmg(c)} DMG`;}
+  const hit=c.dmg?cardHit(c):null;
+  const big=hit?`${hit.dealt} DMG`:(c.big||"");
+  const modifiers=hit?damageModifiers(hit):"";
   const badge=rarity(c);
   const combo=c.dmg&&c.type==="grapple"&&G.lastType==="strike";
   return `<button class="card t-${c.type}${c.sig?" sig":""}" style="--i:${G.dealt?i:0}" data-i="${i}" ${c.cost>p.energy||G.busy?"disabled":""}>
     <div class="top"><span class="type">${c.type}</span><span class="cost"><b>${c.cost}</b></span></div>
-    <h4>${esc(c.name)}</h4><div class="big">${big}</div><p>${esc(c.text)}</p>${badge!=="common"?`<span class="seal">${badge}</span>`:""}${combo?`<span class="combo">Combo +3</span>`:""}</button>`;
+    <h4>${esc(c.name)}</h4><div class="big">${big}</div>${modifiers?`<p class="damage-note">${modifiers}</p>`:""}<p>${esc(c.text)}</p>${badge!=="common"?`<span class="seal">${badge}</span>`:""}${combo?`<span class="combo">Combo +3</span>`:""}</button>`;
 }
 function render(){
   if(!G||!G.p) return;
   const p=G.p,o=G.o;
+  const fin=p.w.fin;
+  const finReady=p.hype>=HYPE_MAX&&!G.busy;
+  const finDamage=finReady?attackPreview(p,o,fin.dmg,fin.pierce).dealt:null;
   const handScroll=G.dealt?0:(app.querySelector(".battle-hand")?.scrollTop||0);
   const ladder=G.mode==="career"
     ? `<span class="cur">Week ${C.week}</span><span>${esc(G.title||showName())}</span>${G.stip?`<span style="color:#ff6b7c">${STIPS[G.stip][0]}</span>`:""}`
@@ -2415,7 +2569,7 @@ function render(){
   </div>
   ${liveRingHTML()}
   <div class="actions battle-actions">
-    <button class="btn fin" id="fin" ${p.hype<HYPE_MAX||G.busy?"disabled":""}>${esc(p.w.fin.name)}</button>
+    <button class="btn fin" id="fin" ${finReady?"":"disabled"}>${esc(fin.name)}${finReady?` · ${finDamage} DMG`:""}</button>
     ${G.mode==="tag"?`<button class="btn" id="tag" ${G.busy?"disabled":""}>Tag partner</button>`:""}
     <span class="grow"></span>
     <button class="btn primary" id="end" ${G.busy?"disabled":""}>End turn</button>

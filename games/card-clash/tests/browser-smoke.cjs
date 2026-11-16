@@ -155,7 +155,7 @@ const legacy={
       await ring();
       await p.waitForFunction(()=>AC?.state==="running"&&musicBeat>0&&pinVoice.length===3);
       await click('[data-mute]');
-      assert.deepEqual(await p.evaluate(()=>[muted,musicTimer,master.gain.value]),[true,0,0]);
+      assert.deepEqual(await p.evaluate(()=>[muted,Boolean(musicTimer),master.gain.value]),[true,true,0]);
       await click('[data-mute]');
       await p.waitForFunction(()=>!muted&&master.gain.value===1&&musicBeat>0);
       if(label==="iPhone"&&!mode){

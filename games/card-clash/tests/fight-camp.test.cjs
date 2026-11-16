@@ -107,7 +107,7 @@ test("the career UI exposes Fight Camp, weekly training and save protection", ()
   assert.match(html,/rcc-career/);
 });
 
-function gameRuntime(native){
+function gameRuntime(native,timers={}){
   const no = () => {};
   const gradient = {addColorStop:no};
   const ctx = new Proxy({}, {
@@ -123,14 +123,14 @@ function gameRuntime(native){
     querySelector:sel=>sel==="#app"?app:sel==="#arena"?cv:button,
     querySelectorAll:()=>[],
     addEventListener:no,
-    createElement:()=>({className:"",style:{},innerHTML:"",remove:no,querySelector:()=>button})
+    createElement:()=>({className:"",style:{},innerHTML:"",remove:no,setAttribute:no,querySelector:()=>button})
   };
   const hot={ready:no,snapshot:no};
   const win={claude:{hot},confirm:()=>true,RingsideNative:native};
   const runtime=vm.createContext({
     document:doc,window:win,matchMedia:()=>({matches:true}),
     Image:class{set src(value){this._src=value}},
-    addEventListener:no,requestAnimationFrame:no,setTimeout:fn=>{fn();},
+    addEventListener:no,requestAnimationFrame:no,setTimeout:fn=>{fn();},clearTimeout:no,...timers,
     innerWidth:375,innerHeight:740,devicePixelRatio:1,
     localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)}
   });
@@ -298,6 +298,34 @@ test("blocked hits preserve Exposed, piercing hits consume it, and finishers app
   assert.equal(run("defender.block"),6);
 });
 
+test("the damage on a card matches the stamina removed by playing it", () => {
+  const {run}=gameRuntime();
+  run(`G={mode:"exhibition",round:1,turn:1,log:[],p:makeFighter("brick"),o:makeFighter("raven"),
+    intent:{type:"hype",label:"Play to the crowd"}};
+    G.p.hand=["pounce"];
+    G.p.energy=3;
+    G.o.block=9;`);
+  assert.equal(run("cardDmg(CARDS.pounce)"),13);
+  assert.match(run('cardHTML("pounce",0,G.p)'),/4 DMG.*9 blocked/);
+  assert.equal(run("G.o.block"),9,"preview must leave block intact");
+  const stamina=run("G.o.hp");
+  run("playCard(0)");
+  assert.equal(run("G.o.hp"),stamina-4);
+  assert.match(run("G.log[0]"),/Pounce for 4 \(9 blocked\)/);
+  assert.equal(run("G.o.block"),0);
+  assert.match(run('cardHTML("pounce",0,G.p)'),/13 DMG/);
+
+  run("G.p.weak=1;G.o.exposed=true;G.o.block=10;");
+  assert.match(run('cardHTML("pounce",0,G.p)'),/0 DMG.*10 blocked.*−3 weakened/);
+  assert.equal(run("G.o.exposed"),true);
+  run("G.o.hp=6;");
+  assert.match(run('cardHTML("knee",0,G.p)'),/6 DMG.*−3 weakened.*\+3 exposed.*stamina left/);
+  assert.equal(run("applyDamage(G.o,cardHit(CARDS.knee))"),6);
+  assert.equal(run("G.o.block"),10,"piercing leaves block intact");
+  assert.equal(run("G.o.exposed"),false);
+  assert.equal(run("G.o.hp"),0);
+});
+
 test("a grapple reversal that drops the AI to zero resolves a pin", async () => {
   const {run}=gameRuntime();
   run(`G={mode:'exhibition',pid:'dutch',oid:'brick',round:0,log:[],turn:1,stats:{fin:0,kicks:0,rev:0},bars:{},
@@ -463,4 +491,48 @@ test("the iPhone bridge owns its career saves while browser storage stays separa
   assert.equal(JSON.parse(saved.get("rcc-career")).wid,"brick");
   assert.equal(memory.has("rcc-career"),false);
   assert.equal(gameRuntime(bridge).run("loadCareer().wid"),"brick");
+});
+
+test("partial legacy and malformed career fields recover without losing valid progress", () => {
+  const {run,memory}=gameRuntime();
+  run("startCareer('brick');");
+  const saved=JSON.parse(memory.get("rcc-career"));
+  Object.assign(saved,{week:13,w:8,l:4,peak:4,best:"bad",hypeBonus:null,hpMod:"bad",contenders:null,
+    history:[null,{week:12,title:"World",wrestler:"Brick Malone",action:"won"}],
+    results:[null,{week:12,opponent:"Raven",won:true,rating:4}]});
+  memory.set("rcc-career",JSON.stringify(saved));
+  memory.set("rcc-best","null");
+  run("titleScreen();C=loadCareer();hub('records');careerJournal();");
+  assert.equal(run("C.week"),13);
+  assert.equal(run("C.w"),8);
+  assert.equal(run("C.l"),4);
+  assert.equal(run("C.peak"),4);
+  assert.equal(run("C.best"),0);
+  assert.equal(run("C.history.length"),1);
+  assert.equal(run("C.results.length"),1);
+  assert.equal(run("C.deck.length"),saved.deck.length);
+});
+
+test("stopping commentary clears the pending reply and a muted desk schedules no lines", async () => {
+  const cues = [];
+  const callbacks = new Map();
+  let nextId = 0;
+  const {run} = gameRuntime({audio:cue=>cues.push(cue)}, {
+    setTimeout: fn=>{const id=++nextId;callbacks.set(id,fn);return id;},
+    clearTimeout: id=>callbacks.delete(id)
+  });
+  run(`
+    G={desk:{nextCall:0,turns:0}};
+    COMMENTARY["comment-malik-entrance"]=[800,""];
+    COMMENTARY["comment-tasha-entrance"]=[800,""];
+    callCommentary("entrance",true);
+  `);
+  const [[id,play]]=callbacks;
+  callbacks.delete(id);
+  await play();
+  assert.deepEqual(cues,["comment-malik-entrance"]);
+  assert.equal(callbacks.size,1,"Tasha is waiting for Malik’s call to end");
+  run('stopCommentary();commentaryOff=true;callCommentary("entrance",true);');
+  assert.deepEqual(cues,["comment-malik-entrance","comment-stop"]);
+  assert.equal(callbacks.size,0,"The pin or mute clears the pending reply");
 });
