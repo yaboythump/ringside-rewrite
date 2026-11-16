@@ -292,7 +292,7 @@ const hasMove = () => !!findMove();
 const sfx = (() => {
   let ctx = null, master = null, noiseBuf = null;
   let muted = false;
-  try { muted = localStorage.getItem('ringcombo-muted') === '1'; } catch {}
+  try { muted = (window.RingsideNative ?? localStorage).getItem('ringcombo-muted') === '1'; } catch {}
   // A short silent WAV. Playing it through an <audio> element during a tap moves iOS into
   // "playback" mode, so the game is audible even with the ring/silent switch on.
   let unlockEl = null;
@@ -351,7 +351,7 @@ const sfx = (() => {
   return {
     init,
     get muted(){ return muted; },
-    toggle(){ muted = !muted; try { localStorage.setItem('ringcombo-muted', muted?'1':'0'); } catch {}
+    toggle(){ muted = !muted; try { (window.RingsideNative ?? localStorage).setItem('ringcombo-muted', muted?'1':'0'); } catch {}
       if (master) master.gain.value = muted ? 0 : 1.6;
       if (unlockEl) { if (muted) unlockEl.pause(); else unlockEl.play().catch(()=>{}); } return muted; },
     select(){ tone(660, 0.05, {type:'triangle', vol:0.15}); },
