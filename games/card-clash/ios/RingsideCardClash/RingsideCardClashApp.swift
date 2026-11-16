@@ -1,3 +1,4 @@
+import AVFAudio
 import SwiftUI
 import UIKit
 import WebKit
@@ -17,6 +18,9 @@ struct GameView: UIViewRepresentable {
     func makeCoordinator() -> GameController { GameController() }
 
     func makeUIView(context: Context) -> WKWebView {
+        // Keep game audio audible in Silent Mode. The game's sound setting
+        // still controls playback, and other apps may continue playing audio.
+        try? AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)
         let controller = context.coordinator
         let configuration = WKWebViewConfiguration()
         // Save files are owned by the app, including on devices where WebKit

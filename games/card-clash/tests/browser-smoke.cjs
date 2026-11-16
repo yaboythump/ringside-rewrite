@@ -147,6 +147,11 @@ const legacy={
       if(isPreview)assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem("rcc-career")).week),13);
       await click("#fight");
       await ring();
+      await p.waitForFunction(()=>AC?.state==="running"&&musicBeat>0&&pinVoice.length===3);
+      await click('[data-mute]');
+      assert.deepEqual(await p.evaluate(()=>[muted,musicTimer,master.gain.value]),[true,0,0]);
+      await click('[data-mute]');
+      await p.waitForFunction(()=>!muted&&master.gain.value===1&&musicBeat>0);
       if(label==="iPhone"&&!mode){
         await p.waitForFunction(()=>pinVoice.length===3&&musicTimer!==0);
         const original=p.viewportSize();

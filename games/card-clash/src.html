@@ -818,27 +818,51 @@ function flash(){if(still())return;const f=$("#flash");f.classList.remove("go");
 function quake(){if(still())return;app.classList.remove("quake");void app.offsetWidth;app.classList.add("quake");}
 
 /* ---------- sound ---------- */
-let AC=null,muted=false,musicOff=false,lastCrowd=0,musicTimer=0,musicBeat=0;
+let AC=null,master=null,muted=false,musicOff=false,lastCrowd=0,musicTimer=0,musicBeat=0;
 const PIN_VOICE=[/*__PIN_VOICE__*/];
 let pinVoice=[],voiceLoad=null;
 try{muted=gameStorage.getItem(MUTE_KEY)==="1";musicOff=gameStorage.getItem(MUSIC_KEY)==="1"}catch(e){}
-function actx(){if(muted)return null;try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();}catch(e){return null}return AC;}
-function tone(f,dur,gain,type="sine",to){const a=actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+.02);}
-function noise(dur,freq,gain,type="lowpass",attack=0){const a=actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(a.destination);s.start(t);}
-const ARENA_RIFF=[55,55,0,65.41,55,0,73.42,65.41,49,49,0,55,49,0,65.41,73.42];
+function unlockAudio(){
+  if(muted)return;
+  try{
+    if(!AC){
+      // WebKit can choose its own session category for Web Audio.
+      try{if(NATIVE&&navigator.audioSession)navigator.audioSession.type="playback";}catch(e){}
+      const audio=new (window.AudioContext||window.webkitAudioContext)();
+      master=audio.createGain();
+      master.connect(audio.destination);
+      AC=audio;
+    }
+    if(AC.state==="suspended"||AC.state==="interrupted")AC.resume().catch(()=>{});
+  }catch(e){}
+}
+// Unlock in the initiating gesture, before navigation or entrance timers.
+document.addEventListener("click",unlockAudio,true);
+document.addEventListener("keydown",unlockAudio,true);
+function actx(){return muted?null:AC;}
+function tone(f,dur,gain,type="sine",to){const a=actx();if(!a)return;const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);}
+function noise(dur,freq,gain,type="lowpass",attack=0){const a=actx();if(!a)return;const n=Math.floor(a.sampleRate*dur),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime;s.buffer=buf;f.type=type;f.frequency.value=freq;if(attack){g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(gain,t+attack);}else g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t);}
+const ARENA_RIFF=[110,110,0,130.81,110,0,146.83,130.81,98,98,0,110,98,0,130.81,146.83,110,0,110,164.81,146.83,130.81,110,0,87.31,87.31,98,0,130.81,110,98,0];
+function playArenaBeat(){
+  if(document.hidden||muted||musicOff||AC?.state!=="running")return;
+  const i=musicBeat++%ARENA_RIFF.length,f=ARENA_RIFF[i];
+  if(f){
+    tone(f,.19,.085,"triangle");
+    tone(f*2,.15,.047,"triangle");
+    tone(f*3,.12,.025,"triangle");
+    if(i%8===0){tone(f*4,.32,.022,"triangle");tone(f*6,.26,.017,"triangle");}
+  }
+  if(i%8===0||i%8===3||i%8===6)tone(108,.16,.145,"sine",44);
+  if(i%4===2){noise(.11,1700,.083,"bandpass");tone(185,.08,.036,"triangle",92);}
+  noise(.036,4800,i%2===1?.041:.022,"highpass");
+}
 function stopArenaMusic(){if(musicTimer)clearInterval(musicTimer);musicTimer=0;}
 function startArenaMusic(){
   stopArenaMusic();
-  if(muted||musicOff||!actx())return;
+  if(musicOff||!actx())return;
   musicBeat=0;
-  musicTimer=setInterval(()=>{
-    if(document.hidden||muted||musicOff||AC?.state!=="running")return;
-    const i=musicBeat++%ARENA_RIFF.length,f=ARENA_RIFF[i];
-    if(f){tone(f,.19,.075,"triangle");tone(f*2,.12,.025,"triangle");}
-    if(i%4===0)tone(85,.16,.125,"sine",36);
-    if(i%4===2)noise(.07,1400,.055,"bandpass");
-    if(i%2===1)noise(.035,4800,.022,"highpass");
-  },235);
+  playArenaBeat();
+  musicTimer=setInterval(playArenaBeat,235);
 }
 function loadPinVoice(){
   const audio=actx();
@@ -850,7 +874,7 @@ function speakPin(number){
   const audio=actx(),clip=pinVoice[number-1];
   if(!audio||!clip)return false;
   const source=audio.createBufferSource(),gain=audio.createGain();
-  source.buffer=clip;gain.gain.value=.9;source.connect(gain);gain.connect(audio.destination);
+  source.buffer=clip;gain.gain.value=.9;source.connect(gain);gain.connect(master);
   source.start(audio.currentTime+.07);
   return true;
 }
@@ -868,7 +892,18 @@ const SFX={
   crowd(){const n=Date.now();if(n-lastCrowd<900)return;lastCrowd=n;noise(1.4,1100,.2,"bandpass",.25)},
   boo(){tone(140,.7,.12,"sawtooth",95)},
 };
-document.addEventListener("click",e=>{const b=e.target.closest("[data-mute]");if(!b)return;muted=!muted;try{gameStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");if(muted)stopArenaMusic();else{SFX.bell();loadPinVoice();if(G?.p&&!G.over)startArenaMusic();}});
+document.addEventListener("click",e=>{
+  if(!e.target.closest("[data-mute]"))return;
+  muted=!muted;
+  try{gameStorage.setItem(MUTE_KEY,muted?"1":"0")}catch(e){}
+  document.querySelectorAll("[data-mute]").forEach(x=>x.textContent=muted?"Sound off":"Sound on");
+  if(master)master.gain.value=muted?0:1;
+  if(muted){stopArenaMusic();return;}
+  unlockAudio();
+  SFX.bell();
+  loadPinVoice();
+  if(G?.p&&!G.over)startArenaMusic();
+});
 const muteBtn=()=>`<button class="mutebtn" data-mute>${muted?"Sound off":"Sound on"}</button>`;
 
 /* ---------- pieces ---------- */
