@@ -93,6 +93,23 @@ def quick_checks(page, plain):
         page.set_viewport_size({"width":width, "height":height})
         page.goto(plain)
         open_play(page, wrestler, "tag" if width == 320 else "ladder")
+        # Pin counts and wrapped HUD text must not move or resize the touch grid.
+        stable = page.locator("#board").bounding_box()
+        for pin_visible in (False, True, False):
+            page.evaluate("""pinVisible => {
+                document.querySelector('#ticker').textContent = 'Match commentary '.repeat(8);
+                document.querySelector('#oStat').innerHTML =
+                    '<span class="chip guard">Guard</span><span class="chip next">Counter ready</span>';
+                document.querySelector('#pinNeed').textContent =
+                    'Kick out by clearing 7 tiles · Recover match reaches rope';
+                document.querySelector('#pin').hidden = !pinVisible;
+            }""", pin_visible)
+            page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+            assert page.locator("#board").bounding_box() == stable
+            if pin_visible:
+                pin = page.locator("#pin").bounding_box()
+                assert pin["y"] >= stable["y"] + stable["height"]
+
         page.locator("#pauseBtn").tap()
         assert page.locator("#pauseMenu").is_visible()
         page.locator("#resumeBtn").tap()

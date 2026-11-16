@@ -32,6 +32,7 @@ struct GameView: UIViewRepresentable {
         // treats storage for local file origins as ephemeral.
         configuration.websiteDataStore = .nonPersistent()
         configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.userContentController.add(controller, name: GameController.bridgeName)
         configuration.userContentController.addUserScript(
             WKUserScript(source: controller.bootstrap(), injectionTime: .atDocumentStart, forMainFrameOnly: true)
@@ -93,6 +94,7 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
                 getItem(key) {
                     return Object.hasOwn(saves, key) ? saves[key] : null;
                 },
+                activateAudio() { send({action:"activateAudio"}); },
                 haptic() { send({action:"haptic"}); },
                 setItem(key, value) {
                     send({action:"save", key:key, value:value});
@@ -122,6 +124,12 @@ final class GameController: NSObject, WKScriptMessageHandler, WKNavigationDelega
                 saves = updated
             } catch {
                 message.webView?.evaluateJavaScript("document.dispatchEvent(new Event('ringside-save-error'))")
+            }
+        case "activateAudio":
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+            } catch {
+                NSLog("Ringside Combo audio session could not be activated: %@", error.localizedDescription)
             }
         case "haptic":
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()

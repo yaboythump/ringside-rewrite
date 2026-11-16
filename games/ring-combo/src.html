@@ -33,7 +33,7 @@ h1 span{color:var(--gold)}
 .vs{font-weight:900;color:var(--gold)}
 .hit{animation:hit .3s}
 @keyframes hit{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
-.status{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;font-size:11px;margin-top:3px;min-height:16px}
+.status{display:flex;gap:2px 4px;flex-wrap:wrap;align-content:flex-start;justify-content:flex-end;font-size:10px;line-height:13px;margin-top:3px;height:32px;overflow:hidden}
 .fighter:not(.opp) .status{justify-content:flex-start}
 .chip{background:var(--panel2);border-radius:6px;padding:1px 6px}
 .chip.guard{background:#2a4a7a}
@@ -52,7 +52,7 @@ h1 span{color:var(--gold)}
 .crowd .bar>i{background:linear-gradient(90deg,var(--purple),var(--gold))}
 .crowd.hot .bar>i{animation:glow 0.6s infinite alternate}
 @keyframes glow{to{filter:brightness(1.6)}}
-.crowdrow{display:flex;justify-content:space-between}
+.crowdrow{display:flex;justify-content:space-between;gap:3px;white-space:nowrap}
 #boardWrap{flex:1 1 0;min-height:0;min-width:0;display:flex;justify-content:center;align-items:center}
 #board{position:relative;width:calc(var(--S)*7 + 6px);height:calc(var(--S)*7 + 6px);flex:none;background:#120f1c;border-radius:12px;
   border:3px solid #6a3a2a;box-shadow:inset 0 0 0 3px #2b2340, 0 0 0 4px #c23a3a55;overflow:hidden;touch-action:none}
@@ -88,7 +88,10 @@ h1 span{color:var(--gold)}
 .tile.pop .face{transform:scale(.2);transition:transform .2s}
 .tile.hint .face{animation:pulse .8s infinite alternate}
 @keyframes pulse{to{transform:scale(.85)}}
-#ticker{background:var(--panel);border-radius:10px;padding:6px 10px;min-height:36px;font-size:13px;font-style:italic;text-align:center}
+#matchNotice{position:relative;flex:0 0 46px;height:46px;min-width:0}
+#ticker,#pin{position:absolute;inset:0;background:var(--panel);border-radius:10px;padding:3px 6px;text-align:center;font-size:12px;line-height:14px;overflow:auto}
+#ticker{font-style:italic}
+#matchNotice:has(#pin:not([hidden])) #ticker{visibility:hidden}
 #ticker b{color:var(--gold);font-style:normal}
 .legend{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;font-size:10px;color:var(--dim);text-align:center}
 .legend div span{display:block;font-size:16px}
@@ -117,10 +120,9 @@ h1 span{color:var(--gold)}
 .pick small{color:var(--dim);font-size:11px;display:block}
 .btn{background:var(--gold);color:#1a1020;border:0;border-radius:10px;padding:10px 18px;font:700 15px system-ui;cursor:pointer;margin:4px}
 .btn.ghost{background:var(--panel2);color:var(--ink)}
-#pin{position:fixed;left:0;right:0;top:34%;text-align:center;pointer-events:none;z-index:5}
-#pin[hidden]{display:none}
-#pin .count{font-size:52px;font-weight:900;color:#fff;text-shadow:0 0 20px var(--red),0 4px 0 #000;line-height:1}
-#pin .need{font-size:14px;background:#000c;display:inline-block;padding:4px 10px;border-radius:8px;margin-top:4px}
+#pin{pointer-events:none;color:var(--ink);box-shadow:inset 0 0 0 1px var(--red)}
+#pin .count{font-size:16px;font-weight:900;color:var(--gold);line-height:17px}
+#pin .need{font-size:11px;line-height:12px}
 .ladder{display:flex;gap:6px;justify-content:center;margin:10px 0}
 .ladder img{width:52px;height:52px;border-radius:8px;object-fit:cover;opacity:.5;border:2px solid transparent}
 .ladder img.done{opacity:.25;filter:grayscale(1)}
@@ -144,14 +146,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 #app[data-mode=submission] #stipulation{color:#aee6cf}
 #app[data-mode=iron] #stipulation{color:#ffcc64}
 #app[data-mode=last] #stipulation{color:#ff98a6}
-#stipulation{text-align:center;color:#d8c6fb;font-size:12px;font-weight:800}
+#stipulation{text-align:center;color:#d8c6fb;font-size:12px;font-weight:800;line-height:14px;flex:0 0 28px;height:28px;align-content:center;overflow:hidden}
 #moveBar{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-#moveBar button{font:700 12px system-ui;background:linear-gradient(#372957,#231931);color:var(--ink);border:1px solid #9f70df;border-radius:8px;min-height:42px;padding:3px}
+#moveBar button{font:700 12px system-ui;background:linear-gradient(#372957,#231931);color:var(--ink);border:1px solid #9f70df;border-radius:8px;height:42px;line-height:14px;padding:3px;overflow:hidden}
 #moveBar button:not(:disabled){background:linear-gradient(#ffd274,#e5a32e);color:#24122e}
 #tagTools{text-align:center}
 #tagTools .btn{margin:0 2px;padding:0 12px;min-height:40px}
-#pin{top:31%;z-index:6}
-#pin .count{font-size:clamp(25px,8vw,52px)}
 .overlay{padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
 .menuCard{display:flex;flex-direction:column;max-height:100%;padding:12px;margin:auto;border:1px solid #614879;background:linear-gradient(#231833,#151222);overflow:hidden}
 .menuCard header{position:relative;padding:5px 52px 8px;min-height:48px;display:grid;align-content:center}
@@ -195,8 +195,7 @@ summary{cursor:pointer;color:#ded0f4}
 @media(max-height:700px){
  .spotlight{min-height:115px}
  #app{gap:4px}
- #ticker{font-size:12px;min-height:31px;padding:3px 6px}
- #moveBar button{min-height:38px}
+ #moveBar button{height:38px}
 }
 @media(orientation:landscape) and (max-height:620px){
  #app{grid-template-rows:repeat(7,min-content);align-content:stretch}
@@ -219,13 +218,14 @@ summary{cursor:pointer;color:#ded0f4}
   <div class="crowd" id="crowd"><div class="crowdrow"><span>🔥 Crowd</span><span id="crowdN">0%</span></div><div class="bar"><i id="crowdBar"></i></div></div>
   </div>
   <div id="boardWrap"><div id="board"><div id="float"></div></div></div>
-  <div id="ticker">Ring the bell!</div>
+  <div id="matchNotice">
+    <div id="ticker">Ring the bell!</div>
+    <div id="pin" hidden><div class="count" id="pinCount">1</div><div class="need" id="pinNeed"></div></div>
+  </div>
   <div id="stipulation" hidden></div>
   <div id="moveBar" aria-label="Signature moves"><button></button><button></button><button></button><button></button></div>
   <div id="tagTools" hidden><button id="tagBtn" class="btn ghost"></button><button id="teamBtn" class="btn ghost"></button></div>
 </div>
-
-<div id="pin" hidden><div class="count" id="pinCount">1</div><div class="need" id="pinNeed"></div></div>
 
 <section class="overlay" id="menu" aria-label="Main navigation">
   <div class="card menuCard">
@@ -396,8 +396,11 @@ const sfx = (() => {
     return 'data:audio/wav;base64,'+btoa(bin);
   }
   function init(){
+    if (profile.settings.muted || document.hidden) return;
+    const native = window.RingsideNative;
+    native?.activateAudio?.();
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
-    if (!unlockEl){
+    if (!native?.activateAudio && !unlockEl){
       try { unlockEl = new Audio(silentWav()); unlockEl.loop = true; unlockEl.setAttribute('playsinline',''); } catch {}
     }
     if (!profile.settings.muted && unlockEl && unlockEl.paused) { const pr = unlockEl.play(); if (pr) pr.catch(()=>{}); }
@@ -416,7 +419,7 @@ const sfx = (() => {
       }
       const d = noiseBuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
     }
-    if (ctx.state !== 'running') { const pr = ctx.resume(); if (pr) pr.catch(()=>{}); }
+    if (ctx.state !== 'running') { ctx.resume().then(syncMusic).catch(()=>{}); }
     // Old iOS needs a buffer started inside the tap to wake the context.
     try { const src = ctx.createBufferSource(); src.buffer = ctx.createBuffer(1,1,22050); src.connect(ctx.destination); src.start(0); } catch {}
   }
@@ -456,8 +459,7 @@ const sfx = (() => {
       if((profile.settings.muted||document.hidden) && unlockEl) unlockEl.pause();
     },
     music(level){
-      if(trackFailed) return false;
-      if(!ctx || !track || !trackGain) return true;
+      if(trackFailed || !ctx || !track || !trackGain) return false;
       trackGain.gain.value=level;
       if(level>0 && ctx.state==='running'){
         if(!trackSource){
@@ -469,7 +471,7 @@ const sfx = (() => {
         trackOffset=(trackOffset+ctx.currentTime-trackStarted)%track.duration;
         trackSource.stop();trackSource.disconnect();trackSource=null;
       }
-      return true;
+      return ctx.state==='running';
     },
     get musicPlaying(){return !!trackSource},
     theme(wrestler,ending=false){
@@ -536,7 +538,7 @@ function ui(){
   $('pHpN').textContent = `${Math.max(0,Math.round(st.php))} / ${st.pmax}`;
   $('oHpN').textContent = `${Math.max(0,Math.round(st.ohp))} / ${st.omax}`;
   $('crowdBar').style.width = st.crowd+'%';
-  $('crowdN').textContent = Math.round(st.crowd)+'%' + (st.crowd>=100?' — ON FIRE':'');
+  $('crowdN').textContent = Math.round(st.crowd)+'%';
   if(st.crowd>=100 && !st.crowdHot) sfx.chant();
   st.crowdHot=st.crowd>=100;
   $('crowd').classList.toggle('hot',st.crowdHot);
@@ -1007,7 +1009,8 @@ let fallbackMusic=null, musicActive=false;
 function syncMusic(){
   const active=musicActive && !profile.settings.muted && !paused && !document.hidden;
   const volume=active ? Math.min(1,profile.settings.music*(st?.crowd>=80?1.25:1)) : 0;
-  if(sfx.music(volume)) return;
+  if(sfx.music(volume)){fallbackMusic?.pause();return;}
+  if(!volume && !fallbackMusic) return;
   if(!fallbackMusic){
     fallbackMusic=new Audio(MATCH_MUSIC);fallbackMusic.loop=true;fallbackMusic.setAttribute('playsinline','');
   }
