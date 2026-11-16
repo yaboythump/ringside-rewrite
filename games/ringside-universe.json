@@ -1,0 +1,63 @@
+{
+  "series": "Ringside",
+  "characters": {
+    "brick": {
+      "name": "Brick Malone",
+      "portrait": "card-clash/assets/portraits/brick",
+      "lore": "A blue-collar brawler who makes the ring shake."
+    },
+    "raven": {
+      "name": "Raven Vega",
+      "portrait": "card-clash/assets/portraits/raven",
+      "lore": "A fearless aerial specialist who lives for the top rope."
+    },
+    "dutch": {
+      "name": "Dutch Harlan",
+      "portrait": "card-clash/assets/portraits/dutch",
+      "lore": "The veteran who can turn any opening into a wrestling hold."
+    },
+    "kid": {
+      "name": "Kid Voltage",
+      "portrait": "card-clash/assets/portraits/kid",
+      "lore": "An arena favorite who gets stronger when the crowd gets loud."
+    },
+    "jett": {
+      "name": "Jett Romano",
+      "portrait": "card-clash/assets/portraits/jett",
+      "lore": "A quick-footed prospect who hides behind a tight guard."
+    },
+    "tank": {
+      "name": "Tank Ferro",
+      "portrait": "card-clash/assets/portraits/tank",
+      "lore": "The big hitter who keeps a chair within arm’s reach."
+    },
+    "ox": {
+      "name": "Big Ox Duggan",
+      "portrait": "card-clash/assets/portraits/ox",
+      "lore": "A veteran enforcer who wears down every challenger."
+    },
+    "silas": {
+      "name": "Silas Crowe",
+      "portrait": "card-clash/assets/portraits/silas",
+      "lore": "A calculating champion with a reputation for dirty finishes."
+    }
+  },
+  "championships": {
+    "prospect": {
+      "name": "Prospect Championship",
+      "division": "singles"
+    },
+    "arena": {
+      "name": "Arena Championship",
+      "division": "singles"
+    },
+    "world": {
+      "name": "Ringside World Championship",
+      "division": "singles"
+    },
+    "tag": {
+      "name": "Ringside Tag Team Championship",
+      "division": "tag"
+    }
+  }
+}

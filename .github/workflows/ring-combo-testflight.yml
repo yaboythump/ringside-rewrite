@@ -1,8 +1,11 @@
 name: Ringside Combo TestFlight
 on:
-  push:
-    branches: [main]
+  pull_request:
     paths:
+      - "games/ring-combo/**"
+      - "games/ring-combo.html"
+      - "games/ringside-universe.json"
+      - "games/card-clash/assets/**"
       - ".github/workflows/ring-combo-testflight.yml"
   workflow_dispatch:
     inputs:
@@ -16,20 +19,38 @@ permissions:
   contents: read
 
 env:
-  COMBO_SOURCE: ${{ github.sha }}
-  DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+  COMBO_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
   COMBO_TEAM: J4Y8FY6JNZ
   COMBO_BUNDLE: com.ctnetworkstudios.ringsidecombo
   COMBO_PROJECT: games/ring-combo/ios/RingsideCombo.xcodeproj
 
 concurrency:
-  group: ringside-ring-combo-testflight
+  group: ringside-ring-combo-testflight-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: false
 
 jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.COMBO_SOURCE }}
+          persist-credentials: false
+      - name: Test the offline build and mobile layout
+        run: |
+          python3 -m venv "$RUNNER_TEMP/combo-venv"
+          "$RUNNER_TEMP/combo-venv/bin/pip" install 'playwright==1.62.0'
+          "$RUNNER_TEMP/combo-venv/bin/python" -m playwright install --with-deps chromium
+          "$RUNNER_TEMP/combo-venv/bin/python" games/ring-combo/test_game.py
+          python3 games/ring-combo/build.py "$RUNNER_TEMP/ring-combo.html"
+          cmp games/ring-combo.html "$RUNNER_TEMP/ring-combo.html"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ringside-combo-offline-preview
+          path: ${{ runner.temp }}/ring-combo.html
   verify:
-    if: github.ref == 'refs/heads/main'
-    runs-on: xcode-27
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && 'xcode-27' || 'macos-26' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -40,26 +61,47 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$COMBO_SOURCE"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            export DEVELOPER_DIR=/Applications/Xcode_27.1.app/Contents/Developer
+          fi
           archive="$RUNNER_TEMP/combo-verify.xcarchive"
           xcodebuild -project "$COMBO_PROJECT" -scheme RingsideCombo \
             -configuration Release -destination 'generic/platform=iOS' \
             -archivePath "$archive" -derivedDataPath "$RUNNER_TEMP/combo-verify" \
             CODE_SIGNING_ALLOWED=NO archive
           app="$archive/Products/Applications/RingsideCombo.app"
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$COMBO_BUNDLE"
-          test -s "$app/index.html"
-          test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
-          grep -qF 'const MATCH_MUSIC = "data:audio/mpeg;base64,' "$app/index.html"
-          grep -F 'strike:"data:image/png;base64,' "$app/index.html" >/dev/null
-          xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/combo-xcode-help.txt"
-          grep -F 'app-store-connect' "$RUNNER_TEMP/combo-xcode-help.txt" >/dev/null
-          grep -F 'authenticationKeyPath' "$RUNNER_TEMP/combo-xcode-help.txt" >/dev/null
+          python3 - "$app" <<'PY'
+          import os
+          import plistlib
+          import sys
+          from pathlib import Path
+
+          app = Path(sys.argv[1])
+          with (app / "Info.plist").open("rb") as stream:
+              info = plistlib.load(stream)
+          with (app / "PrivacyInfo.xcprivacy").open("rb") as stream:
+              privacy = plistlib.load(stream)
+          checks = {
+              "bundle": info.get("CFBundleIdentifier") == os.environ["COMBO_BUNDLE"],
+              "minimum iOS": info.get("MinimumOSVersion") == "17.0",
+              "orientation": info.get("UISupportedInterfaceOrientations") == ["UIInterfaceOrientationPortrait"],
+              "device family": info.get("UIDeviceFamily") == [1],
+              "export declaration": info.get("ITSAppUsesNonExemptEncryption") is False,
+              "privacy manifest": privacy.get("NSPrivacyTracking") is False,
+              "offline bundle parity": (app / "index.html").read_bytes() == Path("games/ring-combo.html").read_bytes(),
+          }
+          for name, passed in checks.items():
+              print(f"{name}: {'PASS' if passed else 'FAIL'}")
+          sys.exit(0 if all(checks.values()) else 1)
+          PY
 
   upload:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.upload)
-    needs: verify
+    if: github.event_name == 'workflow_dispatch' && inputs.upload && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/work/ringside-combo-expansion')
+    needs: [web, verify]
     environment: ringside-testflight
     runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -142,7 +184,7 @@ jobs:
           encode = ->(value) { Base64.urlsafe_encode64(value, padding: false) }
           now = Time.now.to_i
           header = encode.call(JSON.generate(alg: "ES256", kid: key_id, typ: "JWT"))
-          claims = encode.call(JSON.generate(iss: issuer, iat: now, exp: now + 300, aud: "appstoreconnect-v1"))
+          claims = encode.call(JSON.generate(iss: issuer, iat: now, exp: now + 900, aud: "appstoreconnect-v1"))
           input = "#{header}.#{claims}"
           key = OpenSSL::PKey.read(File.binread(key_path))
           der = key.sign("SHA256", input)
@@ -222,7 +264,6 @@ jobs:
           if not apple("apps", filters={"filter[bundleId]": identifier, "fields[apps]": "bundleId"}):
               sys.exit("::error::Create the Ringside Combo app record in App Store Connect before uploading.")
           PY
-          unset token
           security cms -D -i "$signing/ringside.mobileprovision" > "$signing/profile.plist"
           profile_id="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$signing/profile.plist")"
           profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$signing/profile.plist")"
@@ -249,12 +290,13 @@ jobs:
           unset keychain_password
           auth=(-authenticationKeyPath "$auth_key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
           archive="$RUNNER_TEMP/combo-upload.xcarchive"
+          build_number="$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
           xcodebuild -project "$COMBO_PROJECT" -scheme RingsideCombo \
             -configuration Release -destination 'generic/platform=iOS' \
             -archivePath "$archive" -derivedDataPath "$RUNNER_TEMP/combo-upload" \
             DEVELOPMENT_TEAM="$COMBO_TEAM" CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$profile_name" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" archive
+            CURRENT_PROJECT_VERSION="$build_number" archive
           app="$archive/Products/Applications/RingsideCombo.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$COMBO_BUNDLE"
           test -s "$app/index.html"
@@ -271,3 +313,44 @@ jobs:
           plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
           xcodebuild -exportArchive -archivePath "$archive" \
             -exportPath "$RUNNER_TEMP/combo-testflight-export" -exportOptionsPlist "$export_options" "${auth[@]}"
+          COMBO_ASC_TOKEN="$token" COMBO_BUILD_NUMBER="$build_number" python3 - <<'PY'
+          import json
+          import os
+          import time
+          from urllib.error import URLError
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          token = os.environ["COMBO_ASC_TOKEN"]
+          number = os.environ["COMBO_BUILD_NUMBER"]
+          headers = {"Authorization": "Bearer " + token}
+
+          def read(path, filters):
+              url = "https://api.appstoreconnect.apple.com/v1/" + path + "?" + urlencode(filters)
+              with urlopen(Request(url, headers=headers), timeout=20) as response:
+                  return json.load(response)
+
+          try:
+              app = read("apps", {"filter[bundleId]": os.environ["COMBO_BUNDLE"]})["data"][0]["id"]
+              for attempt in range(8):
+                  response = read("builds", {"filter[app]": app, "filter[version]": number, "include": "buildBetaDetail"})
+                  builds = response["data"]
+                  if builds:
+                      result = builds[0]["attributes"]["processingState"]
+                      print(f"App Store Connect build {number}: {result}.", flush=True)
+                      if result != "PROCESSING":
+                          if result != "VALID":
+                              raise SystemExit(f"::error::Apple processing ended in {result}.")
+                          detail = next((item["attributes"] for item in response.get("included", [])
+                                         if item["type"] == "buildBetaDetails"), {})
+                          if detail:
+                              print("TestFlight internal state: " + detail.get("internalBuildState", "unknown"), flush=True)
+                          break
+                  if attempt < 7:
+                      time.sleep(20)
+              else:
+                  print(f"::warning::Build {number} uploaded. Apple processing is still pending.")
+          except (URLError, IndexError, KeyError) as error:
+              print(f"::warning::Build {number} uploaded. Processing lookup could not finish ({type(error).__name__}).")
+          PY
+          unset token

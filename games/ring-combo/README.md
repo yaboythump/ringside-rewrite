@@ -1,53 +1,43 @@
 # Ringside Combo
 
-A turn-based wrestling match-3 game. It uses the Card Clash roster and portraits. All
-characters are fictional.
+Ringside Combo is CTInteractive’s offline wrestling match-3 game. It keeps the original roster, turn-based board, finishers, crowd meter, dirty tricks, and four-opponent Championship Ladder. Road to Gold and Exhibition are available from the same game.
 
-- Live game (after merging to `main`): https://yaboythump.github.io/ringside-rewrite/ring-combo/
-
-## Building
+## Build and play
 
 ```sh
-python3 games/ring-combo/build.py            # writes games/ring-combo.html
+python3 games/ring-combo/build.py
 ```
 
-Edit `src.html`. The build packs the portraits and any art in `assets/` into one HTML file
-with no network requirement. Open the built file in a browser to play.
+Open `games/ring-combo.html` in a browser. Portraits, approved arena art, game music, referee counts and crowd samples are embedded. GitHub Pages and the iOS Xcode target call the same build script. Character identities, lore, portrait paths and title definitions are in `games/ringside-universe.json`. Combo applies its own combat stats and maintains its own saves.
 
-## Art
+## Controls and progression
 
-`ART_BRIEF.md` lists every image the game can use, with ready-to-paste ChatGPT prompts, file
-names and sizes. Put the files in `assets/` and rebuild. Missing tile art keeps the
-built-in look, and the arena and belt fall back to the Card Clash images.
+- **Play** offers the original Championship Ladder and seven exhibition rulesets. Pick a wrestler, press **Start Match**, and the entrance advances to the opening bell. Tap neighboring tiles or swipe to swap them.
+- Match three tiles to attack, recover, play to the crowd, or set a counter. Match four to create a Clothesline. Match five to create a wrestler-owned Finisher. Board matches also charge the four moves on the wrestler’s loadout.
+- **Career** starts with a rookie debut. Singles and tag wins unlock title challenges. Results build rivalry heat and unlock a cage rematch, a Hardcore ambush, and title defenses. Match earnings fund development and cosmetic unlocks.
+- **Wrestlers** lets players equip compatible move cards, train attributes with cash when eligible, and wear their unlocked cosmetics. **Shop** sells and upgrades cards and unlocks cosmetics. Cash is earned through play.
+- Daily rewards are claimed once per period. The weekly tournament is a three-stage single-elimination bracket. Periods use a forward-only UTC calendar and require 20 minutes of accumulated match time before another daily event can open and 60 minutes before another weekly bracket can open. These local checks limit clock changes and duplicate claims. A wholly offline save has no trusted server time.
+- A previous build’s mute choice migrates into the versioned profile. Browser saves use the same origin as before. Native saves use the app-owned file bridge and retain a previous valid profile as a recovery copy. A save from an unsupported version stays on disk.
 
-All sound effects are synthesized with the Web Audio API, so there are no audio files.
-The speaker button in the header mutes them, and the setting is remembered in the browser.
+| Match | Finish |
+| --- | --- |
+| Singles / Hardcore | Score a pinfall. Hardcore adds matchable weapons and disables rope breaks. |
+| Steel Cage | Build 100% climb progress with Showboat matches and escape once your opponent is below half health. |
+| Submission | Use Grapples and submission cards to apply pressure. Break a hold with Recover, Reversal or Kick matches. |
+| Iron Man | Score the most falls in two minutes. Both wrestlers recover after a fall. |
+| Last Man Standing | Reduce the opponent to zero and keep them down through ten. Clear tiles to recover when downed. |
+| Tag Team | Win by pinfall. Swap to a rested partner and spend team momentum on double-team attacks and finishers. |
 
-## Rules
+## Verification and TestFlight
 
-- It's turn-based. You make one move, then the opponent makes one on the same board.
-  You see the two tiles they pick before they swap them.
-- Tile types: 👊 Strike, 🤼 Grapple, 🦶 Kick, ⭐ Showboat (builds your crowd),
-  🩹 Recover (heals). When the opponent matches tiles, their strikes, grapples and kicks hurt
-  you, their showboats drain your crowd, and their recovers heal them.
-- A cascade gives a combo bonus of +25% damage per chain step.
-- Match 4 creates a Clothesline tile, which clears its row or column when anyone matches it.
-  Match 5 creates a Finisher 🌀 owned by whoever made it. Yours have a gold ring and theirs a red one.
-  Swap your Finisher with any tile to clear every tile of that type and deal big damage.
-- Pins: landing your Finisher with the opponent under 30% health (40% for Dutch), or taking
-  them to 0, starts a cover. Clear the target number of tiles within 3 of your moves. The
-  opponent can't move while pinned. If you miss, they kick out.
-- If you hit 0 health, they cover you. Clear enough tiles in your next move to kick out,
-  and each kick-out makes the next one harder.
-- Dirty tricks every few opponent turns: a guard that halves your damage until you match
-  kicks, chairs 🪑 that block tiles, and brass knucks 🥊 that explode after 3 turns. A match
-  next to a weapon clears it.
-- Turn clock: 15s, 13s, 12s, then 10s up the ladder. If it runs out, you lose your turn.
-- Ladder: Jett Romano → Tank Ferro → Big Ox Duggan → Silas Crowe for the title. Opponents
-  hit harder and pick better moves as you climb.
+```sh
+python3 -m pip install playwright
+python3 -m playwright install chromium
+python3 games/ring-combo/test_game.py
+```
 
-Each playable wrestler has a perk: Brick (grapples), Raven (clotheslines),
-Dutch (earlier pins), Kid (crowd).
+The browser suite runs the unmodified offline build for touch layout and navigation. A separate instrumented build runs deterministic scenario tests for combat, rewards and save recovery. It also plays a full singles match using legal swaps. Tablet and physical-device experience, native haptics, the iPhone silent switch and `WKWebView` audio interruptions require device checks.
 
-Balance settings (`power`, `smart`, `hp`, `tricks`, `clock`) are in the `HEROES` and `LADDER`
-tables at the top of the script.
+The TestFlight workflow runs browser tests and an unsigned Release archive on pull requests. Its upload job requires an explicit manual workflow run with `upload` enabled. It uses the existing protected Apple environment and iPhone app ID `com.ctnetworkstudios.ringsidecombo`. The Xcode target supports iOS 17 and later in portrait orientation and packages the approved icon, system launch screen and privacy manifest. TestFlight status must be confirmed in App Store Connect after processing.
+
+For public release, validate the signed candidate on iPhone, finish the age-rating and privacy disclosures, provide a public privacy-policy URL, and complete the App Store Connect listing and screenshots. The pull request and CI do not publish the live game.
