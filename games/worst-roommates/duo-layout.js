@@ -30,7 +30,8 @@
       '<button type="button" role="tab" data-console-tab="film" aria-selected="false">🎬 Film</button>' +
       '<button type="button" role="tab" data-console-tab="cast" aria-selected="false">👥 Cast</button>' +
       '<button type="button" role="tab" data-console-tab="log" aria-selected="false">📜 Log</button>' +
-    '</div>');
+    '</div>' +
+    '<div class="console-quick" id="consoleQuickActions" aria-label="Quick game actions"></div>');
   const backdrop = document.createElement("div");
   backdrop.className = "duo-backdrop";
   backdrop.id = "duoBackdrop";
@@ -116,22 +117,26 @@
   const actionsFor={story:["work","clean","mediate","repair"],chaos:["prank","instigate","disaster"]};
   function mountActions(mode){
     const items = actionsFor[mode] || [];
-    const area = $("#dockActions");
-    area.style.gridTemplateColumns="repeat("+Math.max(items.length,1)+",minmax(0,1fr))";
-    area.innerHTML=items.map(action=>
-      '<button type="button" data-dock-action="'+action+'">'+labels[action]+'</button>').join("");
+    ["#dockActions","#consoleQuickActions"].forEach(selector=>{
+      const area=$(selector);
+      area.style.gridTemplateColumns="repeat("+Math.max(items.length,1)+",minmax(0,1fr))";
+      area.innerHTML=items.map(action=>
+        '<button type="button" data-dock-action="'+action+'">'+labels[action]+'</button>').join("");
+    });
   }
   // Gameplay mode buttons update synchronously; refresh quick actions before the next tap.
   playPanel.addEventListener("click",e=>{
     if(e.target.closest("button[data-mode]")) Promise.resolve().then(syncDock);
   });
-  $("#dockActions").addEventListener("click",e=>{
+  function quickActionClick(e){
     const button=e.target.closest("button[data-dock-action]");
     if (!button || button.disabled) return;
     const original=$("#playActions button[data-action='"+button.dataset.dockAction+"']");
     if (original && !original.disabled) original.click();
     syncDock();
-  });
+  }
+  $("#dockActions").addEventListener("click",quickActionClick);
+  $("#consoleQuickActions").addEventListener("click",quickActionClick);
   function syncDock(){
     const state=gameplay.state(),mode=state.mode;
     if(mode!==currentMode){
@@ -152,7 +157,7 @@
       $("#dockChaos").value=$("#chaos").value;
       $("#dockChaosVal").textContent=$("#chaos").value;
     } else {
-      $("#dockActions").querySelectorAll("[data-dock-action]").forEach(button=>{
+      document.querySelectorAll("#dockActions [data-dock-action],#consoleQuickActions [data-dock-action]").forEach(button=>{
         const action=button.dataset.dockAction;
         const original=$("#playActions button[data-action='"+action+"']");
         button.disabled=!original || original.disabled;
