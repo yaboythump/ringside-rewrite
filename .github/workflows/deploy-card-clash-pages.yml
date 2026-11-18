@@ -31,6 +31,10 @@ jobs:
         run: python3 games/ring-combo/build.py _site/ring-combo/index.html
       - name: Build Worst Roommates into /worst-roommates/
         run: python3 games/worst-roommates/build.py _site/worst-roommates/index.html
+      - name: Publish Detective Duo into /detective-duo/
+        run: |
+          mkdir -p _site/detective-duo
+          cp games/detective-duo/index.html _site/detective-duo/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

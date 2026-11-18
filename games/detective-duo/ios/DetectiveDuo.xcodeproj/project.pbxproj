@@ -1,0 +1,29 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        B00000000000000000000001 = {isa = PBXProject; attributes = {LastUpgradeCheck = 2600; TargetAttributes = {B00000000000000000000002 = {CreatedOnToolsVersion = 26.0;};};}; buildConfigurationList = B00000000000000000000021; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = B00000000000000000000004; productRefGroup = B00000000000000000000007; projectDirPath = ""; projectRoot = ""; targets = (B00000000000000000000002);};
+        B00000000000000000000002 = {isa = PBXNativeTarget; buildConfigurationList = B00000000000000000000022; buildPhases = (B00000000000000000000011, B00000000000000000000012, B00000000000000000000013); buildRules = (); dependencies = (); name = DetectiveDuo; productName = DetectiveDuo; productReference = B0000000000000000000000B; productType = "com.apple.product-type.application";};
+        B00000000000000000000004 = {isa = PBXGroup; children = (B00000000000000000000005, B00000000000000000000037, B00000000000000000000007); sourceTree = "<group>";};
+        B00000000000000000000005 = {isa = PBXGroup; children = (B00000000000000000000008, B00000000000000000000009); path = DetectiveDuo; sourceTree = "<group>";};
+        B00000000000000000000007 = {isa = PBXGroup; children = (B0000000000000000000000B); name = Products; sourceTree = "<group>";};
+        B00000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectiveDuoApp.swift; sourceTree = "<group>";};
+        B00000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>";};
+        B0000000000000000000000B = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DetectiveDuo.app; sourceTree = BUILT_PRODUCTS_DIR;};
+        B0000000000000000000000D = {isa = PBXBuildFile; fileRef = B00000000000000000000008;};
+        B0000000000000000000000E = {isa = PBXBuildFile; fileRef = B00000000000000000000009;};
+        B00000000000000000000011 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B0000000000000000000000D); runOnlyForDeploymentPostprocessing = 0;};
+        B00000000000000000000012 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (B0000000000000000000000E); runOnlyForDeploymentPostprocessing = 0;};
+        B00000000000000000000013 = {isa = PBXShellScriptBuildPhase; buildActionMask = 2147483647; files = (); inputPaths = ("$(SRCROOT)/../index.html"); alwaysOutOfDate = 1; name = "Bundle offline game"; outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/index.html"); runOnlyForDeploymentPostprocessing = 0; shellPath = /bin/sh; shellScript = "set -eu\n/bin/cp \"$SCRIPT_INPUT_FILE_0\" \"$SCRIPT_OUTPUT_FILE_0\"\n";};
+        B00000000000000000000021 = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000031, B00000000000000000000032); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+        B00000000000000000000022 = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000033, B00000000000000000000034); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+        B00000000000000000000031 = {isa = XCBuildConfiguration; buildSettings = {ENABLE_TESTABILITY = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_VERSION = 5.0;}; name = Debug;};
+        B00000000000000000000032 = {isa = XCBuildConfiguration; buildSettings = {IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0;}; name = Release;};
+        B00000000000000000000033 = {isa = XCBuildConfiguration; baseConfigurationReference = B00000000000000000000037; buildSettings = {}; name = Debug;};
+        B00000000000000000000034 = {isa = XCBuildConfiguration; baseConfigurationReference = B00000000000000000000037; buildSettings = {}; name = Release;};
+        B00000000000000000000037 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = SOURCE_ROOT;};
+    };
+    rootObject = B00000000000000000000001;
+}

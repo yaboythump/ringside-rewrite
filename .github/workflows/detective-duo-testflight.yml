@@ -1,0 +1,307 @@
+name: Detective Duo TestFlight
+on:
+  push:
+    branches: [main, feature/detective-duo-001]
+    paths:
+      - "games/detective-duo/**"
+      - "games/detective-duo.html"
+      - ".github/workflows/detective-duo-testflight.yml"
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Sign and upload the tested build to App Store Connect
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  DD_SOURCE: ${{ github.sha }}
+  DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+  DD_TEAM: J4Y8FY6JNZ
+  DD_BUNDLE: com.ctnetworkstudios.detectiveduo
+  DD_PROJECT: games/detective-duo/ios/DetectiveDuo.xcodeproj
+
+concurrency:
+  group: ringside-detective-duo-testflight
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/detective-duo-001'
+    runs-on: xcode-27
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.DD_SOURCE }}
+          persist-credentials: false
+      - name: Archive the tested iPhone build without signing
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$DD_SOURCE"
+          archive="$RUNNER_TEMP/dd-verify.xcarchive"
+          xcodebuild -project "$DD_PROJECT" -scheme DetectiveDuo \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$archive" -derivedDataPath "$RUNNER_TEMP/dd-verify" \
+            CODE_SIGNING_ALLOWED=NO archive
+          app="$archive/Products/Applications/DetectiveDuo.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$DD_BUNDLE"
+          test -s "$app/index.html"
+          test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
+          grep -qF 'CASE 001' "$app/index.html"
+          grep -qF 'DetectiveDuoTest' "$app/index.html"
+          xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/dd-xcode-help.txt"
+          grep -F 'app-store-connect' "$RUNNER_TEMP/dd-xcode-help.txt" >/dev/null
+          grep -F 'authenticationKeyPath' "$RUNNER_TEMP/dd-xcode-help.txt" >/dev/null
+
+
+  gameplay:
+    # Test the complete bundled game on a phone-sized screen before distributing it.
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/detective-duo-001'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.DD_SOURCE }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Validate self-contained detective game
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$DD_SOURCE"
+          test -s games/detective-duo/index.html
+          python3 -c 'import pathlib,re; p=pathlib.Path("games/detective-duo/index.html").read_text(); pathlib.Path("/tmp/dd-logic.js").write_text(re.findall(r"<script>(.*?)</script>",p,re.S)[-1])'
+          node --check /tmp/dd-logic.js
+          node --check games/detective-duo/tests/smoke.mjs
+          grep -qF 'DetectiveDuoTest' games/detective-duo/index.html
+          grep -qF 'grid-template-columns' games/detective-duo/index.html
+      - name: Install mobile browser test runner
+        run: |
+          npm install --no-save --no-package-lock playwright
+          npx playwright install --with-deps chromium
+      - name: Test investigation, deductions, verdict and both Duo poses
+        run: node games/detective-duo/tests/smoke.mjs
+
+  upload:
+    # Auto-publish verified changes on main. Manual dispatch may opt out.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.upload))
+    needs: [verify, gameplay]
+    environment: ringside-testflight
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.DD_SOURCE }}
+          persist-credentials: false
+      - name: Sign and upload the private beta build
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.RCC_ASC_PRIVATE_KEY }}
+          DISTRIBUTION_PACKAGE: ${{ secrets.RCC_DISTRIBUTION_PACKAGE }}
+          ASC_KEY_ID: ${{ secrets.RCC_ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.RCC_ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$DD_SOURCE"
+          for name in ASC_PRIVATE_KEY ASC_KEY_ID ASC_ISSUER_ID DISTRIBUTION_PACKAGE; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing signing configuration for $name in ringside-testflight."
+              exit 1
+            fi
+          done
+          if [[ ! "$ASC_KEY_ID" =~ ^[A-Za-z0-9]+$ || ! "$ASC_ISSUER_ID" =~ ^[0-9A-Fa-f-]+$ ]]; then
+            echo "::error::Apple returned an unexpected key or issuer identifier format."
+            exit 1
+          fi
+          umask 077
+          signing="$(mktemp -d "$RUNNER_TEMP/dd-signing.XXXXXX")"
+          keychain="$signing/distribution.keychain-db"
+          installed_profile=""
+          cleanup() {
+            security delete-keychain "$keychain" 2>/dev/null || true
+            if [[ -n "$installed_profile" ]]; then rm -f -- "$installed_profile"; fi
+            rm -rf -- "$signing"
+          }
+          trap cleanup EXIT
+          auth_key="$signing/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$auth_key"
+          unset ASC_PRIVATE_KEY
+          if ! openssl pkey -in "$auth_key" -noout >/dev/null 2>&1; then
+            echo "::error::RCC_ASC_PRIVATE_KEY must contain the original Apple .p8 file text."
+            exit 1
+          fi
+          python3 - "$signing" <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          output = Path(sys.argv[1])
+          value = os.environ["DISTRIBUTION_PACKAGE"].strip()
+          try:
+              package = json.loads(value)
+          except json.JSONDecodeError:
+              # A mobile paste may stop after the first field in an earlier package.
+              match = re.match(r'\{\s*"certificate"\s*:\s*"([A-Za-z0-9+/=]+)"', value)
+              package = {"certificate": match[1] if match else value}
+          if not isinstance(package, dict):
+              sys.exit("::error::The signing secret must contain the certificate package.")
+          try:
+              certificate = base64.b64decode(package["certificate"], validate=True)
+              if not certificate:
+                  raise ValueError("empty certificate")
+          except (ValueError, KeyError, TypeError):
+              sys.exit(f"::error::The signing secret has no complete certificate ({len(value)} characters received).")
+          (output / "distribution.p12").write_bytes(certificate)
+
+
+          PY
+          unset DISTRIBUTION_PACKAGE
+          openssl pkcs12 -in "$signing/distribution.p12" -passin pass: -noout > /dev/null 2>&1 || {
+            echo "::error::The signing secret does not contain a complete PKCS#12 file."
+            exit 1
+          }
+          openssl pkcs12 -in "$signing/distribution.p12" -passin pass: -clcerts -nokeys |
+            openssl x509 -outform DER -out "$signing/distribution.der"
+          token="$(ruby -ropenssl -rbase64 -rjson - "$auth_key" "$ASC_KEY_ID" "$ASC_ISSUER_ID" <<'RUBY'
+          key_path, key_id, issuer = ARGV
+          encode = ->(value) { Base64.urlsafe_encode64(value, padding: false) }
+          now = Time.now.to_i
+          header = encode.call(JSON.generate(alg: "ES256", kid: key_id, typ: "JWT"))
+          claims = encode.call(JSON.generate(iss: issuer, iat: now, exp: now + 300, aud: "appstoreconnect-v1"))
+          input = "#{header}.#{claims}"
+          key = OpenSSL::PKey.read(File.binread(key_path))
+          der = key.sign("SHA256", input)
+          raw = OpenSSL::ASN1.decode(der).value.map { |part| part.value.to_s(2).rjust(32, "\x00") }.join
+          puts "#{input}.#{encode.call(raw)}"
+          RUBY
+          )"
+          echo "::add-mask::$token"
+          DD_ASC_TOKEN="$token" python3 - "$signing" <<'PY' 
+          import base64
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          directory = Path(sys.argv[1])
+          identifier = os.environ["DD_BUNDLE"]
+          profile_name = "Detective Duo App Store"
+          headers = {"Authorization": f"Bearer {os.environ['DD_ASC_TOKEN']}",
+                     "Content-Type": "application/json"}
+
+
+          def apple(path, *, filters=None, data=None):
+              url = "https://api.appstoreconnect.apple.com/v1/" + path
+              if filters:
+                  url += "?" + urlencode(filters)
+              payload = json.dumps({"data": data}).encode() if data else None
+              try:
+                  with urlopen(Request(url, data=payload, headers=headers), timeout=30) as response:
+                      return json.load(response)["data"]
+              except HTTPError as error:
+                  method = "POST" if payload else "GET"
+                  sys.exit(f"::error::Apple rejected {method} {path} (HTTP {error.code}).")
+
+
+          bundle_ids = apple("bundleIds", filters={"filter[identifier]": identifier})
+          if bundle_ids:
+              bundle = bundle_ids[0]
+          else:
+              bundle = apple("bundleIds", data={
+                  "type": "bundleIds",
+                  "attributes": {"identifier": identifier, "name": "Detective Duo", "platform": "IOS"},
+              })
+          print(f"Registered app ID is available for {identifier}.", flush=True)
+
+          profiles = apple(f"bundleIds/{bundle['id']}/profiles", filters={"limit": 200})
+          matching = [p for p in profiles
+                      if p["attributes"]["name"] == profile_name
+                      and p["attributes"]["profileState"] == "ACTIVE"
+                      and p["attributes"]["profileType"] == "IOS_APP_STORE"]
+          if len(matching) > 1:
+              sys.exit("::error::Multiple active Detective Duo App Store profiles have the same name.")
+          if matching:
+              profile = matching[0]
+          else:
+              local_certificate = (directory / "distribution.der").read_bytes()
+              certificates = apple("certificates", filters={"limit": 200})
+              matches = [c for c in certificates
+                         if base64.b64decode(c["attributes"].get("certificateContent") or "") == local_certificate]
+              if len(matches) != 1:
+                  sys.exit("::error::Apple could not match the configured distribution certificate.")
+              profile = apple("profiles", data={
+                  "type": "profiles",
+                  "attributes": {"name": profile_name, "profileType": "IOS_APP_STORE"},
+                  "relationships": {
+                      "bundleId": {"data": {"type": "bundleIds", "id": bundle["id"]}},
+                      "certificates": {"data": [{"type": "certificates", "id": matches[0]["id"]}]},
+                  },
+              })
+          (directory / "ringside.mobileprovision").write_bytes(
+              base64.b64decode(profile["attributes"]["profileContent"], validate=True)
+          )
+          print("Detective Duo App Store provisioning profile is ready.", flush=True)
+          if not apple("apps", filters={"filter[bundleId]": identifier, "fields[apps]": "bundleId"}):
+              sys.exit("::error::Apple requires a Detective Duo app record in App Store Connect before uploading. Ask the Account Holder or App Manager to create one.")
+          PY
+          unset token
+          security cms -D -i "$signing/ringside.mobileprovision" > "$signing/profile.plist"
+          profile_id="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$signing/profile.plist")"
+          profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$signing/profile.plist")"
+          app_id="$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' "$signing/profile.plist")"
+          [[ "$profile_id" =~ ^[0-9A-Fa-f-]{36}$ && "$app_id" == "$DD_TEAM.$DD_BUNDLE" ]]
+          profile_dir="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$profile_dir"
+          installed_profile="$profile_dir/$profile_id.mobileprovision"
+          cp "$signing/ringside.mobileprovision" "$installed_profile"
+
+          keychain_password="$(openssl rand -hex 32)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 1200 "$keychain"
+          security list-keychains -d user -s "$keychain"
+          openssl pkcs12 -in "$signing/distribution.p12" -passin pass: -nodes -out "$signing/identity.pem"
+          openssl rand -hex 24 > "$signing/import-password"
+          openssl pkcs12 -export -in "$signing/identity.pem" -out "$signing/apple-import.p12" \
+            -passout "file:$signing/import-password" -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
+          security import "$signing/apple-import.p12" -f pkcs12 -k "$keychain" \
+            -P "$(cat "$signing/import-password")" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f -- "$signing/identity.pem" "$signing/apple-import.p12" "$signing/import-password"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+          unset keychain_password
+          auth=(-authenticationKeyPath "$auth_key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          archive="$RUNNER_TEMP/dd-upload.xcarchive"
+          xcodebuild -project "$DD_PROJECT" -scheme DetectiveDuo \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$archive" -derivedDataPath "$RUNNER_TEMP/dd-upload" \
+            DEVELOPMENT_TEAM="$DD_TEAM" CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$profile_name" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" archive
+          app="$archive/Products/Applications/DetectiveDuo.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$DD_BUNDLE"
+          test -s "$app/index.html"
+          codesign --verify --strict "$app"
+          export_options="$signing/ExportOptions.plist"
+          plutil -create xml1 "$export_options"
+          plutil -insert method -string app-store-connect "$export_options"
+          plutil -insert destination -string upload "$export_options"
+          plutil -insert signingStyle -string manual "$export_options"
+          plutil -insert signingCertificate -string "Apple Distribution" "$export_options"
+          plutil -insert provisioningProfiles -xml '<dict/>' "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$DD_BUNDLE string $profile_id" "$export_options"
+          plutil -insert teamID -string "$DD_TEAM" "$export_options"
+          plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
+          xcodebuild -exportArchive -archivePath "$archive" \
+            -exportPath "$RUNNER_TEMP/dd-testflight-export" -exportOptionsPlist "$export_options" "${auth[@]}"
