@@ -617,7 +617,7 @@ function portraitFor(c){
   const g=canvas.getContext('2d');
   g.fillStyle='#251836';g.fillRect(0,0,224,224);
   g.save();g.translate(112,112);g.rotate(-Math.PI/4);
-  for(let i=-380;i<380;i+=44){g.fillStyle=(i/44)%2===0?'#3b2458':'#302047';g.fillRect(i,-310,23,640);}
+  for(let i=-380;i<380;i+=44){g.fillStyle=Math.floor((i+380)/44)%2===0?'#3b2458':'#302047';g.fillRect(i,-310,23,640);}
   g.restore();
   g.fillStyle='rgba(255,255,255,.08)';g.beginPath();g.arc(112,119,98,0,Math.PI*2);g.fill();
   drawRoommate(g,c,112,193,key==='moose'?4.55:4.25,0);
