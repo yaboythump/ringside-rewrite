@@ -5,7 +5,7 @@ import fs from "node:fs";
 
 const html = path.resolve("games/worst-roommates.html");
 if (!fs.existsSync(html)) throw new Error("Built game HTML not found");
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.WRE_CHROMIUM_PATH ? {executablePath:process.env.WRE_CHROMIUM_PATH} : {}) });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 const errors = [];
 page.on("pageerror", error => errors.push(error.message));
