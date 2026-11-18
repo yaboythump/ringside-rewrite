@@ -17,7 +17,7 @@ try {
   if (state.mode !== "story" || state.story.cash !== 75) throw new Error("Story mode did not initialize");
   await page.locator("[data-action='work']").click();
   state = await getState();
-  if (state.story.cash !== 110) throw new Error("Work action did not earn $35");
+  if (state.story.cash !== 110) throw new Error("Work action did not earn $35. state=" + JSON.stringify(state) + "; pageerrors=" + JSON.stringify(errors));
   await page.locator("#cast .cm").nth(1).click();
   state = await getState();
   if (state.selected !== "Brenda") throw new Error("Roommate selection failed");
