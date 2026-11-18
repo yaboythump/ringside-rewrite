@@ -76,6 +76,7 @@ textarea{width:100%;min-height:62px;background:#120f19;color:var(--txt);border:1
  .controls{margin-top:0}
 }
 /*__GAMEPLAY_CSS__*/
+/*__DUO_CSS__*/
 </style>
 </head>
 <body>
@@ -541,6 +542,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000)*speed;last=now;simTim
 requestAnimationFrame(frame);
 (async()=>{for(let i=0;i<40&&!(window.claude&&window.claude.use);i++)await new Promise(r=>setTimeout(r,250));if(!(window.claude&&window.claude.use))return;try{const s=await window.claude.use('sample');if(s)sampleFn=s;}catch(e){}try{const t=await window.claude.use('tts');if(t){ttsApi=t;$('#bVoice').style.display='';}}catch(e){}})();
 /*__GAMEPLAY_JS__*/
+/*__DUO_JS__*/
 </script>
 </body>
 </html>

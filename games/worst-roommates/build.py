@@ -75,6 +75,8 @@ def main():
     for marker, filename in (
         ("/*__GAMEPLAY_CSS__*/", "gameplay.css"),
         ("/*__GAMEPLAY_JS__*/", "gameplay.js"),
+        ("/*__DUO_CSS__*/", "duo-layout.css"),
+        ("/*__DUO_JS__*/", "duo-layout.js"),
     ):
         if marker not in out:
             sys.exit(f"src.html is missing the {marker} marker")
