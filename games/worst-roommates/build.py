@@ -8,13 +8,10 @@ Anything missing keeps the built-in emoji/shape look. Large images are shrunk on
 way in (with macOS `sips`, or Pillow if it is installed) so the page stays light.
 """
 import base64
-import os
+import io
 import pathlib
 import re
-import shutil
-import subprocess
 import sys
-import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
@@ -29,28 +26,29 @@ def find(stem):
     return None
 
 
-def shrink(path, stem, scratch):
-    """Return a smaller copy of the image when a resizer is available, else the original."""
-    limit = next((size for prefix, size in MAX_SIZE.items() if stem.startswith(prefix)), 512)
-    out = pathlib.Path(scratch) / path.name
+def data_uri(path, stem):
+    """Embed an image without writing undeclared temporary files.
+
+    Xcode's user-script sandbox lets this build step write index.html, not
+    scratch files in DerivedSources. Pillow downsizing is optional and is
+    done entirely in memory; without Pillow the original image is embedded.
+    """
+    content = path.read_bytes()
+    limit = next((size for prefix, size in MAX_SIZE.items()
+                  if stem.startswith(prefix)), 512)
     try:
-        if shutil.which("sips"):
-            subprocess.run(["sips", "-Z", str(limit), str(path), "--out", str(out)],
-                           check=True, capture_output=True, timeout=60)
-        else:
-            from PIL import Image  # optional
-            with Image.open(path) as image:
+        from PIL import Image
+        with Image.open(io.BytesIO(content)) as image:
+            if max(image.size) > limit:
                 image.thumbnail((limit, limit))
-                image.save(out)
-        if out.is_file() and 0 < out.stat().st_size < path.stat().st_size:
-            return out
-    except Exception:
+                resized = io.BytesIO()
+                fmt = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP"}
+                image.save(resized, format=fmt[path.suffix.lower()])
+                if 0 < resized.tell() < len(content):
+                    content = resized.getvalue()
+    except (ImportError, OSError, ValueError):
         pass
-    return path
-
-
-def data_uri(path):
-    return f"data:{MIME[path.suffix.lower()]};base64,{base64.b64encode(path.read_bytes()).decode()}"
+    return f"data:{MIME[path.suffix.lower()]};base64,{base64.b64encode(content).decode()}"
 
 
 def main():
@@ -64,15 +62,11 @@ def main():
     names = re.findall(r"'([a-z_]+)'", match.group(1))
 
     art, used = [], []
-    scratch = tempfile.mkdtemp(dir=os.environ.get("DERIVED_FILE_DIR") or None)
-    try:
-        for name in names:
-            path = find(name)
-            if path:
-                art.append(f'{name}:"{data_uri(shrink(path, name, scratch))}"')
-                used.append(name)
-    finally:
-        shutil.rmtree(scratch, ignore_errors=True)
+    for name in names:
+        path = find(name)
+        if path:
+            art.append(f'{name}:"{data_uri(path, name)}"')
+            used.append(name)
 
     out = src.replace("/*__ART__*/", ",".join(art))
     dest.parent.mkdir(parents=True, exist_ok=True)
