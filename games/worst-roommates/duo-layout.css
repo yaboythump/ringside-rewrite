@@ -10,6 +10,11 @@ html,body { overscroll-behavior:none; }
 .console-tabs {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;flex:0 0 auto;}
 .console-tabs button {min-width:0;min-height:44px;padding:8px 3px;font-size:11px;background:#30273f;border:1px solid #453751;white-space:nowrap;}
 .console-tabs button[aria-selected="true"] {color:#191222;background:var(--duo-gold);border-color:var(--duo-gold);}
+#duoControls .console-quick {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;flex:0 0 auto;position:sticky;top:78px;z-index:3;padding:6px 0;background:var(--duo-panel);}
+#duoControls .console-quick button {min-width:0;min-height:44px;font-size:11px;padding:6px 2px;color:#211322;background:#ffd84d;}
+#duoControls .console-quick button:disabled {background:#574763;color:#c0b6c9;opacity:.6;}
+#duoControls:not([data-pane="play"]) .console-quick,body[data-mode="director"] #duoControls .console-quick {display:none;}
+#duoControls #playActions {display:none;}
 #duoControls .panel {display:none;min-width:0;margin:0;}
 #duoControls[data-pane="play"] .panel[data-console-pane="play"],
 #duoControls[data-pane="film"] .panel[data-console-pane="film"],
