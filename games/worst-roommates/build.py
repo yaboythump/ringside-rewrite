@@ -69,6 +69,9 @@ def main():
             used.append(name)
 
     out = src.replace("/*__ART__*/", ",".join(art))
+    if "/*__CHARACTERS__*/" not in out:
+        sys.exit("src.html is missing the /*__CHARACTERS__*/ marker")
+    out = out.replace("/*__CHARACTERS__*/", (HERE / "character-art.js").read_text(encoding="utf-8"))
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(out, encoding="utf-8")
     print(f"wrote {dest} ({len(out.encode('utf-8')) // 1024} KB)")
