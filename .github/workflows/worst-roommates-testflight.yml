@@ -57,7 +57,7 @@ jobs:
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/wr-xcode-help.txt" >/dev/null
 
   upload:
-    if: github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.upload) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[wre-graphics-upload]')))
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload
     needs: verify
     environment: ringside-testflight
     runs-on: xcode-27
