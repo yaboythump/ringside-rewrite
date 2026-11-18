@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - "games/worst-roommates/**"
+      - "games/worst-roommates.html"
       - ".github/workflows/worst-roommates-testflight.yml"
   workflow_dispatch:
     inputs:
@@ -56,9 +57,41 @@ jobs:
           grep -F 'app-store-connect' "$RUNNER_TEMP/wr-xcode-help.txt" >/dev/null
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/wr-xcode-help.txt" >/dev/null
 
+
+  gameplay:
+    # Test the complete bundled game on a phone-sized screen before distributing it.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.WR_SOURCE }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Build and validate offline game
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$WR_SOURCE"
+          python3 games/worst-roommates/build.py
+          python3 -m py_compile games/worst-roommates/build.py
+          node --check games/worst-roommates/gameplay.js
+          node --check games/worst-roommates/tests/smoke.mjs
+          grep -q 'WorstRoommatesGameplay' games/worst-roommates.html
+          if grep -q '__GAMEPLAY_' games/worst-roommates.html; then exit 1; fi
+      - name: Install mobile browser test runner
+        run: |
+          npm install --no-save --no-package-lock playwright
+          npx playwright install --with-deps chromium
+      - name: Test Story, Chaos, Director and mobile layout
+        run: node games/worst-roommates/tests/smoke.mjs
+
   upload:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload
-    needs: verify
+    # Auto-publish verified changes on main. Manual dispatch may opt out.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.upload))
+    needs: [verify, gameplay]
     environment: ringside-testflight
     runs-on: xcode-27
     timeout-minutes: 20
