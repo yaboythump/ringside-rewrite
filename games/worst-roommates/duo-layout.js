@@ -121,6 +121,10 @@
     area.innerHTML=items.map(action=>
       '<button type="button" data-dock-action="'+action+'">'+labels[action]+'</button>').join("");
   }
+  // Gameplay mode buttons update synchronously; refresh quick actions before the next tap.
+  playPanel.addEventListener("click",e=>{
+    if(e.target.closest("button[data-mode]")) Promise.resolve().then(syncDock);
+  });
   $("#dockActions").addEventListener("click",e=>{
     const button=e.target.closest("button[data-dock-action]");
     if (!button || button.disabled) return;
