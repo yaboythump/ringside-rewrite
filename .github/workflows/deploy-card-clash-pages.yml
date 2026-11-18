@@ -29,6 +29,8 @@ jobs:
         run: python3 games/card-clash/build.py _site/index.html
       - name: Build Ringside Combo into /ring-combo/
         run: python3 games/ring-combo/build.py _site/ring-combo/index.html
+      - name: Build Worst Roommates into /worst-roommates/
+        run: python3 games/worst-roommates/build.py _site/worst-roommates/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
