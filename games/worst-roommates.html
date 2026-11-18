@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>Worst Roommates Ever — Chaos Sim Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#14111c;--panel:#1f1a2b;--line:#2f2840;--txt:#f3eefc;--mut:#a89fbf;--pink:#ff4f8b;--yel:#ffd84d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
+body.native h1,body.native .sub{padding-right:48px}
+h1 img{display:block;max-width:100%;max-height:72px}
+h1{font-family:Bungee,Inter,sans-serif;font-size:24px;margin:4px 0 0;letter-spacing:.5px;color:var(--yel);text-shadow:3px 3px 0 var(--pink)}
+.sub{margin:4px 0 10px;color:var(--mut);font-size:13px}
+.stage{max-width:calc((100vh - 24px) * 400 / 520);margin:0 auto;position:relative;border-radius:14px;overflow:hidden;border:2px solid var(--line);background:#0b0910}
+canvas{display:block;width:100%;touch-action:manipulation}
+.hud{position:absolute;inset:0;pointer-events:none}
+.pill{position:absolute;top:8px;font:800 11px Inter,sans-serif;background:rgba(0,0,0,.6);padding:4px 9px;border-radius:99px}
+.rec{left:10px}.rec b{color:#ff3b3b}
+.ep{right:10px}
+.lower{position:absolute;left:10px;bottom:10px;max-width:85%;background:var(--pink);color:#fff;font:800 12px Inter,sans-serif;padding:6px 10px;border-radius:6px;transform:translateY(70px);transition:transform .3s}
+.lower.show{transform:none}
+.card,.conf{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;opacity:0;transition:opacity .35s;padding:20px}
+.card{background:rgba(10,6,20,.86)}
+.card.show,.conf.show{opacity:1}
+.card .s{font:800 12px Inter,sans-serif;color:var(--pink);letter-spacing:2px}
+.card .t{font-family:Bungee,sans-serif;font-size:24px;color:var(--yel);margin:8px 0}
+.card .l{font-size:14px;max-width:320px;line-height:1.4}
+.conf{background:repeating-linear-gradient(45deg,#2a1840 0 14px,#24153a 14px 28px);gap:10px}
+.face{background-size:cover;background-position:center;width:104px;height:104px;border-radius:50%;border:5px solid #fff;position:relative;box-shadow:0 8px 0 rgba(0,0,0,.3)}
+.face:before,.face:after{content:"";position:absolute;top:34px;width:13px;height:17px;background:#1a1a1a;border-radius:50%}
+.face:before{left:28px}.face:after{right:28px}
+.face.pic:before,.face.pic:after{display:none}
+.conf .tag{font:800 11px Inter,sans-serif;letter-spacing:3px;color:var(--yel)}
+.conf .nm{font-family:Bungee,sans-serif;font-size:20px}
+.conf .q{font-size:16px;font-weight:600;max-width:320px;background:rgba(0,0,0,.45);padding:10px 14px;border-radius:10px;line-height:1.35}
+.controls{display:grid;gap:10px;margin-top:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.row{display:flex;gap:8px;align-items:center}
+h3{margin:0 0 8px;font-size:12px;letter-spacing:1px;color:var(--mut);text-transform:uppercase}
+input[type=range]{flex:1;accent-color:var(--pink)}
+.cv{font-family:Bungee,sans-serif;color:var(--pink);min-width:30px;text-align:right;font-size:18px}
+button{font:800 13px Inter,sans-serif;border:0;border-radius:10px;padding:10px 12px;cursor:pointer;background:#2e2742;color:var(--txt)}
+button.on{background:var(--yel);color:#1a1a1a}
+button.go{background:var(--pink);color:#fff;width:100%;margin-top:8px;font-size:15px;padding:12px}
+button:disabled{opacity:.5}
+.toggles{display:flex;gap:8px;flex-wrap:wrap}
+textarea{width:100%;min-height:62px;background:#120f19;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px;font:15px Inter,sans-serif;resize:vertical}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{font:600 12px Inter,sans-serif;padding:7px 10px;border-radius:99px;background:#2a2338}
+.status{font-size:12px;color:var(--mut);margin-top:8px;min-height:16px}
+.log{max-height:260px;overflow:auto;font-size:13px;line-height:1.4}
+.log div{padding:5px 0;border-bottom:1px dashed var(--line)}
+.log .tm{color:var(--mut);font-variant-numeric:tabular-nums;margin-right:6px;font-size:11px}
+.log .hd{color:var(--yel);font-weight:800}
+.cast{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cm{background:#17131f;border-radius:10px;padding:7px 8px;font-size:11px;color:var(--mut)}
+.cm b{font-size:13px}
+.bar{height:5px;background:#2b2438;border-radius:3px;margin:5px 0 4px;overflow:hidden}
+.bar i{display:block;height:100%;transition:width .4s}
+/* Unfolded iPhone Duo / landscape: stage left, controls right */
+@media (min-width:720px){
+ .wrap{max-width:1180px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);column-gap:16px;align-items:start}
+ .wrap>h1,.wrap>.sub{grid-column:1/-1}
+ .stage{position:sticky;top:calc(10px + env(safe-area-inset-top));width:100%}
+ .controls{margin-top:0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Worst Roommates Ever</h1>
+  <div class="sub">Six AI roommates, one bathroom. You're the director.</div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud">
+      <div class="pill rec"><b>●</b> REC <span id="clock">00:00</span></div>
+      <div class="pill ep" id="epPill">S1 · E1</div>
+      <div class="lower" id="lower"></div>
+      <div class="card" id="card"><div class="s" id="cardS"></div><div class="t" id="cardT"></div><div class="l" id="cardL"></div></div>
+      <div class="conf" id="conf"><div class="tag">CONFESSIONAL</div><div class="face" id="confFace"></div><div class="nm" id="confName"></div><div class="q" id="confQ"></div></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="panel">
+      <h3>Chaos meter</h3>
+      <div class="row"><span>😇</span><input type="range" id="chaos" min="1" max="10" value="6"><span>🔥</span><span class="cv" id="chaosV">6</span></div>
+      <div class="toggles" style="margin-top:10px">
+        <button id="bSpeed">⏩ 1x</button>
+        <button id="bCam" class="on">🎥 Director cam</button>
+        <button id="bVoice" style="display:none">🔊 Voices</button>
+        <button id="bEvent">🎲 Wildcard</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Direct an episode</h3>
+      <textarea id="prompt" placeholder="e.g. Gary hides from the landlord while Moose throws a dinner party"></textarea>
+      <div class="chips" id="chips"></div>
+      <button class="go" id="bGo">🎬 Roll episode</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="panel">
+      <h3>The cast</h3>
+      <div class="cast" id="cast"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Episode log</h3>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- setup ----------
+const W=400,H=520;
+const $=s=>document.querySelector(s);
+const cv=$('#cv'),ctx=cv.getContext('2d');
+let cssW=0,cssH=0,dpr=1;
+function resize(){cssW=cv.parentElement.clientWidth;cssH=cssW*H/W;dpr=Math.min(window.devicePixelRatio||1,2);cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);cv.style.height=cssH+'px';}
+window.addEventListener('resize',resize);resize();
+if(window.ResizeObserver)new ResizeObserver(()=>resize()).observe(cv.parentElement);
+
+const rand=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+// ---------- native app bridge (iOS) ----------
+const NATIVE=!!window.WorstNative;
+if(NATIVE)document.body.classList.add('native');
+const pending={};let nid=0;
+window.__nativeReply=r=>{const p=pending[r.id];if(p){delete pending[r.id];r.ok?p.res(r.text):p.rej(new Error(r.text));}};
+function nativeCall(action,data){return new Promise((res,rej)=>{const id='n'+(++nid);pending[id]={res,rej};try{window.WorstNative.post(Object.assign({action,id},data||{}));}catch(e){delete pending[id];rej(e);}});}
+function nativePost(action,data){if(!NATIVE)return;try{window.WorstNative.post(Object.assign({action},data||{}));}catch(e){}}
+// Saves: the app keeps them in a file (WebKit storage for local pages can be wiped); the web build uses localStorage.
+const store=NATIVE?window.WorstNative:{getItem(k){try{return localStorage.getItem(k)}catch(e){return null}},setItem(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+window.__resetGame=()=>{store.setItem('wre_save','');location.reload();};
+
+// ---------- artwork (optional PNGs in art/; emoji/shapes are the fallback) ----------
+const ART={};
+const ART_SRC={};
+const ART_NAMES=['logo','char_dex','char_brenda','char_gary','char_priya','char_moose','char_luna','char_kyle','char_fenwick',
+ 'portrait_dex','portrait_brenda','portrait_gary','portrait_priya','portrait_moose','portrait_luna',
+ 'floor_bedroom','floor_bathroom','floor_living','floor_kitchen',
+ 'obj_bed','obj_toilet','obj_shower','obj_tub','obj_fridge','obj_stove','obj_couch','obj_tv','obj_speaker','obj_table','obj_plant',
+ 'fx_fire','fx_raccoon','fx_note'];
+ART_NAMES.forEach(n=>{const im=new Image();im.onload=()=>{ART[n]=im;if(n==='logo'){const h=document.querySelector('h1');h.innerHTML='';const c=im.cloneNode();c.alt='Worst Roommates Ever';h.appendChild(c);h.style.textShadow='none';}};im.onerror=()=>{};if(ART_SRC[n])im.src=ART_SRC[n];});
+function drawArt(n,x,y,w,h){const im=ART[n];if(!im)return false;ctx.drawImage(im,x-w/2,y-h/2,w,h);return true;}
+const FLOOR_ART={bed1:'floor_bedroom',bed2:'floor_bedroom',bed3:'floor_bedroom',bath:'floor_bathroom',living:'floor_living',kitchen:'floor_kitchen'};
+const patCache={};
+function floorPattern(id){const n=FLOOR_ART[id];const im=ART[n];if(!im)return null;if(!patCache[n]){try{const p=ctx.createPattern(im,'repeat');const sc=64/im.width;if(p.setTransform&&window.DOMMatrix)p.setTransform(new DOMMatrix().scale(sc,sc));patCache[n]=p;}catch(e){return null;}}return patCache[n];}
+const artKey=c=>c.name==='Mr. Fenwick'?'fenwick':c.name.toLowerCase();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---------- world ----------
+const ROOMS=[
+ {id:'bed1',name:'Bedroom A',x:0,y:0,w:132,h:160,color:'#3b2f4a'},
+ {id:'bath',name:'THE Bathroom',x:134,y:0,w:132,h:160,color:'#1d4448'},
+ {id:'bed2',name:'Bedroom B',x:268,y:0,w:132,h:160,color:'#2f3b4f'},
+ {id:'living',name:'Living Room',x:0,y:162,w:400,h:156,color:'#2b3a2c'},
+ {id:'kitchen',name:'Kitchen',x:0,y:320,w:198,h:200,color:'#4a3b22'},
+ {id:'bed3',name:'Bedroom C',x:200,y:320,w:200,h:200,color:'#4a2f37'},
+];
+const DOOR={
+ bed1:{in:{x:66,y:145},out:{x:66,y:178}},
+ bath:{in:{x:200,y:145},out:{x:200,y:180}},
+ bed2:{in:{x:334,y:145},out:{x:334,y:178}},
+ kitchen:{in:{x:100,y:336},out:{x:100,y:302}},
+ bed3:{in:{x:300,y:336},out:{x:300,y:302}},
+};
+const OBJ={
+ toilet:{x:160,y:38,room:'bath',need:'bladder',icon:'🚽',dur:4},
+ shower:{x:240,y:40,room:'bath',need:'hygiene',icon:'🚿',dur:6},
+ fridge:{x:26,y:344,room:'kitchen',need:'hunger',dur:4},
+ stove:{x:92,y:344,room:'kitchen',need:'hunger',dur:6},
+ couch:{x:200,y:290,room:'living',need:'fun',dur:8},
+ bed1a:{x:34,y:46,room:'bed1',need:'energy',dur:9},bed1b:{x:100,y:46,room:'bed1',need:'energy',dur:9},
+ bed2a:{x:302,y:46,room:'bed2',need:'energy',dur:9},bed2b:{x:368,y:46,room:'bed2',need:'energy',dur:9},
+ bed3a:{x:240,y:466,room:'bed3',need:'energy',dur:9},bed3b:{x:362,y:466,room:'bed3',need:'energy',dur:9},
+};
+const speakerPos={x:378,y:182}, tvPos={x:200,y:176}, frontDoor={x:6,y:240};
+const roomAt=(x,y)=>{const r=ROOMS.find(r=>x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h);return r?r.id:'living'};
+function route(from,to,dest){const p=[];if(from!==to){if(from!=='living'&&DOOR[from])p.push(DOOR[from].in,DOOR[from].out);if(to!=='living'&&DOOR[to])p.push(DOOR[to].out,DOOR[to].in);}p.push(dest);return p.map(q=>({x:q.x,y:q.y}));}
+
+// ---------- cast ----------
+const CAST=[
+ {name:'Dex',color:'#ff5c8a',trait:'aspiring DJ, loud, petty, thinks he is famous',bed:'bed1a',voice:{voice:'glassy',rate:1.15,pitch:1.1},rates:{hunger:1,bladder:1,energy:.6,fun:1.7,hygiene:.8},
+  idle:["Yo, who wants to hear my new mix?","I'm basically famous on SoundCloud.","Rent? I pay in vibes.","Bass is a lifestyle."],
+  conf:["Look, I'm not loud. Everyone else is just quiet.","If they didn't want a party, they shouldn't have walls."]},
+ {name:'Brenda',color:'#ffa53b',trait:'extremely dramatic, her ex Kyle keeps showing up',bed:'bed1b',voice:{voice:'airy',rate:1.1,pitch:1.3},rates:{hunger:.9,bladder:1,energy:1,fun:1.2,hygiene:1.3},
+  idle:["Nobody here understands my journey.","I'm not crying, the apartment is just dusty.","Kyle would NEVER… okay he would."],
+  conf:["This house is a prison. A prison with bad Wi-Fi.","I'm the only sane one here. Write that down."]},
+ {name:'Gary',color:'#6fc3ff',trait:'lies constantly, never pays rent, hides from the landlord',bed:'bed2a',voice:{voice:'rounded',rate:1,pitch:.9},rates:{hunger:1.2,bladder:1.1,energy:1.1,fun:1,hygiene:.5},
+  idle:["I was a Navy SEAL for a week.","My uncle owns Netflix.","I didn't eat it. A bird got in."],
+  conf:["I'm not lying. I'm pre-truthing.","Technically, I DID pay rent. In 2019."]},
+ {name:'Priya',color:'#8be07a',trait:'neat freak, leaves passive-aggressive sticky notes',bed:'bed2b',voice:{voice:'buttery',rate:1.05,pitch:1.15},rates:{hunger:.9,bladder:1,energy:.9,fun:.8,hygiene:1.5},
+  idle:["Who left a single Cheerio on the counter?","I labeled the labels.","Coasters exist, people."],
+  conf:["I'm not passive-aggressive. I'm aggressively organized.","I have a spreadsheet of everyone's crimes."]},
+ {name:'Moose',color:'#b98cff',trait:'gentle giant who eats everyone else\'s food',bed:'bed3a',voice:{voice:'rounded',rate:.85,pitch:.6},rates:{hunger:2,bladder:1.2,energy:1,fun:.9,hygiene:.9},
+  idle:["Is anyone gonna eat that?","I'm not hungry. I'm just… curious.","Snack o'clock."],
+  conf:["If it's in the fridge, it's community food. That's the law.","I didn't steal it. I adopted it."]},
+ {name:'Luna',color:'#ffe066',trait:'conspiracy theorist and chaos agent',bed:'bed3b',voice:{voice:'airy',rate:1.25,pitch:1.4},rates:{hunger:1,bladder:1,energy:.7,fun:1.4,hygiene:.7},
+  idle:["The smoke detector is listening. Act natural.","Birds aren't real, and neither is our lease.","I put tinfoil on the router. You're welcome."],
+  conf:["I didn't cause the chaos. I just… gave it a little push.","The raccoons and I have an understanding."]},
+];
+const NEED_EMO={bladder:'🚽',hygiene:'🧼',energy:'💤',fun:'📺',hunger:'🍕'};
+let chars=[];
+function mkChar(d){const b=OBJ[d.bed];return {...d,x:b.x+rand(-10,10),y:b.y+30,path:[],onArrive:null,act:null,
+ needs:{hunger:rand(40,100),bladder:rand(40,100),energy:rand(50,100),fun:rand(30,100),hygiene:rand(40,100)},
+ bubble:null,emote:'',grudge:{},idleT:rand(0,2),script:0,flee:0,wait:null,seat:null,visitor:false};}
+const find=n=>{if(!n)return null;n=String(n).toLowerCase().trim();return chars.find(c=>c.name.toLowerCase()===n)||chars.find(c=>!c.visitor&&n.includes(c.name.toLowerCase()))||null};
+const roommates=()=>chars.filter(c=>!c.visitor);
+const others=c=>roommates().filter(o=>o!==c);
+
+// ---------- persistence (light, per-browser) ----------
+let save={ep:1,grudges:{},titles:[]};
+try{const s=JSON.parse(store.getItem('wre_save')||'null');if(s&&s.ep)save=s;}catch(e){}
+function persist(){save.grudges={};roommates().forEach(c=>save.grudges[c.name]=c.grudge);store.setItem('wre_save',JSON.stringify(save));}
+
+// ---------- sim state ----------
+let simTime=0,speed=1,chaos=6,directorOn=true;
+let bathUser=null,seats=[null,null,null],scorched=false;
+const fx={fire:null,flood:null,outage:null,party:null,raccoon:null};
+const timers=[];const later=(s,fn)=>timers.push({at:simTime+s,fn});
+const drama=[];
+const cam={x:W/2,y:H/2,z:1};
+let confUntil=0,confCool=0;
+
+// ---------- UI helpers ----------
+const logEl=$('#log');
+const clockStr=t=>{t=Math.floor(t);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
+function log(html,cls){const d=document.createElement('div');d.innerHTML=`<span class="tm">${clockStr(simTime)}</span>`+(cls?`<span class="${cls}">${html}</span>`:html);logEl.prepend(d);while(logEl.children.length>120)logEl.lastChild.remove();}
+let lowerT=null;
+function lowerThird(text){const el=$('#lower');el.textContent=text;el.classList.add('show');clearTimeout(lowerT);lowerT=setTimeout(()=>el.classList.remove('show'),2600);}
+function showCard(s,t,l,ms){$('#cardS').textContent=s;$('#cardT').textContent=t;$('#cardL').textContent=l||'';const c=$('#card');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),ms||3200);}
+function showConf(c,text){if(!c)return;const face=$('#confFace');const pim=ART['portrait_'+artKey(c)];face.style.backgroundColor=c.color;face.style.backgroundImage=pim?`url(${pim.src})`:'none';face.classList.toggle('pic',!!pim);nativePost('haptic',{style:'light'});$('#confName').textContent=c.name;$('#confName').style.color=c.color;$('#confQ').textContent='“'+text+'”';$('#conf').classList.add('show');confUntil=simTime+3.8;confCool=simTime+9;log(`🎙️ <b style="color:${c.color}">${esc(c.name)}</b> (confessional): ${esc(text)}`);speakLine(c,text);}
+function maybeConf(c,text,p){if(simTime>confCool&&Math.random()<(p||.5))later(1.5,()=>showConf(c,text));}
+
+function say(c,text,dur,doLog){if(!c)return;c.bubble={text,t:dur||3.4};if(doLog!==false){log(`<b style="color:${c.color}">${esc(c.name)}:</b> ${esc(text)}`);}}
+function addDrama(x,y,score,label){drama.push({x,y,score,label,t:simTime});if(drama.length>40)drama.shift();if(score>=2&&label)lowerThird(label);if(score>=4)nativePost('haptic',{style:'heavy'});}
+function addGrudge(a,b,n){if(!a||!b||a===b||a.visitor||b.visitor)return;const before=a.grudge[b.name]||0;a.grudge[b.name]=before+(n||1);if(before<3&&a.grudge[b.name]>=3){addDrama(a.x,a.y,2,`😤 ${a.name} now has a grudge against ${b.name}`);log(`😤 ${esc(a.name)} is officially beefing with ${esc(b.name)}.`);}}
+
+// ---------- movement & actions ----------
+function release(c){if(bathUser===c.name)bathUser=null;if(c.seat!=null){seats[c.seat]=null;c.seat=null;}c.act=null;c.emote='';c.wait=null;}
+function goTo(c,x,y,cb){release(c);c.path=route(roomAt(c.x,c.y),roomAt(x,y),{x,y});c.onArrive=cb||null;}
+function flee(c){c.flee=2.5;c.script=Math.max(c.script,2);goTo(c,rand(30,370),rand(190,300));}
+function move(c,dt){if(!c.path.length)return;const t=c.path[0],dx=t.x-c.x,dy=t.y-c.y,d=Math.hypot(dx,dy),sp=(c.flee>0?100:56)*dt;
+ if(d<=sp){c.x=t.x;c.y=t.y;c.path.shift();if(!c.path.length){c.idleT=rand(.6,2.2);const cb=c.onArrive;c.onArrive=null;cb&&cb();}}else{c.x+=dx/d*sp;c.y+=dy/d*sp;}}
+
+function useObj(c,key){const o=OBJ[key];if(!o)return;
+ if(o.room==='bath'){goTo(c,DOOR.bath.out.x+rand(-14,14),DOOR.bath.out.y+8,()=>tryBath(c,key,0));return;}
+ if(key==='couch'){const s=seats.indexOf(null);if(s<0){goTo(c,o.x+rand(-50,50),o.y+20,()=>{say(c,pick(["Scoot OVER.","Why is the couch ALWAYS full?!","I'll just stand. Like a peasant."]));const sitter=pick(roommates().filter(x=>x.seat!=null));addGrudge(c,sitter,1);});return;}
+  goTo(c,o.x-42+s*42,o.y-4,()=>startAct(c,key));seats[s]=c.name;c.seat=s;return;}
+ if(key.startsWith('bed')){goTo(c,o.x,o.y+6,()=>startAct(c,key));return;}
+ goTo(c,o.x+rand(-6,6),o.y+20,()=>startAct(c,key));}
+
+function tryBath(c,key,tries){
+ if(fx.flood){say(c,pick(["The bathroom is a LAKE.","I'm not swimming to the toilet."]));c.needs[OBJ[key].need]+=25;return;}
+ if(bathUser&&bathUser!==c.name){const u=find(bathUser);
+  if(tries===0){say(c,pick(["Hellooo? Some of us have NEEDS!","HURRY UP IN THERE!","*bangs on door*","Are you writing a novel in there?!"]));addGrudge(c,u,1);addDrama(c.x,c.y,1.5,`🚪 Bathroom standoff: ${c.name} vs ${bathUser}`);later(1.6,()=>u&&say(u,pick(["I JUST got in here!","OCCUPIED!","Go away, I'm self-caring."])));}
+  if(tries>=2){say(c,pick(["Fine. I'm using the neighbor's.","I'll hold it. Forever."]));c.needs[OBJ[key].need]+=40;return;}
+  c.emote='⏳';c.wait={t:3.5,key,tries:tries+1};return;}
+ bathUser=c.name;const o=OBJ[key];c.path=[{x:DOOR.bath.in.x,y:DOOR.bath.in.y},{x:o.x,y:o.y+18}];c.onArrive=()=>startAct(c,key);}
+
+function startAct(c,key){const o=OBJ[key];c.act={key,t:o.dur*rand(.8,1.3),need:o.need};c.emote=NEED_EMO[o.need]||'';
+ if(key==='stove'){c.emote='🍳';if(!fx.fire&&Math.random()<chaos*0.035)later(2,()=>{if(c.act&&c.act.key==='stove'){say(c,"Wait… is oil supposed to do that?");triggerEvent('fire');}});}
+ if(key==='fridge'&&c.name==='Moose'&&Math.random()<.5)stealFood(c);}
+function endAct(c){if(c.act)c.needs[c.act.need]=100;release(c);}
+
+function decide(c){
+ const [need,val]=Object.entries(c.needs).sort((a,b)=>a[1]-b[1])[0];
+ if(val<55){const key=need==='bladder'?'toilet':need==='hygiene'?'shower':need==='energy'?c.bed:need==='fun'?'couch':(Math.random()<.5?'fridge':'stove');useObj(c,key);return;}
+ if(Math.random()<.35){const o=pick(others(c));goTo(c,o.x+rand(-22,22),o.y+rand(-10,14),()=>chat(c,o));}
+ else goTo(c,rand(24,376),rand(190,305));}
+function chat(c,o){say(c,pick(c.idle),3,false);if(Math.random()<.35)later(1.8,()=>{say(o,pick(["Nobody asked.","Cool story.","Are you wearing MY socks?","Wow. Okay.","Again with this?"]),2.6,false);addGrudge(c,o,.4);});}
+
+// ---------- incidents (small drama) ----------
+const PRANKS=[(a,t)=>`${a.name} replaced ${t.name}'s shampoo with mayonnaise.`,(a,t)=>`${a.name} changed the Wi-Fi password to "${t.name}IsTheWorst".`,(a,t)=>`${a.name} sold ${t.name}'s air fryer on Marketplace.`,(a,t)=>`${a.name} put ${t.name}'s phone in a bowl of Jell-O.`,(a,t)=>`${a.name} told everyone ${t.name} cries at car commercials.`];
+function stealFood(m){const v=pick(others(m));m.emote='🍗';say(m,`*eats ${v.name}'s leftovers* …delicious.`);log(`🍗 Moose ate ${esc(v.name)}'s leftovers.`);
+ later(4,()=>{say(v,pick([`WHO ATE MY ${pick(['LASAGNA','BIRTHDAY CAKE','MEAL PREP','SUSHI'])}?!`,"My leftovers are GONE. Again."]),3.6);addGrudge(v,m,2);addDrama(v.x,v.y,3,'🍗 The great leftover heist');later(2.2,()=>say(m,"…a bird got in?"));maybeConf(m,pick(m.conf),.5);});}
+function revenge(){let best=null;roommates().forEach(c=>{for(const [n,g] of Object.entries(c.grudge))if(g>=3&&find(n)&&(!best||g>best.g))best={c,n,g};});if(!best)return false;
+ const a=best.c,t=find(best.n);a.grudge[t.name]=1;const p=pick(PRANKS)(a,t);log(`😈 ${esc(p)}`,'hd');say(a,pick(["Revenge is a dish best served… now.","Oops. 🙂","They had it coming."]));addDrama(t.x,t.y,4,'😈 REVENGE: '+p);
+ later(2.6,()=>{say(t,pick(["WHO DID THIS?!",`I KNOW IT WAS YOU, ${a.name.toUpperCase()}!`]),3.4);addGrudge(t,a,3);});maybeConf(a,pick(["I regret nothing.",`${t.name} started it. I just finished it.`]),.8);return true;}
+const INCIDENTS=[
+ ()=>{const p=find('Priya');const note=pick(["'The dishes won't wash THEMSELVES.'","'WHOEVER used my oat milk: I have cameras.'","'Toilet seat. DOWN. Thank you. :)'","'Quiet hours start at 9. It is 9:01.'"]);say(p,'*posts sticky note* '+note,4);addDrama(p.x,p.y,1.5,'📝 Passive-aggressive sticky note');const t=pick(others(p));later(2.2,()=>{say(t,pick(["Not reading that.","Is that a threat?","*crumples note*"]));addGrudge(t,p,1);});},
+ ()=>{const g=find('Gary');const t=pick(others(g));say(g,pick(["I already paid rent. Venmo's just slow.","I was almost an astronaut.","I didn't eat it. A bird got in.","I'm technically royalty in Belgium."]));later(2.3,()=>{say(t,pick(["Gary. That's not how anything works.","You said that last month.","Sure, Gary."]));addGrudge(t,g,.6);});},
+ ()=>{const l=find('Luna');say(l,pick(["The smoke detector is listening. Act natural.","The raccoons are organizing. I've seen the signs.","Our landlord is three kids in a trench coat."]));addDrama(l.x,l.y,1,'🛸 Luna has a theory');},
+ ()=>{const m=find('Moose');m.script=6;goTo(m,OBJ.fridge.x+10,OBJ.fridge.y+20,()=>stealFood(m));},
+ ()=>{const on=roommates().filter(c=>c.act&&c.act.key==='couch');if(on.length<2)return revenge();const [a,b]=shuffle(on);say(a,"I had the remote FIRST.");later(1.8,()=>say(b,"Possession is nine-tenths of the law!"));later(3.6,()=>{say(a,"*yanks remote*");addGrudge(b,a,1.5);});addDrama(a.x,a.y,2.5,'📺 Remote war');},
+];
+function runIncident(){if(Math.random()<.4&&revenge())return;pick(INCIDENTS)();}
+
+// ---------- big events ----------
+const EVENTS=['fire','raccoon','outage','flood','ex','landlord','party'];
+function spawnVisitor(name,color){const v={name,color,x:-14,y:240,path:[],onArrive:null,bubble:null,emote:'',visitor:true,flee:0,needs:{},grudge:{}};chars.push(v);return v;}
+function removeVisitor(v){chars=chars.filter(c=>c!==v);}
+function triggerEvent(type){
+ switch(type){
+ case 'fire':{if(fx.fire)return false;fx.fire={t:10,hero:null};log('🔥 The stove is ON FIRE.','hd');addDrama(OBJ.stove.x,OBJ.stove.y,5,'🔥 KITCHEN FIRE');
+  roommates().forEach(c=>{if(roomAt(c.x,c.y)==='kitchen'){say(c,pick(["FIRE!! FIRE!!","WHO LEFT THE OIL ON?!","I'm too pretty to burn!"]));flee(c);}else if(Math.random()<.4)say(c,pick(["Is something burning?","I smell smoke…","Not again."]),2.6,false);});return true;}
+ case 'flood':{if(fx.flood)return false;fx.flood={t:16};log('🌊 The toilet exploded. The bathroom is flooding.','hd');addDrama(200,80,4,'🌊 BATHROOM FLOOD');
+  if(bathUser){const u=find(bathUser);if(u){say(u,"MY SOCKS! MY BEAUTIFUL SOCKS!");flee(u);}}bathUser=null;later(2,()=>{const p=find('Priya');say(p,"I need EVERYONE to stop flushing paper towels.");});return true;}
+ case 'outage':{if(fx.outage)return false;fx.outage={t:11};log('🌑 Power outage!','hd');addDrama(200,240,3,'🌑 BLACKOUT');
+  later(.8,()=>say(pick(roommates()),"Who touched the breaker?!"));later(2.4,()=>say(find('Luna'),"It's the government. They know."));later(4.2,()=>say(find('Dex'),"My phone's at 2%. This is a TRAGEDY."));return true;}
+ case 'party':{if(fx.party)return false;fx.party={t:14};const d=find('Dex');d.script=14;goTo(d,speakerPos.x-14,speakerPos.y+18,()=>{d.emote='🎧';say(d,"DROP THE BASS! 🎶");});log('🎶 Dex is throwing an unauthorized party.','hd');addDrama(speakerPos.x,speakerPos.y,3,'🎶 SURPRISE PARTY');
+  later(3,()=>{const p=find('Priya');say(p,"It is a TUESDAY, Dex.");addGrudge(p,d,1.5);maybeConf(p,"I have a 7am. He has a 'set'. Make it make sense.",.6);});return true;}
+ case 'raccoon':{if(fx.raccoon)return false;fx.raccoon={x:-10,y:240,tx:120,ty:250,t:16,seen:new Set()};log('🦝 A raccoon got in.','hd');addDrama(60,240,4,'🦝 RACCOON IN THE HOUSE');return true;}
+ case 'ex':{if(chars.some(c=>c.name==='Kyle'))return false;const b=find('Brenda');const k=spawnVisitor('Kyle','#9aa0a6');b.script=16;log("💔 Brenda's ex Kyle just walked in.",'hd');addDrama(30,240,4,"💔 THE EX IS HERE");
+  goTo(k,b.x-20,b.y+6,()=>{say(k,"Bren… I just came for my hoodie.");later(2.4,()=>say(b,"That hoodie is MINE now, KYLE.",3.6));later(5,()=>say(find('Luna'),"Is that the guy from your vision board?"));later(7.4,()=>{say(k,"…I'll text you.");later(1,()=>goTo(k,-16,240,()=>removeVisitor(k)));});maybeConf(b,"I'm FINE. I'm totally fine. I'm keeping the hoodie.",.9);});
+  k.path=route('living',roomAt(b.x,b.y),{x:b.x-20,y:b.y+6});return true;}
+ case 'landlord':{if(chars.some(c=>c.name==='Mr. Fenwick'))return false;const g=find('Gary');const f=spawnVisitor('Mr. Fenwick','#d9d9d9');g.script=16;flee(g);goTo(g,DOOR.bath.out.x,DOOR.bath.out.y+4,()=>{say(g,"Gary isn't here right now!");});
+  log('🏠 The landlord is here for rent.','hd');addDrama(30,240,4,'🏠 LANDLORD ALERT');
+  goTo(f,150,250,()=>{say(f,"RENT. IS. DUE.",3);later(2.4,()=>say(find('Priya'),"I Venmo'd you on the 1st, Mr. Fenwick."));later(4.8,()=>say(f,"Where's Gary?"));later(6.6,()=>say(find('Dex'),"Gary moved to Portugal."));later(8.6,()=>say(g,"…Olá?"));later(10.4,()=>{say(f,"I'll be back Friday.");addDrama(f.x,f.y,2,"🏠 He'll be back Friday");later(1,()=>goTo(f,-16,240,()=>removeVisitor(f)));});maybeConf(g,pick(g.conf),.8);});return true;}
+ }return false;}
+
+// ---------- director: scripted episodes ----------
+let script=null,running=false;
+const PLACES=['toilet','shower','fridge','stove','couch','bed'];
+function runBeat(b){
+ const who=find(b.who);if(who)who.script=Math.max(who.script,4.5);
+ switch(b.type){
+  case 'say':if(who){say(who,b.text,4);addDrama(who.x,who.y,1.8,null);speakLine(who,b.text);}break;
+  case 'confessional':if(who){showConf(who,b.text);}break;
+  case 'event':if(!triggerEvent(b.event)&&who)say(who,b.text||"This day can't get worse.");break;
+  case 'goto':if(who){let k=b.place==='bed'?who.bed:b.place;if(OBJ[k])useObj(who,k);if(b.text)later(.3,()=>say(who,b.text,3.4));}break;
+  case 'fight':{const t=find(b.target);if(who&&t&&t!==who){goTo(who,t.x+20,t.y+4,null);say(who,b.text,4);addGrudge(t,who,2);addDrama(t.x,t.y,3,`🥊 ${who.name} vs ${t.name}`);speakLine(who,b.text);}else if(who)say(who,b.text,4);}break;
+ }}
+function updateScript(){if(!script||simTime<script.next)return;
+ if(script.i>=script.beats.length){endEpisode();return;}
+ const b=script.beats[script.i++];runBeat(b);script.next=simTime+(b.type==='confessional'?4.4:b.type==='event'?4:3.3);}
+function startEpisode(ep){const n=save.ep;$('#epPill').textContent=`S1 · E${n}`;showCard(`SEASON 1 · EPISODE ${n}`,ep.title,ep.logline,3400);
+ log(`🎬 E${n}: “${esc(ep.title)}”`,'hd');script={beats:ep.beats,i:0,next:simTime+3.6,ep};}
+function endEpisode(){const ep=script.ep;script=null;showCard('TO BE CONTINUED…',ep.title,ep.cliffhanger||'',4200);log(`⏸️ Cliffhanger: ${esc(ep.cliffhanger||'…')}`,'hd');
+ save.titles.push(ep.title);save.titles=save.titles.slice(-6);save.ep++;persist();running=false;$('#bGo').disabled=false;$('#status').textContent='Episode wrapped. Roll another — grudges carry over.';}
+
+function grudgeSummary(){const out=[];roommates().forEach(c=>{for(const [n,g] of Object.entries(c.grudge))if(g>=1.5)out.push(`${c.name} resents ${n} (${g.toFixed(1)})`);});return out.slice(0,8).join('; ')||'none yet';}
+function normalize(v){if(!v||!Array.isArray(v.beats))throw new Error('bad');
+ const types=['say','confessional','event','goto','fight'];
+ const beats=v.beats.filter(b=>b&&types.includes(b.type)).slice(0,24).map(b=>({type:b.type,who:b.who,target:b.target,event:EVENTS.includes(b.event)?b.event:pick(EVENTS),place:PLACES.includes(b.place)?b.place:'couch',text:String(b.text||'').slice(0,130)}));
+ if(beats.length<4)throw new Error('short');
+ return {title:String(v.title||'Untitled Disaster').slice(0,60),logline:String(v.logline||'').slice(0,160),cliffhanger:String(v.cliffhanger||'').slice(0,160),beats};}
+
+let sampleFn=null,ttsApi=null,voicesOn=false,lastWriter='offline',writerNote='';
+async function writeEpisode(prompt){
+ const cast=CAST.map(c=>`- ${c.name}: ${c.trait}`).join('\n');
+ const input=`You are the head writer of "Worst Roommates Ever", a chaotic PG-13 sitcom acted out by AI characters in a Sims-style apartment game. Write ONE short episode from the director's prompt.
+
+Cast (use these exact names in "who"/"target"):
+${cast}
+
+Allowed "event" values: fire (stove fire), raccoon (raccoon gets in), outage (blackout), flood (bathroom floods), ex (Brenda's ex Kyle shows up), landlord (Mr. Fenwick demands rent), party (Dex blasts music).
+Allowed "place" values for goto: toilet, shower, fridge, stove, couch, bed.
+
+Return ONLY JSON, no prose:
+{"title": string (max 6 words), "logline": string (1 sentence), "cliffhanger": string (1 sentence teasing next episode), "beats": [14 to 20 beats]}
+Beat shapes:
+{"type":"say","who":NAME,"text":line}
+{"type":"fight","who":NAME,"target":NAME,"text":line}
+{"type":"goto","who":NAME,"place":PLACE,"text":optional line}
+{"type":"event","event":EVENT,"who":NAME,"text":line said if event can't happen}
+{"type":"confessional","who":NAME,"text":to-camera line}
+
+Rules: open cold with something already going wrong; escalate; include 2-3 events and 2-3 confessionals; every line under 90 characters, punchy and funny, true to each character; end on a cliffhanger. Keep it PG-13.
+
+Chaos level: ${chaos}/10
+Running grudges from earlier episodes: ${grudgeSummary()}
+Previous episode titles: ${save.titles.join(' | ')||'none'}
+
+Director's prompt: ${prompt}`;
+ lastWriter='claude';
+ if(NATIVE){try{const text=await nativeCall('write',{prompt:input});return normalize(JSON.parse(text.slice(text.indexOf('{'),text.lastIndexOf('}')+1)));}catch(e){console.warn('native writer fallback',e);writerNote=String(e&&e.message||e);}}
+ else if(sampleFn){try{const v=await sampleFn.json(input,{modelTier:'default'});return normalize(v);}catch(e){
+  if(e&&e.code==='not_granted'){sampleFn=null;}
+  else if(e&&e.text){try{return normalize(JSON.parse(e.text.slice(e.text.indexOf('{'),e.text.lastIndexOf('}')+1)));}catch(_){}}
+  console.warn('writer fallback',e);}}
+ lastWriter='offline';return localEpisode(prompt);}
+
+function localEpisode(prompt){
+ const p=prompt.toLowerCase();const kw={fire:/fire|cook|burn|stove|dinner|bbq/,raccoon:/raccoon|animal|pet|critter/,outage:/power|dark|outage|blackout|haunt|ghost/,flood:/flood|water|toilet|plumb|bathroom/,ex:/\bex\b|date|kyle|breakup|love|crush/,landlord:/rent|landlord|money|evict|lease/,party:/party|music|dj|rave|dance/};
+ let evs=EVENTS.filter(e=>kw[e].test(p));evs=shuffle(evs);while(evs.length<2){const e=pick(EVENTS);if(!evs.includes(e))evs.push(e);}
+ let leads=roommates().filter(c=>p.includes(c.name.toLowerCase()));leads=leads.concat(shuffle(roommates().filter(c=>!leads.includes(c))));
+ const [a,b,c,d]=leads;const topic=prompt.trim().replace(/[.!?]+$/,'').slice(0,48)||'the incident';
+ const beats=[
+  {type:'event',event:evs[0],who:a.name,text:"Something is VERY wrong in here."},
+  {type:'say',who:a.name,text:pick(["Okay. Nobody panic. I'm panicking, but nobody else panic.","This is fine. Everything is fine.","I can explain. I can't, actually."])},
+  {type:'fight',who:b.name,target:a.name,text:pick([`This is YOUR fault, ${a.name}!`,`I KNEW you'd do this, ${a.name}.`])},
+  {type:'say',who:c.name,text:pick(["I'm getting popcorn.","Should we call someone? Like… an adult?","Not my circus. Not my raccoons."])},
+  {type:'confessional',who:a.name,text:pick(a.conf)},
+  {type:'goto',who:d.name,place:pick(PLACES),text:"I'm staying out of this."},
+  {type:'say',who:b.name,text:`All of this because of "${topic}".`},
+  {type:'event',event:evs[1],who:c.name,text:"Somehow it got worse."},
+  {type:'say',who:d.name,text:pick(["I take back staying out of this.","Okay NOW I'm involved.","I just wanted ONE quiet night."])},
+  {type:'fight',who:a.name,target:b.name,text:pick(["You wanna go? Let's GO.","Say that again. I dare you.","I've been keeping a list, and you're on it."])},
+  {type:'confessional',who:b.name,text:pick(b.conf)},
+  {type:'say',who:find('Luna').name,text:"I'd like to formally say: I called this."},
+  {type:'say',who:c.name,text:"Group meeting. Living room. NOW."},
+  {type:'confessional',who:d.name,text:pick(d.conf)},
+ ];
+ return {title:'The One Where '+topic.charAt(0).toUpperCase()+topic.slice(1,40),logline:`Chaos level ${chaos}: ${topic}. Nobody walks away clean.`,cliffhanger:pick([`Next time: ${a.name} finds out what ${b.name} REALLY did with the rent money.`,`Next time: the raccoon is back. And it brought friends.`,`Next time: someone's moving out… or are they?`]),beats};}
+
+// ---------- TTS ----------
+function speakLine(c,text){if(!voicesOn||!c||c.visitor)return;const v=c.voice||{};if(NATIVE){nativePost('speak',{text,voice:{rate:v.rate||1,pitch:v.pitch||1}});return;}if(ttsApi)ttsApi.speak(text,{voice:v.voice,rate:v.rate}).catch(()=>{});}
+
+// ---------- update ----------
+let incT=5,evT=14;
+function update(dt){
+ // timers
+ for(let i=timers.length-1;i>=0;i--)if(timers[i].at<=simTime){const t=timers.splice(i,1)[0];try{t.fn()}catch(e){console.warn(e)}}
+ if(confUntil&&simTime>confUntil){$('#conf').classList.remove('show');confUntil=0;}
+ // scheduler (paused while a scripted beat is fresh to keep focus)
+ incT-=dt;evT-=dt;
+ if(incT<=0){incT=rand(6,11)*(1.5-chaos/12);runIncident();}
+ if(evT<=0){evT=rand(12,22)*(12-chaos)/6;const active=Object.values(fx).filter(Boolean).length+chars.filter(c=>c.visitor).length;if(active<(chaos>=8?2:1)&&Math.random()<.3+chaos*.065)triggerEvent(pick(EVENTS));}
+ updateScript();
+ // effects
+ if(fx.fire){const f=fx.fire;f.t-=dt;if(f.t<5&&!f.hero){const h=pick(roommates().filter(c=>!c.flee));if(h){f.hero=h.name;h.script=6;goTo(h,OBJ.stove.x+22,OBJ.stove.y+20,()=>{h.emote='🧯';say(h,"EVERYBODY STAY CALM!! 🧯");});}}
+  if(f.t<=0){const h=find(f.hero);fx.fire=null;scorched=true;log(`🧯 ${esc(f.hero||'The sprinklers')} put out the fire. The kitchen will never be the same.`);if(h){h.emote='';maybeConf(h,pick(["I'm basically a firefighter now. I'll accept payment in snacks.","Nobody thanked me. NOBODY."]),.8);}}}
+ if(fx.flood){fx.flood.t-=dt;if(fx.flood.t<=0){fx.flood=null;log('🧽 The flood is mopped up. Mostly.');}}
+ if(fx.outage){fx.outage.t-=dt;if(fx.outage.t<=0){fx.outage=null;log('💡 Power is back.');}}
+ if(fx.party){const p=fx.party;p.t-=dt;roommates().forEach(c=>{if(roomAt(c.x,c.y)==='living')c.needs.fun=Math.min(100,c.needs.fun+dt*6)});if(p.t<=0){fx.party=null;log('📝 A neighbor slid a strongly worded note under the door.');const d=find('Dex');d.emote='';}}
+ if(fx.raccoon){const r=fx.raccoon;r.t-=dt;const dx=r.tx-r.x,dy=r.ty-r.y,d=Math.hypot(dx,dy);const sp=70*dt;
+  if(d<sp){if(r.t<=0){if(r.x<0){fx.raccoon=null;log('🦝 The raccoon left. With a slice of pizza.');}else{r.tx=-20;r.ty=240;}}else{const rm=pick(ROOMS.filter(x=>x.id!=='bath'));r.tx=rand(rm.x+15,rm.x+rm.w-15);r.ty=rand(rm.y+20,rm.y+rm.h-15);if(rm.id!=='living'){const dr=DOOR[rm.id];r.tx=dr.in.x+rand(-25,25);r.ty=dr.in.y+(rm.y<160?-30:30);}}}
+  else{r.x+=dx/d*sp;r.y+=dy/d*sp;}
+  if(fx.raccoon)roommates().forEach(c=>{if(!r.seen.has(c.name)&&Math.hypot(c.x-r.x,c.y-r.y)<38){r.seen.add(c.name);if(c.name==='Luna'){say(c,"Finally. My people.");addDrama(c.x,c.y,2,'🦝 Luna befriends the raccoon');}else{say(c,pick(["RACCOON!!","IT'S LOOKING AT ME!","Is that the new roommate?!"]));flee(c);addDrama(c.x,c.y,2.5,'🦝 Raccoon encounter');}}});}
+ // characters
+ chars.forEach(c=>{
+  if(c.bubble){c.bubble.t-=dt;if(c.bubble.t<=0)c.bubble=null;}
+  if(c.flee>0)c.flee-=dt;
+  move(c,dt);
+  if(c.visitor)return;
+  for(const k in c.needs)c.needs[k]=Math.max(0,c.needs[k]-dt*.9*c.rates[k]);
+  if(c.script>0)c.script-=dt;
+  if(c.wait){c.wait.t-=dt;if(c.wait.t<=0){const w=c.wait;c.wait=null;c.emote='';tryBath(c,w.key,w.tries);}return;}
+  if(c.act){c.act.t-=dt;c.needs[c.act.need]=Math.min(100,c.needs[c.act.need]+dt*22);if(c.act.t<=0)endAct(c);return;}
+  if(!c.path.length){c.idleT-=dt;if(c.idleT<=0&&c.script<=0)decide(c);}
+ });
+ // director camera
+ let target=null,best=0;drama.forEach(d=>{const age=simTime-d.t;if(age<5&&d.score>=2){const s=d.score*(1-age/6);if(s>best){best=s;target=d;}}});
+ if(fx.raccoon&&best<3){target={x:fx.raccoon.x,y:fx.raccoon.y};best=3;}
+ let tz=1,tx=W/2,ty=H/2;if(directorOn&&target){tz=1.75;tx=target.x;ty=target.y;}
+ const k=Math.min(1,dt*2.4/Math.max(speed,1));cam.z+=(tz-cam.z)*k;cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k;
+ const hw=W/(2*cam.z),hh=H/(2*cam.z);cam.x=Math.max(hw,Math.min(W-hw,cam.x));cam.y=Math.max(hh,Math.min(H-hh,cam.y));
+}
+
+// ---------- drawing ----------
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function emoji(e,x,y,size){ctx.font=`${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e,x,y);}
+function wrap(text,maxW){const words=text.split(' ');const lines=[];let cur='';words.forEach(w=>{const t=cur?cur+' '+w:w;if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w;}else cur=t;});if(cur)lines.push(cur);return lines.slice(0,4);}
+function drawBubble(c){const b=c.bubble;ctx.font='600 9.5px Inter,sans-serif';const lines=wrap(b.text,120);const w=Math.max(...lines.map(l=>ctx.measureText(l).width))+12,h=lines.length*12+8;
+ let x=Math.max(4,Math.min(W-w-4,c.x-w/2)),y=c.y-26-h;if(y<2)y=c.y+20;
+ ctx.fillStyle='rgba(0,0,0,.25)';rr(x+2,y+2,w,h,7);ctx.fill();ctx.fillStyle='#fff';rr(x,y,w,h,7);ctx.fill();
+ ctx.beginPath();const tx=Math.max(x+8,Math.min(x+w-8,c.x));if(y<c.y){ctx.moveTo(tx-5,y+h);ctx.lineTo(tx,y+h+6);ctx.lineTo(tx+5,y+h);}else{ctx.moveTo(tx-5,y);ctx.lineTo(tx,y-6);ctx.lineTo(tx+5,y);}ctx.fill();
+ ctx.fillStyle='#1b1626';ctx.textAlign='left';ctx.textBaseline='top';lines.forEach((l,i)=>ctx.fillText(l,x+6,y+5+i*12));}
+function draw(){
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#0b0910';ctx.fillRect(0,0,cssW,cssH);
+ const s=(cssW/W)*cam.z;ctx.setTransform(dpr*s,0,0,dpr*s,dpr*(cssW/2-cam.x*s),dpr*(cssH/2-cam.y*s));
+ // floors
+ ROOMS.forEach(r=>{const pat=floorPattern(r.id);if(pat){ctx.fillStyle=pat;ctx.fillRect(r.x,r.y,r.w,r.h);return;}ctx.fillStyle=r.color;ctx.fillRect(r.x,r.y,r.w,r.h);ctx.strokeStyle='rgba(255,255,255,.045)';ctx.lineWidth=1;
+  if(r.id==='bath'||r.id==='kitchen'){for(let gx=r.x;gx<=r.x+r.w;gx+=16){ctx.beginPath();ctx.moveTo(gx,r.y);ctx.lineTo(gx,r.y+r.h);ctx.stroke();}for(let gy=r.y;gy<=r.y+r.h;gy+=16){ctx.beginPath();ctx.moveTo(r.x,gy);ctx.lineTo(r.x+r.w,gy);ctx.stroke();}}
+  else for(let gy=r.y+10;gy<r.y+r.h;gy+=10){ctx.beginPath();ctx.moveTo(r.x,gy);ctx.lineTo(r.x+r.w,gy);ctx.stroke();}});
+ // rug
+ ctx.fillStyle='rgba(255,79,139,.18)';rr(120,205,160,70,14);ctx.fill();
+ // walls
+ ctx.strokeStyle='#0b0910';ctx.lineWidth=5;ROOMS.forEach(r=>ctx.strokeRect(r.x,r.y,r.w,r.h));
+ const living=ROOMS[3].color;Object.values(DOOR).forEach(d=>{ctx.fillStyle=living;ctx.fillRect(d.in.x-15,(d.in.y+d.out.y)/2-5,30,10);});
+ ctx.fillStyle='#7a4b2a';ctx.fillRect(0,224,5,32);
+ // bathroom sign
+ ctx.font='800 7px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=fx.flood?'#5ab0ff':bathUser?'#ff4f4f':'#55d66b';ctx.fillText(fx.flood?'FLOODED':bathUser?'OCCUPIED':'VACANT',200,168);
+ // labels
+ ctx.font='700 8px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillStyle='rgba(255,255,255,.35)';ROOMS.forEach(r=>ctx.fillText(r.name.toUpperCase(),r.x+7,r.y+7));
+ // furniture
+ ['bed1a','bed1b','bed2a','bed2b','bed3a','bed3b'].forEach(k=>{const o=OBJ[k];if(drawArt('obj_bed',o.x,o.y-2,36,52))return;ctx.fillStyle='#d8d2e8';rr(o.x-16,o.y-24,32,46,5);ctx.fill();ctx.fillStyle='#fff';rr(o.x-12,o.y-21,24,10,3);ctx.fill();const owner=CAST.find(c=>c.bed===k);ctx.fillStyle=owner.color;rr(o.x-16,o.y-6,32,28,5);ctx.fill();});
+ drawArt('obj_toilet',OBJ.toilet.x,OBJ.toilet.y,26,30)||emoji('🚽',OBJ.toilet.x,OBJ.toilet.y,22);drawArt('obj_shower',OBJ.shower.x,OBJ.shower.y,30,30)||emoji('🚿',OBJ.shower.x,OBJ.shower.y,22);drawArt('obj_tub',240,104,40,56)||emoji('🛁',240,100,24);
+ if(!drawArt('obj_fridge',26,344,34,44)){ctx.fillStyle='#e9eef2';rr(10,324,32,40,4);ctx.fill();ctx.fillStyle='#9aa7b1';ctx.fillRect(36,334,2,14);}
+ if(!drawArt('obj_stove',93,343,38,38)){ctx.fillStyle='#2a2a2a';rr(76,326,34,34,4);ctx.fill();ctx.fillStyle='#555';[[84,335],[102,335],[84,351],[102,351]].forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y,5,0,7);ctx.fill();});}
+ if(scorched){ctx.fillStyle='rgba(0,0,0,.45)';ctx.beginPath();ctx.ellipse(OBJ.stove.x,OBJ.stove.y-6,30,18,0,0,7);ctx.fill();}
+ if(!drawArt('obj_table',100,445,86,58)){ctx.fillStyle='#6b4a32';rr(60,420,80,50,6);ctx.fill();emoji('🍕',100,445,16);}
+ if(!drawArt('obj_couch',200,292,132,42)){ctx.fillStyle='#7b3d5a';rr(138,278,124,26,8);ctx.fill();ctx.fillStyle='#93506f';rr(138,296,124,10,5);ctx.fill();}
+ if(!drawArt('obj_tv',200,172,66,22)){ctx.fillStyle='#111';rr(170,166,60,10,2);ctx.fill();ctx.fillStyle=fx.outage?'#111':`hsl(${(simTime*40)%360},60%,55%)`;ctx.fillRect(173,168,54,6);}
+ drawArt('obj_speaker',speakerPos.x,speakerPos.y,22,26)||emoji('🔊',speakerPos.x,speakerPos.y,18);drawArt('obj_plant',20,180,22,26)||emoji('🪴',20,180,18);drawArt('obj_plant',384,300,20,24)||emoji('🪴',384,300,16);
+ // effects under characters
+ if(fx.flood){ctx.fillStyle=`rgba(70,150,255,${.35+.08*Math.sin(simTime*3)})`;ctx.fillRect(134,0,132,160);ctx.fillRect(170,160,60,18+Math.sin(simTime*2)*3);for(let i=0;i<4;i++)emoji('💧',150+i*30,70+Math.sin(simTime*3+i)*18,12);}
+ if(fx.fire){for(let i=0;i<5;i++){const fl=1+.25*Math.sin(simTime*12+i*2);{const fx_=OBJ.stove.x-16+i*8,fy=OBJ.stove.y-8-Math.abs(Math.sin(simTime*7+i))*8;drawArt('fx_fire',fx_,fy,16*fl,20*fl)||emoji('🔥',fx_,fy,16*fl);}}ctx.fillStyle='rgba(120,120,120,.25)';ctx.beginPath();ctx.arc(OBJ.stove.x,OBJ.stove.y-40-(simTime*20%20),24,0,7);ctx.fill();}
+ if(fx.party){for(let i=0;i<6;i++){const t=(simTime*.8+i/6)%1;{const nx=speakerPos.x-20-i*40+Math.sin(simTime*2+i)*10,ny=speakerPos.y+90-t*80;drawArt('fx_note',nx,ny,14,14)||emoji(i%2?'🎵':'🎶',nx,ny,13);}}ctx.fillStyle=`hsla(${(simTime*120)%360},90%,60%,.12)`;ctx.fillRect(0,162,400,156);}
+ // characters
+ const list=chars.slice().sort((a,b)=>a.y-b.y);
+ list.forEach(c=>{ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(c.x,c.y+10,10,4,0,0,7);ctx.fill();
+  const bob=c.path.length?Math.sin(simTime*14)*1.5:0;if(ART['char_'+artKey(c)]){const flip=c.path.length&&c.path[0].x<c.x;ctx.save();ctx.translate(c.x,c.y-6+bob);if(flip)ctx.scale(-1,1);ctx.drawImage(ART['char_'+artKey(c)],-15,-15,30,30);ctx.restore();}else{ctx.fillStyle=c.color;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(c.x,c.y-2+bob,10,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#1a1a1a';const look=c.path.length?Math.sign(c.path[0].x-c.x)*1.5:0;ctx.beginPath();ctx.arc(c.x-3.5+look,c.y-4+bob,1.8,0,7);ctx.arc(c.x+3.5+look,c.y-4+bob,1.8,0,7);ctx.fill();
+  if(c.flee>0){ctx.beginPath();ctx.arc(c.x,c.y+2+bob,2.5,0,7);ctx.fill();}}
+  ctx.font='800 7.5px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle='rgba(0,0,0,.55)';const tw=ctx.measureText(c.name).width+6;rr(c.x-tw/2,c.y+11,tw,10,4);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(c.name,c.x,c.y+12.5);
+  if(c.emote)emoji(c.emote,c.x+11,c.y-14,11);});
+ if(fx.raccoon){const r=fx.raccoon,ry=r.y+Math.sin(simTime*16)*1.5;drawArt('fx_raccoon',r.x,ry,28,28)||emoji('🦝',r.x,ry,20);}
+ // blackout
+ if(fx.outage){ctx.fillStyle='rgba(4,4,18,.84)';ctx.beginPath();ctx.rect(0,0,W,H);chars.forEach(c=>{ctx.moveTo(c.x+30,c.y);ctx.arc(c.x,c.y,30,0,Math.PI*2,true);});ctx.fill('evenodd');}
+ // bubbles on top
+ chars.forEach(c=>{if(c.bubble)drawBubble(c);});
+}
+
+// ---------- UI ----------
+function renderCast(){$('#cast').innerHTML=roommates().map(c=>{const mood=Object.values(c.needs).reduce((a,b)=>a+b,0)/5;const g=Object.entries(c.grudge).sort((a,b)=>b[1]-a[1])[0];
+ return `<div class="cm"><b style="color:${c.color}">${esc(c.name)}</b><div class="bar"><i style="width:${mood}%;background:${c.color}"></i></div>${g&&g[1]>=1.5?`😤 vs ${esc(g[0])}`:mood<35?'😩 struggling':'😐 coping'}</div>`;}).join('');}
+const CHIPS=["Gary hides from the landlord during Dex's party","Moose cooks dinner for everyone. It goes badly.","Brenda's ex moves in next door","A raccoon becomes the 7th roommate","Luna thinks the apartment is haunted during a blackout"];
+$('#chips').innerHTML=CHIPS.map(c=>`<span class="chip">${esc(c)}</span>`).join('');
+$('#chips').addEventListener('click',e=>{if(e.target.classList.contains('chip'))$('#prompt').value=e.target.textContent;});
+$('#chaos').addEventListener('input',e=>{chaos=+e.target.value;$('#chaosV').textContent=chaos;});
+$('#bSpeed').addEventListener('click',e=>{speed=speed===1?2:speed===2?3:1;e.target.textContent=`⏩ ${speed}x`;e.target.classList.toggle('on',speed>1);});
+$('#bCam').addEventListener('click',e=>{directorOn=!directorOn;e.target.classList.toggle('on',directorOn);});
+$('#bEvent').addEventListener('click',()=>{for(const e of shuffle(EVENTS))if(triggerEvent(e))break;});
+$('#bVoice').addEventListener('click',e=>{voicesOn=!voicesOn;e.target.classList.toggle('on',voicesOn);if(!voicesOn){nativePost('stopSpeaking');if(ttsApi)try{ttsApi.stop()}catch(_){}}});
+const WRITING=["Bribing the raccoon…","Hiding Gary from the landlord…","Reading Priya's sticky notes…","Restocking the fridge Moose emptied…","Untangling Dex's aux cord…"];
+$('#bGo').addEventListener('click',async()=>{if(running)return;const prompt=$('#prompt').value.trim()||pick(CHIPS);$('#prompt').value=prompt;running=true;$('#bGo').disabled=true;
+ let i=0;const live=!!(sampleFn||NATIVE);$('#status').textContent=live?WRITING[0]:'Writing with the offline gag generator…';const iv=setInterval(()=>{if(live)$('#status').textContent=WRITING[++i%WRITING.length];},1400);
+ try{const ep=await writeEpisode(prompt);clearInterval(iv);$('#status').textContent=`Now playing: “${ep.title}”`+(lastWriter==='offline'&&NATIVE?(/key/i.test(writerNote)?' — offline writer. Add your Claude API key in ⚙️ for real scripts.':' — offline writer (Claude was unreachable).'):'');startEpisode(ep);}catch(e){clearInterval(iv);running=false;$('#bGo').disabled=false;$('#status').textContent='The writers walked out. Try again.';}});
+
+// ---------- boot ----------
+chars=CAST.map(mkChar);
+roommates().forEach(c=>{if(save.grudges[c.name])c.grudge={...save.grudges[c.name]};});
+$('#epPill').textContent=`S1 · E${save.ep}`;
+if(NATIVE)$('#bVoice').style.display='';
+log('🏠 The roommates are home. Things are already tense.','hd');
+renderCast();setInterval(renderCast,600);
+let last=performance.now();
+function frame(now){const dt=Math.min(.05,(now-last)/1000)*speed;last=now;simTime+=dt;$('#clock').textContent=clockStr(simTime);update(dt);draw();requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+(async()=>{for(let i=0;i<40&&!(window.claude&&window.claude.use);i++)await new Promise(r=>setTimeout(r,250));if(!(window.claude&&window.claude.use))return;try{const s=await window.claude.use('sample');if(s)sampleFn=s;}catch(e){}try{const t=await window.claude.use('tts');if(t){ttsApi=t;$('#bVoice').style.display='';}}catch(e){}})();
+</script>
+</body>
+</html>
