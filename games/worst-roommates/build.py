@@ -68,7 +68,14 @@ def main():
             art.append(f'{name}:"{data_uri(path, name)}"')
             used.append(name)
 
-    out = src.replace("/*__ART__*/", ",".join(art))
+    out = src.replace("/*__ART__*/", ",".join(art)) 
+    for marker, filename in (
+        ("/*__GAMEPLAY_CSS__*/", "gameplay.css"),
+        ("/*__GAMEPLAY_JS__*/", "gameplay.js"),
+    ):
+        if marker not in out:
+            sys.exit(f"src.html is missing the {marker} marker")
+        out = out.replace(marker, (HERE / filename).read_text(encoding="utf-8"))
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(out, encoding="utf-8")
     print(f"wrote {dest} ({len(out.encode('utf-8')) // 1024} KB)")
