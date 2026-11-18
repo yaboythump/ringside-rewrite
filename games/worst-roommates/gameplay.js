@@ -440,7 +440,7 @@
     });
   }
   panel.addEventListener("click", e => {
-    const modeButton = e.target.closest("[data-mode]");
+    const modeButton = e.target.closest("button[data-mode]");
     if (modeButton) { sound("tap"); switchMode(modeButton.dataset.mode); return; }
     const actionButton = e.target.closest("[data-action]");
     if (actionButton) { doAction(actionButton.dataset.action); return; }
