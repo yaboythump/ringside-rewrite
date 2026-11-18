@@ -1,0 +1,41 @@
+name: Worst Roommates Gameplay QA
+on:
+  push:
+    branches:
+      - feature/worst-roommates-playable-modes
+    paths:
+      - "games/worst-roommates/**"
+      - ".github/workflows/worst-roommates-gameplay-qa.yml"
+  pull_request:
+    paths:
+      - "games/worst-roommates/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Build offline single-file iPhone game
+        run: python3 games/worst-roommates/build.py
+      - name: Check code and bundled features
+        run: |
+          python3 -m py_compile games/worst-roommates/build.py
+          node --check games/worst-roommates/gameplay.js
+          node --check games/worst-roommates/tests/smoke.mjs
+          grep -q 'Survive seven days' games/worst-roommates.html
+          grep -q 'WorstRoommatesGameplay' games/worst-roommates.html
+          if grep -q '__GAMEPLAY_' games/worst-roommates.html; then exit 1; fi
+      - name: Install headless browser test dependencies
+        run: |
+          npm install --no-save --no-package-lock playwright
+          npx playwright install --with-deps chromium
+      - name: Test Story, Chaos, Director and iPhone viewport
+        run: node games/worst-roommates/tests/smoke.mjs
