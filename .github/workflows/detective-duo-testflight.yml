@@ -25,8 +25,8 @@ env:
   DD_PROJECT: games/detective-duo/ios/DetectiveDuo.xcodeproj
 
 concurrency:
-  group: ringside-detective-duo-testflight
-  cancel-in-progress: false
+  group: ringside-detective-duo-testflight-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   verify:
@@ -92,7 +92,11 @@ jobs:
       - name: Install mobile browser test runner
         run: |
           npm install --no-save --no-package-lock playwright
-          npx playwright install --with-deps chromium
+          if command -v google-chrome >/dev/null; then
+            echo "DD_CHROMIUM=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
       - name: Test investigation, deductions, verdict and both Duo poses
         run: |
           node games/detective-duo/tests/smoke.mjs
