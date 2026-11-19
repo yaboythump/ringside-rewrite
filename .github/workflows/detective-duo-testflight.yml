@@ -1,7 +1,7 @@
 name: Detective Duo TestFlight
 on:
   push:
-    branches: [main, feature/detective-duo-001]
+    branches: [main, feature/detective-duo-001, feature/detective-duo-cinematic]
     paths:
       - "games/detective-duo/**"
       - "games/detective-duo.html"
@@ -25,12 +25,12 @@ env:
   DD_PROJECT: games/detective-duo/ios/DetectiveDuo.xcodeproj
 
 concurrency:
-  group: ringside-detective-duo-testflight
-  cancel-in-progress: false
+  group: ringside-detective-duo-testflight-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/detective-duo-001'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/detective-duo-001' || github.ref == 'refs/heads/feature/detective-duo-cinematic'
     runs-on: xcode-27
     timeout-minutes: 10
     steps:
@@ -50,17 +50,25 @@ jobs:
           app="$archive/Products/Applications/DetectiveDuo.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$DD_BUNDLE"
           test -s "$app/index.html"
+          test -s "$app/cinematic.css"
+          test -s "$app/audio.js"
+          test "$(find "$app/assets" -name '*.webp' | wc -l | tr -d ' ')" = 9
           test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
           grep -qF 'CASE 001' "$app/index.html"
           grep -qF 'DetectiveDuoTest' "$app/index.html"
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/dd-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/dd-xcode-help.txt" >/dev/null
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/dd-xcode-help.txt" >/dev/null
-
+      - name: Keep native release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: detective-duo-unsigned-release-candidate
+          path: ${{ runner.temp }}/dd-verify.xcarchive
+          retention-days: 14
 
   gameplay:
     # Test the complete bundled game on a phone-sized screen before distributing it.
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/detective-duo-001'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/detective-duo-001' || github.ref == 'refs/heads/feature/detective-duo-cinematic'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -84,9 +92,21 @@ jobs:
       - name: Install mobile browser test runner
         run: |
           npm install --no-save --no-package-lock playwright
-          npx playwright install --with-deps chromium
+          if command -v google-chrome >/dev/null; then
+            echo "DD_CHROMIUM=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
       - name: Test investigation, deductions, verdict and both Duo poses
-        run: node games/detective-duo/tests/smoke.mjs
+        run: |
+          node games/detective-duo/tests/smoke.mjs
+          node games/detective-duo/tests/cinematic.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: detective-duo-visual-qa
+          path: games/detective-duo/tests/artifacts/
+          retention-days: 14
 
   upload:
     # Auto-publish verified changes on main. Manual dispatch may opt out.
@@ -212,6 +232,12 @@ jobs:
                       return json.load(response)["data"]
               except HTTPError as error:
                   method = "POST" if payload else "GET"
+                  try:
+                      errors = json.load(error).get("errors", [])
+                  except Exception:
+                      errors = []
+                  for issue in errors:
+                      print("Apple authorization detail:", issue.get("code", ""), issue.get("title", ""), issue.get("detail", ""), flush=True)
                   sys.exit(f"::error::Apple rejected {method} {path} (HTTP {error.code}).")
 
 
@@ -292,6 +318,9 @@ jobs:
           app="$archive/Products/Applications/DetectiveDuo.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$DD_BUNDLE"
           test -s "$app/index.html"
+          test -s "$app/cinematic.css"
+          test -s "$app/audio.js"
+          test "$(find "$app/assets" -name '*.webp' | wc -l | tr -d ' ')" = 9
           codesign --verify --strict "$app"
           export_options="$signing/ExportOptions.plist"
           plutil -create xml1 "$export_options"
@@ -305,3 +334,10 @@ jobs:
           plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
           xcodebuild -exportArchive -archivePath "$archive" \
             -exportPath "$RUNNER_TEMP/dd-testflight-export" -exportOptionsPlist "$export_options" "${auth[@]}"
+
+          ruby games/detective-duo/ios/verify-testflight.rb "$auth_key"
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: detective-duo-testflight-status
+          path: ${{ runner.temp }}/detective-duo-testflight-status.json
