@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import WebKit
+import AVFAudio
 
 @main
 struct DetectiveDuoApp: App {
@@ -20,6 +21,7 @@ struct DetectiveWebView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
         let controller = context.coordinator
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
@@ -40,7 +42,7 @@ struct DetectiveWebView: UIViewRepresentable {
         web.allowsLinkPreview = false
         web.scrollView.contentInset = .zero
         if let fileURL = controller.gameURL {
-            web.loadFileURL(fileURL, allowingReadAccessTo: fileURL)
+            web.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
         } else {
             web.loadHTMLString("<p style='color:white'>Missing bundled game.</p>", baseURL: nil)
         }
@@ -114,3 +116,4 @@ final class DetectiveController: NSObject, WKScriptMessageHandler, WKNavigationD
         decisionHandler(url.isFileURL && url.standardizedFileURL == gameURL?.standardizedFileURL ? .allow : .cancel)
     }
 }
+

@@ -34,10 +34,12 @@ jobs:
       - name: Publish Detective Duo into /detective-duo/
         run: |
           mkdir -p _site/detective-duo
-          cp games/detective-duo/index.html _site/detective-duo/index.html
+          cp games/detective-duo/index.html games/detective-duo/cinematic.css games/detective-duo/audio.js games/detective-duo/sw.js _site/detective-duo/
+          cp -R games/detective-duo/assets _site/detective-duo/assets
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
+

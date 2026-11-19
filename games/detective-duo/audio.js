@@ -1,0 +1,15 @@
+/* Original procedural score and Foley. No remote audio, samples or paid services. */
+window.NoirAudio=(()=>{
+ let ctx,master,music,fx,ambience,currentRoom='suite',timer,started=false;
+ let prefs;try{prefs=JSON.parse(localStorage.getItem('detective_duo_audio')||'{}')}catch{prefs={}}
+ prefs={music:true,sound:true,...prefs};
+ function tone(freq,start,duration,level,type='sine',bus=music){if(!ctx||!bus)return;const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(level,start+.08);g.gain.exponentialRampToValueAtTime(.0001,start+duration);o.connect(g);g.connect(bus);o.start(start);o.stop(start+duration+.1)}
+ function phrase(){if(!ctx||ctx.state!=='running')return;const t=ctx.currentTime;[73.416,110,146.832,164.814].forEach((f,i)=>tone(f,t+i*.7,9,.018));[293.665,329.628,220,246.942].forEach((f,i)=>tone(f,t+2+i*2,2.8,.016,'triangle'))}
+ function room(id){currentRoom=id;if(!ctx)return;if(ambience){try{ambience.source.stop()}catch{}ambience.gain.disconnect()}const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),g=ctx.createGain();source.buffer=ctx.createBuffer(1,ctx.sampleRate*3,ctx.sampleRate);const b=source.buffer.getChannelData(0);let seed=371;for(let i=0;i<b.length;i++){seed=(seed*16807)%2147483647;b[i]=((seed/2147483647)*2-1)*.6}source.loop=true;filter.type='lowpass';filter.frequency.value={suite:1000,hall:240,security:650,roof:1900}[id]||700;g.gain.value=prefs.sound?{suite:.035,hall:.025,security:.02,roof:.055}[id]:0;source.connect(filter);filter.connect(g);g.connect(master);source.start();ambience={source,gain:g};if(id==='security')tone(60,ctx.currentTime,3,.015,'sine',fx)}
+ async function unlock(){try{if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();master.gain.value=.7;master.connect(ctx.destination);music=ctx.createGain();music.gain.value=prefs.music?1:0;music.connect(master);fx=ctx.createGain();fx.gain.value=prefs.sound?1:0;fx.connect(master);room(currentRoom);timer=setInterval(phrase,12000)}await ctx.resume();if(!started){phrase();started=true}}catch{}}
+ function cue(kind){if(!ctx||ctx.state!=='running')return;const t=ctx.currentTime;const notes={collect:[660,880],document:[240,180],interview:[196,246.942],deduction:[220,293.665,440,587.33],warning:[110,103.82],verdict:[146.832,220,293.665,369.99,440],room:[110,146.832]}[kind]||[300];notes.forEach((f,i)=>tone(f,t+i*.11,kind==='verdict'?2:.5,.045,'triangle',fx))}
+ function set(key,value){prefs[key]=value;try{localStorage.setItem('detective_duo_audio',JSON.stringify(prefs))}catch{}if(music)music.gain.value=prefs.music?1:0;if(fx)fx.gain.value=prefs.sound?1:0;room(currentRoom)}
+ document.addEventListener('visibilitychange',()=>{if(!ctx)return;if(document.hidden)ctx.suspend();else if(started)ctx.resume().catch(()=>{})});
+ document.addEventListener('pointerdown',unlock,{passive:true});
+ return {unlock,cue,room,set,prefs,state:()=>({supported:!!(window.AudioContext||window.webkitAudioContext),status:ctx?.state||'locked',room:currentRoom,...prefs})};
+})();

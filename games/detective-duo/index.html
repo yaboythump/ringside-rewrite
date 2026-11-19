@@ -77,60 +77,63 @@ header{flex:0 0 auto;display:flex;align-items:center;justify-content:space-betwe
 }
 @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
 </style>
+<link rel="stylesheet" href="cinematic.css">
+<script src="audio.js"></script>
 </head>
 <body>
 <div id="app">
 <header>
   <div class="brand"><div class="logo" aria-hidden="true">⌕</div><div><div class="brand-label">CTINTERACTIVE / DETECTIVE DUO</div><div class="brand-sub">CASE 001 · THE LAST CALL AT MERIDIAN</div></div></div>
-  <div class="head-right"><span class="head-chip" id="clock">NOV 18 · 00:07</span><button class="iconbtn" id="help" aria-label="Case briefing">?</button><button class="iconbtn" id="settings" aria-label="New investigation">↻</button></div>
+  <div class="head-right"><span class="head-chip" id="clock">NOV 18 · 00:07</span><button class="iconbtn" id="help" aria-label="Case briefing">?</button><button class="iconbtn" id="settings" aria-label="Open main menu">☰</button></div>
 </header>
 <main class="main">
 <section class="stage-panel" aria-label="Crime scene investigation">
  <div class="stage-top"><div><div class="eyebrow" id="stage-label">INVESTIGATION · HOTEL MERIDIAN</div><h1 id="room-title">Suite 904</h1></div><div style="text-align:right"><div class="tiny" id="scene-count">0 / 16 items</div><div class="progress"><i id="scene-progress" style="width:0%"></i></div></div></div>
- <div class="scene" id="scene" aria-label="Interactive investigation scene"><div class="scene-room" id="room-stamp">01 / SUITE 904</div><div id="scene-art"></div><div id="hotspots"></div></div>
- <nav class="scene-footer" id="rooms" aria-label="Investigate locations"></nav>
+ <div class="scene" id="scene" aria-label="Interactive investigation scene"><div class="scene-room" id="room-stamp">01 / SUITE 904</div><div class="scene-world" id="scene-world"><div id="scene-art"></div><div class="rain"></div><div id="hotspots"></div></div></div>
+ <div class="objective" id="objective"><span>NEXT LEAD</span>Inspect the objects Lena left behind.</div><nav class="scene-footer" id="rooms" aria-label="Investigate locations"></nav>
 </section>
 <aside class="desk" aria-label="Detective case board">
-  <div class="desk-head"><strong id="desk-title">EVIDENCE LOCKER</strong><span class="badge" id="case-status">ACTIVE CASE</span></div>
+  <div class="desk-head"><strong id="desk-title">EVIDENCE LOCKER</strong><span class="badge" id="case-status">ACTIVE CASE</span><button class="compact-toggle" id="board-toggle" aria-expanded="false">Open desk</button></div>
   <div class="tabs" id="tabs" role="tablist">
-   <button class="tab" type="button" data-tab="evidence" role="tab" aria-selected="true">◈ Evidence</button>
-   <button class="tab" type="button" data-tab="interviews" role="tab" aria-selected="false">◉ People</button>
-   <button class="tab" type="button" data-tab="deductions" role="tab" aria-selected="false">✦ Deduce</button>
-   <button class="tab" type="button" data-tab="verdict" role="tab" aria-selected="false">⚖ Solve</button>
+   <button class="tab" type="button" data-tab="evidence" role="tab" aria-selected="true">Evidence</button>
+   <button class="tab" type="button" data-tab="interviews" role="tab" aria-selected="false">People</button>
+   <button class="tab" type="button" data-tab="deductions" role="tab" aria-selected="false">Deduce</button>
+   <button class="tab" type="button" data-tab="verdict" role="tab" aria-selected="false">Report</button>
   </div>
   <div class="desk-body" id="desk-body" aria-live="polite"></div>
 </aside>
 </main>
 </div>
+<div id="menu" class="menu" hidden></div>
 <div id="toast" role="status"></div>
 <div id="overlay" class="overlay" hidden></div>
 <script>
 "use strict";
 (function(){
 const ROOMS=[
- {id:"suite",name:"Suite 904",short:"🛏 Suite",stamp:"01 / SUITE 904",subtitle:"Where Lena vanished",items:[
-  {id:"phone",name:"Interrupted call",icon:"☎",x:69,y:68,desc:"Lena's newsroom call began at 11:44 PM and ended at 11:47. The line dropped mid-sentence."},
-  {id:"note",name:"Reporter notes",icon:"✎",x:41,y:61,desc:"In Lena's handwriting: 'Follow the contract payments. M.V. signed off.'"},
-  {id:"cup",name:"Second teacup",icon:"♨",x:28,y:75,desc:"Two cups, one still warm. Lena was not alone shortly before she disappeared."},
-  {id:"bag",name:"Packed suitcase",icon:"▣",x:87,y:76,desc:"Her suitcase is still packed. Lena did not plan a normal checkout."}
+ {id:"suite",name:"Suite 904",short:"Suite 904",stamp:"01 / SUITE 904",subtitle:"Where Lena vanished",items:[
+  {id:"phone",name:"Interrupted call",icon:"☎",x:86,y:74,desc:"Lena's newsroom call began at 11:44 PM and ended at 11:47. The line dropped mid-sentence."},
+  {id:"note",name:"Reporter notes",icon:"✎",x:62,y:48,desc:"In Lena's handwriting: 'Follow the contract payments. M.V. signed off.'"},
+  {id:"cup",name:"Second teacup",icon:"♨",x:17,y:78,desc:"Two cups, one still warm. Lena was not alone shortly before she disappeared."},
+  {id:"bag",name:"Packed suitcase",icon:"▣",x:90,y:50,desc:"Her suitcase is still packed. Lena did not plan a normal checkout."}
  ]},
- {id:"hall",name:"Ninth Floor",short:"🚪 Hall",stamp:"02 / NINTH FLOOR",subtitle:"The service corridor",items:[
-  {id:"camera",name:"Camera playback",icon:"◉",x:68,y:29,desc:"The ninth-floor feed loops the exact same 18 seconds beginning at 11:42 PM."},
-  {id:"trolley",name:"Linen trolley",icon:"▤",x:42,y:72,desc:"The trolley has pale rooftop gravel trapped in its rear wheel."},
-  {id:"reader",name:"Door reader",icon:"▥",x:18,y:53,desc:"Master access was used at 11:43 PM. The credential ID belongs to the management office."},
-  {id:"lift",name:"Elevator display",icon:"↕",x:84,y:62,desc:"The passenger elevator was disabled from 11:41 to 11:55 PM, steering everyone toward the service route."}
+ {id:"hall",name:"Ninth Floor",short:"Corridor",stamp:"02 / NINTH FLOOR",subtitle:"The service corridor",items:[
+  {id:"camera",name:"Camera playback",icon:"◉",x:93,y:7,desc:"The ninth-floor feed loops the exact same 18 seconds beginning at 11:42 PM."},
+  {id:"trolley",name:"Linen trolley",icon:"▤",x:40,y:68,desc:"The trolley has pale rooftop gravel trapped in its rear wheel."},
+  {id:"reader",name:"Door reader",icon:"▥",x:8,y:50,desc:"Master access was used at 11:43 PM. The credential ID belongs to the management office."},
+  {id:"lift",name:"Elevator display",icon:"↕",x:83,y:17,desc:"The passenger elevator was disabled from 11:41 to 11:55 PM, steering everyone toward the service route."}
  ]},
- {id:"security",name:"Security Office",short:"📹 Security",stamp:"03 / SECURITY",subtitle:"Someone rewrote the record",items:[
-  {id:"logbook",name:"Incident log",icon:"▤",x:35,y:70,desc:"A silent alarm was acknowledged at 11:46 PM, one minute before Lena's call ended."},
-  {id:"export",name:"System audit",icon:"⌘",x:66,y:48,desc:"The security export identifies a temporary administrator session labeled MV-04."},
-  {id:"radio",name:"Shift radio",icon:"♬",x:82,y:76,desc:"A clipped message at 11:49 says, 'North exit clear.' The voice is unidentified."},
-  {id:"badge",name:"Staff roster",icon:"♙",x:17,y:40,desc:"Mara Voss was on site. Bellhop Theo Reed was assigned to the service elevator."}
+ {id:"security",name:"Security Office",short:"Security",stamp:"03 / SECURITY",subtitle:"Someone rewrote the record",items:[
+  {id:"logbook",name:"Incident log",icon:"▤",x:28,y:81,desc:"A silent alarm was acknowledged at 11:46 PM, one minute before Lena's call ended."},
+  {id:"export",name:"System audit",icon:"⌘",x:74,y:59,desc:"The security export identifies a temporary administrator session labeled MV-04."},
+  {id:"radio",name:"Shift radio",icon:"♬",x:95,y:64,desc:"A clipped message at 11:49 says, 'North exit clear.' The voice is unidentified."},
+  {id:"badge",name:"Staff roster",icon:"♙",x:6,y:28,desc:"Mara Voss was on site. Bellhop Theo Reed was assigned to the service elevator."}
  ]},
- {id:"roof",name:"Rooftop Exit",short:"🌙 Roof",stamp:"04 / ROOFTOP EXIT",subtitle:"The missing route",items:[
-  {id:"gate",name:"Service gate",icon:"⌗",x:77,y:50,desc:"A mechanical timer shows the fire gate opened at 11:51 PM. No guest key opens it."},
-  {id:"panel",name:"Override panel",icon:"⚡",x:36,y:60,desc:"A camera-loop override is active. Its printed admin identifier reads MV-04."},
-  {id:"scarf",name:"Blue scarf",icon:"〰",x:52,y:79,desc:"Lena's scarf is snagged at the edge of the rooftop service stairs. It is torn, but not bloodstained."},
-  {id:"envelope",name:"Invoice envelope",icon:"✉",x:15,y:77,desc:"Duplicate vendor invoices carry Mara Voss's signature. The payments route to an unregistered holding company."}
+ {id:"roof",name:"Rooftop Exit",short:"Rooftop",stamp:"04 / ROOFTOP EXIT",subtitle:"The missing route",items:[
+  {id:"gate",name:"Service gate",icon:"⌗",x:74,y:44,desc:"A mechanical timer shows the fire gate opened at 11:51 PM. No guest key opens it."},
+  {id:"panel",name:"Override panel",icon:"⚡",x:17,y:36,desc:"A camera-loop override is active. Its printed admin identifier reads MV-04."},
+  {id:"scarf",name:"Blue scarf",icon:"〰",x:44,y:62,desc:"Lena's scarf is snagged at the edge of the rooftop service stairs. It is torn, but not bloodstained."},
+  {id:"envelope",name:"Invoice envelope",icon:"✉",x:12,y:76,desc:"Duplicate vendor invoices carry Mara Voss's signature. The payments route to an unregistered holding company."}
  ]}
 ];
 const LINKS=[
@@ -163,50 +166,45 @@ const PEOPLE=[
 ];
 const KEY="detective_duo_v1";
 const empty=()=>({room:"suite",tab:"evidence",found:[],interviewed:[],linked:[],selected:[],person:"mara",dialogue:"",suspect:"",motive:"",route:"",finished:false,ending:"",score:0,briefed:false});
-function readSave(){try{const raw=(window.DetectiveNative&&window.DetectiveNative.read&&window.DetectiveNative.read())||localStorage.getItem(KEY);const v=JSON.parse(raw||"null");if(v&&v.version===1){return Object.assign(empty(),v.state,{selected:[]})}}catch(_e){}return empty()}
+function readSave(){try{const raw=(window.DetectiveNative&&window.DetectiveNative.read&&window.DetectiveNative.read())||localStorage.getItem(KEY);const v=JSON.parse(raw||"null");if(v&&v.version===1){const q=Object.assign(empty(),v.state,{selected:[]});q.found=Array.isArray(q.found)?q.found.filter(id=>ROOMS.some(r=>r.items.some(i=>i.id===id))):[];q.linked=Array.isArray(q.linked)?q.linked.filter(id=>LINKS.some(l=>l.id===id)):[];q.interviewed=Array.isArray(q.interviewed)?q.interviewed:[];if(!ROOMS.some(r=>r.id===q.room))q.room='suite';if(!['evidence','interviews','deductions','verdict'].includes(q.tab))q.tab='evidence';if(!PEOPLE.some(p=>p.id===q.person))q.person='mara';return q}}catch(_e){}return empty()}
 let s=readSave();const $=id=>document.getElementById(id);const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function store(){const json=JSON.stringify({version:1,state:s});try{localStorage.setItem(KEY,json)}catch(_e){}try{window.DetectiveNative&&window.DetectiveNative.save&&window.DetectiveNative.save(json)}catch(_e){}}
 function haptic(style){try{window.DetectiveNative&&window.DetectiveNative.haptic&&window.DetectiveNative.haptic(style||"light")}catch(_e){}}
 let toastTimer=0;function toast(t){const n=$("toast");n.textContent=t;n.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.classList.remove("show"),2300)}
-function art(id){
-const common='<defs><linearGradient id="wall" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3b536a"/><stop offset=".75" stop-color="#142439"/></linearGradient><linearGradient id="floor"><stop stop-color="#27384b"/><stop offset="1" stop-color="#0d1420"/></linearGradient><linearGradient id="glass"><stop stop-color="#89b0ba" stop-opacity=".55"/><stop offset="1" stop-color="#233a56" stop-opacity=".4"/></linearGradient></defs>';
-const frame='<rect width="900" height="520" fill="url(#wall)"/><path d="M0 355L900 340V520H0Z" fill="url(#floor)"/><path d="M0 355L900 340" stroke="#536075" stroke-width="5"/>';
-const city='<rect x="550" y="50" width="245" height="231" fill="#101b2f" stroke="#6f7c82" stroke-width="11"/><rect x="560" y="58" width="226" height="214" fill="url(#glass)"/><path d="M625 54v220M707 54v220" stroke="#536c7d" stroke-width="8"/><path d="M565 230l53-39 45 15 24-39 35 14 65-34v128H565Z" fill="#0c1a2c"/><circle cx="739" cy="105" r="19" fill="#d4cfa9" opacity=".7"/>';
-const base=common+frame;
-let elements="";
-if(id==="suite"){elements=city+'<rect x="66" y="279" width="475" height="106" rx="14" fill="#182435" stroke="#77808a" stroke-width="6"/><rect x="56" y="244" width="460" height="91" rx="22" fill="#647387"/><path d="M69 273h439v71H69Z" fill="#2a3c57"/><rect x="92" y="222" width="144" height="65" rx="23" fill="#b0aeaa"/><rect x="250" y="222" width="144" height="65" rx="23" fill="#d2c4b2"/><rect x="565" y="295" width="165" height="43" rx="8" fill="#40372e"/><rect x="587" y="339" width="12" height="68" fill="#433c35"/><rect x="700" y="339" width="12" height="68" fill="#433c35"/><rect x="612" y="271" width="63" height="22" rx="5" fill="#0d1420" stroke="#d5b97e" stroke-width="3"/><circle cx="643" cy="279" r="5" fill="#eecb76"/><path d="M289 304l68 5-4 55-85-1Z" fill="#dfd7bb" stroke="#826a52" stroke-width="2"/><path d="M281 318l61-2M280 329l57 3" stroke="#475772" stroke-width="3"/><rect x="736" y="333" width="100" height="122" rx="14" fill="#3c3330" stroke="#b19463" stroke-width="7"/><path d="M752 335v-24h69v24" stroke="#ae9c74" stroke-width="9" fill="none"/><path d="M766 360h41" stroke="#cfb885" stroke-width="5"/>'}
-if(id==="hall"){elements='<path d="M160 40L360 365V520H0V95Z" fill="#223449"/><path d="M740 40L545 365V520H900V95Z" fill="#1a2d45"/><path d="M360 365L545 365 750 520 150 520Z" fill="#394454"/><rect x="620" y="83" width="212" height="315" fill="#354255" stroke="#a99c86" stroke-width="12"/><rect x="654" y="160" width="140" height="194" fill="#243245"/><rect x="88" y="135" width="182" height="262" fill="#29394d" stroke="#c09a67" stroke-width="9"/><rect x="139" y="240" width="35" height="57" rx="5" fill="#1a252f" stroke="#d8b16e" stroke-width="3"/><circle cx="192" cy="259" r="7" fill="#e5ca91"/><rect x="438" y="58" width="106" height="53" rx="9" fill="#111925" stroke="#7696a1" stroke-width="8"/><circle cx="489" cy="83" r="24" fill="#314d5e" stroke="#7ec1c3" stroke-width="6"/><rect x="335" y="354" width="213" height="87" rx="9" fill="#a3a5a5" stroke="#657481" stroke-width="7"/><path d="M364 355v-27h147v27M357 390h169M413 354v86" stroke="#f0ecdd" stroke-width="10" fill="none"/><circle cx="371" cy="458" r="17" fill="#111923" stroke="#77828d" stroke-width="5"/><circle cx="512" cy="458" r="17" fill="#111923" stroke="#77828d" stroke-width="5"/><path d="M770 155h39v80h-39Z" fill="#1a2535" stroke="#c29b60" stroke-width="4"/>'}
-if(id==="security"){elements='<rect x="74" y="75" width="770" height="241" rx="12" fill="#111c2d" stroke="#647b84" stroke-width="9"/><rect x="99" y="101" width="216" height="192" rx="7" fill="#142f40" stroke="#344f5c" stroke-width="7"/><rect x="335" y="101" width="216" height="192" rx="7" fill="#173b48" stroke="#344f5c" stroke-width="7"/><rect x="568" y="101" width="245" height="192" rx="7" fill="#26394b" stroke="#344f5c" stroke-width="7"/><path d="M109 275l47-61 70 16 70-93M348 251l49-52 58 27 79-78M585 245l37-35 50 15 69-65" fill="none" stroke="#66a0aa" stroke-width="5"/><rect x="127" y="336" width="661" height="64" rx="10" fill="#4b4c4d"/><path d="M160 400v98M738 400v98" stroke="#3b3534" stroke-width="26"/><rect x="307" y="348" width="126" height="76" rx="4" fill="#e6d6af" transform="rotate(-5 307 348)"/><path d="M329 367h77M329 377h66" stroke="#9b8d7f" stroke-width="4"/><rect x="480" y="324" width="180" height="43" rx="8" fill="#101925"/><path d="M513 343h100" stroke="#5b9b8e" stroke-width="5"/><rect x="686" y="349" width="39" height="58" rx="8" fill="#1a2832"/><path d="M705 350v-24" stroke="#d0b589" stroke-width="5"/><path d="M120 112h70v34h-70Z" fill="#223744"/>'}
-if(id==="roof"){elements='<rect width="900" height="520" fill="#0e1a30"/><circle cx="701" cy="100" r="53" fill="#e2dbbd"/><path d="M0 279L65 233 129 253 189 191 225 230 306 168 386 205 438 168 506 210 558 160 633 202 694 170 755 230 827 185 900 226V520H0Z" fill="#26344a"/><path d="M0 357l900-24V520H0Z" fill="#344457"/><path d="M0 391h900" stroke="#57677a" stroke-width="11"/><rect x="649" y="179" width="190" height="242" fill="#283548" stroke="#b6b4a8" stroke-width="12"/><path d="M685 184v224M760 184v224M653 274h182" stroke="#7b8a8b" stroke-width="10"/><rect x="222" y="265" width="202" height="155" rx="13" fill="#1e2b3b" stroke="#a5aaa8" stroke-width="10"/><path d="M232 298h183" stroke="#d7b476" stroke-width="9"/><path d="M258 332l52 44 43-44" fill="none" stroke="#9ecbd0" stroke-width="13"/><path d="M417 439q25-60 70-30t92-6" fill="none" stroke="#5f8ab1" stroke-width="18"/><path d="M91 431l151-22-5 68-149 5Z" fill="#ddc4a5" stroke="#a88a6e" stroke-width="7"/><path d="M102 445h95M112 458h77" stroke="#6d7581" stroke-width="5"/>'}
-return '<svg aria-hidden="true" viewBox="0 0 900 520" preserveAspectRatio="xMidYMid slice">'+base+elements+'</svg>';
-}
+function art(id){return '<img src="assets/'+id+'.webp" alt="'+esc(ROOMS.find(r=>r.id===id).name)+' — Hotel Meridian at night" decoding="async" fetchpriority="high">'}
+const ASSET_ROOM=Object.fromEntries(ROOMS.flatMap(r=>r.items.map(i=>[i.id,r.id])));
+const EVIDENCE_TIME={phone:'23:47',note:'23:40',cup:'23:44',bag:'23:40',camera:'23:42',trolley:'23:51',reader:'23:43',lift:'23:41',logbook:'23:46',export:'23:42',radio:'23:49',badge:'23:40',gate:'23:51',panel:'23:42',scarf:'23:51',envelope:'23:51'};
+const audio=window.NoirAudio;
+function photo(id,cls='evidence-photo'){const i=foundItem(id);return '<span class="'+cls+'" role="img" aria-label="Evidence photograph: '+esc(i.name)+'" style="background-image:url(assets/'+ASSET_ROOM[id]+'.webp);background-position:'+i.x+'% '+i.y+'%"></span>'}
+function fitScene(){const n=$('scene'),w=$('scene-world');if(!w)return;const width=Math.min(n.clientWidth,n.clientHeight*1.5);w.style.width=width+'px';w.style.height=width/1.5+'px'}
+function openDesk(){document.querySelector('.main').classList.add('board-open');$('board-toggle').textContent='Close desk';$('board-toggle').setAttribute('aria-expanded','true')}
 function gain(n){s.score=Math.min(100,s.score+n)}
-function findEvidence(id){if(s.found.includes(id)){selectEvidence(id);return}const item=ROOMS.flatMap(r=>r.items).find(x=>x.id===id);if(!item)return;s.found.push(id);gain(3);store();haptic("success");toast("Evidence collected: "+item.name);render()}
+function findEvidence(id){if(s.found.includes(id)){selectEvidence(id);return}const item=ROOMS.flatMap(r=>r.items).find(x=>x.id===id);if(!item)return;s.found.push(id);gain(3);store();haptic("success");audio.cue("collect");toast("Evidence secured · "+item.name);render();showDetail(item,true)}
 function selectEvidence(id){s.tab="evidence";s.selected=s.selected.includes(id)?s.selected.filter(x=>x!==id):s.selected.length>=2?[s.selected[1],id]:[...s.selected,id];renderDesk()}
-function renderStage(){const room=ROOMS.find(r=>r.id===s.room)||ROOMS[0];$("room-title").textContent=room.name;$("room-stamp").textContent=room.stamp;$("stage-label").textContent=room.subtitle;$("scene-count").textContent=s.found.length+" / 16 items";$("scene-progress").style.width=Math.round(s.found.length/16*100)+"%";$("scene-art").innerHTML=art(room.id);$("hotspots").innerHTML="";
-room.items.forEach(item=>{const btn=document.createElement("button");const found=s.found.includes(item.id);btn.className="hotspot"+(found?" found":"");btn.style.left=item.x+"%";btn.style.top=item.y+"%";btn.setAttribute("aria-label",(found?"Review ":"Collect ")+item.name);btn.title=item.name;btn.innerHTML="<b>"+item.icon+"</b><span class='hotspot-label'>"+esc(item.name)+"</span>";btn.addEventListener("click",()=>{if(!found)findEvidence(item.id);else{showDetail(item)}});$("hotspots").append(btn)});
-$("rooms").innerHTML=ROOMS.map(room=>'<button class="room-btn '+(s.room===room.id?'active':'')+'" data-room="'+room.id+'" aria-pressed="'+String(s.room===room.id)+'">'+room.short+'</button>').join("");
+function renderStage(){const room=ROOMS.find(r=>r.id===s.room)||ROOMS[0];$("room-title").textContent=room.name;$("room-stamp").textContent=room.stamp;$("stage-label").textContent=room.subtitle;$("scene-count").textContent=s.found.length+" / 16 items";$("scene-progress").style.width=Math.round(s.found.length/16*100)+"%";$('scene').dataset.room=room.id;$('scene').style.setProperty('--scene','url(assets/'+room.id+'.webp)');$('scene').classList.remove('entering');void $('scene').offsetWidth;$('scene').classList.add('entering');$("scene-art").innerHTML=art(room.id);audio.room(room.id);requestAnimationFrame(fitScene);$('objective').innerHTML='<span>NEXT LEAD</span>'+ (s.finished?'Case closed. Review the completed file.':s.found.length===16?(s.linked.length===4?'Question the witnesses and file your reconstruction.':'Connect the evidence on your desk.'):room.items.every(i=>s.found.includes(i.id))?'Location cleared. Follow the trail to another floor.':'Inspect '+room.name+'. '+room.items.filter(i=>!s.found.includes(i.id)).length+' objects remain.');$("hotspots").innerHTML="";
+room.items.forEach(item=>{const btn=document.createElement("button");const found=s.found.includes(item.id);btn.className="hotspot"+(found?" found":"");btn.style.left=item.x+"%";btn.style.top=item.y+"%";btn.setAttribute("aria-label",(found?"Review ":"Collect ")+item.name);btn.title=item.name;btn.innerHTML="<b>"+(found?"✓":"+")+"</b><span class='hotspot-label'>"+esc(item.name)+"</span>";btn.addEventListener("click",()=>{if(!found)findEvidence(item.id);else{showDetail(item)}});$("hotspots").append(btn)});
+$("rooms").innerHTML=ROOMS.map(room=>'<button class="room-btn '+(s.room===room.id?'active':'')+'" data-room="'+room.id+'" aria-pressed="'+String(s.room===room.id)+'"><small>0'+(ROOMS.indexOf(room)+1)+'</small>'+room.short+'</button>').join("");
 }
 function foundItem(id){return ROOMS.flatMap(r=>r.items).find(x=>x.id===id)}
-function renderDesk(){const titles={evidence:"EVIDENCE LOCKER",interviews:"WITNESS INTERVIEWS",deductions:"THE DEDUCTION BOARD",verdict:"FINAL RECONSTRUCTION"};$("desk-title").textContent=titles[s.tab];$("case-status").textContent=s.finished?"CASE CLOSED":s.linked.length+"/4 LEADS SOLVED";
+function renderDesk(){const titles={evidence:"THE INVESTIGATOR’S DESK",interviews:"PERSONS OF INTEREST",deductions:"THE DEDUCTION BOARD",verdict:"FINAL RECONSTRUCTION"};$("desk-title").textContent=titles[s.tab];$("case-status").textContent=s.finished?"CASE CLOSED":s.linked.length+"/4 LEADS SOLVED";
 document.querySelectorAll(".tab").forEach(btn=>btn.setAttribute("aria-selected",String(btn.dataset.tab===s.tab)));
 let html="";
 if(s.tab==="evidence"){
- html='<p class="section-intro">Tap glowing points in the scene. Tap two items here to connect them in <strong>Deduce</strong>.</p>';
+ html='<p class="section-intro">Collected evidence, catalogued by time. Select two photographs to build a connection.</p>';
  if(!s.found.length)html+='<p class="notice">Your evidence locker is empty. Investigate the hotel suite to begin.</p>';
- html+='<div class="clue-grid">'+s.found.map(id=>{const v=foundItem(id);return '<button class="evidence '+(s.selected.includes(id)?"selected":"")+'" data-evidence="'+id+'"><span class="symbol">'+v.icon+'</span><strong>'+esc(v.name)+'</strong><small>'+esc(v.desc)+'</small><span class="note">'+(s.selected.includes(id)?"✓ SELECTED":"Tap to select")+'</span></button>'}).join("")+'</div>';
- if(s.selected.length)html+='<div class="toolrow"><button id="goDeduce">Connect '+s.selected.length+' / 2 →</button><button class="ghost" id="clearSelected">Clear selection</button></div>';
+ html+='<div class="clue-grid">'+s.found.map(id=>{const v=foundItem(id);return '<button class="evidence '+(s.selected.includes(id)?"selected":"")+'" data-evidence="'+id+'">'+photo(id)+'<strong>'+esc(v.name)+'</strong><small class="full-desc">'+esc(v.desc)+'</small><span class="note">EXH. '+String(s.found.indexOf(id)+1).padStart(2,'0')+' · '+EVIDENCE_TIME[id]+'<br>'+(s.selected.includes(id)?"✓ SELECTED":"SELECT PHOTOGRAPH")+'</span></button>'}).join("")+'</div>';
+ if(s.selected.length)html+='<div class="toolrow"><button id="goDeduce">Connect '+s.selected.length+' / 2</button><button class="ghost" id="clearSelected">Clear selection</button></div>';
 }
 if(s.tab==="interviews"){
  const person=PEOPLE.find(x=>x.id===s.person)||PEOPLE[0];
- html='<p class="section-intro">Question everyone. New evidence unlocks sharper questions.</p><div class="suspects">'+PEOPLE.map(p=>'<button class="suspect '+(s.person===p.id?"selected":"")+'" data-person="'+p.id+'"><strong>'+p.icon+' '+p.name+'</strong><small>'+p.role+'</small></button>').join("")+'</div>';
- html+='<div class="dialogue"><strong>'+esc(person.name)+':</strong> '+esc(s.dialogue||person.intro)+'</div><div class="choices">'+person.topics.map((t,i)=>'<button data-question="'+i+'" '+(t.requires&&!s.found.includes(t.requires)?"disabled":"")+'>↳ '+esc(t.label)+(t.requires&&!s.found.includes(t.requires)?" · find evidence":"")+'</button>').join("")+'</div>';
- html+='<div class="meter">Testimonies '+s.interviewed.length+' / 12<div><i style="width:'+s.interviewed.length/12*100+'%"></i></div></div>';
+ html='<p class="section-intro">Question everyone. New evidence unlocks sharper questions.</p><div class="suspects">'+PEOPLE.map(p=>'<button class="suspect '+(s.person===p.id?"selected":"")+'" data-person="'+p.id+'"><img src="assets/'+p.id+'.webp" alt="'+p.name+'"><strong>'+p.name+'</strong><small>'+p.role+'</small></button>').join("")+'</div>';
+ html+='<figure class="interview-hero"><img src="assets/'+person.id+'.webp" alt="Portrait of '+esc(person.name)+'"><figcaption>'+esc(person.name)+'<small>'+esc(person.role)+'</small></figcaption></figure><div class="dialogue"><strong>'+esc(person.name)+':</strong> '+esc(s.dialogue||person.intro)+'</div><div class="choices">'+person.topics.map((t,i)=>'<button data-question="'+i+'" '+(t.requires&&!s.found.includes(t.requires)?"disabled":"")+'>'+esc(t.label)+(t.requires&&!s.found.includes(t.requires)?" · find evidence":"")+'</button>').join("")+'</div>';
+ html+='<div class="meter">Testimonies '+s.interviewed.filter(k=>!k.endsWith(':intro')).length+' / 12<div><i style="width:'+s.interviewed.filter(k=>!k.endsWith(":intro")).length/12*100+'%"></i></div></div>';
 }
 if(s.tab==="deductions"){
  html='<p class="section-intro">Select two collected clues in Evidence, then connect them to expose the truth.</p>';
- html+='<div class="links">'+LINKS.map(l=>'<div class="linkcard '+(s.linked.includes(l.id)?"done":"")+'"><strong>'+(s.linked.includes(l.id)?"✓ ":"◇ ")+esc(l.name)+'</strong><small>'+esc(s.linked.includes(l.id)?l.truth:l.hint)+'</small></div>').join("")+'</div>';
- html+='<div class="dialogue"><strong>Selected clues:</strong> '+(s.selected.length?s.selected.map(id=>esc(foundItem(id).name)).join(" + "):"None yet. Open Evidence to select two clues.")+'</div>';
+ html+='<div class="links">'+LINKS.map(l=>'<div class="linkcard '+(s.linked.includes(l.id)?"done":"")+'"><strong>'+(s.linked.includes(l.id)?"✓ ":"◇ ")+esc(l.name)+'</strong>'+(s.linked.includes(l.id)?'<div class="thread">'+photo(l.a)+'<i></i>'+photo(l.b)+'</div>':'')+'<small>'+esc(s.linked.includes(l.id)?l.truth:l.hint)+'</small></div>').join("")+'</div>';
+ html+='<section class="timeline"><p class="eyebrow">RECONSTRUCTED TIMELINE</p>'+[['camera','The surveillance feed loops.'],['reader','Management access enters the ninth floor.'],['logbook','The silent alarm is acknowledged.'],['phone','Lena’s call cuts out.'],['radio','North exit is clear.'],['gate','The service gate opens.']].filter(([id])=>s.found.includes(id)).map(([id,t])=>'<p><time>'+EVIDENCE_TIME[id]+'</time>'+t+'</p>').join('')+'</section>';html+='<div class="dialogue"><strong>Selected clues:</strong> '+(s.selected.length?s.selected.map(id=>esc(foundItem(id).name)).join(" + "):"None yet. Open Evidence to select two clues.")+'</div>';
  html+='<div class="toolrow"><button id="linkNow" '+(s.selected.length!==2?"disabled":"")+'>Connect Evidence</button><button class="ghost" id="pickEvidence">Choose clues</button></div>';
 }
 if(s.tab==="verdict"){
@@ -214,35 +212,44 @@ if(s.tab==="verdict"){
  html+=question("Who was behind the cover-up?","suspect",[{v:"mara",t:"Mara Voss"},{v:"theo",t:"Theo Reed"},{v:"elias",t:"Elias Rook"},{v:"iris",t:"Iris Vale"}]);
  html+=question("What was the motive?","motive",[{v:"fraud",t:"Conceal fraudulent contracts"},{v:"money",t:"Steal Lena's personal belongings"},{v:"revenge",t:"Settle a family dispute"}]);
  html+=question("How did Lena get away?","route",[{v:"roof",t:"Service stairs and rooftop gate"},{v:"lift",t:"Passenger elevator"},{v:"front",t:"Hotel front entrance"}]);
- html+='<div class="toolrow"><button id="submitCase" '+(s.finished?"disabled":"")+'>⚖ File Case Report</button></div>';
+ html+='<div class="toolrow"><button id="submitCase" '+(s.finished?"disabled":"")+'>File Case Report</button></div>';
  if(s.finished)html+='<p class="notice">CASE CLOSED · '+esc(s.ending)+'</p>';
 }
 $("desk-body").innerHTML=html;
 $("desk-body").querySelectorAll("[data-evidence]").forEach(b=>b.addEventListener("click",()=>selectEvidence(b.dataset.evidence)));
-$("desk-body").querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{s.person=b.dataset.person;s.dialogue="";s.interviewed.includes(s.person+":intro")||s.interviewed.push(s.person+":intro");store();renderDesk()}));
-$("desk-body").querySelectorAll("[data-question]").forEach(b=>b.addEventListener("click",()=>{const p=PEOPLE.find(x=>x.id===s.person),i=+b.dataset.question,t=p.topics[i];if(t.requires&&!s.found.includes(t.requires))return;s.dialogue=t.line;const k=p.id+":"+i;if(!s.interviewed.includes(k)){s.interviewed.push(k);gain(2)}store();haptic("light");renderDesk()}));
+$("desk-body").querySelectorAll("[data-person]").forEach(b=>b.addEventListener("click",()=>{s.person=b.dataset.person;s.dialogue="";s.interviewed.includes(s.person+":intro")||s.interviewed.push(s.person+":intro");store();audio.cue("interview");renderDesk()}));
+$("desk-body").querySelectorAll("[data-question]").forEach(b=>b.addEventListener("click",()=>{const p=PEOPLE.find(x=>x.id===s.person),i=+b.dataset.question,t=p.topics[i];if(t.requires&&!s.found.includes(t.requires))return;s.dialogue=t.line;const k=p.id+":"+i;if(!s.interviewed.includes(k)){s.interviewed.push(k);gain(2)}store();haptic("light");audio.cue("interview");renderDesk()}));
 $("desk-body").querySelectorAll("[data-answer]").forEach(b=>b.addEventListener("click",()=>{s[b.dataset.answer]=b.dataset.value;store();renderDesk()}));
 const bind=(id,cb)=>{const b=$(id);if(b)b.addEventListener("click",cb)};
 bind("goDeduce",()=>{s.tab="deductions";renderDesk()});bind("clearSelected",()=>{s.selected=[];renderDesk()});bind("pickEvidence",()=>{s.tab="evidence";renderDesk()});bind("linkNow",connect);bind("submitCase",solve);
 }
 function question(title,key,options){return '<p class="notice">'+title+'</p><div class="accuse">'+options.map(o=>'<button data-answer="'+key+'" data-value="'+o.v+'" class="'+(s[key]===o.v?"choice":"")+'">'+esc(o.t)+'</button>').join("")+'</div>'}
-function connect(){if(s.selected.length!==2){toast("Select two items in Evidence.");return}const l=LINKS.find(t=>[t.a,t.b].every(id=>s.selected.includes(id)));if(!l){s.selected=[];store();renderDesk();haptic("warning");toast("These clues do not form a lead. Try another pair.");return}if(!s.linked.includes(l.id)){s.linked.push(l.id);gain(7);haptic("success");toast("Breakthrough: "+l.name)}else toast("This lead is already solved.");s.selected=[];store();renderDesk()}
+function connect(){if(s.selected.length!==2){toast("Select two items in Evidence.");return}const l=LINKS.find(t=>[t.a,t.b].every(id=>s.selected.includes(id)));if(!l){s.selected=[];store();renderDesk();haptic("warning");audio.cue("warning");toast("These clues do not form a lead. Try another pair.");return}if(!s.linked.includes(l.id)){s.linked.push(l.id);gain(7);haptic("success");audio.cue("deduction");toast("Breakthrough: "+l.name)}else toast("This lead is already solved.");s.selected=[];store();renderDesk()}
 function solve(){if(s.linked.length<4){haptic("warning");toast("Resolve all four deductions before filing.");return}if(!s.suspect||!s.motive||!s.route){toast("Complete all three questions.");return}
-if(s.suspect==="mara"&&s.motive==="fraud"&&s.route==="roof"){s.finished=true;s.ending="The Meridian Cover-Up";s.score=100;store();haptic("success");modal("CASE CLOSED · 001","You followed the call, decoded MV-04, and traced the rooftop escape. Mara Voss tried to bury Lena's investigation into falsified contracts. Lena escaped through the service route with the invoices. Your report reaches her newsroom, and Lena is found safe with the original records.",true)}
+if(s.suspect==="mara"&&s.motive==="fraud"&&s.route==="roof"){s.finished=true;s.ending="The Meridian Cover-Up";s.score=100;store();audio.cue("verdict");haptic("success");modal("CASE CLOSED · 001","You followed the call, decoded MV-04, and traced the rooftop escape. Mara Voss tried to bury Lena's investigation into falsified contracts. Lena escaped through the service route with the invoices. Your report reaches her newsroom, and Lena is found safe with the original records.",true)}
 else{haptic("warning");modal("THE THEORY DOESN'T HOLD","Your reconstruction conflicts with the evidence. Revisit your deductions, witness statements, and the connection between MV-04 and the hotel invoices. You can revise your report without losing progress.",false)}
 }
-function modal(title,copy,done){const o=$("overlay");o.hidden=false;o.innerHTML='<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="eyebrow">CTINTERACTIVE · DETECTIVE DUO</div><div class="eyeline"></div><h2 id="modal-title">'+esc(title)+'</h2><p>'+esc(copy)+'</p>'+(done?'<p class="notice">DETECTIVE RANK: MASTER INVESTIGATOR · CASE SCORE 100/100</p>':'')+'<div class="modal-foot"><button class="button-primary" id="dismissModal">'+(done?"Return to case file":"Keep investigating")+'</button></div></div>';$("dismissModal").addEventListener("click",()=>{o.hidden=true;o.innerHTML="";render()});}
-function showDetail(item){modal(item.name,item.desc,false)}
-function welcome(){const o=$("overlay");o.hidden=false;o.innerHTML='<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="eyebrow">PRIVATE INVESTIGATOR · CASE 001</div><h2 id="modal-title">THE LAST CALL AT MERIDIAN</h2><p>11:47 PM. Reporter Lena Vale vanishes from Suite 904 after a call to her newsroom cuts out. The hotel says she checked out. Her belongings say otherwise.</p><ul><li>Investigate four interactive scenes.</li><li>Interview four witnesses and suspects.</li><li>Connect clues to unlock four deductions.</li><li>Reconstruct what happened and close the case.</li></ul><p><strong>iPhone Duo:</strong> Play on the outer screen, then unfold to see the scene beside your case board. Your progress stays in place.</p><div class="modal-foot"><button class="button-primary" id="beginCase">Begin Investigation →</button></div></div>';
+function modal(title,copy,done){const o=$("overlay");o.hidden=false;o.innerHTML='<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="eyebrow">CTINTERACTIVE · DETECTIVE DUO</div><div class="eyeline"></div><h2 id="modal-title">'+esc(title)+'</h2><p>'+esc(copy)+'</p>'+(done?'<div class="report-seal">CASE CLOSED</div><p class="notice">DETECTIVE RANK: MASTER INVESTIGATOR · CASE SCORE 100/100</p>':'')+'<div class="modal-foot"><button class="button-primary" id="dismissModal">'+(done?"Return to case file":"Keep investigating")+'</button>'+(done?'<button class="button-primary" id="replayCase">Replay case</button>':'')+'</div></div>';if(done)$('replayCase').onclick=confirmReset;$("dismissModal").addEventListener("click",()=>{o.hidden=true;o.innerHTML="";render()});}
+function showDetail(item,collected=false){audio.cue('document');modal(item.name,item.desc,false);const m=$('overlay').querySelector('.modal');m.insertAdjacentHTML('afterbegin',photo(item.id,'inspect-photo')+'<div class="file-meta">'+(collected?'NEW EVIDENCE SECURED':'EVIDENCE ARCHIVE')+' · '+EVIDENCE_TIME[item.id]+' · '+esc(ROOMS.find(r=>r.id===ASSET_ROOM[item.id]).name)+'</div>');}
+function settings(){const o=$('overlay');o.hidden=false;o.innerHTML='<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="eyebrow">DETECTIVE DUO</div><h2 id="modal-title">Sound & atmosphere</h2><label class="audio-setting">Investigative score<input id="music-setting" type="checkbox" '+(audio.prefs.music?'checked':'')+'></label><label class="audio-setting">Ambience & sound effects<input id="sound-setting" type="checkbox" '+(audio.prefs.sound?'checked':'')+'></label><p>Audio begins after your first interaction. Your case saves automatically. Motion follows your device’s accessibility preference.</p><div class="modal-foot"><button class="button-primary" id="closeSettings">Done</button></div></div>';['music','sound'].forEach(key=>$(key+'-setting').onchange=e=>audio.set(key,e.target.checked));$('closeSettings').onclick=()=>o.hidden=true}
+function caseFiles(){modal('The Last Call at Meridian',s.finished?'Completed. Mara Voss’s contract fraud is exposed, and Lena is safe. Review your evidence, witnesses and deductions, or begin a new investigation from the main menu.':'Reporter Lena Vale’s newsroom call ended at 11:47 PM. Her belongings remain in Suite 904. Reconstruct the missing minutes and uncover who tried to silence her.',s.finished);$('overlay').querySelector('.modal p').insertAdjacentHTML('beforebegin','<img class="case-file-portrait" src="assets/lena.webp" alt="Lena Vale, missing reporter"><p class="file-meta">LENA VALE · INVESTIGATIVE REPORTER<br>'+s.found.length+'/16 EXHIBITS · '+s.linked.length+'/4 DEDUCTIONS</p>')}
+function confirmReset(){const o=$('overlay');o.hidden=false;o.innerHTML='<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="eyebrow">CASE MANAGEMENT</div><h2 id="modal-title">Begin a new investigation?</h2><p>Your current evidence, interviews, deductions and final report will be cleared. Audio preferences will be kept.</p><div class="modal-foot"><button class="button-primary" id="cancelReset">Keep my case</button><button class="button-primary" id="resetCase">Start again</button></div></div>';$('cancelReset').onclick=()=>o.hidden=true;$('resetCase').onclick=()=>{s=empty();store();o.hidden=true;$('menu').hidden=true;$('app').inert=false;render();welcome()}}
+function mainMenu(){const n=$('menu');n.hidden=false;document.getElementById('app').inert=true;n.innerHTML='<div class="rain"></div><div class="menu-content"><div class="eyebrow">CTINTERACTIVE ORIGINAL</div><h1>Detective<span>Duo</span></h1><p class="tagline">Every room keeps a secret.<br>Every detail tells a story.</p><div class="menu-case"><small>CASE 001 · HOTEL MERIDIAN</small><h2>The Last Call at Meridian</h2></div><div class="menu-actions"><button class="button-primary" id="continueGame">'+(s.briefed?'Continue Investigation':'Begin Investigation')+'</button><button id="newGame">New Investigation</button><button id="caseFiles">Case Files</button><button id="audioSettings">Settings</button></div><div class="menu-footer">A CTINTERACTIVE INVESTIGATION</div></div>';$('continueGame').onclick=()=>{audio.unlock();n.hidden=true;$('app').inert=false;if(!s.briefed)welcome()};$('newGame').onclick=()=>{if(s.found.length||s.briefed)confirmReset();else{$('continueGame').click()}};$('caseFiles').onclick=caseFiles;$('audioSettings').onclick=settings}
+
+function welcome(){const o=$("overlay");o.hidden=false;o.innerHTML='<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="eyebrow">PRIVATE INVESTIGATOR · CASE 001</div><h2 id="modal-title">THE LAST CALL AT MERIDIAN</h2><p>11:47 PM. Reporter Lena Vale vanishes from Suite 904 after a call to her newsroom cuts out. The hotel says she checked out. Her belongings say otherwise.</p><ul><li>Investigate four interactive scenes.</li><li>Interview four witnesses and suspects.</li><li>Connect clues to unlock four deductions.</li><li>Reconstruct what happened and close the case.</li></ul><p><strong>iPhone Duo:</strong> Play on the outer screen, then unfold to see the scene beside your case board. Your progress stays in place.</p><div class="modal-foot"><button class="button-primary" id="beginCase">Begin Investigation</button></div></div>';
 $("beginCase").addEventListener("click",()=>{o.hidden=true;o.innerHTML="";s.briefed=true;store();haptic("success")})}
 function render(){renderStage();renderDesk()}
-$("rooms").addEventListener("click",e=>{const b=e.target.closest("[data-room]");if(b){s.room=b.dataset.room;store();haptic("light");renderStage()}});
-$("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(b){s.tab=b.dataset.tab;store();renderDesk()}});
+$("rooms").addEventListener("click",e=>{const b=e.target.closest("[data-room]");if(b){s.room=b.dataset.room;store();haptic("light");audio.cue("room");renderStage()}});
+$("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(b){s.tab=b.dataset.tab;openDesk();audio.cue("document");store();renderDesk()}});
 $("help").addEventListener("click",()=>modal("INVESTIGATION BRIEF","Explore four rooms by tapping golden hotspots. Collect evidence, interview the people involved, connect clue pairs in Deduce, and file your reconstruction in Solve. Unfold iPhone Duo for side-by-side scene and desk views. The case auto-saves on this device.",false));
-$("settings").addEventListener("click",()=>{const o=$("overlay");o.hidden=false;o.innerHTML='<div class="modal" role="dialog" aria-modal="true"><div class="eyebrow">DETECTIVE DUO · CASE MANAGEMENT</div><h2>Open a new case file?</h2><p>This restarts Case 001 and clears collected evidence, leads, and interviews on this device.</p><div class="modal-foot"><button id="cancelReset" class="button-primary">Keep my case</button><button id="resetCase" class="button-primary">Restart case</button></div></div>';$("cancelReset").addEventListener("click",()=>o.hidden=true);$("resetCase").addEventListener("click",()=>{s=empty();store();o.hidden=true;render();welcome()})});
+$('settings').addEventListener('click',mainMenu);
+$('board-toggle').onclick=()=>{const main=document.querySelector('.main'),open=main.classList.toggle('board-open');$('board-toggle').textContent=open?'Close desk':'Open desk';$('board-toggle').setAttribute('aria-expanded',String(open));audio.cue('document')};
+new ResizeObserver(fitScene).observe($('scene'));
+const expanded=matchMedia('(min-width:820px)');expanded.addEventListener('change',e=>{fitScene();if(e.matches){const n=document.createElement('div');n.className='duo-flash';n.textContent='DETECTIVE COMMAND CENTER';document.body.append(n);setTimeout(()=>n.remove(),2100)}});
 window.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)$("overlay").hidden=true});
-window.DetectiveDuoTest=Object.freeze({state:()=>JSON.parse(JSON.stringify(s)),rooms:ROOMS.map(x=>x.id),links:LINKS.map(x=>({id:x.id,a:x.a,b:x.b})),collect:findEvidence,choose:(a,b)=>{s.selected=[a,b];connect()},solve,go:room=>{s.room=room;renderStage()},openTab:tab=>{s.tab=tab;renderDesk()}});
-render();if(!s.briefed)welcome();
+window.DetectiveDuoTest=Object.freeze({state:()=>JSON.parse(JSON.stringify(s)),rooms:ROOMS.map(x=>x.id),links:LINKS.map(x=>({id:x.id,a:x.a,b:x.b})),collect:findEvidence,choose:(a,b)=>{s.selected=[a,b];connect()},solve,go:room=>{s.room=room;renderStage()},audio:()=>audio.state(),openTab:tab=>{s.tab=tab;openDesk();renderDesk()}});
+render();mainMenu();
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
 </script>
 </body>

@@ -11,8 +11,9 @@ INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.adventure-games
 INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES
 INFOPLIST_KEY_UILaunchScreen_Generation = YES
 INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
-MARKETING_VERSION = 0.1
+MARKETING_VERSION = 0.2
 PRODUCT_BUNDLE_IDENTIFIER = com.ctnetworkstudios.detectiveduo
 PRODUCT_NAME = DetectiveDuo
 SUPPORTED_PLATFORMS = iphoneos iphonesimulator
 TARGETED_DEVICE_FAMILY = 1
+
