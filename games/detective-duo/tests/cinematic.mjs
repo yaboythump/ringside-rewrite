@@ -37,7 +37,7 @@ try{
   for(let i=0;i<3;i++){await page.locator('[data-question="'+i+'"]').click();assert.ok((await state()).dialogue.length>20)}
  }
  assert.equal((await state()).interviewed.filter(k=>!k.endsWith(':intro')).length,12);
- await page.locator('[data-person="elias"]').click();await page.screenshot({animations:'disabled',path:output+'/03-compact-interview.png'});
+ await page.locator('[data-person="elias"]').click();await page.waitForTimeout(2400);await page.screenshot({animations:'disabled',path:output+'/03-compact-interview.png'});
  for(const [a,b] of [['phone','logbook'],['camera','panel'],['trolley','gate'],['note','envelope']]){
   await page.locator('[data-tab="evidence"]').click();await page.locator('[data-evidence="'+a+'"]').click();await page.locator('[data-evidence="'+b+'"]').click();await page.locator('#goDeduce').click();await page.locator('#linkNow').click();
  }
@@ -49,7 +49,7 @@ try{
   assert.ok(layout.sw<=layout.w+1,'no horizontal overflow '+JSON.stringify(size));assert.ok(layout.sh<=layout.h+1,'no vertical page overflow '+JSON.stringify(size));assert.ok(layout.desk.bottom<=layout.h+1);
   assert.equal((await state()).found.length,before.found.length);assert.equal((await state()).dialogue,before.dialogue);
  }
- await page.setViewportSize({width:1180,height:820});await page.locator('[data-room="suite"]').click();await page.locator('[data-tab="evidence"]').click();await page.screenshot({animations:'disabled',path:output+'/04-expanded-evidence.png'});
+ await page.waitForTimeout(2400);await page.setViewportSize({width:1180,height:820});await page.locator('[data-room="suite"]').click();await page.locator('[data-tab="evidence"]').click();await page.screenshot({animations:'disabled',path:output+'/04-expanded-evidence.png'});
  await page.locator('[data-tab="deductions"]').click();await page.screenshot({animations:'disabled',path:output+'/05-expanded-deductions.png'});
  await page.locator('[data-tab="interviews"]').click();await page.locator('[data-person="mara"]').click();await page.screenshot({animations:'disabled',path:output+'/06-expanded-interview.png'});
  assert.equal((await page.evaluate(()=>NoirAudio.state())).status,'running');
