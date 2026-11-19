@@ -331,3 +331,9 @@ jobs:
           xcodebuild -exportArchive -archivePath "$archive" \
             -exportPath "$RUNNER_TEMP/dd-testflight-export" -exportOptionsPlist "$export_options" "${auth[@]}"
 
+          ruby games/detective-duo/ios/verify-testflight.rb "$auth_key"
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: detective-duo-testflight-status
+          path: ${{ runner.temp }}/detective-duo-testflight-status.json
