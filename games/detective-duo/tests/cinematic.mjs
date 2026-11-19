@@ -37,7 +37,7 @@ try{
   for(let i=0;i<3;i++){await page.locator('[data-question="'+i+'"]').click();assert.ok((await state()).dialogue.length>20)}
  }
  assert.equal((await state()).interviewed.filter(k=>!k.endsWith(':intro')).length,12);
- await page.screenshot({animations:'disabled',path:output+'/03-compact-interview.png'});
+ await page.locator('[data-person="elias"]').click();await page.screenshot({animations:'disabled',path:output+'/03-compact-interview.png'});
  for(const [a,b] of [['phone','logbook'],['camera','panel'],['trolley','gate'],['note','envelope']]){
   await page.locator('[data-tab="evidence"]').click();await page.locator('[data-evidence="'+a+'"]').click();await page.locator('[data-evidence="'+b+'"]').click();await page.locator('#goDeduce').click();await page.locator('#linkNow').click();
  }
