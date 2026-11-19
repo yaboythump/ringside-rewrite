@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import http from 'node:http';
+const root=path.resolve('games/detective-duo');
+const server=http.createServer(async(req,res)=>{try{const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname);const file=path.resolve(root,'.'+(name==='/'?'/index.html':name));if(!file.startsWith(root+'/'))throw Error();const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.webp':'image/webp'};res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file))}catch{res.writeHead(404);res.end()}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const output='games/detective-duo/tests/artifacts';await fs.mkdir(output,{recursive:true});
 const browser=await chromium.launch({headless:true,...(process.env.DD_CHROMIUM?{executablePath:process.env.DD_CHROMIUM}:{})});
 const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,deviceScaleFactor:2});
@@ -10,7 +14,7 @@ const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const state=()=>page.evaluate(()=>DetectiveDuoTest.state());
 const close=()=>page.locator('#dismissModal').click();
 try{
- await page.goto(pathToFileURL(path.resolve('games/detective-duo/index.html')).href);
+ await page.goto('http://127.0.0.1:'+server.address().port+'/');
  await page.screenshot({path:output+'/01-main-menu.png'});
  await page.locator('#continueGame').click();await page.locator('#beginCase').click();
  assert.equal(await page.locator('#scene-art img').evaluate(i=>i.complete&&i.naturalWidth>1000),true);
@@ -55,5 +59,5 @@ try{
  await page.locator('#settings').click();await page.locator('#newGame').click();await page.locator('#resetCase').click();await page.locator('#beginCase').click();assert.equal((await state()).found.length,0);
  // Corrupt saves must recover without exceptions.
  await page.evaluate(()=>localStorage.setItem('detective_duo_v1','{broken'));await page.reload();await page.locator('#continueGame').click();await page.locator('#beginCase').click();assert.equal((await state()).found.length,0);
- assert.deepEqual(errors,[]);console.log('PASS: 16 touch discoveries, 12 interviews, all deductions, inspection art, audio settings, reset/corrupt-save recovery, six display sizes, fold state continuity');
-}finally{await browser.close()}
+ await page.evaluate(()=>navigator.serviceWorker.ready);await page.waitForFunction(()=>!!navigator.serviceWorker.controller);await page.context().setOffline(true);await page.reload();await page.locator('#continueGame').click();assert.equal(await page.locator('#scene-art img').evaluate(i=>i.complete&&i.naturalWidth>1000),true,'scene loads offline');await page.context().setOffline(false);assert.deepEqual(errors,[]);console.log('PASS: 16 touch discoveries, 12 interviews, all deductions, inspection art, audio settings, reset/corrupt-save recovery, six display sizes, fold state continuity');
+}finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
