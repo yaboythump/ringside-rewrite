@@ -15,10 +15,10 @@ const state=()=>page.evaluate(()=>DetectiveDuoTest.state());
 const close=()=>page.locator('#dismissModal').click();
 try{
  await page.goto('http://127.0.0.1:'+server.address().port+'/');
- await page.screenshot({path:output+'/01-main-menu.png'});
+ await page.screenshot({animations:'disabled',path:output+'/01-main-menu.png'});
  await page.locator('#continueGame').click();await page.locator('#beginCase').click();
  assert.equal(await page.locator('#scene-art img').evaluate(i=>i.complete&&i.naturalWidth>1000),true);
- await page.screenshot({path:output+'/02-compact-investigation.png'});
+ await page.screenshot({animations:'disabled',path:output+'/02-compact-investigation.png'});
  // Every clue must be touch reachable, show its inspection, and retain state.
  for(const room of ['suite','hall','security','roof']){
   await page.locator('[data-room="'+room+'"]').click();
@@ -37,7 +37,7 @@ try{
   for(let i=0;i<3;i++){await page.locator('[data-question="'+i+'"]').click();assert.ok((await state()).dialogue.length>20)}
  }
  assert.equal((await state()).interviewed.filter(k=>!k.endsWith(':intro')).length,12);
- await page.screenshot({path:output+'/03-compact-interview.png'});
+ await page.screenshot({animations:'disabled',path:output+'/03-compact-interview.png'});
  for(const [a,b] of [['phone','logbook'],['camera','panel'],['trolley','gate'],['note','envelope']]){
   await page.locator('[data-tab="evidence"]').click();await page.locator('[data-evidence="'+a+'"]').click();await page.locator('[data-evidence="'+b+'"]').click();await page.locator('#goDeduce').click();await page.locator('#linkNow').click();
  }
@@ -49,9 +49,9 @@ try{
   assert.ok(layout.sw<=layout.w+1,'no horizontal overflow '+JSON.stringify(size));assert.ok(layout.sh<=layout.h+1,'no vertical page overflow '+JSON.stringify(size));assert.ok(layout.desk.bottom<=layout.h+1);
   assert.equal((await state()).found.length,before.found.length);assert.equal((await state()).dialogue,before.dialogue);
  }
- await page.setViewportSize({width:1180,height:820});await page.locator('[data-room="suite"]').click();await page.locator('[data-tab="evidence"]').click();await page.screenshot({path:output+'/04-expanded-evidence.png'});
- await page.locator('[data-tab="deductions"]').click();await page.screenshot({path:output+'/05-expanded-deductions.png'});
- await page.locator('[data-tab="interviews"]').click();await page.locator('[data-person="mara"]').click();await page.screenshot({path:output+'/06-expanded-interview.png'});
+ await page.setViewportSize({width:1180,height:820});await page.locator('[data-room="suite"]').click();await page.locator('[data-tab="evidence"]').click();await page.screenshot({animations:'disabled',path:output+'/04-expanded-evidence.png'});
+ await page.locator('[data-tab="deductions"]').click();await page.screenshot({animations:'disabled',path:output+'/05-expanded-deductions.png'});
+ await page.locator('[data-tab="interviews"]').click();await page.locator('[data-person="mara"]').click();await page.screenshot({animations:'disabled',path:output+'/06-expanded-interview.png'});
  assert.equal((await page.evaluate(()=>NoirAudio.state())).status,'running');
  await page.locator('#settings').click();await page.locator('#audioSettings').click();await page.locator('#music-setting').uncheck();await page.locator('#sound-setting').uncheck();assert.equal((await page.evaluate(()=>NoirAudio.state())).music,false);assert.equal((await page.evaluate(()=>NoirAudio.state())).sound,false);await page.locator('#closeSettings').click();
  await page.locator('#newGame').click();assert.equal((await state()).found.length,16,'reset warning preserves progress');await page.locator('#cancelReset').click();await page.locator('#continueGame').click();

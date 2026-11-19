@@ -94,9 +94,9 @@ try {
   assert.ok(folded.scroll<=folded.width+3,"no horizontal overflow folded");
   assert.ok(folded.stage.bottom<=folded.desk.top+2,"folded layout stacks panels");
   assert.ok(folded.desk.bottom<=844,"folded game fits without whole-page scrolling");
-  await page.screenshot({path:"games/detective-duo/tests/artifacts/07-solved-compact.png"});
+  await page.screenshot({animations:'disabled',path:"games/detective-duo/tests/artifacts/07-solved-compact.png"});
   await page.setViewportSize({width:940,height:800});
-  await page.screenshot({path:"games/detective-duo/tests/artifacts/08-solved-expanded.png"});
+  await page.screenshot({animations:'disabled',path:"games/detective-duo/tests/artifacts/08-solved-expanded.png"});
   const open=await page.evaluate(()=>({
     width:innerWidth,scroll:document.documentElement.scrollWidth,
     stage:document.querySelector(".stage-panel").getBoundingClientRect(),
