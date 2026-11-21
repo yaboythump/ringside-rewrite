@@ -69,6 +69,8 @@ jobs:
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rd-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
+      - name: Test TestFlight processing and tester assignment verification
+        run: ruby games/retro-duo/tests/test_release_verification.rb
       - name: Verify short taps and simultaneous inputs
         run: |
           cp games/retro-duo/tests/input-main.swift "$RUNNER_TEMP/main.swift"
@@ -163,7 +165,7 @@ jobs:
     needs: [verify, core]
     environment: ringside-testflight
     runs-on: xcode-27
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -384,7 +386,7 @@ jobs:
 
           ruby games/retro-duo/ios/verify-testflight.rb "$auth_key"
       - uses: actions/upload-artifact@v4
-        if: success()
+        if: always()
         with:
           name: retro-duo-testflight-status
           path: ${{ runner.temp }}/retro-duo-testflight-status.json
