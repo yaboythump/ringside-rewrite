@@ -1,0 +1,4 @@
+build/
+*.nds
+*.elf
+tests/artifacts/

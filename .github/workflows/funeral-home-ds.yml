@@ -1,0 +1,89 @@
+name: Grave Mistakes (DS)
+on:
+  push:
+    branches: [main, "feature/retro-duo*", "feature/funeral-home*"]
+    paths:
+      - "games/funeral-home-ds/**"
+      - "games/retro-duo/ios/RetroDuo/Resources/GraveMistakes.nds"
+      - "games/retro-duo/vendor/melonDS/**"
+      - "games/retro-duo/ios/RetroDuo/DSCore/**"
+      - ".github/workflows/funeral-home-ds.yml"
+  pull_request:
+    paths:
+      - "games/funeral-home-ds/**"
+      - "games/retro-duo/ios/RetroDuo/Resources/GraveMistakes.nds"
+      - ".github/workflows/funeral-home-ds.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  blocksds:
+    # Builds the game with the official BlocksDS toolchain (GCC, Wonderful Toolchain).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: skylyrac/blocksds:slim-v1.25.0
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Build with BlocksDS
+        run: make -C games/funeral-home-ds
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grave-mistakes-blocksds
+          path: games/funeral-home-ds/GraveMistakes.nds
+          retention-days: 14
+
+  bundled-rom:
+    # The copy shipped inside Retro Duo is built by tools/llvm/build.sh (BlocksDS v1.25.0
+    # compiled with clang). Rebuild it and make sure it matches the committed file.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install LLVM 18
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-18 lld-18 llvm-18 ninja-build python3-pil
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+      - name: Rebuild the bundled ROM
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/gm-llvm" games/funeral-home-ds/tools/llvm/build.sh "$RUNNER_TEMP/GraveMistakes.nds"
+          if ! cmp "$RUNNER_TEMP/GraveMistakes.nds" games/retro-duo/ios/RetroDuo/Resources/GraveMistakes.nds; then
+            echo "::error::Retro Duo's GraveMistakes.nds is out of date. Run games/funeral-home-ds/tools/llvm/build.sh games/retro-duo/ios/RetroDuo/Resources/GraveMistakes.nds and commit it."
+            exit 1
+          fi
+
+  play:
+    # Plays a full day on Retro Duo's own melonDS core, by touch, for both builds.
+    needs: blocksds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: grave-mistakes-blocksds
+          path: ${{ runner.temp }}/blocksds
+      - name: Play the copy bundled in Retro Duo
+        run: CC=clang CXX=clang++ games/funeral-home-ds/tests/run_playthrough.sh games/retro-duo/ios/RetroDuo/Resources/GraveMistakes.nds "$RUNNER_TEMP/play-bundled"
+      - name: Play the official BlocksDS build
+        run: |
+          mkdir -p "$RUNNER_TEMP/play-blocksds"
+          cp -r "$RUNNER_TEMP/play-bundled/ds-obj" "$RUNNER_TEMP/play-blocksds/"
+          CC=clang CXX=clang++ games/funeral-home-ds/tests/run_playthrough.sh "$RUNNER_TEMP/blocksds/GraveMistakes.nds" "$RUNNER_TEMP/play-blocksds"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grave-mistakes-screens
+          path: |
+            ${{ runner.temp }}/play-bundled/*.ppm
+            ${{ runner.temp }}/play-blocksds/*.ppm
+          retention-days: 14
