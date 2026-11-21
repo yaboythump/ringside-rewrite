@@ -193,8 +193,8 @@ struct AVGameSettings: View {
                     }
                     Toggle("Original picture proportions", isOn: $originalAspect)
                     if tuning.system == .gameBoyAdvance {
-                        Toggle("Show touch controls in landscape", isOn: $gbaLandscapeControls)
-                        Text("GBA gameplay sits in a dedicated console display, with controls on its left and right panels instead of covering the game.")
+                        Toggle("Use AVYDRIX GBA console shell in landscape", isOn: $gbaLandscapeControls)
+                        Text("The dedicated GBA console shell puts controls beside the game instead of covering it. Turn it off to use the standard Duo layout.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if tuning.system == .nintendoDS {
@@ -532,7 +532,7 @@ struct AVSettingsHome: View {
                         Text("Side controls when unfolded").tag("side")
                     }
                     Toggle("Original screen proportions", isOn: $proportions)
-                    Toggle("Show GBA touch controls in landscape", isOn: $gbaLandscapeControls)
+                    Toggle("Use GBA console shell in landscape", isOn: $gbaLandscapeControls)
                         .accessibilityIdentifier("avydrix-gba-landscape-controls-toggle")
                     Toggle("Swap Nintendo DS screens", isOn: $swapDS)
                     HStack {
