@@ -163,13 +163,19 @@ struct LibraryView: View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(LinearGradient(colors: [Palette.accent, Palette.accentBlue],
+                    .fill(LinearGradient(colors: [Color(hex: "#352C5C"), Color(hex: "#142B43")],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
-                Image(systemName: "books.vertical.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#090D17"))
+                Text("Q")
+                    .font(.system(size: 31, weight: .bold, design: .serif))
+                    .foregroundStyle(Palette.softWhite)
+                    .offset(x: -1, y: -2)
+                Capsule().fill(Palette.accentBlue)
+                    .frame(width: 16, height: 3)
+                    .rotationEffect(.degrees(-35))
+                    .offset(x: 11, y: 12)
             }
             .frame(width: 48, height: 48)
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.15)))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("QUILUNE")
@@ -224,6 +230,120 @@ struct LibraryView: View {
         .padding(.top, 12)
     }
 
+    private var collectionStats: some View {
+        HStack(spacing: 0) {
+            shelfStat(value: library.books.count, title: "IN LIBRARY")
+            Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 38)
+            shelfStat(value: readingCount, title: "READING")
+            Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 38)
+            shelfStat(value: finishedCount, title: "FINISHED")
+        }
+        .padding(.vertical, 16)
+        .background(Palette.card.opacity(0.8), in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(.white.opacity(0.11)))
+    }
+
+    private func shelfStat(value: Int, title: String) -> some View {
+        VStack(spacing: 5) {
+            Text("\(value)")
+                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                .foregroundStyle(Palette.softWhite)
+                .monospacedDigit()
+            Text(title)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .tracking(1)
+                .foregroundStyle(Palette.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var shelfSearch: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Palette.accentBlue)
+            TextField("Search titles or authors", text: $searchText)
+                .font(.system(size: 14))
+                .foregroundStyle(Palette.softWhite)
+                .tint(Palette.accent)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Palette.muted)
+                }
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 50)
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.11)))
+    }
+
+    private var shelfControls: some View {
+        HStack(spacing: 7) {
+            ForEach(ShelfFilter.allCases) { filter in
+                Button {
+                    withAnimation(.easeOut(duration: 0.16)) { shelfFilter = filter }
+                } label: {
+                    Text(filter.title)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(shelfFilter == filter ? Color(hex: "#0D1220") : Palette.muted)
+                        .padding(.horizontal, 12)
+                        .frame(height: 34)
+                        .background(shelfFilter == filter ? Palette.accent : Palette.card, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(shelfFilter == filter ? [.isSelected] : [])
+            }
+            Spacer(minLength: 0)
+            Menu {
+                Picker("Sort books", selection: $shelfSort) {
+                    ForEach(ShelfSort.allCases) { sort in
+                        Text(sort.title).tag(sort)
+                    }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.softWhite)
+                    .frame(width: 36, height: 34)
+                    .background(Palette.card, in: RoundedRectangle(cornerRadius: 11))
+            }
+            .accessibilityLabel("Sort books")
+        }
+        .padding(.top, -11)
+    }
+
+    private var noMatches: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "books.vertical")
+                .font(.system(size: 31))
+                .foregroundStyle(Palette.accent)
+            Text("Nothing on this shelf yet")
+                .font(.system(size: 19, weight: .semibold, design: .serif))
+                .foregroundStyle(Palette.softWhite)
+            Text("Try another search or show all your books.")
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.muted)
+                .multilineTextAlignment(.center)
+            Button("Show all books") {
+                searchText = ""
+                shelfFilter = .all
+            }
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Palette.accentBlue)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity)
+        .background(Palette.card.opacity(0.65), in: RoundedRectangle(cornerRadius: 22))
+    }
+
     private func open(_ book: Book) {
         reading = OpenBook(book: book, chapter: nil)
     }
@@ -268,6 +388,30 @@ struct LibraryView: View {
         .padding(.vertical, 48)
         .background(Palette.card, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(.white.opacity(0.09)))
+    }
+}
+
+private enum ShelfFilter: String, CaseIterable, Identifiable {
+    case all, reading, finished
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .all: return "All"
+        case .reading: return "Reading"
+        case .finished: return "Finished"
+        }
+    }
+}
+
+private enum ShelfSort: String, CaseIterable, Identifiable {
+    case recent, title, author
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .recent: return "Recently opened"
+        case .title: return "Title A to Z"
+        case .author: return "Author A to Z"
+        }
     }
 }
 
