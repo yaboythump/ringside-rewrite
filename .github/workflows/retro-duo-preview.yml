@@ -35,9 +35,12 @@ jobs:
           xcrun simctl bootstatus "$dev" -b
           xcrun simctl install "$dev" "$app"
           shot() {
-            xcrun simctl io "$dev" screenshot "$RUNNER_TEMP/$1.png"
-            sips -Z 700 "$RUNNER_TEMP/$1.png" >/dev/null
-            echo "BEGIN_PNG $1"; base64 -i "$RUNNER_TEMP/$1.png" | tr -d '\n'; echo; echo "END_PNG $1"
+            for display in 1 3; do
+              f="$RUNNER_TEMP/$1-d$display.png"
+              xcrun simctl io "$dev" screenshot --display=$display "$f" >/dev/null 2>&1 || continue
+              sips -Z 640 "$f" >/dev/null
+              echo "BEGIN_PNG $1-d$display"; base64 -i "$f" | tr -d '\n'; echo; echo "END_PNG $1-d$display"
+            done
           }
           xcrun simctl launch "$dev" com.ctnetworkstudios.retroduo
           sleep 6; shot library
