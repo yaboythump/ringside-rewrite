@@ -138,8 +138,8 @@ struct GameView: View {
         ZStack {
             Color.black
             GeometryReader { available in
-                let gameWidth = originalProportions ? min(available.size.width, available.size.height * 10 / 9) : available.size.width
-                let gameHeight = originalProportions ? gameWidth * 0.9 : available.size.height
+                let gameWidth = originalProportions ? min(available.size.width, available.size.height / session.aspect) : available.size.width
+                let gameHeight = originalProportions ? gameWidth * session.aspect : available.size.height
                 PixelScreen(session: session)
                     .frame(width: gameWidth, height: gameHeight)
                     .position(x: available.size.width / 2, y: available.size.height / 2)
@@ -154,7 +154,7 @@ struct GameView: View {
 
     private func landscapeLayout(_ size: CGSize) -> some View {
         let screenHeight = max(60, size.height - 34)
-        let side = max(120, (size.width - screenHeight * 10 / 9) / 2 - 12)
+        let side = max(120, (size.width - screenHeight / session.aspect) / 2 - 12)
         let button = min(side * 0.36, 72)
         return HStack(spacing: 0) {
             VStack {
@@ -168,7 +168,7 @@ struct GameView: View {
                 PillButton(label: "SELECT", key: Int(RD_KEY_SELECT), session: session)
             }
             .frame(width: side)
-            screen(width: screenHeight * 10 / 9)
+            screen(width: screenHeight / session.aspect)
             VStack {
                 Spacer()
                 FaceButtons(session: session, diameter: button)
@@ -186,7 +186,7 @@ struct GameView: View {
     private func screen(width: CGFloat) -> some View {
         let width = max(width, 80)
         return PixelScreen(session: session)
-            .frame(width: width, height: width * 0.9)
+            .frame(width: width, height: width * session.aspect)
             .background(.black)
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .padding(5)

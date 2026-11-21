@@ -2,10 +2,11 @@ import Foundation
 import UniformTypeIdentifiers
 
 enum GameSystem: String, Hashable {
-    case gameBoy, gameBoyColor, nintendoDS
+    case nes, gameBoy, gameBoyColor, nintendoDS
 
     var displayName: String {
         switch self {
+        case .nes: return "NES"
         case .gameBoy: return "Game Boy"
         case .gameBoyColor: return "Game Boy Color"
         case .nintendoDS: return "Nintendo DS"
@@ -17,12 +18,17 @@ enum GameSystem: String, Hashable {
         case "gb": self = .gameBoy
         case "gbc", "cgb": self = .gameBoyColor
         case "nds": self = .nintendoDS
+        case "nes": self = .nes
         default: return nil
         }
     }
 
     var maximumROMSize: Int {
-        self == .nintendoDS ? 512 * 1024 * 1024 : 8 * 1024 * 1024
+        switch self {
+        case .nintendoDS: return 512 * 1024 * 1024
+        case .nes: return 16 * 1024 * 1024
+        default: return 8 * 1024 * 1024
+        }
     }
 }
 
@@ -33,7 +39,7 @@ struct Game: Identifiable, Hashable {
     let isBuiltIn: Bool
     let system: GameSystem
 
-    var isColor: Bool { system != .gameBoy }
+    var isColor: Bool { system != .gameBoy && system != .nes }
     var systemName: String { system.displayName }
 }
 
@@ -41,6 +47,7 @@ extension UTType {
     static let gameBoyROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gb")
     static let gameBoyColorROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gbc")
     static let nintendoDSROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.nds")
+    static let nesROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.nes")
 }
 
 /// Games live in Documents/Games, which the Files app shows under
@@ -51,7 +58,7 @@ final class GameLibrary: ObservableObject {
     @Published private(set) var games: [Game] = []
     @Published var message: String?
 
-    static let romExtensions: Set<String> = ["gb", "gbc", "cgb", "nds"]
+    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "nds"]
     static let maximumROMSize = 8 * 1024 * 1024
 
     let documentsFolder: URL
@@ -78,6 +85,10 @@ final class GameLibrary: ObservableObject {
         if let cart = Bundle.main.url(forResource: "RetroDuoTestCart", withExtension: "gbc") {
             list.append(Game(id: "builtin.testcart", url: cart, name: "Retro Duo Test Cart",
                              isBuiltIn: true, system: .gameBoyColor))
+        }
+        if let cart = Bundle.main.url(forResource: "RetroDuoNESTestCart", withExtension: "nes") {
+            list.append(Game(id: "builtin.nestestcart", url: cart, name: "Retro Duo NES Test Cart",
+                             isBuiltIn: true, system: .nes))
         }
         if let cart = Bundle.main.url(forResource: "RetroDuoDSTestCart", withExtension: "nds") {
             list.append(Game(id: "builtin.dstestcart", url: cart, name: "Retro Duo DS Test Cart",
@@ -125,7 +136,7 @@ final class GameLibrary: ObservableObject {
         }
         refresh()
         if !skipped.isEmpty {
-            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays Game Boy (.gb, .gbc) and Nintendo DS (.nds) files."
+            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays NES (.nes), Game Boy (.gb, .gbc) and Nintendo DS (.nds) files."
         } else if added.count == 1 {
             message = "Added \(added[0])."
         } else if added.count > 1 {
@@ -157,7 +168,11 @@ final class GameLibrary: ObservableObject {
               let handle = try? FileHandle(forReadingFrom: url) else { return false }
         defer { try? handle.close() }
         guard let header = try? handle.read(upToCount: 0x200) else { return false }
-        return system == .nintendoDS ? looksLikeDSROM(header) : looksLikeROM(header)
+        switch system {
+        case .nintendoDS: return looksLikeDSROM(header)
+        case .nes: return header.count >= 16 && header.prefix(4) == Data([0x4E, 0x45, 0x53, 0x1A])
+        default: return looksLikeROM(header)
+        }
     }
 
     /// A real Game Boy cartridge has a valid header checksum; the console refuses to boot one without it.

@@ -1,0 +1,1 @@
+Nestopia UE (commit 7b5c87d8dc3c817211545449683d1fcd897324ca), GPL v2 or later. source/core only (the emulator; no frontend), unmodified except that the 2xSaI, hqx, ScaleX and xBR filter sources are left out (Retro Duo builds with NST_NO_2XSAI, NST_NO_HQ2X, NST_NO_SCALEX, NST_NO_XBR and NST_NO_ZLIB). nes_ntsc headers by Shay Green (LGPL 2.1+).
