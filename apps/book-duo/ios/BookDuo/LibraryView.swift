@@ -12,6 +12,10 @@ struct LibraryView: View {
     @State private var searchText = ""
     @State private var shelfFilter: ShelfFilter = .all
     @State private var shelfSort: ShelfSort = .recent
+    @State private var selectedShelfID: UUID?
+    @State private var editingShelf: ReaderShelf?
+    @State private var showingCreateShelf = false
+    @State private var shelfToDelete: ReaderShelf?
 
     private var readingCount: Int {
         library.books.filter {
@@ -36,7 +40,8 @@ struct LibraryView: View {
             case .reading: matchesFilter = progress > 0 && progress < 0.995
             case .finished: matchesFilter = progress >= 0.995
             }
-            return matchesText && matchesFilter
+            let matchesShelf = selectedShelfID == nil || library.shelves.first(where: { $0.id == selectedShelfID })?.bookIDs.contains(book.id) == true
+            return matchesText && matchesFilter && matchesShelf
         }
         switch shelfSort {
         case .recent: return found
@@ -57,6 +62,7 @@ struct LibraryView: View {
                     masthead
                     intro
                     collectionStats
+                    readingRhythm
                     if let book = library.sortedBooks.first {
                         ContinueCard(book: book, progress: library.position(for: book)?.progress ?? 0) {
                             open(book)
@@ -74,6 +80,7 @@ struct LibraryView: View {
                             .foregroundStyle(Palette.muted)
                     }
                     shelfSearch
+                    customShelves
                     shelfControls
                     if library.books.isEmpty && !library.isWorking {
                         emptyState
@@ -87,6 +94,22 @@ struct LibraryView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .contextMenu {
+                                    Menu {
+                                        if library.shelves.isEmpty {
+                                            Button("Create your first shelf", systemImage: "plus") { showingCreateShelf = true }
+                                        } else {
+                                            ForEach(library.shelves) { shelf in
+                                                Button {
+                                                    library.toggleShelf(shelf.id, for: book)
+                                                } label: {
+                                                    Label(shelf.name,
+                                                          systemImage: shelf.bookIDs.contains(book.id) ? "checkmark.circle.fill" : "circle")
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        Label("Organize into Shelves", systemImage: "books.vertical")
+                                    }
                                     Button(role: .destructive) { bookToDelete = book } label: {
                                         Label("Remove from Library", systemImage: "trash")
                                     }
@@ -131,6 +154,29 @@ struct LibraryView: View {
                 .environmentObject(settings)
         }
         .sheet(isPresented: $showingAbout) { AboutView() }
+        .sheet(isPresented: $showingCreateShelf) {
+            ShelfEditorView(existing: nil)
+                .environmentObject(library)
+                .presentationDetents([.medium])
+        }
+        .sheet(item: $editingShelf) { shelf in
+            ShelfEditorView(existing: shelf)
+                .environmentObject(library)
+                .presentationDetents([.medium])
+        }
+        .confirmationDialog("Delete \(shelfToDelete?.name ?? "shelf")?", isPresented: Binding(
+            get: { shelfToDelete != nil },
+            set: { if !$0 { shelfToDelete = nil } }), titleVisibility: .visible) {
+            Button("Delete Shelf Only", role: .destructive) {
+                if let shelf = shelfToDelete {
+                    library.deleteShelf(shelf.id)
+                    if selectedShelfID == shelf.id { selectedShelfID = nil }
+                }
+                shelfToDelete = nil
+            }
+        } message: {
+            Text("The books and your reading progress will stay in the library.")
+        }
         .confirmationDialog("Remove \(bookToDelete?.title ?? "this book")?", isPresented: Binding(
             get: { bookToDelete != nil }, set: { if !$0 { bookToDelete = nil } }), titleVisibility: .visible) {
             Button("Remove", role: .destructive) {
@@ -258,6 +304,99 @@ struct LibraryView: View {
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
+    }
+
+
+    private var readingRhythm: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "flame.fill")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(Color(hex: "#FFC28C"))
+                .frame(width: 48, height: 48)
+                .background(Color(hex: "#E79E75").opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("YOUR READING RHYTHM")
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .tracking(1.5)
+                    .foregroundStyle(Palette.accentBlue)
+                Text("\(library.currentStreak) \(library.currentStreak == 1 ? "day" : "days") in a row")
+                    .font(.system(size: 18, weight: .semibold, design: .serif))
+                    .foregroundStyle(Palette.softWhite)
+                Text(library.hasReadToday ? "You've turned a page today." : "Turn a page today to keep your rhythm.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Palette.muted)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(15)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LinearGradient(colors: [Color(hex: "#242041"), Color(hex: "#152438")],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(.white.opacity(0.12)))
+    }
+
+    private var customShelves: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            HStack {
+                Text("YOUR COLLECTIONS")
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .tracking(2)
+                    .foregroundStyle(Palette.muted)
+                Spacer()
+                Button { showingCreateShelf = true } label: {
+                    Label("NEW SHELF", systemImage: "plus")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .tracking(0.6)
+                        .foregroundStyle(Palette.accentBlue)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Create a new bookshelf")
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 9) {
+                    shelfPill(title: "All Books", count: library.books.count,
+                              selected: selectedShelfID == nil, symbol: "square.grid.2x2") {
+                        withAnimation(.easeOut(duration: 0.18)) { selectedShelfID = nil }
+                    }
+                    ForEach(library.shelves) { shelf in
+                        shelfPill(title: shelf.name,
+                                  count: shelf.bookIDs.intersection(Set(library.books.map(\.id))).count,
+                                  selected: selectedShelfID == shelf.id,
+                                  symbol: "books.vertical") {
+                            withAnimation(.easeOut(duration: 0.18)) { selectedShelfID = shelf.id }
+                        }
+                        .contextMenu {
+                            Button("Rename Shelf", systemImage: "pencil") { editingShelf = shelf }
+                            Button("Delete Shelf", systemImage: "trash", role: .destructive) { shelfToDelete = shelf }
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .contentMargins(.trailing, 2)
+        }
+    }
+
+    private func shelfPill(title: String, count: Int, selected: Bool,
+                           symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: symbol).font(.system(size: 11, weight: .semibold))
+                Text(title).lineLimit(1)
+                Text("\(count)").monospacedDigit().opacity(0.7)
+            }
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundStyle(selected ? Color(hex: "#101426") : Palette.softWhite)
+            .padding(.horizontal, 13)
+            .frame(height: 40)
+            .background(selected ? Palette.accent : Palette.card, in: Capsule())
+            .overlay(Capsule().stroke(selected ? Color.clear : .white.opacity(0.13)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(count) books")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 
     private var shelfSearch: some View {
@@ -412,6 +551,63 @@ private enum ShelfSort: String, CaseIterable, Identifiable {
         case .title: return "Title A to Z"
         case .author: return "Author A to Z"
         }
+    }
+}
+
+
+/// Create or rename a personal shelf. Deleting a shelf never deletes its EPUB files.
+private struct ShelfEditorView: View {
+    let existing: ReaderShelf?
+    @EnvironmentObject private var library: BookLibrary
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var duplicate = false
+
+    init(existing: ReaderShelf?) {
+        self.existing = existing
+        _name = State(initialValue: existing?.name ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("e.g. Weekend Mysteries", text: $name)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("Shelf name")
+                } footer: {
+                    Text("Add books by touching and holding their covers. Shelves never move or delete the original books.")
+                }
+            }
+            .navigationTitle(existing == nil ? "New Shelf" : "Rename Shelf")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let success: Bool
+                        if let existing {
+                            success = library.renameShelf(existing.id, to: name)
+                        } else {
+                            success = library.createShelf(named: name)
+                        }
+                        if success { dismiss() } else { duplicate = true }
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .alert("Choose a different name", isPresented: $duplicate) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Shelf names must be unique.")
+            }
+        }
+        .tint(Palette.accent)
+        .preferredColorScheme(.dark)
     }
 }
 

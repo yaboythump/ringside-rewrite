@@ -23,12 +23,21 @@ struct ReadingPosition: Codable, Hashable {
     var updated: Date
 }
 
+/// A user-made collection. Book IDs are stable EPUB filenames, so shelf membership survives relaunch.
+struct ReaderShelf: Identifiable, Codable, Hashable {
+    var id: UUID
+    var name: String
+    var bookIDs: Set<String>
+}
+
 /// Books live in Documents/Books (Files › On My iPhone › Book Duo › Books).
 /// Each one is unpacked once into Application Support so WebKit can show it.
 @MainActor
 final class BookLibrary: ObservableObject {
     @Published private(set) var books: [Book] = []
     @Published private(set) var positions: [String: ReadingPosition] = [:]
+    @Published private(set) var shelves: [ReaderShelf] = []
+    @Published private(set) var readingDays: Set<String> = []
     @Published private(set) var isWorking = false
     @Published var message: String?
 
@@ -36,6 +45,8 @@ final class BookLibrary: ObservableObject {
     let booksFolder: URL
     let unpackedFolder: URL
     private let positionsURL: URL
+    private let shelvesURL: URL
+    private let readingDaysURL: URL
 
     static let sampleFileName = "Alice’s Adventures in Wonderland.epub"
 
@@ -47,12 +58,22 @@ final class BookLibrary: ObservableObject {
             .appendingPathComponent("BookDuo", isDirectory: true)
         unpackedFolder = support.appendingPathComponent("Unpacked", isDirectory: true)
         positionsURL = support.appendingPathComponent("positions.json")
+        shelvesURL = support.appendingPathComponent("shelves.json")
+        readingDaysURL = support.appendingPathComponent("reading-days.json")
         for folder in [booksFolder, unpackedFolder] {
             try? files.createDirectory(at: folder, withIntermediateDirectories: true)
         }
         if let data = try? Data(contentsOf: positionsURL),
            let saved = try? JSONDecoder().decode([String: ReadingPosition].self, from: data) {
             positions = saved
+        }
+        if let data = try? Data(contentsOf: shelvesURL),
+           let storedShelves = try? JSONDecoder().decode([ReaderShelf].self, from: data) {
+            shelves = storedShelves
+        }
+        if let data = try? Data(contentsOf: readingDaysURL),
+           let days = try? JSONDecoder().decode(Set<String>.self, from: data) {
+            readingDays = days
         }
         installSampleIfNeeded()
         Task { await refresh() }
@@ -118,7 +139,7 @@ final class BookLibrary: ObservableObject {
             }
         }
         if !skipped.isEmpty {
-            message = "Book Duo opens EPUB books. Skipped: " + skipped.joined(separator: ", ")
+            message = "Quilune opens EPUB books. Skipped: " + skipped.joined(separator: ", ")
         }
         Task { await refresh() }
     }
@@ -128,6 +149,8 @@ final class BookLibrary: ObservableObject {
         try? FileManager.default.removeItem(at: book.folder)
         positions[book.id] = nil
         savePositions()
+        for index in shelves.indices { shelves[index].bookIDs.remove(book.id) }
+        saveShelves()
         books.removeAll { $0.id == book.id }
     }
 
@@ -136,6 +159,90 @@ final class BookLibrary: ObservableObject {
     func save(_ position: ReadingPosition, for book: Book) {
         positions[book.id] = position
         savePositions()
+    }
+
+
+    // MARK: Personal shelves
+
+    @discardableResult
+    func createShelf(named value: String) -> Bool {
+        let name = String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(36))
+        guard !name.isEmpty,
+              !shelves.contains(where: { $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) else {
+            return false
+        }
+        shelves.append(ReaderShelf(id: UUID(), name: name, bookIDs: []))
+        saveShelves()
+        return true
+    }
+
+    @discardableResult
+    func renameShelf(_ id: UUID, to value: String) -> Bool {
+        let name = String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(36))
+        guard !name.isEmpty, let index = shelves.firstIndex(where: { $0.id == id }),
+              !shelves.contains(where: { $0.id != id && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) else {
+            return false
+        }
+        shelves[index].name = name
+        saveShelves()
+        return true
+    }
+
+    func deleteShelf(_ id: UUID) {
+        shelves.removeAll { $0.id == id }
+        saveShelves()
+        // Only the collection is removed. Books and saved reading positions are untouched.
+    }
+
+    func toggleShelf(_ id: UUID, for book: Book) {
+        guard let index = shelves.firstIndex(where: { $0.id == id }) else { return }
+        if shelves[index].bookIDs.contains(book.id) {
+            shelves[index].bookIDs.remove(book.id)
+        } else {
+            shelves[index].bookIDs.insert(book.id)
+        }
+        saveShelves()
+    }
+
+    // MARK: Daily reading activity
+
+    /// Count a reading day after an actual page turn, not merely opening a book.
+    func recordReadingActivity() {
+        let key = Self.dayKey(for: Date())
+        guard readingDays.insert(key).inserted else { return }
+        if let data = try? JSONEncoder().encode(readingDays) {
+            try? data.write(to: readingDaysURL, options: .atomic)
+        }
+    }
+
+    var hasReadToday: Bool { readingDays.contains(Self.dayKey(for: Date())) }
+
+    /// A streak stays alive throughout the following day, until the next calendar day begins.
+    var currentStreak: Int {
+        let calendar = Calendar.current
+        var day = calendar.startOfDay(for: Date())
+        if !hasReadToday {
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: day) else { return 0 }
+            day = yesterday
+        }
+        var streak = 0
+        while streak < readingDays.count && readingDays.contains(Self.dayKey(for: day)) {
+            streak += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
+            day = previous
+        }
+        return streak
+    }
+
+    private static func dayKey(for date: Date) -> String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    private func saveShelves() {
+        if let data = try? JSONEncoder().encode(shelves) {
+            try? data.write(to: shelvesURL, options: .atomic)
+        }
     }
 
     // MARK: Private

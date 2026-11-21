@@ -252,8 +252,10 @@ final class ReaderModel: ObservableObject {
         guard isRevealed else { return }
         if page + paneCount < pageCount {
             page += paneCount
+            library?.recordReadingActivity()
             remember()
         } else if chapter + 1 < book.manifest.spine.count {
+            library?.recordReadingActivity()
             open(chapter + 1, at: .start)
         } else {
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
@@ -264,8 +266,10 @@ final class ReaderModel: ObservableObject {
         guard isRevealed else { return }
         if page > 0 {
             page = max(0, page - paneCount)
+            library?.recordReadingActivity()
             remember()
         } else if chapter > 0 {
+            library?.recordReadingActivity()
             open(chapter - 1, at: .end)
         }
     }
