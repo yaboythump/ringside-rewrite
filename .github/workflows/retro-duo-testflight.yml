@@ -70,11 +70,39 @@ jobs:
       - name: Test native touches, audio engine and portrait / landscape
         run: |
           set -euo pipefail
-          device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(v["udid"] for devices in d["devices"].values() for v in devices if "iPhone" in v["name"]))')
+          device=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin)["devices"]; keys=sorted((k for k in d if "iOS" in k), key=lambda k: tuple(map(int,re.findall(r"[0-9]+",k))), reverse=True); print(next(v["udid"] for k in keys for v in d[k] if "iPhone" in v["name"]))')
+          xcrun simctl list devices available
+          xcrun simctl boot "$device" || true
+          xcrun simctl bootstatus "$device" -b
           xcodebuild -project "$RD_PROJECT" -scheme RetroDuo -configuration Debug \
-            -destination "platform=iOS Simulator,id=$device" \
-            -derivedDataPath "$RUNNER_TEMP/rd-ui" -resultBundlePath "$RUNNER_TEMP/rd-ui.xcresult" \
-            CODE_SIGNING_ALLOWED=NO test > "$RUNNER_TEMP/rd-ui.log" 2>&1 || { tail -100 "$RUNNER_TEMP/rd-ui.log"; exit 1; }
+            -destination "platform=iOS Simulator,id=$device" -destination-timeout 120 \
+            -derivedDataPath "$RUNNER_TEMP/rd-ui" ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build-for-testing \
+            > "$RUNNER_TEMP/rd-ui.log" 2>&1 || { tail -100 "$RUNNER_TEMP/rd-ui.log"; exit 1; }
+          xcrun simctl install "$device" "$RUNNER_TEMP/rd-ui/Build/Products/Debug-iphonesimulator/RetroDuo.app"
+          xcrun simctl launch "$device" com.ctnetworkstudios.retroduo -RetroDuoDemo
+          sleep 4
+          xcrun simctl io "$device" screenshot "$RUNNER_TEMP/rd-portrait.png"
+          xcrun simctl terminate "$device" com.ctnetworkstudios.retroduo
+          python3 - "$device" <<'PYTEST'
+          import os, subprocess, sys
+          command = ["xcodebuild", "-project", os.environ["RD_PROJECT"], "-scheme", "RetroDuo",
+                     "-configuration", "Debug", "-destination", "platform=iOS Simulator,id=" + sys.argv[1],
+                     "-derivedDataPath", os.environ["RUNNER_TEMP"] + "/rd-ui",
+                     "-resultBundlePath", os.environ["RUNNER_TEMP"] + "/rd-ui.xcresult",
+                     "-parallel-testing-enabled", "NO", "-test-timeouts-enabled", "YES",
+                     "-maximum-test-execution-time-allowance", "120", "test-without-building"]
+          with open(os.environ["RUNNER_TEMP"] + "/rd-ui.log", "a") as log:
+              try:
+                  result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=420)
+                  status = result.returncode
+              except subprocess.TimeoutExpired:
+                  print("Simulator test service timed out after 7 minutes.")
+                  status = 1
+          subprocess.run(["tail", "-100", os.environ["RUNNER_TEMP"] + "/rd-ui.log"])
+          sys.exit(status)
+          PYTEST
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/rd-ui.xcresult" --output-path "$RUNNER_TEMP/rd-ui-attachments"
       - name: Keep simulator test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -83,6 +111,8 @@ jobs:
           path: |
             ${{ runner.temp }}/rd-ui.xcresult
             ${{ runner.temp }}/rd-ui.log
+            ${{ runner.temp }}/rd-portrait.png
+            ${{ runner.temp }}/rd-ui-attachments
           retention-days: 14
       - name: Keep build log
         if: always()
