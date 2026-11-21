@@ -189,7 +189,7 @@ jobs:
           puts "#{input}.#{encode.call(raw)}"
           RUBY
           )"
-          echo "::ard-mask::$token"
+          echo "::add-mask::$token"
           RD_ASC_TOKEN="$token" python3 - "$signing" <<'PY' 
           import base64
           import json
