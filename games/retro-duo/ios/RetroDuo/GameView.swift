@@ -127,7 +127,7 @@ struct GameView: View {
                 }
                 .padding(.horizontal, 16)
                 Spacer(minLength: 4)
-                MenuButtons(session: session)
+                MenuButtons(session: session, keys: system.menuKeys)
                 Spacer(minLength: 4)
             }
             .frame(width: size.width, height: half)
@@ -146,13 +146,13 @@ struct GameView: View {
                     if tuning.mirrored {
                         actionButtons(diameter: button)
                         Spacer(minLength: 4)
-                        MenuButtons(session: session)
+                        MenuButtons(session: session, keys: system.menuKeys)
                         Spacer(minLength: 4)
                         directionPad(size: pad)
                     } else {
                         directionPad(size: pad)
                         Spacer(minLength: 4)
-                        MenuButtons(session: session)
+                        MenuButtons(session: session, keys: system.menuKeys)
                         Spacer(minLength: 4)
                         actionButtons(diameter: button)
                     }
@@ -196,7 +196,9 @@ struct GameView: View {
                 Spacer()
                 directionPad(size: min(side * 0.82, 170))
                 Spacer()
-                PillButton(label: "SELECT", key: Int(RD_KEY_SELECT), session: session)
+                if let first = system.menuKeys.first, system.menuKeys.count > 1 {
+                    PillButton(label: first.label, key: first.key, session: session)
+                }
             }
             .frame(width: side)
             screen(width: screenHeight / session.aspect)
@@ -204,26 +206,45 @@ struct GameView: View {
                 Spacer()
                 actionButtons(diameter: button)
                 Spacer()
-                PillButton(label: "START", key: Int(RD_KEY_START), session: session)
+                if let last = system.menuKeys.last {
+                    PillButton(label: last.label, key: last.key, session: session)
+                }
             }
             .frame(width: side)
         }
         .padding(.vertical, 10)
     }
 
+    private var system: GameSystem { session.game.system }
+
+    /// The D-pad, with the L shoulder button above it on systems that have one.
     private func directionPad(size: CGFloat) -> some View {
-        DPad(session: session)
-            .frame(width: size, height: size)
-            .scaleEffect(tuning.size)
-            .opacity(tuning.opacity)
-            .offset(y: tuning.directionOffset)
+        VStack(spacing: 6) {
+            if system.hasShoulders {
+                ShoulderButton(label: "L", key: PadKey.l, session: session)
+            }
+            DPad(session: session)
+                .frame(width: system.hasShoulders ? size - 34 : size, height: system.hasShoulders ? size - 34 : size)
+        }
+        .scaleEffect(tuning.size)
+        .opacity(tuning.opacity)
+        .offset(y: tuning.directionOffset)
     }
 
+    /// The face buttons, with the R shoulder button above them on systems that have one.
     private func actionButtons(diameter: CGFloat) -> some View {
-        FaceButtons(session: session, diameter: diameter)
-            .scaleEffect(tuning.size)
-            .opacity(tuning.opacity)
-            .offset(y: tuning.actionOffset)
+        let faces = system.faceKeys
+        // Bigger layouts get smaller buttons so they take about the same room.
+        let size = faces.count >= 4 ? diameter * 0.62 : faces.count == 3 ? diameter * 0.78 : diameter
+        return VStack(spacing: 6) {
+            if system.hasShoulders {
+                ShoulderButton(label: "R", key: PadKey.r, session: session)
+            }
+            FaceButtons(session: session, diameter: system.hasShoulders ? size * 0.85 : size, keys: faces)
+        }
+        .scaleEffect(tuning.size)
+        .opacity(tuning.opacity)
+        .offset(y: tuning.actionOffset)
     }
 
     // MARK: Pieces

@@ -10,6 +10,7 @@ An NES, Game Boy, Game Boy Color and Nintendo DS player for iPhone, built for iP
 - **Saves:** in-game saves are written automatically (Files › Retro Duo › Saves). The game also resumes where you left off, and the ☰ menu has a quick save slot.
 - **Extras:** haptics, rumble carts, sound, and Bluetooth controllers (right face button = A, bottom = B, Menu = START, Options = SELECT).
 - **Nintendo DS:** [melonDS](https://melonds.kuribo64.net) 1.1 with its free replacement BIOS (no Nintendo files needed), running on its own thread. Half-folded, the top screen sits above the fold and the touch screen below it, between the D-pad and A/B/X/Y. L/R are on screen and on controllers' shoulder buttons. Saves, resume and quick save work like Game Boy.
+- **Game Boy Advance:** [mGBA](https://mgba.io) 0.10.5 (MPL 2.0) with its built-in BIOS replacement, in the single-screen play view with on-screen L/R. Vendored sources are compiled through `ios/RetroDuo/GBACore/units` (one generated file per source, see `tools/make_units.py`) so every object file has a unique name; mGBA's bundled blip_buf is renamed in `GBAConfig.h` because melonDS ships the same library.
 - **NES:** [Nestopia UE](https://github.com/0ldsk00l/nestopia), the accurate NES core, running in the same single-screen play view as Game Boy (8:7 picture, overscan cropped).
 - **Built-in Test Cart:** an original mini ROM for checking controls, sound and colors on first launch.
 - **Free built-in game: Grave Mistakes**, a chaotic funeral home sim for the DS screens: the funeral home live on top, bookings, body prep and quick fixes on the touch screen. Source in `games/funeral-home-ds`.
@@ -38,6 +39,10 @@ The upload uses the same `ringside-testflight` signing secrets as the other game
 | `ios/RetroDuo/NESCore/` | C bridge for Nestopia (`NESCore`) |
 | `vendor/nestopia/` | Nestopia UE core sources (no frontend) |
 | `testcart-nes/` | Original NES test cart, built by `make_cart.py` with a tiny Python 6502 assembler |
+| `ios/RetroDuo/GBACore/` | C bridge for mGBA (`RDGBA`) and the generated compile units |
+| `vendor/mgba/` | mGBA GBA core sources |
+| `testcart-gba/` | Original GBA test cart (C, built with stock clang + lld) |
+| `tools/make_units.py` | Regenerates the per-source compile units for vendored cores |
 | `vendor/SameBoy/` | SameBoy v1.0.5 `Core/`, unmodified |
 | `testcart/` | Test cart source (RGBDS assembly) and `build.sh` |
 | `ios/RetroDuo/Resources/GraveMistakes.nds` | Built from `games/funeral-home-ds` (BlocksDS); CI checks it matches the source |

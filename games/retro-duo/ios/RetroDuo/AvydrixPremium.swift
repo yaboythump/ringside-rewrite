@@ -474,6 +474,7 @@ struct AVSettingsHome: View {
     @StateObject private var ds = AVControlTuning(system: .nintendoDS)
     @StateObject private var gb = AVControlTuning(system: .gameBoy)
     @StateObject private var gbc = AVControlTuning(system: .gameBoyColor)
+    @StateObject private var gba = AVControlTuning(system: .gameBoyAdvance)
 
     private var tuning: AVControlTuning {
         switch system {
@@ -481,6 +482,7 @@ struct AVSettingsHome: View {
         case .nintendoDS: return ds
         case .gameBoy: return gb
         case .gameBoyColor: return gbc
+        case .gameBoyAdvance: return gba
         }
     }
 
@@ -548,6 +550,7 @@ struct AVSettingsHome: View {
                         Text("Nintendo DS").tag(GameSystem.nintendoDS)
                         Text("NES").tag(GameSystem.nes)
                         Text("Game Boy Color").tag(GameSystem.gameBoyColor)
+                        Text("Game Boy Advance").tag(GameSystem.gameBoyAdvance)
                         Text("Game Boy").tag(GameSystem.gameBoy)
                     }
                     Button {

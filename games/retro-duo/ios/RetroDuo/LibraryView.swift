@@ -75,7 +75,7 @@ struct LibraryView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .fileImporter(isPresented: $importing,
-                          allowedContentTypes: [.gameBoyROM, .gameBoyColorROM, .nintendoDSROM,
+                          allowedContentTypes: [.gameBoyROM, .gameBoyColorROM, .gameBoyAdvanceROM, .nintendoDSROM,
                                                 UTType(importedAs: "com.ctnetworkstudios.retroduo.nes"), .data],
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { library.importFiles(urls) }
@@ -142,6 +142,8 @@ struct LibraryView: View {
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("-RetroDuoDemoDS") {
                 playing = library.games.first { $0.system == .nintendoDS }
+            } else if arguments.contains("-RetroDuoDemoGBA") {
+                playing = library.games.first { $0.system == .gameBoyAdvance }
             } else if arguments.contains("-RetroDuoDemoNES") {
                 playing = library.games.first { $0.system.rawValue == "nes" }
             } else if arguments.contains("-RetroDuoDemo") {
@@ -443,12 +445,9 @@ struct LibraryView: View {
                             .overlay(Capsule().stroke(showingFavoritesOnly ? AVPalette.blue : .white.opacity(0.1)))
                     }
                     .buttonStyle(.plain)
-                    if let nes = GameSystem(rawValue: "nes") {
-                        filterChip("NES", system: nes, count: ownedGames.filter { $0.system == nes }.count)
+                    ForEach(GameSystem.allCases, id: \.self) { system in
+                        filterChip(system.filterName, system: system, count: ownedGames.filter { $0.system == system }.count)
                     }
-                    filterChip("NINTENDO DS", system: .nintendoDS, count: ownedGames.filter { $0.system == .nintendoDS }.count)
-                    filterChip("GAME BOY COLOR", system: .gameBoyColor, count: ownedGames.filter { $0.system == .gameBoyColor }.count)
-                    filterChip("GAME BOY", system: .gameBoy, count: ownedGames.filter { $0.system == .gameBoy }.count)
                 }
                 .padding(.vertical, 2)
             }
@@ -645,7 +644,7 @@ private struct AVGameCard: View {
                     }
                     VStack {
                         HStack {
-                            Text(game.system.rawValue == "nes" ? "NES" : game.system == .nintendoDS ? "DS" : game.system == .gameBoyColor ? "GBC" : "GB")
+                            Text(game.system.shortName)
                                 .font(.system(size: 9, weight: .heavy, design: .monospaced))
                                 .tracking(1)
                                 .padding(.horizontal, 9)
@@ -1342,13 +1341,7 @@ private final class GameCoverLibrary: ObservableObject {
     }
 
     private static func artworkFolder(for game: Game) -> String? {
-        if game.system.rawValue == "nes" { return "Nintendo - Nintendo Entertainment System" }
-        switch game.system {
-        case .gameBoy: return "Nintendo - Game Boy"
-        case .gameBoyColor: return "Nintendo - Game Boy Color"
-        case .nintendoDS: return "Nintendo - Nintendo DS"
-        default: return nil
-        }
+        game.system.artworkFolder
     }
 
     private static func optimizedJPEG(_ original: UIImage) -> Data? {
