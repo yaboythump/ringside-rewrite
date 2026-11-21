@@ -75,6 +75,12 @@ struct LibraryView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             library.refresh()
         }
+        .task {
+            // Launch argument used for screenshots: opens the Test Cart straight away.
+            if ProcessInfo.processInfo.arguments.contains("-RetroDuoDemo") {
+                playing = library.games.first
+            }
+        }
     }
 
     private var emptyHelp: some View {
