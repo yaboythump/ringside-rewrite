@@ -151,9 +151,9 @@ jobs:
           retention-days: 14
 
   upload:
-    # Uploads only when started by hand (Actions > Retro Duo TestFlight > Run workflow),
-    # so merging never fails before the App Store Connect app record exists.
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload
+    # For this approved release, allow a single exact commit message to upload.
+    # All other pushes are verify-only. Manual release remains available.
+    if: github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.upload) || (github.event_name == 'push' && github.event.head_commit.message == 'release-retro-duo-20261121-claude-updates'))
     needs: [verify, core]
     environment: ringside-testflight
     runs-on: xcode-27
