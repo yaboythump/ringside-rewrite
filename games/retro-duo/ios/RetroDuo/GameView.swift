@@ -77,31 +77,34 @@ struct GameView: View {
     // MARK: Layouts
 
     private func portraitLayout(_ size: CGSize) -> some View {
-        let screenWidth = min(size.width - 56, size.height * 0.40 * 10 / 9)
-        let button = min(size.width * 0.19, 78)
+        // The picture gets nearly the full width; the controls share what's left below it.
+        let barHeight: CGFloat = 44
+        let controlsMinimum: CGFloat = 225
+        let screenWidth = max(80, min(size.width - 16, (size.height - barHeight - controlsMinimum) * 10 / 9))
+        let controlsHeight = size.height - barHeight - screenWidth * 0.9 - 20
+        let pad = max(108, min(size.width * 0.40, controlsHeight * 0.62, 170))
+        let button = max(50, min(size.width * 0.17, pad * 0.46, 76))
         return VStack(spacing: 0) {
             topBar
             screen(width: screenWidth)
-                .padding(.top, 4)
-            deckDivider.padding(.top, 16)
-            Spacer(minLength: 10)
+            Spacer(minLength: 4)
             HStack(alignment: .center) {
                 DPad(session: session)
-                    .frame(width: min(size.width * 0.42, 170), height: min(size.width * 0.42, 170))
+                    .frame(width: pad, height: pad)
                 Spacer()
                 FaceButtons(session: session, diameter: button)
-                    .padding(.trailing, 6)
+                    .padding(.trailing, 4)
             }
-            .padding(.horizontal, 22)
-            Spacer(minLength: 10)
+            .padding(.horizontal, 16)
+            Spacer(minLength: 4)
             MenuButtons(session: session)
-            consoleFooter.padding(.top, 12).padding(.bottom, 12)
+                .padding(.bottom, 6)
         }
     }
 
     private func tabletopLayout(_ size: CGSize) -> some View {
         let half = size.height / 2
-        let screenHeight = max(60, half - 106)
+        let screenHeight = max(60, half - 54)
         let button = min(half * 0.3, 84)
         return VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -124,7 +127,7 @@ struct GameView: View {
     }
 
     private func landscapeLayout(_ size: CGSize) -> some View {
-        let screenHeight = max(60, size.height - 82)
+        let screenHeight = max(60, size.height - 34)
         let side = max(120, (size.width - screenHeight * 10 / 9) / 2 - 12)
         let button = min(side * 0.36, 72)
         return HStack(spacing: 0) {
@@ -153,58 +156,39 @@ struct GameView: View {
 
     // MARK: Pieces
 
+    /// The game picture with a slim bezel. `width` is the picture itself; the bezel adds 10 points.
     private func screen(width: CGFloat) -> some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 5) {
-                Circle().fill(Theme.accent).frame(width: 5, height: 5)
-                    .shadow(color: Theme.accent.opacity(0.6), radius: 5)
-                Text("RETRO DUO").tracking(2)
-                Spacer()
-                Text("PIXEL ENGINE").tracking(1)
-            }
-            .font(.system(size: 8, weight: .bold, design: .monospaced))
-            .foregroundStyle(.white.opacity(0.5))
-            PixelScreen(session: session)
-                .aspectRatio(10 / 9, contentMode: .fit)
-                .frame(width: max(width, 80))
-                .background(.black)
-                .clipShape(RoundedRectangle(cornerRadius: 3))
-                .overlay(RoundedRectangle(cornerRadius: 3).stroke(.black, lineWidth: 3))
-            HStack {
-                Text("CTINTERACTIVE").tracking(2)
-                Spacer()
-                Text(session.game.isColor ? "COLOR / 60" : "CLASSIC / 60")
-            }
-            .font(.system(size: 7, weight: .semibold, design: .monospaced))
-            .foregroundStyle(Theme.accent.opacity(0.6))
-        }
-        .padding(12)
-        .frame(width: max(width, 80) + 24)
-        .background(RoundedRectangle(cornerRadius: 19).fill(Theme.bezel.gradient))
-        .overlay(RoundedRectangle(cornerRadius: 19).stroke(LinearGradient(colors: [.white.opacity(0.26), .white.opacity(0.02), Theme.accent.opacity(0.25)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
-        .shadow(color: .black.opacity(0.65), radius: 15, y: 9)
-        .accessibilityLabel("Game screen")
+        let width = max(width, 80)
+        return PixelScreen(session: session)
+            .frame(width: width, height: width * 0.9)
+            .background(.black)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .padding(5)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bezel.gradient))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LinearGradient(colors: [.white.opacity(0.22), .white.opacity(0.02), Theme.accent.opacity(0.22)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+            .shadow(color: .black.opacity(0.6), radius: 12, y: 6)
+            .accessibilityLabel("Game screen")
     }
 
     private var topBar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             menuButton
-            VStack(alignment: .leading, spacing: 3) {
-                Text("RETRO DUO").font(.system(size: 14, weight: .black, design: .rounded)).tracking(2)
-                    .foregroundStyle(Theme.accent)
-                Text(session.game.name).font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.65)).lineLimit(1)
-            }
+            Spacer(minLength: 0)
+            Text(session.game.name)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.6))
+                .lineLimit(1)
             Spacer(minLength: 0)
             Button { session.toggleMute() } label: {
                 Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(session.isMuted ? .white.opacity(0.4) : Theme.accent)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 44, height: 40)
             }
             .accessibilityLabel(session.isMuted ? "Turn sound on" : "Mute sound")
         }
-        .padding(.horizontal, 14).frame(height: 56)
+        .padding(.horizontal, 8)
+        .frame(height: 44)
     }
 
     private var menuButton: some View {
@@ -212,33 +196,11 @@ struct GameView: View {
             Image(systemName: "square.grid.2x2.fill")
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(.white.opacity(0.8))
-                .frame(width: 44, height: 44)
-                .background(RoundedRectangle(cornerRadius: 13).fill(.white.opacity(0.05)))
-                .overlay(RoundedRectangle(cornerRadius: 13).stroke(.white.opacity(0.08)))
+                .frame(width: 44, height: 36)
+                .background(RoundedRectangle(cornerRadius: 11).fill(.white.opacity(0.05)))
+                .overlay(RoundedRectangle(cornerRadius: 11).stroke(.white.opacity(0.08)))
         }
         .accessibilityLabel("Game menu")
-    }
-
-    private var deckDivider: some View {
-        HStack(spacing: 12) {
-            Rectangle().fill(.white.opacity(0.12)).frame(height: 1)
-            Text("CONTROL DECK").font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(3)
-                .fixedSize().foregroundStyle(.white.opacity(0.3))
-            Rectangle().fill(.white.opacity(0.12)).frame(height: 1)
-        }.padding(.horizontal, 24)
-    }
-
-    private var consoleFooter: some View {
-        HStack {
-            Image(systemName: "plus.circle").foregroundStyle(.white.opacity(0.2))
-            Spacer()
-            Text("CT / HANDHELD SYSTEM").font(.system(size: 7, weight: .bold, design: .monospaced)).tracking(2)
-                .foregroundStyle(.white.opacity(0.3))
-            Spacer()
-            HStack(spacing: 3) {
-                ForEach(0..<5) { _ in Capsule().fill(.black.opacity(0.5)).frame(width: 3, height: 17) }
-            }.rotationEffect(.degrees(-20))
-        }.padding(.horizontal, 26)
     }
 
     @ViewBuilder

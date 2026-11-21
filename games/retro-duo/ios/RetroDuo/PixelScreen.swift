@@ -11,7 +11,7 @@ final class PixelScreenView: UIView {
         isUserInteractionEnabled = false
         layer.magnificationFilter = .nearest
         layer.minificationFilter = .nearest
-        layer.contentsGravity = .resizeAspect
+        layer.contentsGravity = .resize // SwiftUI already gives this view the picture's exact shape
     }
 
     required init?(coder: NSCoder) {
@@ -48,5 +48,10 @@ struct PixelScreen: UIViewRepresentable {
 
     func updateUIView(_ view: PixelScreenView, context: Context) {
         session.screen = view
+    }
+
+    /// Always take exactly the space SwiftUI offers, so the picture fills its frame.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: PixelScreenView, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? 160, height: proposal.height ?? 144)
     }
 }

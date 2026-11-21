@@ -1,7 +1,7 @@
 name: Retro Duo TestFlight
 on:
   push:
-    branches: [main, feature/retro-duo]
+    branches: [main, "feature/retro-duo*"]
     paths:
       - "games/retro-duo/**"
       - ".github/workflows/retro-duo-testflight.yml"
@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/retro-duo'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/retro-duo')
     runs-on: xcode-27
     timeout-minutes: 30
     steps:
@@ -130,7 +130,7 @@ jobs:
 
   core:
     # Builds the same SameBoy + RDCore C code on Linux and plays the test cart headlessly.
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/retro-duo'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/retro-duo')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
