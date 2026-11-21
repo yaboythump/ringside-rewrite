@@ -1,0 +1,50 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        AA0000000000000000000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BookDuoApp.swift"; sourceTree = "<group>";};
+        AB0000000000000000000002 = {isa = PBXBuildFile; fileRef = AA0000000000000000000001;};
+        AA0000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ZipReader.swift"; sourceTree = "<group>";};
+        AB0000000000000000000004 = {isa = PBXBuildFile; fileRef = AA0000000000000000000003;};
+        AA0000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EPUB.swift"; sourceTree = "<group>";};
+        AB0000000000000000000006 = {isa = PBXBuildFile; fileRef = AA0000000000000000000005;};
+        AA0000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BookLibrary.swift"; sourceTree = "<group>";};
+        AB0000000000000000000008 = {isa = PBXBuildFile; fileRef = AA0000000000000000000007;};
+        AA0000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReaderSettings.swift"; sourceTree = "<group>";};
+        AB000000000000000000000A = {isa = PBXBuildFile; fileRef = AA0000000000000000000009;};
+        AA000000000000000000000B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReaderModel.swift"; sourceTree = "<group>";};
+        AB000000000000000000000C = {isa = PBXBuildFile; fileRef = AA000000000000000000000B;};
+        AA000000000000000000000D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PageWebView.swift"; sourceTree = "<group>";};
+        AB000000000000000000000E = {isa = PBXBuildFile; fileRef = AA000000000000000000000D;};
+        AA000000000000000000000F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReaderView.swift"; sourceTree = "<group>";};
+        AB0000000000000000000010 = {isa = PBXBuildFile; fileRef = AA000000000000000000000F;};
+        AA0000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryView.swift"; sourceTree = "<group>";};
+        AB0000000000000000000012 = {isa = PBXBuildFile; fileRef = AA0000000000000000000011;};
+        AC0000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "reader.js"; sourceTree = "<group>";};
+        AD0000000000000000000014 = {isa = PBXBuildFile; fileRef = AC0000000000000000000013;};
+        AC0000000000000000000015 = {isa = PBXFileReference; lastKnownFileType = file; path = "Alice.epub"; sourceTree = "<group>";};
+        AD0000000000000000000016 = {isa = PBXBuildFile; fileRef = AC0000000000000000000015;};
+        AE0000000000000000000017 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>";};
+        AF0000000000000000000018 = {isa = PBXBuildFile; fileRef = AE0000000000000000000017;};
+        B00000000000000000000019 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "App.xcconfig"; sourceTree = "SOURCE_ROOT";};
+        B1000000000000000000001A = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "SOURCE_ROOT";};
+        B2000000000000000000001B = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BookDuo.app; sourceTree = BUILT_PRODUCTS_DIR;};
+        C0000000000000000000001C = {isa = PBXGroup; children = (AC0000000000000000000013, AC0000000000000000000015); path = Resources; sourceTree = "<group>";};
+        C1000000000000000000001D = {isa = PBXGroup; children = (AA0000000000000000000001, AA0000000000000000000003, AA0000000000000000000005, AA0000000000000000000007, AA0000000000000000000009, AA000000000000000000000B, AA000000000000000000000D, AA000000000000000000000F, AA0000000000000000000011, AE0000000000000000000017, C0000000000000000000001C); path = BookDuo; sourceTree = "<group>";};
+        C2000000000000000000001E = {isa = PBXGroup; children = (B2000000000000000000001B); name = Products; sourceTree = "<group>";};
+        C3000000000000000000001F = {isa = PBXGroup; children = (C1000000000000000000001D, B00000000000000000000019, B1000000000000000000001A, C2000000000000000000001E); sourceTree = "<group>";};
+        D00000000000000000000020 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AB0000000000000000000002, AB0000000000000000000004, AB0000000000000000000006, AB0000000000000000000008, AB000000000000000000000A, AB000000000000000000000C, AB000000000000000000000E, AB0000000000000000000010, AB0000000000000000000012); runOnlyForDeploymentPostprocessing = 0;};
+        D10000000000000000000021 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (AD0000000000000000000014, AD0000000000000000000016, AF0000000000000000000018); runOnlyForDeploymentPostprocessing = 0;};
+        E00000000000000000000022 = {isa = XCBuildConfiguration; buildSettings = {ENABLE_TESTABILITY = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_VERSION = 5.0;}; name = Debug;};
+        E10000000000000000000023 = {isa = XCBuildConfiguration; buildSettings = {IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0;}; name = Release;};
+        E20000000000000000000024 = {isa = XCBuildConfiguration; baseConfigurationReference = B00000000000000000000019; buildSettings = {}; name = Debug;};
+        E30000000000000000000025 = {isa = XCBuildConfiguration; baseConfigurationReference = B00000000000000000000019; buildSettings = {}; name = Release;};
+        E40000000000000000000026 = {isa = XCConfigurationList; buildConfigurations = (E00000000000000000000022, E10000000000000000000023); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+        E50000000000000000000027 = {isa = XCConfigurationList; buildConfigurations = (E20000000000000000000024, E30000000000000000000025); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+        F00000000000000000000002 = {isa = PBXNativeTarget; buildConfigurationList = E50000000000000000000027; buildPhases = (D00000000000000000000020, D10000000000000000000021); buildRules = (); dependencies = (); name = BookDuo; productName = BookDuo; productReference = B2000000000000000000001B; productType = "com.apple.product-type.application";};
+        F00000000000000000000001 = {isa = PBXProject; attributes = {LastUpgradeCheck = 2600; TargetAttributes = {F00000000000000000000002 = {CreatedOnToolsVersion = 26.0;};};}; buildConfigurationList = E40000000000000000000026; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = C3000000000000000000001F; productRefGroup = C2000000000000000000001E; projectDirPath = ""; projectRoot = ""; targets = (F00000000000000000000002);};
+    };
+    rootObject = F00000000000000000000001;
+}
