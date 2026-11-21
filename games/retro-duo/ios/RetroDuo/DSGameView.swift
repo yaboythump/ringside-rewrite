@@ -1,16 +1,15 @@
 import SwiftUI
 
-/// The Nintendo DS play screen.
-/// - iPhone Duo half-folded: top screen above the fold; touch screen below it with
-///   the D-pad on the left and A/B/X/Y on the right, like a real DS.
-/// - Portrait: both screens stacked, controls underneath.
-/// - Landscape: both screens stacked in the middle, controls on the sides.
+/// The DS top picture fills the upper Duo panel. The lower panel contains the
+/// touch screen, D-pad, A/B/X/Y, shoulder buttons and game menu.
 struct DSGameView: View {
     @StateObject private var session: DSSession
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var hinge = HingeState()
     @State private var showingMenu = false
+    @AppStorage("retroDuoTwoPanels") private var useTwoPanels = true
+    @AppStorage("retroDuoOriginalProportions") private var originalProportions = false
     @State private var diagnostics = ""
 
     init(session: @autoclosure @escaping () -> DSSession) {
@@ -23,8 +22,12 @@ struct DSGameView: View {
             Group {
                 if let error = session.errorMessage {
                     errorView(error)
-                } else if hinge.isHalfOpen && size.width > size.height {
-                    tabletopLayout(size)
+                } else if useTwoPanels || hinge.isHalfOpen {
+                    if size.width > size.height {
+                        tabletopLayout(size)
+                    } else {
+                        portraitLayout(size)
+                    }
                 } else if size.width > size.height * 1.15 {
                     landscapeLayout(size)
                 } else {
@@ -33,6 +36,7 @@ struct DSGameView: View {
             }
             .frame(width: size.width, height: size.height)
         }
+        .ignoresSafeArea()
         .background(ConsoleBackdrop())
         .overlay(alignment: .top) { toastView }
         .overlay(alignment: .bottom) {
@@ -61,6 +65,12 @@ struct DSGameView: View {
             }
         }
         .confirmationDialog(session.game.name, isPresented: $showingMenu, titleVisibility: .visible) {
+            Button(originalProportions ? "Fill entire upper screen" : "Use original screen proportions") {
+                originalProportions.toggle()
+            }
+            Button(useTwoPanels ? "Use side controls in landscape" : "Use two-panel Duo layout") {
+                useTwoPanels.toggle()
+            }
             Button("Quick Save") { session.quickSave() }
             Button("Quick Load") { session.quickLoad() }
                 .disabled(!session.hasQuickSave)
@@ -76,78 +86,56 @@ struct DSGameView: View {
 
     // MARK: Layouts
 
-    private func portraitLayout(_ size: CGSize) -> some View {
-        let barHeight: CGFloat = 44
-        let controlsMinimum: CGFloat = 190
-        // Two 4:3 screens stacked: total height is 1.5 x width (+ gap and bezels).
-        let screenWidth = max(120, min(size.width - 16, (size.height - barHeight - controlsMinimum - 26) / 1.5))
-        let controlsHeight = size.height - barHeight - screenWidth * 1.5 - 26
-        let pad = max(96, min(size.width * 0.34, controlsHeight - 40, 150))
-        let button = max(38, min(pad * 0.36, 56))
+    private func portraitLayout(_ size: CGSize) -> some View { twoPanelLayout(size) }
+    private func tabletopLayout(_ size: CGSize) -> some View { twoPanelLayout(size) }
+
+    /// The upper physical panel is only gameplay. Header and controls live below.
+    private func twoPanelLayout(_ size: CGSize) -> some View {
+        let half = size.height / 2
+        let usable = max(70, half - 112)
+        let side = min(150, size.width * 0.25)
+        let touchWidth = max(40, min(size.width - 2 * side - 12, (usable - 8) * 4 / 3))
+        let pad = max(44, min(side * 0.90, usable - 40, 150))
+        let button = max(20, min((side - 8) / 2.56, (usable - 40) / 2.56, 58))
         return VStack(spacing: 0) {
-            topBar
-            VStack(spacing: 6) {
-                screen(.top, width: screenWidth)
-                touchScreen(width: screenWidth)
+            upperPanel(width: size.width, height: half)
+            VStack(spacing: 0) {
+                topBar
+                Spacer(minLength: 2)
+                HStack(spacing: 0) {
+                    VStack(spacing: 8) {
+                        ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
+                        DPad(session: session).frame(width: pad, height: pad)
+                    }.frame(width: side)
+                    Spacer(minLength: 0)
+                    touchScreen(width: touchWidth)
+                    Spacer(minLength: 0)
+                    VStack(spacing: 8) {
+                        ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
+                        DiamondButtons(session: session, diameter: button)
+                    }.frame(width: side)
+                }
+                Spacer(minLength: 2)
+                MenuButtons(session: session, selectKey: Int(MD_KEY_SELECT), startKey: Int(MD_KEY_START))
             }
-            Spacer(minLength: 2)
-            HStack(alignment: .center, spacing: 0) {
-                VStack(spacing: 6) {
-                    ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
-                    DPad(session: session).frame(width: pad, height: pad)
-                }
-                Spacer(minLength: 0)
-                VStack(spacing: 4) {
-                    PillButton(label: "SELECT", key: Int(MD_KEY_SELECT), session: session)
-                    PillButton(label: "START", key: Int(MD_KEY_START), session: session)
-                }
-                Spacer(minLength: 0)
-                VStack(spacing: 6) {
-                    ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
-                    DiamondButtons(session: session, diameter: button)
-                }
-            }
-            .padding(.horizontal, 14)
-            Spacer(minLength: 4)
+            .padding(.bottom, 10)
+            .frame(width: size.width, height: half)
         }
     }
 
-    private func tabletopLayout(_ size: CGSize) -> some View {
-        // Each half must fit on its own side of the fold, so every size below
-        // is worked out from the half height and nothing can spill across.
-        let half = size.height / 2
-        let topWidth = min(size.width - 16, max(120, (half - 44 - 14) * 4 / 3))
-        let bottomWidth = min(size.width * 0.5, max(120, (half - 24) * 4 / 3))
-        let side = max(120, (size.width - bottomWidth - 8) / 2)
-        // Side columns: shoulder (28) + control + START/SELECT (52) + two 6-point gaps + 8 margin.
-        let room = max(60, half - 28 - 52 - 12 - 8)
-        let pad = max(60, min(side * 0.7, room, 170))
-        let button = max(26, min(room / 2.56, side * 0.3, 62))
-        return VStack(spacing: 0) {
-            VStack(spacing: 0) {
-                topBar
-                screen(.top, width: topWidth)
-                Spacer(minLength: 0)
-            }
-            .frame(width: size.width, height: half)
-            .clipped()
-            HStack(spacing: 4) {
-                VStack(spacing: 6) {
-                    ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
-                    DPad(session: session).frame(width: pad, height: pad)
-                    PillButton(label: "SELECT", key: Int(MD_KEY_SELECT), session: session)
-                }
-                .frame(width: side)
-                touchScreen(width: bottomWidth)
-                VStack(spacing: 6) {
-                    ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
-                    DiamondButtons(session: session, diameter: button)
-                    PillButton(label: "START", key: Int(MD_KEY_START), session: session)
-                }
-                .frame(width: side)
-            }
-            .frame(width: size.width, height: half)
+    private func upperPanel(width: CGFloat, height: CGFloat) -> some View {
+        ZStack {
+            Color.black
+            let pictureWidth = originalProportions ? min(width, height * 4 / 3) : width
+            let pictureHeight = originalProportions ? pictureWidth * 0.75 : height
+            DSScreen(session: session, which: .top)
+                .frame(width: pictureWidth, height: pictureHeight)
         }
+        .frame(width: width, height: height)
+        .clipped()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("upperGamePanel")
+        .accessibilityLabel("Top screen")
     }
 
     private func landscapeLayout(_ size: CGSize) -> some View {

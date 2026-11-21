@@ -1,16 +1,16 @@
 import SwiftUI
 
-/// The play screen. Three layouts:
-/// - Portrait (outer screen or unfolded): picture on top, controls below, like the original handheld.
-/// - iPhone Duo half-folded with the fold across the middle: picture on the top half,
-///   controls on the bottom half, so the fold sits between them.
-/// - Landscape flat: picture in the middle, D-pad on the left, buttons on the right.
+/// The Duo play screen dedicates the full upper panel to gameplay.
+/// The lower panel holds the controls, game menu and sound toggle.
+/// Side controls and original picture proportions remain available in the menu.
 struct GameView: View {
     @StateObject private var session: EmulatorSession
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var hinge = HingeState()
     @State private var showingMenu = false
+    @AppStorage("retroDuoTwoPanels") private var useTwoPanels = true
+    @AppStorage("retroDuoOriginalProportions") private var originalProportions = false
     @State private var diagnostics = ""
 
     init(session: @autoclosure @escaping () -> EmulatorSession) {
@@ -23,8 +23,12 @@ struct GameView: View {
             Group {
                 if let error = session.errorMessage {
                     errorView(error)
-                } else if hinge.isHalfOpen && size.width > size.height {
-                    tabletopLayout(size)
+                } else if useTwoPanels || hinge.isHalfOpen {
+                    if size.width > size.height {
+                        tabletopLayout(size)
+                    } else {
+                        portraitLayout(size)
+                    }
                 } else if size.width > size.height * 1.15 {
                     landscapeLayout(size)
                 } else {
@@ -33,6 +37,7 @@ struct GameView: View {
             }
             .frame(width: size.width, height: size.height)
         }
+        .ignoresSafeArea()
         .background(ConsoleBackdrop())
         .overlay(alignment: .top) { toastView }
         .overlay(alignment: .bottom) {
@@ -61,6 +66,12 @@ struct GameView: View {
             }
         }
         .confirmationDialog(session.game.name, isPresented: $showingMenu, titleVisibility: .visible) {
+            Button(originalProportions ? "Fill entire upper screen" : "Use original screen proportions") {
+                originalProportions.toggle()
+            }
+            Button(useTwoPanels ? "Use side controls in landscape" : "Use two-panel Duo layout") {
+                useTwoPanels.toggle()
+            }
             Button("Quick Save") { session.quickSave() }
             Button("Quick Load") { session.quickLoad() }
                 .disabled(!session.hasQuickSave)
@@ -76,16 +87,16 @@ struct GameView: View {
 
     // MARK: Layouts
 
-    // The unfolded Duo dedicates its entire upper half to the game, not a small
-    // simulated handheld bezel. The native 160:144 image is scaled to fit without
-    // cropping or distorting pixels; only unavoidable aspect-ratio bars remain.
+    // Fill the upper half by default, with optional original picture proportions.
     private func portraitLayout(_ size: CGSize) -> some View {
         let half = size.height / 2
-        let pad = min(size.width * 0.40, half * 0.55, 170)
+        let pad = min(size.width * 0.40, max(60, half - 100) * 0.65, 170)
         let button = min(size.width * 0.17, pad * 0.46, 76)
         return VStack(spacing: 0) {
             gameplayPanel(width: size.width, height: half)
             VStack(spacing: 0) {
+                topBar
+                Spacer(minLength: 4)
                 HStack(alignment: .center) {
                     DPad(session: session).frame(width: pad, height: pad)
                     Spacer(minLength: 8)
@@ -102,18 +113,23 @@ struct GameView: View {
 
     private func tabletopLayout(_ size: CGSize) -> some View {
         let half = size.height / 2
-        let pad = min(half * 0.62, size.width * 0.26, 170)
-        let button = min(half * 0.30, 84)
+        let pad = min(max(60, half - 70), size.width * 0.25, 160)
+        let button = min(pad * 0.46, 76)
         return VStack(spacing: 0) {
             gameplayPanel(width: size.width, height: half)
-            HStack(alignment: .center) {
-                DPad(session: session).frame(width: pad, height: pad)
-                Spacer(minLength: 4)
-                MenuButtons(session: session)
-                Spacer(minLength: 4)
-                FaceButtons(session: session, diameter: button)
+            VStack(spacing: 0) {
+                topBar
+                HStack(alignment: .center) {
+                    DPad(session: session).frame(width: pad, height: pad)
+                    Spacer(minLength: 4)
+                    MenuButtons(session: session)
+                    Spacer(minLength: 4)
+                    FaceButtons(session: session, diameter: button)
+                }
+                .padding(.horizontal, 24)
+                .frame(maxHeight: .infinity)
             }
-            .padding(.horizontal, 24)
+            .padding(.bottom, 10)
             .frame(width: size.width, height: half)
         }
     }
@@ -122,26 +138,17 @@ struct GameView: View {
         ZStack {
             Color.black
             GeometryReader { available in
-                let gameWidth = min(available.size.width, available.size.height * 10 / 9)
+                let gameWidth = originalProportions ? min(available.size.width, available.size.height * 10 / 9) : available.size.width
+                let gameHeight = originalProportions ? gameWidth * 0.9 : available.size.height
                 PixelScreen(session: session)
-                    .frame(width: gameWidth, height: gameWidth * 0.9)
+                    .frame(width: gameWidth, height: gameHeight)
                     .position(x: available.size.width / 2, y: available.size.height / 2)
             }
         }
         .frame(width: width, height: height)
         .clipped()
-        .overlay(alignment: .topLeading) {
-            menuButton.padding(8)
-        }
-        .overlay(alignment: .topTrailing) {
-            Button { session.toggleMute() } label: {
-                Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .foregroundStyle(Theme.accent)
-                    .frame(width: 44, height: 40)
-            }
-            .accessibilityLabel(session.isMuted ? "Turn sound on" : "Mute sound")
-            .padding(8)
-        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("upperGamePanel")
         .accessibilityLabel("Game screen")
     }
 
