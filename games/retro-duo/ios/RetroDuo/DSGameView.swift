@@ -113,40 +113,45 @@ struct DSGameView: View {
     }
 
     private func tabletopLayout(_ size: CGSize) -> some View {
+        // Each half must fit on its own side of the fold, so every size below
+        // is worked out from the half height and nothing can spill across.
         let half = size.height / 2
-        let topWidth = max(120, (half - 44 - 14) * 4 / 3)
-        let bottomWidth = max(120, (half - 64) * 4 / 3)
-        let side = max(150, (size.width - bottomWidth) / 2)
-        let pad = max(100, min(side * 0.7, half - 90, 170))
-        let button = max(40, min(pad * 0.36, 62))
+        let topWidth = min(size.width - 16, max(120, (half - 44 - 14) * 4 / 3))
+        let bottomWidth = min(size.width * 0.5, max(120, (half - 24) * 4 / 3))
+        let side = max(120, (size.width - bottomWidth - 8) / 2)
+        // Side columns: shoulder (28) + control + START/SELECT (52) + two 6-point gaps + 8 margin.
+        let room = max(60, half - 28 - 52 - 12 - 8)
+        let pad = max(60, min(side * 0.7, room, 170))
+        let button = max(26, min(room / 2.56, side * 0.3, 62))
         return VStack(spacing: 0) {
             VStack(spacing: 0) {
                 topBar
-                screen(.top, width: min(topWidth, size.width - 16))
+                screen(.top, width: topWidth)
                 Spacer(minLength: 0)
             }
-            .frame(height: half)
-            HStack(spacing: 0) {
-                VStack(spacing: 10) {
+            .frame(width: size.width, height: half)
+            .clipped()
+            HStack(spacing: 4) {
+                VStack(spacing: 6) {
                     ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
                     DPad(session: session).frame(width: pad, height: pad)
                     PillButton(label: "SELECT", key: Int(MD_KEY_SELECT), session: session)
                 }
                 .frame(width: side)
                 touchScreen(width: bottomWidth)
-                VStack(spacing: 10) {
+                VStack(spacing: 6) {
                     ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
                     DiamondButtons(session: session, diameter: button)
                     PillButton(label: "START", key: Int(MD_KEY_START), session: session)
                 }
                 .frame(width: side)
             }
-            .frame(height: half)
+            .frame(width: size.width, height: half)
         }
     }
 
     private func landscapeLayout(_ size: CGSize) -> some View {
-        let screenHeight = max(80, (size.height - 30) / 2)
+        let screenHeight = max(80, (size.height - 44) / 2) // two bezels, gap and padding
         let screenWidth = screenHeight * 4 / 3
         let side = max(140, (size.width - screenWidth - 10) / 2)
         let pad = max(96, min(side * 0.72, size.height * 0.42, 160))
