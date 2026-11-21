@@ -20,8 +20,8 @@ struct LibraryView: View {
     @State private var selectedSystem: GameSystem?
     @State private var search = ""
 
-    private var ownedGames: [Game] { library.games.filter { !$0.isBuiltIn } }
-    private var diagnosticGames: [Game] { library.games.filter(\.isBuiltIn) }
+    private var ownedGames: [Game] { library.games.filter { !$0.isBuiltIn || $0.isBundledGame } }
+    private var diagnosticGames: [Game] { library.games.filter { $0.isBuiltIn && !$0.isBundledGame } }
 
     private var showcasedGames: [Game] {
         let games = ownedGames
@@ -112,7 +112,7 @@ struct LibraryView: View {
     }
 
     private func launch(_ game: Game) {
-        if !game.isBuiltIn { lastPlayedGameID = game.id }
+        if !game.isBuiltIn || game.isBundledGame { lastPlayedGameID = game.id }
         playing = game
     }
 
@@ -277,7 +277,7 @@ struct LibraryView: View {
                     .padding(.vertical, 6)
                     .background(AVPalette.blue.opacity(0.11), in: Capsule())
                 Spacer(minLength: 0)
-                if !ownedGames.isEmpty && ownedGames.contains(where: { covers.image(for: $0) == nil }) {
+                if !ownedGames.isEmpty && ownedGames.contains(where: { !$0.isBuiltIn && covers.image(for: $0) == nil }) {
                     Button { covers.retryMissing(ownedGames) } label: {
                         Label("FIND COVERS", systemImage: "arrow.clockwise")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -688,7 +688,9 @@ private final class GameCoverLibrary: ObservableObject {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
-    func image(for game: Game) -> UIImage? { images[game.id] }
+    func image(for game: Game) -> UIImage? {
+        images[game.id] ?? game.coverResource.flatMap { UIImage(named: $0) }
+    }
 
     func discover(_ games: [Game], force: Bool = false) {
         for game in games where !game.isBuiltIn && images[game.id] == nil {

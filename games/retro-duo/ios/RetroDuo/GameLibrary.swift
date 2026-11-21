@@ -38,6 +38,10 @@ struct Game: Identifiable, Hashable {
     let name: String
     let isBuiltIn: Bool
     let system: GameSystem
+    /// A free game that ships with the app: listed with the player's games, not the test carts.
+    var isBundledGame = false
+    /// Cover art bundled with the app (PNG resource name).
+    var coverResource: String? = nil
 
     var isColor: Bool { system != .gameBoy && system != .nes }
     var systemName: String { system.displayName }
@@ -93,6 +97,12 @@ final class GameLibrary: ObservableObject {
         if let cart = Bundle.main.url(forResource: "RetroDuoDSTestCart", withExtension: "nds") {
             list.append(Game(id: "builtin.dstestcart", url: cart, name: "Retro Duo DS Test Cart",
                              isBuiltIn: true, system: .nintendoDS))
+        }
+        // Free original game made for Retro Duo (games/funeral-home-ds).
+        if let cart = Bundle.main.url(forResource: "GraveMistakes", withExtension: "nds") {
+            list.append(Game(id: "builtin.gravemistakes", url: cart, name: "Grave Mistakes",
+                             isBuiltIn: true, system: .nintendoDS,
+                             isBundledGame: true, coverResource: "GraveMistakesCover"))
         }
         let urls = (try? FileManager.default.contentsOfDirectory(
             at: gamesFolder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []

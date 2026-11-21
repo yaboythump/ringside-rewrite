@@ -64,6 +64,7 @@ jobs:
           cmp "$app/cgb_boot.bin" games/retro-duo/ios/RetroDuo/Resources/cgb_boot.bin
           cmp "$app/RetroDuoTestCart.gbc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoTestCart.gbc
           cmp "$app/RetroDuoDSTestCart.nds" games/retro-duo/ios/RetroDuo/Resources/RetroDuoDSTestCart.nds
+          cmp "$app/GraveMistakes.nds" games/retro-duo/ios/RetroDuo/Resources/GraveMistakes.nds
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/melonDS-LICENSE.txt"
           cmp "$app/RetroDuoNESTestCart.nes" games/retro-duo/ios/RetroDuo/Resources/RetroDuoNESTestCart.nes
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/Nestopia-LICENSE.txt"
