@@ -39,8 +39,21 @@ final class ControlsTests: XCTestCase {
         XCTAssertTrue(app.buttons["Direction pad"].isHittable)
         XCTAssertTrue(app.buttons["A button"].isHittable)
         XCTAssertTrue(app.buttons["B button"].isHittable)
+        XCTAssertTrue(app.buttons["L button"].isHittable)
+        XCTAssertTrue(app.buttons["R button"].isHittable)
         XCTAssertTrue(app.buttons["START"].exists)
         XCTAssertTrue(app.buttons["SELECT"].exists)
+
+        // These controls must be in the console shell, NOT on top of gameplay.
+        let screen = app.descendants(matching: .any)
+            .matching(identifier: "gbaLandscapeGameScreen").firstMatch
+        XCTAssertTrue(screen.waitForExistence(timeout: 5))
+        for name in ["Direction pad", "A button", "B button", "L button", "R button", "Game menu"] {
+            let control = app.buttons[name]
+            XCTAssertFalse(control.frame.intersects(screen.frame),
+                           "\(name) must not obscure the game screen")
+        }
+        attach(app, "gba-separate-console-shell")
     }
 
     func testSNESFaceButtonsStayLargeInPortraitAndLandscape() {
