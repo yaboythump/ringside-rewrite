@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct BookDuoApp: App {
@@ -11,7 +12,36 @@ struct BookDuoApp: App {
                 .environmentObject(library)
                 .environmentObject(settings)
                 .onOpenURL { url in library.importFiles([url]) }
+                .task { await DebugSnapshot.runIfAsked() }
         }
+    }
+}
+
+/// `-BookDuoSnapshot` saves pictures of the app into its tmp folder, for checking
+/// builds on simulators that can't take screenshots themselves.
+enum DebugSnapshot {
+    @MainActor
+    static func runIfAsked() async {
+        guard ProcessInfo.processInfo.arguments.contains("-BookDuoSnapshot") else { return }
+        for (index, delay) in [7.0, 5.0].enumerated() {
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            save(name: "snapshot-\(index + 1)")
+        }
+    }
+
+    @MainActor
+    static func save(name: String) {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        guard let window = windows.first(where: \.isKeyWindow) ?? windows.first else { return }
+        let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
+        let image = renderer.image { _ in
+            for window in windows.sorted(by: { $0.windowLevel < $1.windowLevel }) where !window.isHidden {
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).png")
+        try? image.pngData()?.write(to: url)
+        print("BookDuo snapshot \(name) \(window.bounds.size)")
     }
 }
 

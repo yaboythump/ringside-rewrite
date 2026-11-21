@@ -168,6 +168,15 @@ final class ReaderModel: ObservableObject {
     }
 
     func setLayout(_ layout: PaneLayout) {
+        if ProcessInfo.processInfo.arguments.contains("-BookDuoSnapshot") {
+            let line = "layout \(layout.kind) panes=\(layout.frames.map { NSCoder.string(for: $0) }) fold=\(layout.fold.map { NSCoder.string(for: $0) } ?? "none")\n"
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("layout.txt")
+            if let handle = try? FileHandle(forWritingTo: url) {
+                handle.seekToEndOfFile(); handle.write(Data(line.utf8)); try? handle.close()
+            } else {
+                try? line.write(to: url, atomically: true, encoding: .utf8)
+            }
+        }
         layoutKind = layout.kind
         guard paneCount != layout.paneCount else { return }
         paneCount = layout.paneCount
