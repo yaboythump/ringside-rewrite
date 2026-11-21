@@ -10,21 +10,34 @@ struct LibraryView: View {
     @State private var showingAbout = false
     @State private var startedDemo = false
 
-    private let columns = [GridItem(.adaptive(minimum: 108, maximum: 150), spacing: 18, alignment: .top)]
+    private let columns = [GridItem(.adaptive(minimum: 130, maximum: 190), spacing: 18, alignment: .top)]
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    if let book = library.sortedBooks.first, let position = library.position(for: book) {
-                        ContinueCard(book: book, progress: position.progress) { open(book) }
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 28) {
+                    masthead
+                    intro
+                    if let book = library.sortedBooks.first {
+                        ContinueCard(book: book, progress: library.position(for: book)?.progress ?? 0) {
+                            open(book)
+                        }
+                    }
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("YOUR BOOKS")
+                            .font(.system(size: 13, weight: .heavy, design: .rounded))
+                            .tracking(2.6)
+                            .foregroundStyle(Palette.softWhite)
+                        Spacer()
+                        Text("\(library.sortedBooks.count) \(library.sortedBooks.count == 1 ? "TITLE" : "TITLES")")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .tracking(1.4)
+                            .foregroundStyle(Palette.muted)
                     }
                     if library.books.isEmpty && !library.isWorking {
                         emptyState
                     } else {
-                        Text("Library")
-                            .font(.system(size: 22, weight: .bold, design: .serif))
-                        LazyVGrid(columns: columns, spacing: 24) {
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 26) {
                             ForEach(library.sortedBooks) { book in
                                 Button { open(book) } label: {
                                     BookCell(book: book, progress: library.position(for: book)?.progress)
@@ -40,29 +53,33 @@ struct LibraryView: View {
                     }
                     if library.isWorking {
                         HStack(spacing: 10) {
-                            ProgressView()
-                            Text("Preparing books…").foregroundStyle(.secondary)
+                            ProgressView().tint(Palette.accent)
+                            Text("Preparing your collection…")
+                                .font(.subheadline)
+                                .foregroundStyle(Palette.muted)
                         }
                         .frame(maxWidth: .infinity)
                     }
+                    HStack(spacing: 8) {
+                        Image(systemName: "book.closed.fill")
+                        Text("READ DIFFERENT. READ ANYWHERE.")
+                    }
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .tracking(1.5)
+                    .foregroundStyle(Palette.muted.opacity(0.6))
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
+                    .padding(.bottom, 28)
                 }
-                .padding(20)
+                .padding(.horizontal, 23)
+                .padding(.top, 20)
             }
-            .background(Palette.libraryBackground.ignoresSafeArea())
-            .navigationTitle("Book Duo")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showingAbout = true } label: { Image(systemName: "info.circle") }
-                        .accessibilityLabel("About Book Duo")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { importing = true } label: { Image(systemName: "plus") }
-                        .accessibilityLabel("Add books")
-                }
-            }
+            .background(libraryBackdrop)
+            .toolbar(.hidden, for: .navigationBar)
             .refreshable { await library.refresh() }
         }
         .tint(Palette.accent)
+        .preferredColorScheme(.dark)
         .fileImporter(isPresented: $importing, allowedContentTypes: [.epub], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { library.importFiles(urls) }
         }
@@ -88,6 +105,82 @@ struct LibraryView: View {
         .onChange(of: library.books, initial: true) { _, books in startDemoIfAsked(books) }
     }
 
+    private var libraryBackdrop: some View {
+        ZStack {
+            Palette.libraryBackground
+            RadialGradient(colors: [Color(hex: "#35305B").opacity(0.72), .clear],
+                           center: .topTrailing, startRadius: 5, endRadius: 430)
+            RadialGradient(colors: [Color(hex: "#104553").opacity(0.31), .clear],
+                           center: .bottomLeading, startRadius: 10, endRadius: 490)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var masthead: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(LinearGradient(colors: [Palette.accent, Palette.accentBlue],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                Image(systemName: "books.vertical.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#090D17"))
+            }
+            .frame(width: 48, height: 48)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("BOOK DUO")
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .tracking(1.2)
+                    .foregroundStyle(Palette.softWhite)
+                Text("BY CTINTERACTIVE")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .tracking(2)
+                    .foregroundStyle(Palette.accent)
+            }
+
+            Spacer(minLength: 2)
+
+            Button { showingAbout = true } label: {
+                Image(systemName: "info")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Palette.softWhite)
+                    .frame(width: 43, height: 43)
+                    .background(Palette.card, in: Circle())
+                    .overlay(Circle().stroke(.white.opacity(0.1)))
+            }
+            .accessibilityLabel("About Book Duo")
+
+            Button { importing = true } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#090D17"))
+                    .frame(width: 43, height: 43)
+                    .background(Palette.accent, in: Circle())
+            }
+            .accessibilityLabel("Add EPUB books")
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var intro: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("YOUR PERSONAL LIBRARY")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .tracking(2.4)
+                .foregroundStyle(Palette.accentBlue)
+            Text("Every great story\nstarts here.")
+                .font(.system(size: 34, weight: .bold, design: .serif))
+                .tracking(-0.9)
+                .foregroundStyle(Palette.softWhite)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("An immersive reading experience, made for your Duo.")
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.muted)
+        }
+        .padding(.top, 12)
+    }
+
     private func open(_ book: Book) {
         reading = OpenBook(book: book, chapter: nil)
     }
@@ -105,16 +198,33 @@ struct LibraryView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "books.vertical").font(.system(size: 44)).foregroundStyle(Palette.accent)
-            Text("No books yet").font(.system(size: 20, weight: .semibold, design: .serif))
-            Text("Tap + to add EPUB books, or drop them into Files › On My iPhone › Book Duo.")
+        VStack(spacing: 13) {
+            Image(systemName: "books.vertical.fill")
+                .font(.system(size: 42))
+                .foregroundStyle(Palette.accent)
+                .padding(.bottom, 4)
+            Text("Your shelf is waiting")
+                .font(.system(size: 21, weight: .semibold, design: .serif))
+                .foregroundStyle(Palette.softWhite)
+            Text("Import an EPUB to start reading. Your books stay right here on your iPhone.")
+                .font(.system(size: 13))
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-            Button("Add Books") { importing = true }.buttonStyle(.borderedProminent)
+                .foregroundStyle(Palette.muted)
+            Button { importing = true } label: {
+                Label("Add your first book", systemImage: "plus")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#101225"))
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 13)
+                    .background(Palette.accent, in: Capsule())
+            }
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 60)
+        .padding(.horizontal, 26)
+        .padding(.vertical, 48)
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(.white.opacity(0.09)))
     }
 }
 
@@ -131,25 +241,56 @@ private struct ContinueCard: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 16) {
-                CoverView(book: book).frame(width: 74, height: 110)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("CONTINUE READING").font(.system(size: 11, weight: .bold)).kerning(1.2)
-                        .foregroundStyle(Palette.accent)
-                    Text(book.title).font(.system(size: 19, weight: .semibold, design: .serif)).lineLimit(2)
-                    if !book.author.isEmpty {
-                        Text(book.author).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            HStack(spacing: 18) {
+                CoverView(book: book)
+                    .frame(width: 103, height: 154)
+                    .rotationEffect(.degrees(-3))
+                    .shadow(color: .black.opacity(0.4), radius: 18, x: 4, y: 8)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Label(progress > 0 ? "CONTINUE READING" : "FEATURED BOOK", systemImage: "sparkle")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .tracking(1.2)
+                        .foregroundStyle(Palette.accentBlue)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    Text(book.title)
+                        .font(.system(size: 19, weight: .semibold, design: .serif))
+                        .foregroundStyle(Palette.softWhite)
+                        .lineLimit(3)
+
+                    Text(book.author.isEmpty ? "Your next escape" : book.author)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.muted)
+                        .lineLimit(1)
+
+                    ProgressView(value: max(0, min(progress, 1)))
+                        .tint(Palette.accent)
+                    HStack {
+                        Text("\(Int(progress * 100))% complete")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(Palette.muted)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Palette.accent)
                     }
-                    ProgressView(value: progress).tint(Palette.accent)
-                    Text("\(Int(progress * 100))% read").font(.caption).foregroundStyle(.secondary)
                 }
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(14)
-            .background(Palette.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+            .padding(19)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .fill(LinearGradient(colors: [Color(hex: "#282347"), Color(hex: "#131D32")],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+            }
+            .overlay(RoundedRectangle(cornerRadius: 25, style: .continuous).stroke(.white.opacity(0.13)))
+            .shadow(color: Color(hex: "#161332").opacity(0.42), radius: 18, y: 10)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(progress > 0 ? "Continue" : "Start") reading \(book.title)")
     }
 }
 
@@ -158,17 +299,41 @@ private struct BookCell: View {
     let progress: Double?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             CoverView(book: book)
                 .aspectRatio(2 / 3, contentMode: .fit)
-            Text(book.title).font(.system(size: 14, weight: .semibold, design: .serif)).lineLimit(2)
-            HStack {
-                Text(book.author.isEmpty ? " " : book.author).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                Spacer(minLength: 2)
-                if let progress, progress > 0 {
-                    Text(progress >= 0.995 ? "Done" : "\(Int(progress * 100))%")
-                        .font(.caption2.weight(.semibold)).foregroundStyle(Palette.accent)
+                .overlay(alignment: .bottomTrailing) {
+                    if let progress, progress >= 0.995 {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color(hex: "#0E1621"))
+                            .frame(width: 25, height: 25)
+                            .background(Palette.accentBlue, in: Circle())
+                            .padding(8)
+                    }
                 }
+            Text(book.title)
+                .font(.system(size: 15, weight: .semibold, design: .serif))
+                .foregroundStyle(Palette.softWhite)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(book.author.isEmpty ? "Unknown author" : book.author)
+                .font(.system(size: 11))
+                .foregroundStyle(Palette.muted)
+                .lineLimit(1)
+            if let progress, progress > 0 {
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.white.opacity(0.1))
+                        Capsule().fill(Palette.accent)
+                            .frame(width: proxy.size.width * max(0, min(progress, 1)))
+                    }
+                }
+                .frame(height: 3)
+                Text("\(Int(progress * 100))% READ")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .tracking(1)
+                    .foregroundStyle(Palette.accent)
             }
         }
         .accessibilityElement(children: .combine)
@@ -206,18 +371,15 @@ struct CoverView: View {
 }
 
 enum Palette {
-    static let accent = Color(hex: "#9A5B1E")
-    static let libraryBackground = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(red: 0.08, green: 0.075, blue: 0.065, alpha: 1)
-            : UIColor(red: 0.965, green: 0.945, blue: 0.905, alpha: 1)
-    })
-    static let card = Color(UIColor { trait in
-        trait.userInterfaceStyle == .dark ? UIColor(red: 0.14, green: 0.13, blue: 0.12, alpha: 1)
-            : UIColor(red: 1, green: 0.99, blue: 0.975, alpha: 1)
-    })
+    static let accent = Color(hex: "#C3ACFF")
+    static let accentBlue = Color(hex: "#7CE4F2")
+    static let softWhite = Color(hex: "#F3F0FB")
+    static let muted = Color(hex: "#A8ACC0")
+    static let libraryBackground = Color(hex: "#090E1B")
+    static let card = Color(hex: "#192035")
 
     static func cloth(for title: String) -> Color {
-        let colors = ["#6B2E2E", "#2E4A3F", "#2F3E5C", "#5B4A2E", "#4A2F5C", "#2E5559"]
+        let colors = ["#593C71", "#2D6870", "#34496B", "#69523E", "#563A63", "#315766"]
         let index = title.unicodeScalars.reduce(0) { ($0 &+ Int($1.value)) % 997 } % colors.count
         return Color(hex: colors[index])
     }
