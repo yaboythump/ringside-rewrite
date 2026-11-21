@@ -11,7 +11,7 @@ Native iPhone Duo retro arcade application. **This is a playable NES v0.1 alpha*
 - Xcode 27.1 native project and CI build checks.
 
 ## Build
-Run `python3 games/ct-arcade/prepare.py` to download and locally prepare the pinned JSNES open-source engine and generate the original app icon. Then build `games/ct-arcade/ios/CTArcade.xcodeproj` (scheme `CTArcade`). The Xcode build phase copies HTML, JS and the prepared engine into the app bundle so no CDN is needed on the iPhone.
+Run `python3 games/ct-arcade/prepare.py` to download and locally prepare the pinned JSNES open-source engine and generate the original app icon. Then build `games/ct-arcade/ios/CTArcade.xcodeproj` (scheme `CTArcade`). The Xcode build phase embeds the engine and UI JavaScript into one index.html resource so no CDN is needed on the iPhone. This also satisfies Xcode's user-script sandbox.
 
 Browser development preview: `games/ct-arcade/index.html`; if the local engine is missing, browser preview falls back to the pinned CDN. Native binary always includes the local engine.
 

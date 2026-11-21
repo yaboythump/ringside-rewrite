@@ -53,10 +53,9 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$CA_BUNDLE"
           test -s "$app/index.html"
           test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
-          test -s "$app/app.js"
-          test -s "$app/vendor/jsnes.js"
           grep -qF "CT ARCADE" "$app/index.html"
-          grep -qF "CTArcadeNative" "$app/app.js"
+          grep -qF "CTArcadeNative" "$app/index.html"
+          grep -qF "onFrame" "$app/index.html"
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/ca-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/ca-xcode-help.txt" >/dev/null
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/ca-xcode-help.txt" >/dev/null
@@ -79,7 +78,7 @@ jobs:
           python3 games/ct-arcade/prepare.py
           python3 games/ct-arcade/bundle.py /tmp/ct-arcade/index.html
           node --check games/ct-arcade/app.js
-          test -s /tmp/ct-arcade/vendor/jsnes.js
+          grep -qF "CTArcadeNative" /tmp/ct-arcade/index.html
           test -s games/ct-arcade/ios/CTArcade/Assets.xcassets/AppIcon.appiconset/AppIcon.png
       - name: Install browser test runner
         run: |
