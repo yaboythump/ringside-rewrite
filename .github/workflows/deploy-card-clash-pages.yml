@@ -36,6 +36,11 @@ jobs:
           mkdir -p _site/detective-duo
           cp games/detective-duo/index.html games/detective-duo/cinematic.css games/detective-duo/audio.js games/detective-duo/sw.js _site/detective-duo/
           cp -R games/detective-duo/assets _site/detective-duo/assets
+      - name: Prepare and publish CT ARCADE into /ct-arcade/
+        run: |
+          python3 games/ct-arcade/prepare.py
+          python3 games/ct-arcade/bundle.py _site/ct-arcade/index.html
+          grep -q "CTArcadeNative" _site/ct-arcade/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
