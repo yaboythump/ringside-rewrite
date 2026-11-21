@@ -117,7 +117,7 @@ final class ClutchStore: ObservableObject {
         tickets[index].status = status
     }
 
-    func delete(at offsets: IndexSet) { tickets.remove(atOffsets: offsets) }
+    func delete(at offsets: IndexSet) { for index in offsets.sorted(by: >) { tickets.remove(at: index) } }
 
     private func saveTickets() {
         guard let data = try? JSONEncoder().encode(tickets) else { return }
