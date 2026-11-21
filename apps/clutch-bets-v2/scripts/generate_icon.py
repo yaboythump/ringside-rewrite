@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate an original opaque 1024x1024 Clutch Bets V2 App Store icon using stdlib only."""
+"""Generate an original RGB 1024x1024 (no alpha channel) Clutch Bets V2 App Store icon using stdlib only."""
 from pathlib import Path
 import json
 import math
@@ -39,7 +39,7 @@ for y in range(SIZE):
             r = int(180 + 61 * shimmer)
             g = int(117 + 82 * shimmer)
             b = int(49 + 73 * shimmer)
-        row.extend((r, g, b, 255))
+        row.extend((r, g, b))
     rows.append(bytes(row))
 raw = b"".join(rows)
 
@@ -47,7 +47,7 @@ def chunk(tag, data):
     return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff)
 
 png = (b"\x89PNG\r\n\x1a\n" +
-       chunk(b"IHDR", struct.pack(">IIBBBBB", SIZE, SIZE, 8, 6, 0, 0, 0)) +
+       chunk(b"IHDR", struct.pack(">IIBBBBB", SIZE, SIZE, 8, 2, 0, 0, 0)) +
        chunk(b"IDAT", zlib.compress(raw, 7)) +
        chunk(b"IEND", b""))
 (DEST / "Icon-1024.png").write_bytes(png)
