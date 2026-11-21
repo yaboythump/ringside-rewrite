@@ -15,7 +15,7 @@ struct AboutView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Retro Duo plays Game Boy, Game Boy Color and Nintendo DS games on iPhone, with layouts made for iPhone Duo: fold it halfway and the game sits on the top half with the controls below. DS games put the top screen above the fold and the touch screen below it.")
+                    Text("Retro Duo plays NES, Game Boy, Game Boy Color and Nintendo DS games on iPhone, with layouts made for iPhone Duo: fold it halfway and the game sits on the top half with the controls below. DS games put the top screen above the fold and the touch screen below it.")
                     Text("Retro Duo doesn't include or sell any commercial games. Add only games you own or that their creators share freely.")
                     Text("Game controllers work too. The right face button is A, the bottom one is B, Menu is START and Options is SELECT.")
                     Divider()
@@ -23,6 +23,13 @@ struct AboutView: View {
                         .font(.headline)
                     Text("Retro Duo uses the SameBoy emulator core and its Game Boy Color start-up program, by Lior Halphon and contributors.")
                     Text(license)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Divider()
+                    Text("NES emulation by Nestopia")
+                        .font(.headline)
+                    Text("Retro Duo uses the Nestopia UE emulator core by Martin Freij, R. Belmont, R. Danbrook and contributors, free software under the GNU General Public License, version 2 or later.")
+                    Text(text("Nestopia-LICENSE"))
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                     Divider()

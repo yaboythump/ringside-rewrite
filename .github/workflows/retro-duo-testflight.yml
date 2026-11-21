@@ -65,6 +65,8 @@ jobs:
           cmp "$app/RetroDuoTestCart.gbc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoTestCart.gbc
           cmp "$app/RetroDuoDSTestCart.nds" games/retro-duo/ios/RetroDuo/Resources/RetroDuoDSTestCart.nds
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/melonDS-LICENSE.txt"
+          cmp "$app/RetroDuoNESTestCart.nes" games/retro-duo/ios/RetroDuo/Resources/RetroDuoNESTestCart.nes
+          grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/Nestopia-LICENSE.txt"
           grep -qF "Lior Halphon" "$app/SameBoy-LICENSE.txt"
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rd-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
@@ -153,6 +155,10 @@ jobs:
         run: |
           set -euo pipefail
           CC=clang CXX=clang++ games/retro-duo/tests/run_ds_core_test.sh "$RUNNER_TEMP/rd-core"
+      - name: Boot the NES core and check the picture, buttons, sound and saves
+        run: |
+          set -euo pipefail
+          CXX=clang++ games/retro-duo/tests/run_nes_core_test.sh "$RUNNER_TEMP/rd-core"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

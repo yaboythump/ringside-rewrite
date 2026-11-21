@@ -26,10 +26,10 @@ GCC_PRECOMPILE_PREFIX_HEADER = NO
 GCC_C_LANGUAGE_STANDARD = gnu11
 GCC_OPTIMIZATION_LEVEL = 3
 GCC_WARN_INHIBIT_ALL_WARNINGS = YES
-HEADER_SEARCH_PATHS = $(SRCROOT)/../vendor/SameBoy $(SRCROOT)/RetroDuo/Core $(SRCROOT)/../vendor/melonDS/src $(SRCROOT)/../vendor/melonDS/src/teakra/include $(SRCROOT)/RetroDuo/DSCore
+HEADER_SEARCH_PATHS = $(SRCROOT)/../vendor/SameBoy $(SRCROOT)/RetroDuo/Core $(SRCROOT)/../vendor/melonDS/src $(SRCROOT)/../vendor/melonDS/src/teakra/include $(SRCROOT)/RetroDuo/DSCore $(SRCROOT)/../vendor/nestopia/source $(SRCROOT)/RetroDuo/NESCore
 
 // melonDS core (C++17). -fwrapv matches how melonDS is normally built.
 CLANG_CXX_LANGUAGE_STANDARD = gnu++17
 CLANG_CXX_LIBRARY = libc++
 OTHER_CFLAGS = $(inherited) -fwrapv
-OTHER_CPLUSPLUSFLAGS = $(inherited) -fwrapv -Wno-invalid-offsetof
+OTHER_CPLUSPLUSFLAGS = $(inherited) -fwrapv -Wno-invalid-offsetof -DNST_NO_ZLIB -DNST_NO_2XSAI -DNST_NO_HQ2X -DNST_NO_SCALEX -DNST_NO_XBR

@@ -4,7 +4,7 @@ import QuartzCore
 import SwiftUI
 import UIKit
 
-/// Runs one game: owns the emulated console, paces it, and keeps its saves.
+/// Runs one single-screen game (Game Boy or NES): owns the console, paces it, and keeps its saves.
 @MainActor
 final class EmulatorSession: NSObject, ObservableObject, PadInput {
     @Published private(set) var isPaused = false
@@ -15,14 +15,14 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
 
     let game: Game
     private let library: GameLibrary
-    private var core: OpaquePointer?
+    private var core: ConsoleBackend?
     private var displayLink: CADisplayLink?
     private let audio = AudioOutput()
     private var input = InputState()
     private var deliveredActions = 0
     private var deliveredDirections = 0
     var diagnostics: String {
-        "frames:\(core.map { RDCoreFrameCount($0) } ?? 0) audio:\(audio.isRunning) actions:\(deliveredActions) directions:\(deliveredDirections)"
+        "frames:\(core?.frameCount ?? 0) audio:\(audio.isRunning) actions:\(deliveredActions) directions:\(deliveredDirections)"
     }
     private var lastFrameTime: CFTimeInterval = 0
     private var frameDebt: Double = 0
@@ -37,8 +37,11 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
 
     func attachScreen(_ view: PixelScreenView) {
         screens.add(view)
-        if let core { view.show(core) }
+        if let core { core.show(on: view) }
     }
+
+    /// Picture height / width: 10:9 for Game Boy, 8:7 for the NES.
+    var aspect: CGFloat { game.system == .nes ? 224.0 / 256.0 : 0.9 }
 
     init(game: Game, library: GameLibrary) {
         self.game = game
@@ -51,43 +54,27 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
 
     func start() {
         guard core == nil else { return }
-        guard let bootURL = Bundle.main.url(forResource: "cgb_boot", withExtension: "bin"),
-              let boot = try? Data(contentsOf: bootURL) else {
-            errorMessage = "Retro Duo is missing its start-up file. Reinstall the app."
-            return
-        }
         let scoped = game.url.startAccessingSecurityScopedResource()
         defer { if scoped { game.url.stopAccessingSecurityScopedResource() } }
-        guard let rom = try? Data(contentsOf: game.url), GameLibrary.looksLikeROM(rom) else {
-            errorMessage = "\(game.name) couldn't be opened. The file may be damaged or not a Game Boy game."
+        guard let rom = try? Data(contentsOf: game.url) else {
+            errorMessage = "\(game.name) couldn't be opened. The file may be damaged."
             return
         }
-        let created = boot.withUnsafeBytes { bytes in
-            RDCoreCreate(bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count, UInt32(AudioOutput.sampleRate))
-        }
-        guard let created else {
-            errorMessage = "The emulator couldn't start."
+        let battery = try? Data(contentsOf: library.batteryURL(for: game))
+        switch ConsoleBackends.make(for: game, rom: rom, battery: battery) {
+        case .failure(let error):
+            errorMessage = error.message
             return
+        case .success(let backend):
+            core = backend
+            savedBattery = battery ?? Data()
         }
-        let loaded = rom.withUnsafeBytes { bytes in
-            RDCoreLoadROM(created, bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count)
-        }
-        guard loaded else {
-            RDCoreDestroy(created)
-            errorMessage = "\(game.name) isn't a Game Boy game Retro Duo can run."
-            return
-        }
-        core = created
 
-        if let battery = try? Data(contentsOf: library.batteryURL(for: game)), !battery.isEmpty {
-            battery.withUnsafeBytes { RDCoreLoadBattery(created, $0.bindMemory(to: UInt8.self).baseAddress, $0.count) }
-            savedBattery = battery
-        }
         if loadState(slot: "resume") {
             show(toast: "Picked up where you left off")
         }
 
-        audio.start(core: created)
+        core?.startAudio(audio)
         audio.setMuted(isMuted)
         rumble.prepare()
         NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)),
@@ -110,7 +97,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         writeBattery(force: true)
         saveState(slot: "resume")
         audio.stop()
-        RDCoreDestroy(core)
+        core.destroy()
         self.core = nil
     }
 
@@ -123,7 +110,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             writeBattery(force: true)
             audio.setMuted(true)
         } else {
-            if let core, !audio.isRunning { audio.start(core: core) }
+            if let core, !audio.isRunning { core.startAudio(audio) }
             audio.setMuted(isMuted)
         }
     }
@@ -134,7 +121,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         if type == .began {
             audio.stop()
         } else if !isPaused, let core {
-            audio.start(core: core)
+            core.startAudio(audio)
             audio.setMuted(isMuted)
         }
     }
@@ -145,7 +132,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
               let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
               reason == .newDeviceAvailable || reason == .oldDeviceUnavailable,
               !isPaused, let core else { return }
-        audio.start(core: core)
+        core.startAudio(audio)
         audio.setMuted(isMuted)
     }
 
@@ -180,7 +167,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     func restart() {
         guard let core else { return }
         writeBattery(force: true)
-        RDCoreReset(core)
+        core.reset()
         try? FileManager.default.removeItem(at: library.stateURL(for: game, slot: "resume"))
         show(toast: "Restarted")
     }
@@ -198,20 +185,20 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         // The console clock must never stop when audio is interrupted or its queue fills.
         let elapsed = lastFrameTime == 0 ? 1.0 / 60 : min(0.1, link.timestamp - lastFrameTime)
         lastFrameTime = link.timestamp
-        frameDebt += elapsed * 59.7275
+        frameDebt += elapsed * core.frameRate
         var frames = 0
         while frameDebt >= 1 && frames < 6 {
             let keys = input.nextFrame() | controllerKeys()
             if keys & 0xF0 != 0 { deliveredActions += 1 }
             if keys & 0x0F != 0 { deliveredDirections += 1 }
-            RDCoreSetKeys(core, keys)
-            RDCoreRunFrame(core)
+            core.setKeys(keys)
+            core.runFrame()
             frameDebt -= 1
             frames += 1
         }
-        for screen in screens.allObjects { screen.show(core) }
+        for screen in screens.allObjects { core.show(on: screen) }
 
-        let strength = RDCoreRumble(core)
+        let strength = core.rumble
         if strength > 0.1, Date().timeIntervalSince(lastRumble) > 0.08 {
             rumble.impactOccurred(intensity: CGFloat(min(1, strength)))
             lastRumble = Date()
@@ -245,15 +232,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     // MARK: Saves
 
     private func writeBattery(force: Bool) {
-        guard let core else { return }
-        let size = RDCoreBatterySize(core)
-        guard size > 0 else { return }
-        var data = Data(count: size)
-        let written = data.withUnsafeMutableBytes {
-            RDCoreSaveBattery(core, $0.bindMemory(to: UInt8.self).baseAddress, $0.count)
-        }
-        guard written > 0 else { return }
-        data = data.prefix(written)
+        guard let data = core?.battery() else { return }
         // `force` writes even when unchanged so the file always exists after a session.
         guard force || data != savedBattery else { return }
         if (try? data.write(to: library.batteryURL(for: game), options: .atomic)) != nil {
@@ -263,21 +242,15 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
 
     @discardableResult
     private func saveState(slot: String) -> Bool {
-        guard let core else { return false }
-        let size = RDCoreStateSize(core)
-        guard size > 0 else { return false }
-        var data = Data(count: size)
-        data.withUnsafeMutableBytes { RDCoreSaveState(core, $0.bindMemory(to: UInt8.self).baseAddress) }
+        guard let data = core?.saveState() else { return false }
         return (try? data.write(to: library.stateURL(for: game, slot: slot), options: .atomic)) != nil
     }
 
     private func loadState(slot: String) -> Bool {
         guard let core, let data = try? Data(contentsOf: library.stateURL(for: game, slot: slot)) else { return false }
-        let loaded = data.withUnsafeBytes {
-            RDCoreLoadState(core, $0.bindMemory(to: UInt8.self).baseAddress, $0.count)
-        }
+        let loaded = core.loadState(data)
         if loaded {
-            for screen in screens.allObjects { screen.show(core) }
+            for screen in screens.allObjects { core.show(on: screen) }
         }
         return loaded
     }

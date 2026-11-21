@@ -14,10 +14,12 @@ final class AudioOutput {
     enum Source {
         case gameBoy(OpaquePointer)
         case nintendoDS(OpaquePointer)
+        case nes(OpaquePointer)
     }
 
     func start(core: OpaquePointer) { start(.gameBoy(core)) }
     func start(dsCore: OpaquePointer) { start(.nintendoDS(dsCore)) }
+    func start(nesCore: OpaquePointer) { start(.nes(nesCore)) }
 
     func start(_ sourceCore: Source) {
         stop()
@@ -71,6 +73,7 @@ final class AudioOutput {
             switch sourceCore {
             case .gameBoy(let core): _ = RDCoreReadAudio(core, left, right, Int(frameCount))
             case .nintendoDS(let core): _ = MDCoreReadAudio(core, left, right, Int(frameCount))
+            case .nes(let core): _ = NESCoreReadAudio(core, left, right, Int(frameCount))
             }
             return noErr
         }
