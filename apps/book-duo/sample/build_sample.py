@@ -69,8 +69,8 @@ with zipfile.ZipFile(out, "w") as z:
             data = text.encode()
         elif rel.endswith(".xhtml"):
             data = fix_refs(data.decode()).encode()
-        z.writestr(rel, data, zipfile.ZIP_DEFLATED)
+        z.writestr("epub/" + rel, data, zipfile.ZIP_DEFLATED)
     for n in range(1, 43):
-        z.writestr(f"images/illustration-{n}.jpg", illustration(n), zipfile.ZIP_STORED)
-    z.writestr("images/cover.jpg", cover(), zipfile.ZIP_STORED)
+        z.writestr(f"epub/images/illustration-{n}.jpg", illustration(n), zipfile.ZIP_STORED)
+    z.writestr("epub/images/cover.jpg", cover(), zipfile.ZIP_STORED)
 print(out, out.stat().st_size)
