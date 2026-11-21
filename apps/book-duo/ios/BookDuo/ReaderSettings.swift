@@ -18,8 +18,8 @@ enum ReaderTheme: String, CaseIterable, Identifiable {
         switch self {
         case .paper: return "#FBF8F1"
         case .sepia: return "#F2E7CF"
-        case .dusk: return "#2C2925"
-        case .night: return "#101214"
+        case .dusk: return "#272133"
+        case .night: return "#0C1120"
         }
     }
 
@@ -28,7 +28,7 @@ enum ReaderTheme: String, CaseIterable, Identifiable {
         case .paper: return "#1E1B16"
         case .sepia: return "#4A3A28"
         case .dusk: return "#E4DCCD"
-        case .night: return "#C7C2B6"
+        case .night: return "#F1EDE8"
         }
     }
 
@@ -36,8 +36,8 @@ enum ReaderTheme: String, CaseIterable, Identifiable {
         switch self {
         case .paper: return "#8A5A1F"
         case .sepia: return "#8C4A1C"
-        case .dusk: return "#E8B266"
-        case .night: return "#D9A14E"
+        case .dusk: return "#D6BAFF"
+        case .night: return "#BDA8FF"
         }
     }
 
@@ -94,7 +94,7 @@ final class ReaderSettings: ObservableObject {
 
     init() {
         let d = UserDefaults.standard
-        theme = ReaderTheme(rawValue: d.string(forKey: "BookDuo.theme") ?? "") ?? .paper
+        theme = ReaderTheme(rawValue: d.string(forKey: "BookDuo.theme") ?? "") ?? .night
         font = ReaderFont(rawValue: d.string(forKey: "BookDuo.font") ?? "") ?? .serif
         scale = d.object(forKey: "BookDuo.scale") as? Double ?? 1.0
         lineHeight = d.object(forKey: "BookDuo.lineHeight") as? Double ?? 1.5
