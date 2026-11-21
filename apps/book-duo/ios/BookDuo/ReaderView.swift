@@ -42,6 +42,7 @@ struct ReaderView: View {
         }
         .background(theme.backgroundColor.ignoresSafeArea())
         .overlay(alignment: .top) { if model.chromeVisible { topBar.transition(.move(edge: .top).combined(with: .opacity)) } }
+        .overlay(alignment: .topLeading) { if !model.chromeVisible { compactLibraryButton.transition(.opacity) } }
         .overlay(alignment: .bottom) { if model.chromeVisible { bottomBar.transition(.move(edge: .bottom).combined(with: .opacity)) } }
         .statusBarHidden(!model.chromeVisible)
         .persistentSystemOverlays(model.chromeVisible ? .automatic : .hidden)
@@ -78,79 +79,192 @@ struct ReaderView: View {
     // MARK: Pages
 
     private func pane(_ index: Int, frame: CGRect, layout: PaneLayout) -> some View {
-        let footer: CGFloat = 22
+        let footer: CGFloat = 28
         let pageSize = CGSize(width: frame.width, height: max(100, frame.height - footer))
         let number = model.page + index
+        let isVisiblePage = number < model.pageCount && model.isRevealed
+        let remaining = max(0, model.pageCount - number - 1)
         return VStack(spacing: 0) {
             PageWebView(request: model.request(for: index, settingsJSON: settings.json(for: pageSize))) { event in
                 model.handle(event, pane: index)
             }
             .frame(width: pageSize.width, height: pageSize.height)
-            .accessibilityLabel("Page")
-            Text(number < model.pageCount && model.isRevealed ? "\(number + 1) of \(model.pageCount)" : " ")
-                .font(.system(size: 11, weight: .medium, design: .serif))
-                .monospacedDigit()
-                .foregroundStyle(theme.textColor.opacity(0.4))
-                .frame(width: frame.width, height: footer, alignment: .top)
-                .allowsHitTesting(false)
+            .accessibilityLabel("Book page \(number + 1)")
+            HStack(spacing: 5) {
+                if isVisiblePage {
+                    Text("PAGE \(number + 1) / \(model.pageCount)")
+                    Text("·")
+                    Text("\(remaining) LEFT IN CHAPTER")
+                }
+            }
+            .font(.system(size: 9, weight: .semibold, design: .rounded))
+            .tracking(0.8)
+            .monospacedDigit()
+            .foregroundStyle(theme.textColor.opacity(0.48))
+            .frame(width: frame.width, height: footer, alignment: .center)
+            .allowsHitTesting(false)
         }
         .frame(width: frame.width, height: frame.height)
         .offset(x: frame.minX, y: frame.minY)
     }
 
-    // MARK: Chrome
+    // MARK: Reader controls
+
+    private var chromeFill: Color {
+        theme.isDark ? Color(hex: "#171D30") : Color(hex: "#FFFCF5")
+    }
+
+    private var chromeBorder: Color {
+        theme.isDark ? Color.white.opacity(0.13) : Color.black.opacity(0.08)
+    }
+
+    private func controlIcon(_ systemName: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(theme.textColor)
+                .frame(width: 40, height: 40)
+                .background(theme.textColor.opacity(0.065), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private var compactLibraryButton: some View {
+        Button {
+            model.save()
+            dismiss()
+        } label: {
+            Label("Library", systemImage: "chevron.left")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(theme.textColor)
+                .padding(.horizontal, 13)
+                .frame(height: 34)
+                .background(chromeFill.opacity(0.92), in: Capsule())
+                .overlay(Capsule().stroke(chromeBorder))
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, 12)
+        .padding(.top, 4)
+        .accessibilityLabel("Exit book to library")
+    }
 
     private var topBar: some View {
-        HStack(spacing: 4) {
-            Button { model.save(); dismiss() } label: {
-                Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold))
-                    .frame(width: 44, height: 44)
+        HStack(spacing: 9) {
+            Button {
+                model.save()
+                dismiss()
+            } label: {
+                Label("Library", systemImage: "chevron.left")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.textColor)
+                    .padding(.horizontal, 10)
+                    .frame(height: 40)
+                    .background(theme.textColor.opacity(0.075), in: RoundedRectangle(cornerRadius: 12))
             }
-            .accessibilityLabel("Library")
-            VStack(spacing: 1) {
-                Text(model.book.title).font(.system(size: 15, weight: .semibold, design: .serif)).lineLimit(1)
-                Text(model.chapterTitle).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Exit book to library")
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(model.book.title)
+                    .font(.system(size: 14, weight: .semibold, design: .serif))
+                    .foregroundStyle(theme.textColor)
+                    .lineLimit(1)
+                Text(model.chapterTitle)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(theme.textColor.opacity(0.58))
+                    .lineLimit(1)
             }
-            .frame(maxWidth: .infinity)
-            Button { showingContents = true } label: {
-                Image(systemName: "list.bullet").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            controlIcon(settings.theme.isDark ? "sun.max.fill" : "moon.stars.fill",
+                        label: settings.theme.isDark ? "Switch to light mode" : "Switch to dark mode") {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    settings.theme = settings.theme.isDark ? .paper : .night
+                }
             }
-            .accessibilityLabel("Contents")
-            Button { showingAppearance = true } label: {
-                Image(systemName: "textformat.size").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44)
-            }
-            .accessibilityLabel("Appearance")
+            controlIcon("list.bullet", label: "Table of contents") { showingContents = true }
+            controlIcon("textformat.size", label: "Reading appearance") { showingAppearance = true }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .padding(.horizontal, 12)
-        .padding(.top, 6)
+        .padding(9)
+        .background(chromeFill.opacity(0.97), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(chromeBorder))
+        .shadow(color: .black.opacity(theme.isDark ? 0.3 : 0.08), radius: 18, y: 8)
+        .padding(.horizontal, 10)
+        .padding(.top, 4)
     }
 
     private var bottomBar: some View {
-        VStack(spacing: 6) {
-            Slider(value: Binding(get: { scrubbing ?? model.progress }, set: { scrubbing = $0 }),
-                   in: 0...1) { editing in
-                if !editing, let value = scrubbing {
-                    model.jump(toProgress: value)
-                    scrubbing = nil
+        VStack(spacing: 12) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("CHAPTER PROGRESS")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .tracking(1.8)
+                        .foregroundStyle(theme.accentColor)
+                    Text(model.isRevealed ?
+                         "\(model.pagesRemainingInChapter) \(model.pagesRemainingInChapter == 1 ? "page" : "pages") left in chapter" :
+                         "Preparing your pages")
+                        .font(.system(size: 15, weight: .semibold, design: .serif))
+                        .foregroundStyle(theme.textColor)
+                        .monospacedDigit()
                 }
+                Spacer(minLength: 6)
+                Text(model.isRevealed ? "\(model.currentChapterPage) / \(model.pageCount)" : "···")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(theme.textColor.opacity(0.7))
             }
-            HStack {
-                Text(scrubbing == nil ? model.chapterTitle : "Go to \(Int((scrubbing ?? 0) * 100))%")
-                    .lineLimit(1)
-                Spacer()
-                Text("\(Int((scrubbing ?? model.progress) * 100))%").monospacedDigit()
+
+            HStack(spacing: 12) {
+                Button { model.previous() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .bold))
+                        .frame(width: 42, height: 42)
+                        .background(theme.textColor.opacity(0.075), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(!model.isRevealed || model.isAtStart)
+                .accessibilityLabel("Previous page")
+
+                VStack(spacing: 4) {
+                    Slider(value: Binding(get: { scrubbing ?? model.progress }, set: { scrubbing = $0 }),
+                           in: 0...1) { editing in
+                        if !editing, let value = scrubbing {
+                            model.jump(toProgress: value)
+                            scrubbing = nil
+                        }
+                    }
+                    .tint(theme.accentColor)
+                    HStack {
+                        Text(scrubbing == nil ? "BOOK PROGRESS" : "JUMP TO")
+                            .tracking(1)
+                        Spacer()
+                        Text("\(Int((scrubbing ?? model.progress) * 100))%")
+                            .monospacedDigit()
+                    }
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.textColor.opacity(0.5))
+                }
+
+                Button { model.next() } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 16, weight: .bold))
+                        .frame(width: 42, height: 42)
+                        .background(theme.accentColor.opacity(0.20), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(!model.isRevealed || model.isAtEnd)
+                .accessibilityLabel("Next page")
             }
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+            .foregroundStyle(theme.textColor)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .padding(.horizontal, 12)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(chromeFill.opacity(0.98), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).stroke(chromeBorder))
+        .shadow(color: .black.opacity(theme.isDark ? 0.3 : 0.08), radius: 20, y: 8)
+        .padding(.horizontal, 10)
+        .padding(.bottom, 5)
     }
 }
 
