@@ -86,6 +86,7 @@ struct LibraryView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             library.refresh()
+            covers.discover(ownedGames)
         }
         .onReceive(Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()) { _ in
             guard playing == nil, showcasedGames.count > 1 else { return }
@@ -275,6 +276,18 @@ struct LibraryView: View {
                     .padding(.horizontal, 9)
                     .padding(.vertical, 6)
                     .background(AVPalette.blue.opacity(0.11), in: Capsule())
+                Spacer(minLength: 0)
+                if !ownedGames.isEmpty && ownedGames.contains(where: { covers.image(for: $0) == nil }) {
+                    Button { covers.retryMissing(ownedGames) } label: {
+                        Label("FIND COVERS", systemImage: "arrow.clockwise")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(AVPalette.lightBlue)
+                    .accessibilityIdentifier("avydrix-retry-covers")
+                }
             }
             HStack(spacing: 9) {
                 Image(systemName: "magnifyingglass").foregroundStyle(AVPalette.muted)
@@ -666,6 +679,8 @@ private final class GameCoverLibrary: ObservableObject {
 
     private let directory: URL
     private var attempted = Set<String>()
+    private var inFlight = Set<String>()
+    private var lastAttempt: [String: Date] = [:]
 
     init() {
         directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -675,11 +690,23 @@ private final class GameCoverLibrary: ObservableObject {
 
     func image(for game: Game) -> UIImage? { images[game.id] }
 
-    func discover(_ games: [Game]) {
-        for game in games where !game.isBuiltIn && !attempted.contains(game.id) {
+    func discover(_ games: [Game], force: Bool = false) {
+        for game in games where !game.isBuiltIn && images[game.id] == nil {
+            guard !inFlight.contains(game.id) else { continue }
+            if !force, let previous = lastAttempt[game.id],
+               Date().timeIntervalSince(previous) < 90 { continue }
+            lastAttempt[game.id] = Date()
             attempted.insert(game.id)
-            Task { await retrieve(game) }
+            inFlight.insert(game.id)
+            Task {
+                await retrieve(game)
+                inFlight.remove(game.id)
+            }
         }
+    }
+
+    func retryMissing(_ games: [Game]) {
+        discover(games, force: true)
     }
 
     func reload(_ game: Game) {
@@ -690,7 +717,8 @@ private final class GameCoverLibrary: ObservableObject {
             }
         }
         attempted.remove(game.id)
-        discover([game])
+        lastAttempt.removeValue(forKey: game.id)
+        discover([game], force: true)
     }
 
     func save(_ data: Data, for game: Game) throws {
@@ -702,6 +730,7 @@ private final class GameCoverLibrary: ObservableObject {
         try imageData.write(to: destination(for: game), options: .atomic)
         images[game.id] = UIImage(data: imageData)
         attempted.insert(game.id)
+        lastAttempt.removeValue(forKey: game.id)
     }
 
     private func destination(for game: Game) -> URL {
@@ -744,24 +773,37 @@ private final class GameCoverLibrary: ObservableObject {
         }
 
         for name in names {
-            var components = URLComponents()
-            components.scheme = "https"
-            components.host = "thumbnails.libretro.com"
-            components.path = "/\(system)/Named_Boxarts/\(name).png"
-            guard let url = components.url else { continue }
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 9
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard (response as? HTTPURLResponse)?.statusCode == 200,
-                      data.count < 3_000_000,
-                      let downloaded = UIImage(data: data),
-                      let compressed = Self.optimizedJPEG(downloaded) else { continue }
-                try? compressed.write(to: destination(for: game), options: .atomic)
-                images[game.id] = UIImage(data: compressed) ?? downloaded
-                return
-            } catch {
-                continue
+            // Try upstream GitHub box art first, with libretro CDN as a fallback.
+            // Some thumbnail mirrors intermittently reject requests; do not leave
+            // a permanent no-cover state after one failed attempt.
+            let repo = system.replacingOccurrences(of: " ", with: "_")
+            let hostsAndPaths: [(String, String)] = [
+                ("raw.githubusercontent.com", "/libretro-thumbnails/\(repo)/master/Named_Boxarts/\(name).png"),
+                ("thumbnails.libretro.com", "/\(system)/Named_Boxarts/\(name).png")
+            ]
+            for (host, path) in hostsAndPaths {
+                var components = URLComponents()
+                components.scheme = "https"
+                components.host = host
+                components.path = path
+                guard let url = components.url else { continue }
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 7
+                request.cachePolicy = .reloadIgnoringLocalCacheData
+                do {
+                    let (data, response) = try await URLSession.shared.data(for: request)
+                    guard (response as? HTTPURLResponse)?.statusCode == 200,
+                          !data.isEmpty, data.count <= 4_000_000,
+                          let downloaded = UIImage(data: data),
+                          let compressed = Self.optimizedJPEG(downloaded) else { continue }
+                    // Do not overwrite a manually selected cover mid-download.
+                    if images[game.id] != nil { return }
+                    try? compressed.write(to: destination(for: game), options: .atomic)
+                    images[game.id] = UIImage(data: compressed) ?? downloaded
+                    return
+                } catch {
+                    continue
+                }
             }
         }
     }
