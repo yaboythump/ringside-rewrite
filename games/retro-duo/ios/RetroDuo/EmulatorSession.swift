@@ -133,7 +133,11 @@ final class EmulatorSession: NSObject, ObservableObject {
     }
 
     @objc private func audioRouteChanged(_ notification: Notification) {
-        guard !isPaused, let core else { return }
+        // Our own category/activation changes must not recursively restart audio.
+        guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
+              reason == .newDeviceAvailable || reason == .oldDeviceUnavailable,
+              !isPaused, let core else { return }
         audio.start(core: core)
         audio.setMuted(isMuted)
     }
