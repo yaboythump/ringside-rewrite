@@ -150,6 +150,7 @@ struct AVGameSettings: View {
     @ObservedObject var tuning: AVControlTuning
     @Environment(\.dismiss) private var dismiss
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
+    @AppStorage("avydrix.gba.landscapeControls") private var gbaLandscapeControls = true
     @AppStorage("retroDuoOriginalProportions") private var originalAspect = false
     @AppStorage("avydrix.displayFilter") private var displayFilter = "off"
     @AppStorage("avydrix.dsSwapScreens") private var swapDS = false
@@ -190,6 +191,11 @@ struct AVGameSettings: View {
                         Text("Side controls when unfolded").tag("side")
                     }
                     Toggle("Original picture proportions", isOn: $originalAspect)
+                    if tuning.system == .gameBoyAdvance {
+                        Toggle("Show touch controls in landscape", isOn: $gbaLandscapeControls)
+                        Text("Keep GBA gameplay full-screen with floating D-pad, A/B, shoulder, Start/Select and Menu controls.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     if tuning.system == .nintendoDS {
                         Toggle("Swap DS screens", isOn: $swapDS)
                         HStack {
@@ -459,6 +465,7 @@ struct AVSettingsHome: View {
     @AppStorage("avydrix.bootSoundEnabled") private var bootSound = true
     @AppStorage("muted") private var muted = false
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
+    @AppStorage("avydrix.gba.landscapeControls") private var gbaLandscapeControls = true
     @AppStorage("retroDuoOriginalProportions") private var proportions = false
     @AppStorage("avydrix.displayFilter") private var filter = "off"
     @AppStorage("avydrix.ambientMotionEnabled") private var ambientMotionEnabled = true
@@ -522,6 +529,8 @@ struct AVSettingsHome: View {
                         Text("Side controls when unfolded").tag("side")
                     }
                     Toggle("Original screen proportions", isOn: $proportions)
+                    Toggle("Show GBA touch controls in landscape", isOn: $gbaLandscapeControls)
+                        .accessibilityIdentifier("avydrix-gba-landscape-controls-toggle")
                     Toggle("Swap Nintendo DS screens", isOn: $swapDS)
                     HStack {
                         Text("Lower DS screen size")
