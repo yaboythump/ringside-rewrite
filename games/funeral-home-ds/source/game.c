@@ -7,6 +7,7 @@
 #include "gfx.h"
 #include "scene.h"
 #include "sfx.h"
+#include "story.h"
 
 Game g;
 
@@ -186,6 +187,7 @@ static void new_day(void)
     g.current = 0;
     g.state = STATE_BOOKINGS;
     scene_init();
+    story_day_intro();
 }
 
 static void open_prep(void)
@@ -203,7 +205,7 @@ static void open_prep(void)
     g.pumping = false;
 }
 
-static void start_service(void)
+static void start_service_now(void)
 {
     g.state = STATE_SERVICE;
     g.phase = SERVICE_ARRIVING;
@@ -213,6 +215,32 @@ static void start_service(void)
     g.flash_timer = 0;
     scene_start_service();
     sfx_music(MUSIC_DIRGE);
+}
+
+static void start_service(void)
+{
+    if (!g.tutorial_done) {
+        g.tutorial_done = true;
+        story_service_tutorial();   // starts the service when it ends
+        return;
+    }
+    start_service_now();
+}
+
+void game_after_scene(AfterScene after)
+{
+    if (after == AFTER_OPEN_PREP)
+        open_prep();
+    else if (after == AFTER_START_SERVICE)
+        start_service_now();
+}
+
+static int day_total(void)
+{
+    int total = 0;
+    for (int i = 0; i < FUNERALS_PER_DAY; i++)
+        total += funeral_net(&g.funerals[i]);
+    return total;
 }
 
 static void set_phase(ServicePhase p)
@@ -384,6 +412,7 @@ static void update_service(void)
             sfx_music(MUSIC_NONE);
             sfx_play(SFX_CASH);
             g.state = STATE_RESULT;
+            story_after_service();
         }
         break;
     }
@@ -406,6 +435,13 @@ void game_update(bool fresh_input)
     if (g.flash_timer > 0)
         g.flash_timer--;
 
+    if (story_active()) {
+        story_update(tapped, tx, ty, fresh_input && (keysDown() & KEY_A));
+        scene_update();
+        sfx_update();
+        return;
+    }
+
     switch (g.state) {
     case STATE_TITLE:
         if (tap_in(28, 120, 200, 30) || (fresh_input && (keysDown() & KEY_START))) {
@@ -420,10 +456,14 @@ void game_update(bool fresh_input)
         Funeral *f = current_funeral();
         if (tap_in(CARD_BTN_X, CARD_Y(g.current) + 12, CARD_BTN_W, 26)) {
             sfx_play(SFX_TAP);
-            if (prep_complete(f))
+            if (!f->met) {
+                f->met = true;
+                story_family_meeting();   // opens prep when it ends
+            } else if (prep_complete(f)) {
                 start_service();
-            else
+            } else {
                 open_prep();
+            }
         }
         break;
     }
@@ -438,15 +478,16 @@ void game_update(bool fresh_input)
             sfx_play(SFX_TAP);
             g.current++;
             if (g.current >= FUNERALS_PER_DAY) {
-                int total = 0;
-                for (int i = 0; i < FUNERALS_PER_DAY; i++)
-                    total += funeral_net(&g.funerals[i]);
+                int total = day_total();
                 if (g.day == 1 || total > g.best_profit)
                     g.best_profit = total;
                 g.state = STATE_DAY_END;
                 sfx_play(SFX_CASH);
+                story_day_end(total);
             } else {
                 g.state = STATE_BOOKINGS;
+                if (g.current == FUNERALS_PER_DAY - 1)
+                    story_midday_visit();
             }
         }
         break;
@@ -521,8 +562,11 @@ static void draw_title(Canvas *c)
 static void draw_bookings(Canvas *c)
 {
     gfx_clear(c, C_PLUM);
-    char cash[20];
+    char cash[32], goal[16];
     format_money(cash, day_profit_so_far());
+    format_money(goal, daily_goal(g.day));
+    str_cat(cash, "/");
+    str_cat(cash, goal);
     char title[24] = "DAY ";
     str_cat_int(title, g.day);
     str_cat(title, " BOOKINGS");
@@ -790,11 +834,20 @@ static void draw_day_end(Canvas *c)
     hline(c, 12, y, 232, C_DIM);
     y += 4;
     ledger(c, y, "PROFIT", profit, profit >= 0 ? C_GOLD : C_RED);
+    {
+        char goal[40] = "GOAL ";
+        char m[16];
+        format_money(m, daily_goal(g.day));
+        str_cat(goal, m);
+        bool met = profit >= daily_goal(g.day);
+        str_cat(goal, met ? " MET!" : " MISSED");
+        draw_text(c, 12, 89, goal, met ? C_GREEN : C_RED);
+    }
     int stars = sat >= 90 ? 5 : sat >= 75 ? 4 : sat >= 60 ? 3 : sat >= 40 ? 2 : 1;
     char rating[24] = "RATING: ";
     str_cat_int(rating, stars);
     str_cat(rating, "/5 STARS");
-    draw_text(c, 12, 98, rating, C_CREAM);
+    draw_text(c, 12, 101, rating, C_CREAM);
     static const char *const REVIEWS[6][2] = {
         { "", "" },
         { "\"DO NOT DIE HERE.\"", "ZERO STARS IF I COULD." },
@@ -803,9 +856,9 @@ static void draw_day_end(Canvas *c)
         { "\"LOVELY SERVICE. ONLY", "ONE SMALL INCIDENT.\"" },
         { "\"BEST FUNERAL EVER.", "WOULD DIE AGAIN.\"" },
     };
-    panel(c, 8, 112, 240, 34, C_CREAM, C_GOLD);
-    draw_text(c, 14, 117, REVIEWS[stars][0], C_INK);
-    draw_text(c, 14, 128, REVIEWS[stars][1], C_INK);
+    panel(c, 8, 113, 240, 34, C_CREAM, C_GOLD);
+    draw_text(c, 14, 118, REVIEWS[stars][0], C_INK);
+    draw_text(c, 14, 129, REVIEWS[stars][1], C_INK);
     char best[32] = "BEST DAY: ";
     char m[16];
     format_money(m, g.best_profit);
@@ -818,6 +871,10 @@ void game_draw(void)
 {
     scene_draw();
     Canvas *c = &g_bottom;
+    if (story_active()) {
+        story_draw(c);
+        return;
+    }
     switch (g.state) {
     case STATE_TITLE: draw_title(c); break;
     case STATE_BOOKINGS: draw_bookings(c); break;

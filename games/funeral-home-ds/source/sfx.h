@@ -17,6 +17,8 @@ typedef enum { MUSIC_NONE, MUSIC_DIRGE, MUSIC_RINGTONE } Music;
 void sfx_init(void);
 void sfx_play(Sfx s);
 void sfx_music(Music m);
+// A one-frame voice blip for dialogue text, at the speaker's pitch.
+void sfx_blip(unsigned hz);
 // Call once per frame.
 void sfx_update(void);
 

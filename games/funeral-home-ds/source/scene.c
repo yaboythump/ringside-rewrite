@@ -5,6 +5,7 @@
 #include "game.h"
 #include "gfx.h"
 #include "scene.h"
+#include "story.h"
 
 #define MAX_MOURNERS 10
 #define HUD_H 12
@@ -59,6 +60,67 @@ static Look random_look(void)
 static Look director_look(void)
 {
     return (Look){ RGB(2, 2, 3), RGB(21, 21, 22), SKIN[1], RGB(2, 2, 3), false };
+}
+
+// ---------------------------------------------------------------------------
+// Story characters on the top screen
+
+// Great-Uncle Mort: see-through, floating, magnificent mustache.
+static void draw_ghost(Canvas *c, int x, int y)
+{
+    int bob = (int)((g.frame / 12) % 4);
+    y += bob == 3 ? 1 : bob;
+    color_t body = RGB(24, 30, 31), dark = RGB(14, 20, 26);
+    for (int j = 0; j < 16; j++) {
+        int w = 12 - j / 3;
+        int sway = ((j + (int)g.frame / 6) % 6) < 3 ? 0 : 1;
+        for (int i = 0; i < w; i++)
+            if (((i + j + (int)g.frame / 10) & 1) || j < 6)
+                plot(c, x - w / 2 + i + sway, y + 12 + j, j < 3 ? RGB(8, 11, 20) : body);
+    }
+    fill_circle(c, x, y + 6, 6, body);
+    fill_circle(c, x - 5, y + 1, 3, C_WHITE);
+    fill_circle(c, x + 5, y + 1, 3, C_WHITE);
+    fill_circle(c, x, y - 1, 3, C_WHITE);
+    plot(c, x - 2, y + 5, C_INK);
+    plot(c, x + 2, y + 5, C_INK);
+    hline(c, x - 3, y + 8, 7, C_WHITE);
+    plot(c, x - 4, y + 9, C_WHITE);
+    plot(c, x + 4, y + 9, C_WHITE);
+    fill_rect(c, x - 1, y + 12, 3, 2, C_RED);   // bow tie
+    (void)dark;
+}
+
+static void draw_vivian(Canvas *c, int x, int feet_y)
+{
+    Look v = { RGB(16, 4, 20), RGB(30, 26, 12), SKIN[0], RGB(16, 4, 20), true };
+    draw_person(c, x, feet_y, &v, 0, false, C_WHITE);
+    fill_ellipse(c, x, feet_y - 19, 9, 2, RGB(22, 5, 25));     // the hat
+    fill_ellipse(c, x, feet_y - 21, 5, 3, RGB(22, 5, 25));
+    for (int k = 0; k < 6; k++)
+        plot(c, x + 4 + k, feet_y - 23 - k / 2, C_GOLD);
+}
+
+static void draw_story_cast(Canvas *c, int ghost_x, int ghost_y, int vivian_x, int vivian_y, int kevin_x, int kevin_y)
+{
+    Speaker talking = story_speaker();
+    if (story_features(SPK_MORT) || g.state == STATE_BOOKINGS || g.state == STATE_PREP) {
+        draw_ghost(c, ghost_x, ghost_y);
+        if (talking == SPK_MORT)
+            draw_bubble(c, ghost_x - 10, ghost_y - 16, "...", C_WHITE, C_INK);
+    }
+    if (story_features(SPK_VIVIAN)) {
+        draw_vivian(c, vivian_x, vivian_y);
+        if (talking == SPK_VIVIAN)
+            draw_bubble(c, vivian_x - 12, vivian_y - 40, "...", C_WHITE, C_INK);
+    }
+    if (kevin_x >= 0 && story_features(SPK_KEVIN)) {
+        Look in = { RGB(5, 18, 9), RGB(20, 9, 3), SKIN[3], RGB(4, 4, 10), false };
+        draw_person(c, kevin_x, kevin_y, &in, 0, false, C_WHITE);
+        fill_rect(c, kevin_x - 4, kevin_y - 21, 9, 3, C_RED);   // backwards cap
+        if (talking == SPK_KEVIN)
+            draw_bubble(c, kevin_x - 12, kevin_y - 36, "...", C_WHITE, C_INK);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -421,15 +483,19 @@ static void draw_chapel(Canvas *c)
             draw_person(c, m->x, m->y, &m->look, ((m->x + m->y) / 6) % 2, m->flip, RGB(6, 6, 8));
     }
 
-    // Waiting family before the next service
-    if (g.state == STATE_BOOKINGS || g.state == STATE_PREP) {
+    // Waiting family before the next service (and while they talk)
+    if (g.state == STATE_BOOKINGS || g.state == STATE_PREP || story_features(SPK_FAMILY)) {
         Look a = { RGB(3, 3, 4), HAIRS[2], SKIN[2], RGB(3, 3, 4), true };
         Look b = { RGB(3, 4, 10), HAIRS[0], SKIN[3], RGB(3, 3, 4), false };
         draw_person(c, 228, LANE_Y, &a, 0, false, C_BLACK);
         draw_person(c, 214, LANE_Y, &b, 0, false, C_BLACK);
-        if ((g.frame / 120) % 2)
+        if (story_speaker() == SPK_FAMILY)
+            draw_bubble(c, 196, 70, "...", C_WHITE, C_INK);
+        else if (!story_active() && (g.frame / 120) % 2)
             draw_bubble(c, 170, 70, "WE'RE EARLY.", C_CREAM, C_INK);
     }
+    if (!service)
+        draw_story_cast(c, 156, 40, 200, LANE_Y, 180, LANE_Y);
 
     // Disaster effects drawn over everything
     if (service && (disaster || fixed)) {
@@ -612,6 +678,8 @@ static void draw_prep_room(Canvas *c)
     if ((g.frame / 150) % 3 == 1)
         draw_bubble(c, intern_x - 20, 150, "I'M ON BREAK.", C_WHITE, C_INK);
 
+    draw_story_cast(c, 100, 30, 230, 186, -1, 0);
+
     char left[40] = "PREP ROOM: ";
     str_cat(left, p->name);
     draw_hud(c, left, 0, RGB(5, 2, 7));
@@ -710,6 +778,7 @@ static void draw_day_end_top(Canvas *c)
     int stars = sat >= 90 ? 5 : sat >= 75 ? 4 : sat >= 60 ? 3 : sat >= 40 ? 2 : 1;
     for (int i = 0; i < 5; i++)
         draw_star(c, 34 + i * 40, 42, i < stars);
+    draw_story_cast(c, 160, 104, 92, 182, 60, 182);
 }
 
 void scene_draw(void)

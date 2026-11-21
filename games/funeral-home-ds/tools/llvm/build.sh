@@ -10,7 +10,7 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 game="$(cd "$here/../.." && pwd)"
-out="${1:-$game/GraveMistakes.nds}"
+out="$(realpath -m "${1:-$game/GraveMistakes.nds}")"
 WORK="${WORK:-$here/work}"
 mkdir -p "$WORK"
 cd "$WORK"

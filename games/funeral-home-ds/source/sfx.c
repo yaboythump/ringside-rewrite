@@ -88,6 +88,20 @@ void sfx_play(Sfx s)
     voice_start_step(&fx);
 }
 
+static Step blip[2] = { { 0, 2 }, { 0, 0 } };
+
+void sfx_blip(unsigned hz)
+{
+    if (fx.steps && fx.steps != blip)
+        return;   // don't cut off a real sound effect
+    blip[0].hz = (uint16_t)hz;
+    fx.steps = blip;
+    fx.index = 0;
+    fx.volume = 40;
+    voice_start_step(&fx);
+    fx.volume = 90;
+}
+
 void sfx_music(Music m)
 {
     const Step *want = m == MUSIC_DIRGE ? DIRGE : m == MUSIC_RINGTONE ? RINGTONE : 0;
