@@ -154,14 +154,30 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     // MARK: Menu actions
 
     func quickSave() {
-        if saveState(slot: "quick") {
+        if saveSlot("quick") {
             hasQuickSave = true
             show(toast: "Game saved to the quick slot")
         }
     }
 
     func quickLoad() {
-        show(toast: loadState(slot: "quick") ? "Quick save loaded" : "No quick save yet")
+        show(toast: loadSlot("quick") ? "Quick save loaded" : "No quick save yet")
+    }
+
+    @discardableResult
+    func saveSlot(_ slot: String) -> Bool {
+        guard ["quick", "slot1", "slot2", "slot3"].contains(slot), saveState(slot: slot) else { return false }
+        if let preview = screens.allObjects.first?.screenshotPNG() {
+            try? preview.write(to: library.statePreviewURL(for: game, slot: slot), options: .atomic)
+        }
+        if slot == "quick" { hasQuickSave = true }
+        return true
+    }
+
+    @discardableResult
+    func loadSlot(_ slot: String) -> Bool {
+        guard ["quick", "slot1", "slot2", "slot3"].contains(slot) else { return false }
+        return loadState(slot: slot)
     }
 
     func restart() {
@@ -220,9 +236,8 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             if pad.dpad.up.isPressed || pad.leftThumbstick.up.isPressed { mask |= Int(RD_KEY_UP) }
             if pad.dpad.down.isPressed || pad.leftThumbstick.down.isPressed { mask |= Int(RD_KEY_DOWN) }
             // Match the handheld's layout: the right face button is A, the bottom one is B.
-            if pad.buttonB.isPressed { mask |= Int(RD_KEY_A) }
-            if pad.buttonA.isPressed || pad.buttonX.isPressed { mask |= Int(RD_KEY_B) }
-            if pad.buttonY.isPressed { mask |= Int(RD_KEY_A) }
+            if AVControllerMapping.pressed("A", pad: pad, system: game.system) { mask |= Int(RD_KEY_A) }
+            if AVControllerMapping.pressed("B", pad: pad, system: game.system) { mask |= Int(RD_KEY_B) }
             if pad.buttonMenu.isPressed { mask |= Int(RD_KEY_START) }
             if pad.buttonOptions?.isPressed == true { mask |= Int(RD_KEY_SELECT) }
         }

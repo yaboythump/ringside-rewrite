@@ -186,10 +186,10 @@ final class DSSession: NSObject, ObservableObject, PadInput {
             if pad.dpad.up.isPressed || pad.leftThumbstick.up.isPressed { mask |= Int(MD_KEY_UP) }
             if pad.dpad.down.isPressed || pad.leftThumbstick.down.isPressed { mask |= Int(MD_KEY_DOWN) }
             // Face buttons by position, like the DS: right A, bottom B, top X, left Y.
-            if pad.buttonB.isPressed { mask |= Int(MD_KEY_A) }
-            if pad.buttonA.isPressed { mask |= Int(MD_KEY_B) }
-            if pad.buttonY.isPressed { mask |= Int(MD_KEY_X) }
-            if pad.buttonX.isPressed { mask |= Int(MD_KEY_Y) }
+            if AVControllerMapping.pressed("A", pad: pad, system: game.system) { mask |= Int(MD_KEY_A) }
+            if AVControllerMapping.pressed("B", pad: pad, system: game.system) { mask |= Int(MD_KEY_B) }
+            if AVControllerMapping.pressed("X", pad: pad, system: game.system) { mask |= Int(MD_KEY_X) }
+            if AVControllerMapping.pressed("Y", pad: pad, system: game.system) { mask |= Int(MD_KEY_Y) }
             if pad.leftShoulder.isPressed || pad.leftTrigger.isPressed { mask |= Int(MD_KEY_L) }
             if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= Int(MD_KEY_R) }
             if pad.buttonMenu.isPressed { mask |= Int(MD_KEY_START) }
@@ -201,14 +201,30 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     // MARK: Menu actions
 
     func quickSave() {
-        if saveState(slot: "quick") {
+        if saveSlot("quick") {
             hasQuickSave = true
             show(toast: "Game saved to the quick slot")
         }
     }
 
     func quickLoad() {
-        show(toast: loadState(slot: "quick") ? "Quick save loaded" : "No quick save yet")
+        show(toast: loadSlot("quick") ? "Quick save loaded" : "No quick save yet")
+    }
+
+    @discardableResult
+    func saveSlot(_ slot: String) -> Bool {
+        guard ["quick", "slot1", "slot2", "slot3"].contains(slot), saveState(slot: slot) else { return false }
+        if let preview = topScreens.allObjects.first?.screenshotPNG() {
+            try? preview.write(to: library.statePreviewURL(for: game, slot: slot), options: .atomic)
+        }
+        if slot == "quick" { hasQuickSave = true }
+        return true
+    }
+
+    @discardableResult
+    func loadSlot(_ slot: String) -> Bool {
+        guard ["quick", "slot1", "slot2", "slot3"].contains(slot) else { return false }
+        return loadState(slot: slot)
     }
 
     func restart() {

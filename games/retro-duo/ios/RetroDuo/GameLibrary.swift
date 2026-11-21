@@ -171,6 +171,11 @@ final class GameLibrary: ObservableObject {
         statesFolder.appendingPathComponent("\(game.name).\(slot).state")
     }
 
+    /// Optional artwork beside a save state; never changes the legacy .state format.
+    func statePreviewURL(for game: Game, slot: String) -> URL {
+        statesFolder.appendingPathComponent("\(game.name).\(slot).preview.png")
+    }
+
     /// Checks size and header without reading a whole (possibly huge) DS file into memory.
     static func isPlayable(_ url: URL, system: GameSystem) -> Bool {
         guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber,

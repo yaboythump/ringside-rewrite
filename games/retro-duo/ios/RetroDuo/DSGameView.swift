@@ -8,12 +8,20 @@ struct DSGameView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var hinge = HingeState()
     @State private var showingMenu = false
+    @State private var showingOptions = false
+    @State private var showingSaves = false
+    @StateObject private var tuning: AVControlTuning
+    @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
+    @AppStorage("avydrix.dsSwapScreens") private var swapScreens = false
+    @AppStorage("avydrix.dsTouchScale") private var touchScale = 1.0
     @AppStorage("retroDuoTwoPanels") private var useTwoPanels = true
     @AppStorage("retroDuoOriginalProportions") private var originalProportions = false
     @State private var diagnostics = ""
 
     init(session: @autoclosure @escaping () -> DSSession) {
-        _session = StateObject(wrappedValue: session())
+        let dsSession = session()
+        _session = StateObject(wrappedValue: dsSession)
+        _tuning = StateObject(wrappedValue: AVControlTuning(system: dsSession.game.system))
     }
 
     var body: some View {
@@ -22,7 +30,7 @@ struct DSGameView: View {
             Group {
                 if let error = session.errorMessage {
                     errorView(error)
-                } else if useTwoPanels || hinge.isHalfOpen {
+                } else if hinge.isHalfOpen || duoMode == "stacked" || (duoMode == "auto" && useTwoPanels) {
                     if size.width > size.height {
                         tabletopLayout(size)
                     } else {
@@ -64,6 +72,15 @@ struct DSGameView: View {
                 break
             }
         }
+        .sheet(isPresented: $showingOptions) {
+            AVGameSettings(tuning: tuning)
+        }
+        .sheet(isPresented: $showingSaves) {
+            AVSaveManager(game: session.game, save: { session.saveSlot($0) },
+                          load: { session.loadSlot($0) })
+        }
+        .onChange(of: showingSaves) { _, shown in session.setPaused(shown) }
+        .onChange(of: showingOptions) { _, shown in session.setPaused(shown) }
         .confirmationDialog(session.game.name, isPresented: $showingMenu, titleVisibility: .visible) {
             Button(originalProportions ? "Fill entire upper screen" : "Use original screen proportions") {
                 originalProportions.toggle()
@@ -71,6 +88,8 @@ struct DSGameView: View {
             Button(useTwoPanels ? "Use side controls in landscape" : "Use two-panel Duo layout") {
                 useTwoPanels.toggle()
             }
+            Button("Game Settings") { showingOptions = true }
+            Button("Visual Save Manager") { showingSaves = true }
             Button("Quick Save") { session.quickSave() }
             Button("Quick Load") { session.quickLoad() }
                 .disabled(!session.hasQuickSave)
@@ -94,7 +113,7 @@ struct DSGameView: View {
         let half = size.height / 2
         let usable = max(70, half - 112)
         let side = min(150, size.width * 0.25)
-        let touchWidth = max(40, min(size.width - 2 * side - 12, (usable - 8) * 4 / 3))
+        let touchWidth = max(40, min(size.width - 2 * side - 12, (usable - 8) * 4 / 3 * touchScale))
         let pad = max(44, min(side * 0.90, usable - 40, 150))
         let button = max(20, min((side - 8) / 2.56, (usable - 40) / 2.56, 58))
         return VStack(spacing: 0) {
@@ -103,17 +122,31 @@ struct DSGameView: View {
                 topBar
                 Spacer(minLength: 2)
                 HStack(spacing: 0) {
-                    VStack(spacing: 8) {
-                        ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
-                        DPad(session: session).frame(width: pad, height: pad)
-                    }.frame(width: side)
-                    Spacer(minLength: 0)
-                    touchScreen(width: touchWidth)
-                    Spacer(minLength: 0)
-                    VStack(spacing: 8) {
-                        ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
-                        DiamondButtons(session: session, diameter: button)
-                    }.frame(width: side)
+                    if tuning.mirrored {
+                        VStack(spacing: 8) {
+                            ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
+                            actionButtons(diameter: button)
+                        }.frame(width: side)
+                        Spacer(minLength: 0)
+                        touchScreen(width: touchWidth)
+                        Spacer(minLength: 0)
+                        VStack(spacing: 8) {
+                            ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
+                            directionPad(size: pad)
+                        }.frame(width: side)
+                    } else {
+                        VStack(spacing: 8) {
+                            ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
+                            directionPad(size: pad)
+                        }.frame(width: side)
+                        Spacer(minLength: 0)
+                        touchScreen(width: touchWidth)
+                        Spacer(minLength: 0)
+                        VStack(spacing: 8) {
+                            ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
+                            actionButtons(diameter: button)
+                        }.frame(width: side)
+                    }
                 }
                 Spacer(minLength: 2)
                 MenuButtons(session: session, selectKey: Int(MD_KEY_SELECT), startKey: Int(MD_KEY_START))
@@ -128,7 +161,11 @@ struct DSGameView: View {
             Color.black
             let pictureWidth = originalProportions ? min(width, height * 4 / 3) : width
             let pictureHeight = originalProportions ? pictureWidth * 0.75 : height
-            DSScreen(session: session, which: .top)
+            DSScreen(session: session, which: swapScreens ? .bottom : .top)
+                .overlay(AVDisplayFilter())
+                .overlay {
+                    if swapScreens { dsTouchOverlay(inset: 0) }
+                }
                 .frame(width: pictureWidth, height: pictureHeight)
         }
         .frame(width: width, height: height)
@@ -153,13 +190,13 @@ struct DSGameView: View {
                 .padding(.leading, 12)
                 ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
                 Spacer(minLength: 0)
-                DPad(session: session).frame(width: pad, height: pad)
+                directionPad(size: pad)
                 Spacer(minLength: 0)
                 PillButton(label: "SELECT", key: Int(MD_KEY_SELECT), session: session)
             }
             .frame(width: side)
             VStack(spacing: 6) {
-                screen(.top, width: screenWidth)
+                swappedUpperLandscape(width: screenWidth)
                 touchScreen(width: screenWidth)
             }
             VStack(spacing: 8) {
@@ -170,7 +207,7 @@ struct DSGameView: View {
                 .padding(.trailing, 12)
                 ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
                 Spacer(minLength: 0)
-                DiamondButtons(session: session, diameter: button)
+                actionButtons(diameter: button)
                 Spacer(minLength: 0)
                 PillButton(label: "START", key: Int(MD_KEY_START), session: session)
             }
@@ -179,11 +216,45 @@ struct DSGameView: View {
         .padding(.vertical, 6)
     }
 
+    private func directionPad(size: CGFloat) -> some View {
+        DPad(session: session)
+            .frame(width: size, height: size)
+            .scaleEffect(tuning.size)
+            .opacity(tuning.opacity)
+            .offset(y: tuning.directionOffset)
+    }
+
+    private func actionButtons(diameter: CGFloat) -> some View {
+        DiamondButtons(session: session, diameter: diameter)
+            .scaleEffect(tuning.size)
+            .opacity(tuning.opacity)
+            .offset(y: tuning.actionOffset)
+    }
+
+    private func swappedUpperLandscape(width: CGFloat) -> some View {
+        screen(swapScreens ? .bottom : .top, width: width)
+            .overlay {
+                if swapScreens { dsTouchOverlay(inset: 4) }
+            }
+    }
+
+    private func dsTouchOverlay(inset: CGFloat) -> some View {
+        TouchSurface(label: "Touch screen") { point, bounds in
+            session.setTouch(point.map { p in
+                let width = max(bounds.width - inset * 2, 1)
+                let height = max(bounds.height - inset * 2, 1)
+                return CGPoint(x: (p.x - inset) / width * 256,
+                               y: (p.y - inset) / height * 192)
+            })
+        }
+    }
+
     // MARK: Pieces
 
     /// A DS screen with a slim bezel. `width` is the picture; the bezel adds 8 points.
     private func screen(_ which: DSScreen.Which, width: CGFloat) -> some View {
         DSScreen(session: session, which: which)
+            .overlay(AVDisplayFilter())
             .frame(width: width, height: width * 0.75)
             .background(.black)
             .clipShape(RoundedRectangle(cornerRadius: 3))
@@ -196,16 +267,10 @@ struct DSGameView: View {
 
     /// The bottom screen; touches go straight to the game in DS pixels.
     private func touchScreen(width: CGFloat) -> some View {
-        screen(.bottom, width: width)
-            .overlay(
-                TouchSurface(label: "Touch screen") { point, bounds in
-                    session.setTouch(point.map { p in
-                        // The picture sits inside a 4-point bezel.
-                        let inner = CGSize(width: bounds.width - 8, height: bounds.height - 8)
-                        return CGPoint(x: (p.x - 4) / inner.width * 256, y: (p.y - 4) / inner.height * 192)
-                    })
-                }
-            )
+        screen(swapScreens ? .top : .bottom, width: width)
+            .overlay {
+                if !swapScreens { dsTouchOverlay(inset: 4) }
+            }
     }
 
     private var topBar: some View {

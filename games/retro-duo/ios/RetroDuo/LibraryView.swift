@@ -17,6 +17,9 @@ struct LibraryView: View {
     @State private var settingCoverFor: Game?
     @State private var featuredIndex = 0
     @StateObject private var covers = GameCoverLibrary()
+    @StateObject private var profile = AVPlayerProfile()
+    @State private var showingProfile = false
+    @State private var showingFavoritesOnly = false
     @State private var selectedSystem: GameSystem?
     @State private var search = ""
 
@@ -24,14 +27,18 @@ struct LibraryView: View {
     private var diagnosticGames: [Game] { library.games.filter { $0.isBuiltIn && !$0.isBundledGame } }
 
     private var showcasedGames: [Game] {
-        let games = ownedGames
-        guard let recent = games.first(where: { $0.id == lastPlayedGameID }) else { return Array(games.prefix(12)) }
-        return Array(([recent] + games.filter { $0.id != recent.id }).prefix(12))
+        let order = [lastPlayedGameID] + profile.data.favorites + profile.data.recent
+        let sorted = order.compactMap { id in ownedGames.first { $0.id == id } }
+        let unique = sorted.reduce(into: [Game]()) { result, game in
+            if !result.contains(game) { result.append(game) }
+        }
+        return Array((unique + ownedGames.filter { !unique.contains($0) }).prefix(12))
     }
 
     private var visibleGames: [Game] {
         ownedGames.filter { game in
             (selectedSystem == nil || game.system == selectedSystem) &&
+            (!showingFavoritesOnly || profile.isFavorite(game)) &&
             (search.isEmpty || game.name.localizedStandardContains(search))
         }
     }
@@ -44,6 +51,7 @@ struct LibraryView: View {
                     VStack(alignment: .leading, spacing: compact ? 25 : 30) {
                         header(compact: compact)
                         featuredCarousel(compact: compact)
+                        recentlyPlayed(compact: compact)
                         collection(compact: compact)
                         diagnostics(compact: compact)
                         footer
@@ -72,12 +80,15 @@ struct LibraryView: View {
                 Button("OK", role: .cancel) {}
             }
             .sheet(isPresented: $showingAbout) { AboutView() }
+            .sheet(isPresented: $showingProfile) {
+                AVPlayerProfileView(player: profile, games: ownedGames)
+            }
             .sheet(item: $settingCoverFor) { game in
                 AVArtworkPickerSheet(game: game, covers: covers)
                     .presentationDetents([.medium, .large])
             }
         }
-        .fullScreenCover(item: $playing) { game in
+        .fullScreenCover(item: $playing, onDismiss: { profile.finish() }) { game in
             if game.system == .nintendoDS {
                 DSGameView(session: DSSession(game: game, library: library))
             } else {
@@ -113,6 +124,7 @@ struct LibraryView: View {
 
     private func launch(_ game: Game) {
         if !game.isBuiltIn || game.isBundledGame { lastPlayedGameID = game.id }
+        profile.start(game)
         playing = game
     }
 
@@ -149,6 +161,17 @@ struct LibraryView: View {
             .buttonStyle(.plain)
             .foregroundStyle(bootSoundEnabled ? AVPalette.blue : AVPalette.muted)
             .accessibilityLabel(bootSoundEnabled ? "Turn startup sound off" : "Turn startup sound on")
+
+            Button { showingProfile = true } label: {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 18, weight: .medium))
+                    .frame(width: 40, height: 40)
+                    .background(.white.opacity(0.06), in: Circle())
+                    .overlay(Circle().stroke(.white.opacity(0.10), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .accessibilityLabel("AVYDRIX player profile")
 
             Button { showingAbout = true } label: {
                 Image(systemName: "gearshape")
@@ -261,6 +284,58 @@ struct LibraryView: View {
         }
     }
 
+    private func recentlyPlayed(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack {
+                Label("RECENTLY PLAYED", systemImage: "clock.arrow.circlepath")
+                    .font(.system(size: compact ? 15 : 18, weight: .heavy, design: .rounded))
+                    .tracking(0.6)
+                    .foregroundStyle(.white)
+                Spacer()
+                Button { showingProfile = true } label: {
+                    Text("PLAYER PROFILE")
+                        .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(AVPalette.lightBlue)
+                }
+                .buttonStyle(.plain)
+            }
+            if profile.data.recent.isEmpty {
+                Text("Launch a game to start your play history.")
+                    .font(.footnote)
+                    .foregroundStyle(AVPalette.muted)
+            } else {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 10) {
+                        ForEach(Array(profile.data.recent.prefix(7)), id: \.self) { id in
+                            if let game = ownedGames.first(where: { $0.id == id }) {
+                                Button { launch(game) } label: {
+                                    HStack(spacing: 9) {
+                                        Image(systemName: "play.circle.fill")
+                                            .foregroundStyle(AVPalette.lightBlue)
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(game.name).lineLimit(1)
+                                            Text(game.systemName.uppercased())
+                                                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                                                .foregroundStyle(AVPalette.muted)
+                                        }
+                                    }
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: 220)
+                                    .padding(13)
+                                    .background(AVPalette.card, in: RoundedRectangle(cornerRadius: 12))
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.09)))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+    }
+
     private func collection(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -307,6 +382,18 @@ struct LibraryView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 9) {
                     filterChip("ALL GAMES", system: nil, count: ownedGames.count)
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { showingFavoritesOnly.toggle() }
+                    } label: {
+                        Label("FAVORITES", systemImage: "star.fill")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(showingFavoritesOnly ? .white : AVPalette.muted)
+                            .padding(.horizontal, 14)
+                            .frame(height: 35)
+                            .background(showingFavoritesOnly ? AVPalette.blue.opacity(0.23) : .white.opacity(0.04), in: Capsule())
+                            .overlay(Capsule().stroke(showingFavoritesOnly ? AVPalette.blue : .white.opacity(0.1)))
+                    }
+                    .buttonStyle(.plain)
                     if let nes = GameSystem(rawValue: "nes") {
                         filterChip("NES", system: nes, count: ownedGames.filter { $0.system == nes }.count)
                     }
@@ -346,11 +433,16 @@ struct LibraryView: View {
                           spacing: compact ? 12 : 17) {
                     ForEach(visibleGames) { game in
                         Button { launch(game) } label: {
-                            AVGameCard(game: game, compact: compact, covers: covers)
+                            AVGameCard(game: game, compact: compact, covers: covers,
+                                       favorite: profile.isFavorite(game))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Play \(game.name), \(game.systemName)")
                         .contextMenu {
+                            Button { profile.toggleFavorite(game) } label: {
+                                Label(profile.isFavorite(game) ? "Remove Favorite" : "Add to Favorites",
+                                      systemImage: profile.isFavorite(game) ? "star.slash" : "star")
+                            }
                             Button { settingCoverFor = game } label: {
                                 Label("Set or change cover", systemImage: "photo")
                             }
@@ -450,6 +542,7 @@ private struct AVGameCard: View {
     let game: Game
     let compact: Bool
     @ObservedObject var covers: GameCoverLibrary
+    let favorite: Bool
 
     private var colors: [Color] {
         switch game.system {
@@ -503,6 +596,12 @@ private struct AVGameCard: View {
                                 .padding(.vertical, 6)
                                 .background(.black.opacity(0.55), in: Capsule())
                             Spacer()
+                            if favorite {
+                                Image(systemName: "star.fill")
+                                    .foregroundStyle(.yellow)
+                                    .font(.system(size: 12))
+                                    .padding(.trailing, 4)
+                            }
                             Image(systemName: "arrow.up.right")
                                 .font(.system(size: 10, weight: .bold))
                                 .padding(7)
