@@ -43,6 +43,33 @@ final class ControlsTests: XCTestCase {
         XCTAssertTrue(app.buttons["SELECT"].exists)
     }
 
+    func testSNESFaceButtonsStayLargeInPortraitAndLandscape() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemoSNES", "-RetroDuoUITests",
+                               "-avydrix.duo.mode", "auto"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+
+        let buttons = ["A button", "B button", "X button", "Y button"]
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            for name in buttons {
+                let button = app.buttons[name]
+                XCTAssertTrue(button.waitForExistence(timeout: 10), "\(name) disappeared")
+                XCTAssertTrue(button.isHittable, "\(name) must be tappable")
+                XCTAssertGreaterThanOrEqual(button.frame.width, 43,
+                    "\(name) is too small for comfortable tapping")
+                XCTAssertGreaterThanOrEqual(button.frame.height, 43,
+                    "\(name) is too small for comfortable tapping")
+            }
+            XCTAssertTrue(app.buttons["L button"].exists)
+            XCTAssertTrue(app.buttons["R button"].exists)
+            XCTAssertTrue(app.buttons["Game menu"].exists)
+            attach(app, "snes-buttons-\(orientation.rawValue)")
+        }
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]
