@@ -167,9 +167,9 @@ final class ReaderModel: ObservableObject {
                     anchor: pane == 0 ? anchorRequest : nil)
     }
 
-    func setLayout(_ layout: PaneLayout) {
+    func setLayout(_ layout: PaneLayout, rawFold: CGRect? = nil) {
         if ProcessInfo.processInfo.arguments.contains("-BookDuoSnapshot") {
-            let line = "layout \(layout.kind) panes=\(layout.frames.map { NSCoder.string(for: $0) }) fold=\(layout.fold.map { NSCoder.string(for: $0) } ?? "none")\n"
+            let line = "layout \(layout.kind) panes=\(layout.frames.map { NSCoder.string(for: $0) }) fold=\(layout.fold.map { NSCoder.string(for: $0) } ?? "none") reported=\(rawFold.map { NSCoder.string(for: $0) } ?? "none")\n"
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("layout.txt")
             if let handle = try? FileHandle(forWritingTo: url) {
                 handle.seekToEndOfFile(); handle.write(Data(line.utf8)); try? handle.close()

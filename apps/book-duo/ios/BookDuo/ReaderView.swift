@@ -18,7 +18,7 @@ struct ReaderView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let layout = PaneLayout.make(size: proxy.size, fold: PaneLayout.fold(in: proxy) ?? Self.debugFold(proxy.size),
+            let layout = PaneLayout.make(size: proxy.size, fold: Self.debugFold(proxy.size) ?? PaneLayout.fold(in: proxy),
                                          mode: settings.spread)
             ZStack(alignment: .topLeading) {
                 if layout.kind == .sideBySide, let fold = layout.fold {
@@ -36,7 +36,9 @@ struct ReaderView: View {
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
-            .onChange(of: layout, initial: true) { _, newLayout in model.setLayout(newLayout) }
+            .onChange(of: layout, initial: true) { _, newLayout in
+                model.setLayout(newLayout, rawFold: PaneLayout.fold(in: proxy))
+            }
         }
         .background(theme.backgroundColor.ignoresSafeArea())
         .overlay(alignment: .top) { if model.chromeVisible { topBar.transition(.move(edge: .top).combined(with: .opacity)) } }
@@ -59,7 +61,8 @@ struct ReaderView: View {
         .task {
             // `-BookDuoTurn` turns one page after opening, for simulator checks.
             guard ProcessInfo.processInfo.arguments.contains("-BookDuoTurn") else { return }
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            for _ in 0..<40 where !model.isRevealed { try? await Task.sleep(nanoseconds: 250_000_000) }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
             model.next()
         }
         .accessibilityAction(named: "Next page") { model.next() }
