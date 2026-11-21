@@ -461,6 +461,8 @@ struct AVSettingsHome: View {
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
     @AppStorage("retroDuoOriginalProportions") private var proportions = false
     @AppStorage("avydrix.displayFilter") private var filter = "off"
+    @AppStorage("avydrix.ambientMotionEnabled") private var ambientMotionEnabled = true
+    @AppStorage("avydrix.launchAnimationEnabled") private var launchAnimationEnabled = true
     @AppStorage("avydrix.dsSwapScreens") private var swapDS = false
     @AppStorage("avydrix.dsTouchScale") private var lowerScale = 1.0
 
@@ -531,6 +533,15 @@ struct AVSettingsHome: View {
                         Text("LCD pixel grid").tag("lcd")
                         Text("CRT scanlines").tag("crt")
                     }
+                }
+                Section("Motion & Transitions") {
+                    Toggle("Animated dashboard", isOn: $ambientMotionEnabled)
+                        .accessibilityIdentifier("avydrix-ambient-motion-toggle")
+                    Toggle("Cartridge insertion on game launch", isOn: $launchAnimationEnabled)
+                        .accessibilityIdentifier("avydrix-cartridge-motion-toggle")
+                    Text("A subtle moving background and an optional cartridge loading sequence. System Reduce Motion disables both animations automatically.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Controls & Bluetooth") {
                     Picker("Console", selection: $system) {
