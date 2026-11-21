@@ -102,7 +102,7 @@ final class ReaderModel: ObservableObject {
     @Published private(set) var anchorRequest: AnchorRequest?
     @Published private(set) var paneCount = 1
     @Published private(set) var layoutKind: PaneLayout.Kind = .single
-    @Published var chromeVisible = false
+    @Published var chromeVisible = true
 
     private var target: Target
     private var anchorToken = 0
@@ -134,6 +134,17 @@ final class ReaderModel: ObservableObject {
     var chapterURL: URL { book.url(for: book.manifest.spine[chapter].path) }
     var isRevealed: Bool { resolvedToken == loadToken }
     var isAtEnd: Bool { chapter == book.manifest.spine.count - 1 && page + paneCount >= pageCount }
+
+    /// Pages still unread in the current spine chapter, accounting for two-page spreads.
+    var pagesRemainingInChapter: Int {
+        guard isRevealed else { return 0 }
+        return max(0, pageCount - min(page + paneCount, pageCount))
+    }
+
+    var currentChapterPage: Int { isRevealed ? min(page + paneCount, pageCount) : 0 }
+    var chapterProgress: Double { Double(currentChapterPage) / Double(max(1, pageCount)) }
+    var isAtStart: Bool { chapter == 0 && page == 0 }
+
 
     /// How far through the whole book, weighting chapters by length.
     var progress: Double {
