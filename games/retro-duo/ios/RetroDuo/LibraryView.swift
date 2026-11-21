@@ -1,6 +1,8 @@
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
+import PhotosUI
+import Combine
 
 /// AVYDRIX Play's game-first dashboard. The emulator screens remain separate so
 /// changing the storefront cannot change the native controls or Duo layout.
@@ -12,14 +14,19 @@ struct LibraryView: View {
     @State private var importing = false
     @State private var playing: Game?
     @State private var showingAbout = false
+    @State private var settingCoverFor: Game?
+    @State private var featuredIndex = 0
+    @StateObject private var covers = GameCoverLibrary()
     @State private var selectedSystem: GameSystem?
     @State private var search = ""
 
     private var ownedGames: [Game] { library.games.filter { !$0.isBuiltIn } }
     private var diagnosticGames: [Game] { library.games.filter(\.isBuiltIn) }
 
-    private var featured: Game? {
-        ownedGames.first { $0.id == lastPlayedGameID } ?? ownedGames.first
+    private var showcasedGames: [Game] {
+        let games = ownedGames
+        guard let recent = games.first(where: { $0.id == lastPlayedGameID }) else { return Array(games.prefix(12)) }
+        return Array(([recent] + games.filter { $0.id != recent.id }).prefix(12))
     }
 
     private var visibleGames: [Game] {
@@ -36,7 +43,7 @@ struct LibraryView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: compact ? 25 : 30) {
                         header(compact: compact)
-                        hero(compact: compact)
+                        featuredCarousel(compact: compact)
                         collection(compact: compact)
                         diagnostics(compact: compact)
                         footer
@@ -65,6 +72,10 @@ struct LibraryView: View {
                 Button("OK", role: .cancel) {}
             }
             .sheet(isPresented: $showingAbout) { AboutView() }
+            .sheet(item: $settingCoverFor) { game in
+                AVArtworkPickerSheet(game: game, covers: covers)
+                    .presentationDetents([.medium, .large])
+            }
         }
         .fullScreenCover(item: $playing) { game in
             if game.system == .nintendoDS {
@@ -75,6 +86,16 @@ struct LibraryView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             library.refresh()
+        }
+        .onReceive(Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()) { _ in
+            guard playing == nil, showcasedGames.count > 1 else { return }
+            withAnimation(.easeInOut(duration: 0.4)) {
+                featuredIndex = (featuredIndex + 1) % showcasedGames.count
+            }
+        }
+        .task(id: ownedGames.map(\.id).joined(separator: "|")) {
+            covers.discover(ownedGames)
+            if featuredIndex >= showcasedGames.count { featuredIndex = 0 }
         }
         .task {
             // UI test launch arguments must continue to jump directly into gameplay.
@@ -155,95 +176,88 @@ struct LibraryView: View {
         }
     }
 
-    private func hero(compact: Bool) -> some View {
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .fill(LinearGradient(colors: [Color(red: 0.07, green: 0.12, blue: 0.25),
-                                              Color(red: 0.09, green: 0.07, blue: 0.20),
-                                              Color(red: 0.025, green: 0.035, blue: 0.095)],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-            GeometryReader { geo in
-                Circle()
-                    .stroke(AVPalette.blue.opacity(0.19), lineWidth: 1)
-                    .frame(width: 330, height: 330)
-                    .position(x: geo.size.width * 0.83, y: geo.size.height * 0.48)
-                Circle()
-                    .stroke(AVPalette.purple.opacity(0.28), lineWidth: 35)
-                    .frame(width: 230, height: 230)
-                    .blur(radius: 30)
-                    .position(x: geo.size.width * 0.80, y: geo.size.height * 0.46)
-                Image(systemName: "gamecontroller.fill")
-                    .font(.system(size: compact ? 128 : 210, weight: .ultraLight))
-                    .foregroundStyle(LinearGradient(colors: [.white.opacity(0.16),
-                                                               AVPalette.blue.opacity(0.20),
-                                                               AVPalette.purple.opacity(0.30)],
-                                                    startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .rotationEffect(.degrees(-13))
-                    .position(x: geo.size.width * (compact ? 0.88 : 0.77), y: geo.size.height * 0.58)
-            }
-            .clipped()
-
-            VStack(alignment: .leading, spacing: compact ? 13 : 18) {
-                HStack(spacing: 8) {
-                    Circle().fill(AVPalette.blue).frame(width: 6, height: 6)
-                        .shadow(color: AVPalette.blue, radius: 7)
-                    Text("WELCOME TO YOUR UNIVERSE")
-                        .font(.system(size: compact ? 9 : 11, weight: .bold, design: .monospaced))
-                        .tracking(compact ? 1.2 : 2)
-                        .foregroundStyle(AVPalette.lightBlue)
-                }
-                Text("THE CLASSICS.\nREIMAGINED.")
-                    .font(.system(size: compact ? 35 : 54, weight: .black, design: .rounded))
-                    .tracking(-1.6)
-                    .lineSpacing(-3)
-                    .foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .minimumScaleFactor(0.7)
-                    .shadow(color: .black.opacity(0.3), radius: 10)
-
-                Text("Your games. Your screens. Your world.")
-                    .font(.system(size: compact ? 12 : 15, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.7))
-
-                HStack(spacing: 11) {
-                    Button {
-                        if let featured { launch(featured) } else { importing = true }
-                    } label: {
-                        HStack(spacing: 9) {
-                            Image(systemName: featured == nil ? "plus" : "play.fill")
-                            Text(featured == nil ? "ADD YOUR FIRST GAME" : "CONTINUE PLAYING")
-                        }
-                        .font(.system(size: compact ? 10 : 12, weight: .heavy, design: .rounded))
-                        .tracking(0.8)
-                        .padding(.horizontal, compact ? 14 : 21)
-                        .frame(height: compact ? 40 : 45)
-                        .foregroundStyle(Color.black.opacity(0.88))
-                        .background(.white, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-
-                    if compact {
+    private func featuredCarousel(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if showcasedGames.isEmpty {
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(LinearGradient(colors: [Color(red: 0.08, green: 0.13, blue: 0.29),
+                                                      Color(red: 0.12, green: 0.065, blue: 0.25)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                    VStack(alignment: .leading, spacing: 14) {
+                        Label("AVYDRIX GAME COLLECTION", systemImage: "sparkles")
+                            .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                            .tracking(1.3)
+                            .foregroundStyle(AVPalette.lightBlue)
+                        Text("YOUR NEXT ADVENTURE\nSTARTS HERE.")
+                            .font(.system(size: compact ? 31 : 46, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("Add a game to create your featured slideshow.")
+                            .font(.system(size: compact ? 13 : 15))
+                            .foregroundStyle(.white.opacity(0.72))
                         Button { importing = true } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 16, weight: .bold))
-                                .frame(width: 40, height: 40)
-                                .foregroundStyle(.white)
-                                .background(.white.opacity(0.13), in: Circle())
+                            Label("ADD GAMES", systemImage: "plus")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .padding(.horizontal, 20)
+                                .frame(height: 42)
+                                .foregroundStyle(.black)
+                                .background(.white, in: Capsule())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Add games")
+                    }
+                    .padding(compact ? 25 : 34)
+                }
+                .frame(height: compact ? 270 : 315)
+                .overlay(RoundedRectangle(cornerRadius: 25).stroke(AVPalette.blue.opacity(0.35)))
+                .accessibilityIdentifier("avydrix-empty-spotlight")
+            } else {
+                TabView(selection: $featuredIndex) {
+                    ForEach(showcasedGames.indices, id: \.self) { index in
+                        let game = showcasedGames[index]
+                        Button { launch(game) } label: {
+                            AVFeaturedSpotlight(game: game,
+                                                covers: covers,
+                                                compact: compact,
+                                                isContinue: game.id == lastPlayedGameID)
+                        }
+                        .buttonStyle(.plain)
+                        .tag(index)
+                        .accessibilityLabel("Play featured game \(index + 1) of \(showcasedGames.count): \(game.name)")
                     }
                 }
-                .padding(.top, compact ? 1 : 6)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: compact ? 300 : 335)
+                .clipShape(RoundedRectangle(cornerRadius: 25))
+                .overlay(RoundedRectangle(cornerRadius: 25).stroke(
+                    LinearGradient(colors: [AVPalette.blue.opacity(0.50), AVPalette.purple.opacity(0.35), .white.opacity(0.09)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                .shadow(color: AVPalette.blue.opacity(0.15), radius: 24, y: 8)
+                .accessibilityIdentifier("avydrix-featured-carousel")
+
+                HStack(spacing: 7) {
+                    Image(systemName: "rectangle.stack.fill")
+                        .foregroundStyle(AVPalette.lightBlue)
+                    Text("FEATURED FROM YOUR LIBRARY")
+                        .foregroundStyle(AVPalette.muted)
+                    Spacer()
+                    ForEach(showcasedGames.indices, id: \.self) { index in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.3)) { featuredIndex = index }
+                        } label: {
+                            Capsule()
+                                .fill(index == featuredIndex ? AVPalette.blue : Color.white.opacity(0.19))
+                                .frame(width: index == featuredIndex ? 22 : 6, height: 6)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Show featured game \(index + 1)")
+                    }
+                }
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(0.8)
+                .padding(.horizontal, 4)
+                .padding(.top, 2)
             }
-            .padding(compact ? 22 : 34)
         }
-        .frame(height: compact ? 300 : 295)
-        .overlay(RoundedRectangle(cornerRadius: 25).stroke(
-            LinearGradient(colors: [AVPalette.blue.opacity(0.38), AVPalette.purple.opacity(0.21), .white.opacity(0.08)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
-        .shadow(color: AVPalette.blue.opacity(0.13), radius: 35, y: 12)
-        .accessibilityElement(children: .contain)
     }
 
     private func collection(compact: Bool) -> some View {
@@ -319,11 +333,17 @@ struct LibraryView: View {
                           spacing: compact ? 12 : 17) {
                     ForEach(visibleGames) { game in
                         Button { launch(game) } label: {
-                            AVGameCard(game: game, compact: compact)
+                            AVGameCard(game: game, compact: compact, covers: covers)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Play \(game.name), \(game.systemName)")
                         .contextMenu {
+                            Button { settingCoverFor = game } label: {
+                                Label("Set or change cover", systemImage: "photo")
+                            }
+                            Button { covers.reload(game) } label: {
+                                Label("Find artwork online", systemImage: "arrow.clockwise")
+                            }
                             Button(role: .destructive) { library.delete(game) } label: {
                                 Label("Remove from library", systemImage: "trash")
                             }
@@ -416,6 +436,7 @@ struct LibraryView: View {
 private struct AVGameCard: View {
     let game: Game
     let compact: Bool
+    @ObservedObject var covers: GameCoverLibrary
 
     private var colors: [Color] {
         switch game.system {
@@ -433,50 +454,58 @@ private struct AVGameCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack {
-                LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-                Circle()
-                    .stroke(.white.opacity(0.08), lineWidth: 1)
-                    .frame(width: 170, height: 170)
-                    .offset(x: 45, y: -23)
-                Circle()
-                    .stroke(.white.opacity(0.07), lineWidth: 25)
-                    .frame(width: 105, height: 105)
-                    .blur(radius: 12)
-                    .offset(x: -45, y: 40)
-                VStack(spacing: 9) {
-                    Image(systemName: game.system.rawValue == "nes" ? "gamecontroller.fill" : game.system == .nintendoDS ? "rectangle.split.2x1.fill" : "gamecontroller.fill")
-                        .font(.system(size: compact ? 42 : 55, weight: .ultraLight))
-                        .foregroundStyle(.white.opacity(0.28))
-                    Text(initials.isEmpty ? "PLAY" : initials)
-                        .font(.system(size: compact ? 27 : 33, weight: .black, design: .rounded))
-                        .tracking(3)
-                        .foregroundStyle(.white.opacity(0.91))
-                        .shadow(color: .black.opacity(0.4), radius: 12)
-                }
-                .offset(y: 3)
-                VStack {
-                    HStack {
-                        Text(game.system.rawValue == "nes" ? "NES" : game.system == .nintendoDS ? "DS" : game.system == .gameBoyColor ? "GBC" : "GB")
-                            .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                            .tracking(1)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 6)
-                            .background(.black.opacity(0.26), in: Capsule())
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.75))
+            GeometryReader { geo in
+                ZStack {
+                    LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+                    if let cover = covers.image(for: game) {
+                        Image(uiImage: cover)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                            .accessibilityHidden(true)
+                        LinearGradient(colors: [.black.opacity(0.18), .clear, .black.opacity(0.12)],
+                                       startPoint: .top, endPoint: .bottom)
+                    } else {
+                        Circle()
+                            .stroke(.white.opacity(0.08), lineWidth: 2)
+                            .frame(width: 170, height: 170)
+                            .offset(x: 45, y: -23)
+                        VStack(spacing: 9) {
+                            Image(systemName: game.system == .nintendoDS ? "rectangle.split.2x1.fill" : "gamecontroller.fill")
+                                .font(.system(size: compact ? 42 : 55, weight: .ultraLight))
+                                .foregroundStyle(.white.opacity(0.28))
+                            Text(initials.isEmpty ? "PLAY" : initials)
+                                .font(.system(size: compact ? 27 : 33, weight: .black, design: .rounded))
+                                .tracking(3)
+                                .foregroundStyle(.white.opacity(0.91))
+                        }
                     }
-                    Spacer()
+                    VStack {
+                        HStack {
+                            Text(game.system.rawValue == "nes" ? "NES" : game.system == .nintendoDS ? "DS" : game.system == .gameBoyColor ? "GBC" : "GB")
+                                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                                .tracking(1)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 6)
+                                .background(.black.opacity(0.55), in: Capsule())
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .padding(7)
+                                .background(.black.opacity(0.42), in: Circle())
+                        }
+                        Spacer()
+                    }
+                    .padding(11)
+                    .foregroundStyle(.white)
                 }
-                .padding(12)
-                .foregroundStyle(.white)
+                .frame(width: geo.size.width, height: geo.size.height)
+                .clipped()
             }
-            .frame(height: compact ? 136 : 166)
-            .clipped()
+            .frame(height: compact ? 170 : 228)
 
-            HStack(alignment: .center, spacing: 8) {
+            HStack(alignment: .center, spacing: 7) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(game.name)
                         .font(.system(size: compact ? 12 : 14, weight: .bold, design: .rounded))
@@ -502,6 +531,100 @@ private struct AVGameCard: View {
         .background(AVPalette.card, in: RoundedRectangle(cornerRadius: 17))
         .clipShape(RoundedRectangle(cornerRadius: 17))
         .overlay(RoundedRectangle(cornerRadius: 17).stroke(.white.opacity(0.10), lineWidth: 1))
+    }
+}
+
+private struct AVFeaturedSpotlight: View {
+    let game: Game
+    @ObservedObject var covers: GameCoverLibrary
+    let compact: Bool
+    let isContinue: Bool
+
+    private var title: String {
+        let first = game.name.components(separatedBy: " (").first ?? game.name
+        return first.isEmpty ? game.name : first
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                LinearGradient(colors: [
+                    Color(red: 0.09, green: 0.16, blue: 0.37),
+                    Color(red: 0.13, green: 0.075, blue: 0.30),
+                    Color(red: 0.025, green: 0.04, blue: 0.12)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing)
+
+                if let cover = covers.image(for: game) {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        Image(uiImage: cover)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width * (compact ? 0.70 : 0.58),
+                                   height: geo.size.height)
+                            .clipped()
+                            .overlay(.black.opacity(0.11))
+                    }
+                    .accessibilityHidden(true)
+                } else {
+                    Image(systemName: game.system == .nintendoDS ? "rectangle.split.2x1.fill" : "gamecontroller.fill")
+                        .font(.system(size: compact ? 115 : 175, weight: .ultraLight))
+                        .foregroundStyle(.white.opacity(0.12))
+                        .rotationEffect(.degrees(-12))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing, 15)
+                }
+
+                LinearGradient(stops: [
+                    .init(color: Color(red: 0.015, green: 0.025, blue: 0.07).opacity(0.97), location: 0),
+                    .init(color: Color(red: 0.035, green: 0.045, blue: 0.14).opacity(0.94), location: 0.30),
+                    .init(color: Color(red: 0.05, green: 0.045, blue: 0.13).opacity(0.65), location: 0.57),
+                    .init(color: .black.opacity(0.04), location: 1.0)
+                ], startPoint: .leading, endPoint: .trailing)
+
+                VStack(alignment: .leading, spacing: compact ? 13 : 17) {
+                    HStack(spacing: 8) {
+                        Circle().fill(AVPalette.blue).frame(width: 7, height: 7)
+                            .shadow(color: AVPalette.blue, radius: 8)
+                        Text("FEATURED GAME")
+                            .font(.system(size: compact ? 10 : 11, weight: .heavy, design: .monospaced))
+                            .tracking(1.5)
+                            .foregroundStyle(AVPalette.lightBlue)
+                    }
+                    Spacer(minLength: 2)
+                    Text(title.uppercased())
+                        .font(.system(size: compact ? 31 : 51, weight: .black, design: .rounded))
+                        .tracking(-1)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.63)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: geo.size.width * (compact ? 0.79 : 0.60), alignment: .leading)
+                        .multilineTextAlignment(.leading)
+                        .shadow(color: .black.opacity(0.55), radius: 8)
+
+                    Text(game.systemName.uppercased())
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .tracking(1.7)
+                        .foregroundStyle(.white.opacity(0.65))
+                    HStack(spacing: 10) {
+                        Image(systemName: "play.fill")
+                        Text(isContinue ? "CONTINUE PLAYING" : "PLAY NOW")
+                    }
+                    .font(.system(size: compact ? 11 : 13, weight: .black, design: .rounded))
+                    .tracking(0.7)
+                    .foregroundStyle(Color(red: 0.03, green: 0.035, blue: 0.07))
+                    .padding(.horizontal, compact ? 17 : 23)
+                    .frame(height: compact ? 39 : 46)
+                    .background(.white, in: Capsule())
+                    Spacer(minLength: 3)
+                }
+                .padding(compact ? 24 : 36)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .clipped()
+        }
+        .contentShape(Rectangle())
     }
 }
 
@@ -531,5 +654,225 @@ private struct AVBackdrop: View {
             }
         }
         .ignoresSafeArea()
+    }
+}
+
+
+// Cover art lives in Documents/Covers and never touches ROM contents or save games.
+// Exact filename matching gets existing Libretro box art; users can override any image.
+@MainActor
+private final class GameCoverLibrary: ObservableObject {
+    @Published private(set) var images: [String: UIImage] = [:]
+
+    private let directory: URL
+    private var attempted = Set<String>()
+
+    init() {
+        directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Covers", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+
+    func image(for game: Game) -> UIImage? { images[game.id] }
+
+    func discover(_ games: [Game]) {
+        for game in games where !game.isBuiltIn && !attempted.contains(game.id) {
+            attempted.insert(game.id)
+            Task { await retrieve(game) }
+        }
+    }
+
+    func reload(_ game: Game) {
+        images.removeValue(forKey: game.id)
+        for name in [game.id, game.name] {
+            for ext in ["jpg", "jpeg", "png"] {
+                try? FileManager.default.removeItem(at: directory.appendingPathComponent(name).appendingPathExtension(ext))
+            }
+        }
+        attempted.remove(game.id)
+        discover([game])
+    }
+
+    func save(_ data: Data, for game: Game) throws {
+        guard !data.isEmpty, data.count <= 15_000_000,
+              let input = UIImage(data: data),
+              let imageData = Self.optimizedJPEG(input) else {
+            throw CoverError.invalidImage
+        }
+        try imageData.write(to: destination(for: game), options: .atomic)
+        images[game.id] = UIImage(data: imageData)
+        attempted.insert(game.id)
+    }
+
+    private func destination(for game: Game) -> URL {
+        directory.appendingPathComponent(game.id).appendingPathExtension("jpg")
+    }
+
+    private func retrieve(_ game: Game) async {
+        let candidates = [game.id, game.name]
+        for name in candidates {
+            for ext in ["jpg", "jpeg", "png"] {
+                let file = directory.appendingPathComponent(name).appendingPathExtension(ext)
+                if let data = try? Data(contentsOf: file),
+                   let image = UIImage(data: data) {
+                    images[game.id] = image
+                    return
+                }
+            }
+        }
+
+        // Download covers only, never game data. Fallback cards remain functional offline.
+        guard let system = Self.artworkFolder(for: game) else { return }
+        let normalized = game.name
+            .replacingOccurrences(of: ":", with: "_")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "?", with: "_")
+            .replacingOccurrences(of: "*", with: "_")
+            .replacingOccurrences(of: "#", with: "_")
+        var names = [normalized]
+        let noRevision = normalized.replacingOccurrences(
+            of: #"\s+\(Rev [^)]+\)"#, with: "", options: .regularExpression)
+        if noRevision != normalized { names.append(noRevision) }
+
+        for name in names {
+            var components = URLComponents()
+            components.scheme = "https"
+            components.host = "thumbnails.libretro.com"
+            components.path = "/\(system)/Named_Boxarts/\(name).png"
+            guard let url = components.url else { continue }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 9
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200,
+                      data.count < 3_000_000,
+                      let downloaded = UIImage(data: data),
+                      let compressed = Self.optimizedJPEG(downloaded) else { continue }
+                try? compressed.write(to: destination(for: game), options: .atomic)
+                images[game.id] = UIImage(data: compressed) ?? downloaded
+                return
+            } catch {
+                continue
+            }
+        }
+    }
+
+    private static func artworkFolder(for game: Game) -> String? {
+        if game.system.rawValue == "nes" { return "Nintendo - Nintendo Entertainment System" }
+        switch game.system {
+        case .gameBoy: return "Nintendo - Game Boy"
+        case .gameBoyColor: return "Nintendo - Game Boy Color"
+        case .nintendoDS: return "Nintendo - Nintendo DS"
+        default: return nil
+        }
+    }
+
+    private static func optimizedJPEG(_ original: UIImage) -> Data? {
+        let maximum: CGFloat = 960
+        let factor = min(1, maximum / max(original.size.width, original.size.height, 1))
+        let target = CGSize(width: max(1, original.size.width * factor),
+                            height: max(1, original.size.height * factor))
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: target, format: format).image { _ in
+            original.draw(in: CGRect(origin: .zero, size: target))
+        }
+        return resized.jpegData(compressionQuality: 0.85)
+    }
+
+    private enum CoverError: LocalizedError {
+        case invalidImage
+        var errorDescription: String? { "Choose a PNG or JPEG cover image smaller than 15 MB." }
+    }
+}
+
+private struct AVArtworkPickerSheet: View {
+    let game: Game
+    @ObservedObject var covers: GameCoverLibrary
+    @Environment(\.dismiss) private var dismiss
+    @State private var photo: PhotosPickerItem?
+    @State private var pickingFile = false
+    @State private var errorMessage: String?
+    @State private var saving = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 19) {
+                Text(game.name)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                Text("Add your own game cover. It will appear in the library and in the featured slideshow.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.7))
+                PhotosPicker(selection: $photo, matching: .images) {
+                    Label("CHOOSE FROM PHOTOS", systemImage: "photo.on.rectangle")
+                        .font(.system(size: 13, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .background(AVPalette.blue, in: RoundedRectangle(cornerRadius: 13))
+
+                Button { pickingFile = true } label: {
+                    Label("CHOOSE FROM FILES", systemImage: "folder")
+                        .font(.system(size: 13, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 13))
+                if saving { ProgressView("Saving artwork").tint(AVPalette.blue) }
+                if let errorMessage {
+                    Text(errorMessage).font(.caption).foregroundStyle(.orange)
+                }
+                Text("Covers are stored on your iPhone in Retro Duo / Covers. Matching cover art is also found automatically when available online.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.48))
+                Spacer(minLength: 0)
+            }
+            .padding(22)
+            .background(Color(red: 0.02, green: 0.03, blue: 0.075).ignoresSafeArea())
+            .navigationTitle("Set Game Cover")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+            .onChange(of: photo) { _, newPhoto in
+                guard let newPhoto else { return }
+                saving = true
+                Task {
+                    do {
+                        guard let data = try await newPhoto.loadTransferable(type: Data.self) else {
+                            throw PickerError.missingData
+                        }
+                        try covers.save(data, for: game)
+                        dismiss()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                    saving = false
+                }
+            }
+            .fileImporter(isPresented: $pickingFile, allowedContentTypes: [.image]) { result in
+                do {
+                    let url = try result.get()
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    try covers.save(Data(contentsOf: url), for: game)
+                    dismiss()
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private enum PickerError: LocalizedError {
+        case missingData
+        var errorDescription: String? { "Could not read that photo. Try another image." }
     }
 }
