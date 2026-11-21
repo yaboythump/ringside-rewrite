@@ -106,7 +106,10 @@ struct LibraryView: View {
         }
         .task {
             // Launch argument used for screenshots: opens the Test Cart straight away.
-            if ProcessInfo.processInfo.arguments.contains("-RetroDuoDemo") {
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("-RetroDuoDemoDS") {
+                playing = library.games.first { $0.system == .nintendoDS }
+            } else if arguments.contains("-RetroDuoDemo") {
                 playing = library.games.first
             }
         }
