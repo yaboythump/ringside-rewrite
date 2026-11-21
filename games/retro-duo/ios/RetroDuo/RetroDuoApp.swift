@@ -3,10 +3,20 @@ import SwiftUI
 @main
 struct RetroDuoApp: App {
     @StateObject private var library = GameLibrary()
+    /// Shows the AVYDRIX console boot sequence on a normal app launch.
+    /// Skip when launched by simulator snapshots or automated UI tests.
+    @State private var showingBoot = !ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-RetroDuo") }
 
     var body: some Scene {
         WindowGroup {
-            LibraryView()
+            ZStack {
+                LibraryView()
+                if showingBoot {
+                    AvydrixBootView { showingBoot = false }
+                        .transition(.opacity)
+                        .zIndex(1)
+                }
+            }
                 .environmentObject(library)
                 .preferredColorScheme(.dark)
                 .tint(Theme.accent)
