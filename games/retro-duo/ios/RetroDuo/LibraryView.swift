@@ -104,7 +104,7 @@ struct LibraryView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .fileImporter(isPresented: $importing,
-                          allowedContentTypes: [.gameBoyROM, .gameBoyColorROM, .gameBoyAdvanceROM, .nintendoDSROM,
+                          allowedContentTypes: [.gameBoyROM, .gameBoyColorROM, .gameBoyAdvanceROM, .snesROM, .nintendoDSROM,
                                                 UTType(importedAs: "com.ctnetworkstudios.retroduo.nes"), .data],
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { library.importFiles(urls) }
@@ -173,6 +173,8 @@ struct LibraryView: View {
                 playing = library.games.first { $0.system == .nintendoDS }
             } else if arguments.contains("-RetroDuoDemoGBA") {
                 playing = library.games.first { $0.system == .gameBoyAdvance }
+            } else if arguments.contains("-RetroDuoDemoSNES") {
+                playing = library.games.first { $0.system == .snes }
             } else if arguments.contains("-RetroDuoDemoNES") {
                 playing = library.games.first { $0.system.rawValue == "nes" }
             } else if arguments.contains("-RetroDuoDemo") {
@@ -855,6 +857,7 @@ private struct AVCartridgeLaunchView: View {
     private var systemCode: String {
         switch game.system.rawValue {
         case "nes": return "NES"
+        case "snes": return "SNES"
         case "gameBoy": return "GB"
         case "gameBoyColor": return "GBC"
         case "nintendoDS": return "DS"

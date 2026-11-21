@@ -53,6 +53,18 @@
 				<string>com.ctnetworkstudios.retroduo.gba</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Super Nintendo Game</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.ctnetworkstudios.retroduo.sfc</string>
+			</array>
+		</dict>
 	</array>
 	<key>GCSupportedGameControllers</key>
 	<array>
@@ -155,6 +167,24 @@
 				<array>
 					<string>gba</string>
 					<string>agb</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Super Nintendo Game</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.ctnetworkstudios.retroduo.sfc</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>sfc</string>
+					<string>smc</string>
 				</array>
 			</dict>
 		</dict>

@@ -3,3 +3,4 @@
 #include "MDCore.h"
 #include "NESCore.h"
 #include "RDGBA.h"
+#include "RDLibretro.h"

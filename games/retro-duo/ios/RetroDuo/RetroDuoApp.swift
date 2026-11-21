@@ -32,6 +32,8 @@ enum Theme {
     static let accent = Color(red: 1.0, green: 0.78, blue: 0.22)
     static let buttonA = Color(red: 0.82, green: 0.55, blue: 0.18)
     static let buttonB = Color(red: 0.12, green: 0.63, blue: 0.76)
+    static let buttonX = Color(red: 0.42, green: 0.38, blue: 0.80)
+    static let buttonY = Color(red: 0.30, green: 0.62, blue: 0.36)
     static let pad = Color(red: 0.24, green: 0.29, blue: 0.36)
 }
 

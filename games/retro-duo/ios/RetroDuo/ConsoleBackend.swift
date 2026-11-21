@@ -1,6 +1,6 @@
 import Foundation
 
-/// One single-screen console (Game Boy or NES) behind a common interface, so
+/// One single-screen console (Game Boy, NES, SNES, GBA) behind a common interface, so
 /// EmulatorSession and GameView can run either. Input uses RD_KEY_* bits for both.
 @MainActor
 protocol ConsoleBackend: AnyObject {
@@ -26,6 +26,8 @@ enum ConsoleBackends {
         switch game.system {
         case .nes: return NESBackend.make(rom: rom, battery: battery)
         case .gameBoyAdvance: return GBABackend.make(rom: rom, battery: battery)
+        case .snes: return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SNES), rom: rom, battery: battery,
+                                                fileExtension: game.url.pathExtension.lowercased(), consoleName: "Super Nintendo")
         default: return GameBoyBackend.make(rom: rom, battery: battery, name: game.name)
         }
     }
@@ -321,6 +323,113 @@ final class GBABackend: ConsoleBackend {
     func destroy() {
         guard let core else { return }
         RDGBADestroy(core)
+        self.core = nil
+    }
+}
+
+// MARK: - libretro cores (Super Nintendo: bsnes)
+
+@MainActor
+final class LibretroBackend: ConsoleBackend {
+    private var core: OpaquePointer?
+    let frameRate: Double
+    let rumble = 0.0
+
+    private init(core: OpaquePointer) {
+        self.core = core
+        frameRate = RDLRFrameRate(core)
+    }
+
+    static func make(system: Int32, rom: Data, battery: Data?, fileExtension: String,
+                     consoleName: String) -> Result<ConsoleBackend, ConsoleError> {
+        // Some cores read the game from disk, so each session gets a scratch folder.
+        let work = FileManager.default.temporaryDirectory.appendingPathComponent("libretro", isDirectory: true)
+        try? FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
+        guard let created = RDLRCreate(system, work.path) else {
+            return .failure(ConsoleError(message: "The \(consoleName) emulator couldn't start. Close any other game and try again."))
+        }
+        let save = battery ?? Data()
+        let name = "game." + (fileExtension.isEmpty ? "bin" : fileExtension)
+        let loaded = rom.withUnsafeBytes { romBytes in
+            save.withUnsafeBytes { saveBytes in
+                RDLRLoadROM(created,
+                            romBytes.bindMemory(to: UInt8.self).baseAddress, romBytes.count,
+                            saveBytes.bindMemory(to: UInt8.self).baseAddress, saveBytes.count, name)
+            }
+        }
+        guard loaded else {
+            RDLRDestroy(created)
+            return .failure(ConsoleError(message: "This file isn't a \(consoleName) game Retro Duo can run, or it's damaged."))
+        }
+        return .success(LibretroBackend(core: created))
+    }
+
+    var frameCount: UInt64 { core.map { RDLRFrameCount($0) } ?? 0 }
+
+    /// PadKey bits to RetroPad bits.
+    func setKeys(_ keys: UInt32) {
+        guard let core else { return }
+        let map: [(Int, Int)] = [
+            (PadKey.a, Int(RDLR_PAD_A)), (PadKey.b, Int(RDLR_PAD_B)),
+            (PadKey.x, Int(RDLR_PAD_X)), (PadKey.y, Int(RDLR_PAD_Y)),
+            (PadKey.l, Int(RDLR_PAD_L)), (PadKey.r, Int(RDLR_PAD_R)),
+            (PadKey.select, Int(RDLR_PAD_SELECT)), (PadKey.start, Int(RDLR_PAD_START)),
+            (PadKey.right, Int(RDLR_PAD_RIGHT)), (PadKey.left, Int(RDLR_PAD_LEFT)),
+            (PadKey.up, Int(RDLR_PAD_UP)), (PadKey.down, Int(RDLR_PAD_DOWN)),
+        ]
+        var pad = 0
+        for (key, bit) in map where Int(keys) & key != 0 { pad |= bit }
+        RDLRSetKeys(core, UInt32(pad))
+    }
+
+    func runFrame() {
+        guard let core else { return }
+        RDLRRunFrame(core)
+    }
+
+    func show(on view: PixelScreenView) {
+        guard let core, let pixels = RDLRPixels(core) else { return }
+        let width = Int(RDLRWidth(core)), height = Int(RDLRHeight(core))
+        guard width > 0, height > 0 else { return }
+        view.show(pixels: pixels, width: width, height: height)
+    }
+
+    func battery() -> Data? {
+        guard let core else { return nil }
+        var length = 0
+        guard let buffer = RDLRCopySave(core, &length) else { return nil }
+        defer { RDLRFreeBuffer(buffer) }
+        return Data(bytes: buffer, count: length)
+    }
+
+    func saveState() -> Data? {
+        guard let core else { return nil }
+        var length = 0
+        guard let buffer = RDLRSaveState(core, &length) else { return nil }
+        defer { RDLRFreeBuffer(buffer) }
+        return Data(bytes: buffer, count: length)
+    }
+
+    func loadState(_ data: Data) -> Bool {
+        guard let core else { return false }
+        return data.withUnsafeBytes {
+            RDLRLoadState(core, $0.bindMemory(to: UInt8.self).baseAddress, $0.count)
+        }
+    }
+
+    func reset() {
+        guard let core else { return }
+        RDLRReset(core)
+    }
+
+    func startAudio(_ audio: AudioOutput) {
+        guard let core else { return }
+        audio.start(libretroCore: core, rate: RDLRSampleRate(core))
+    }
+
+    func destroy() {
+        guard let core else { return }
+        RDLRDestroy(core)
         self.core = nil
     }
 }
