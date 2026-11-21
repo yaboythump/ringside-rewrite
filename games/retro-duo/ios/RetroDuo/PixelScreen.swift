@@ -30,6 +30,12 @@ final class PixelScreenView: UIView {
         CATransaction.commit()
     }
 
+    /// Captures the last fully rendered frame for the visual save-slot preview.
+    func screenshotPNG() -> Data? {
+        guard let pixels = pictureLayer.contents as? CGImage else { return nil }
+        return UIImage(cgImage: pixels).pngData()
+    }
+
     func show(_ core: OpaquePointer) {
         guard let pixels = RDCorePixels(core) else { return }
         show(pixels: pixels, width: Int(RDCoreScreenWidth(core)), height: Int(RDCoreScreenHeight(core)))
