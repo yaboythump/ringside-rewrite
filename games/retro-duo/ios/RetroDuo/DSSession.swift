@@ -25,8 +25,17 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     private var lastFrame: UInt64 = 0
     private var ticks = 0
     private var toastTask: Task<Void, Never>?
-    weak var topScreen: PixelScreenView?
-    weak var bottomScreen: PixelScreenView?
+    private let topScreens = NSHashTable<PixelScreenView>.weakObjects()
+    private let bottomScreens = NSHashTable<PixelScreenView>.weakObjects()
+
+    func attachScreen(_ view: PixelScreenView, top isTop: Bool) {
+        (isTop ? topScreens : bottomScreens).add(view)
+        // Repaint even while paused or when the DS has not produced a new frame.
+        let pixels = isTop ? top : bottom
+        pixels.withUnsafeBufferPointer {
+            view.show(pixels: $0.baseAddress!, width: Int(MD_SCREEN_WIDTH), height: Int(MD_SCREEN_HEIGHT))
+        }
+    }
 
     var diagnostics: String {
         "frames:\(lastFrame) speed:\(Int(core.map { MDCoreSpeed($0) } ?? 0)) audio:\(audio.isRunning)"
@@ -228,8 +237,16 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         }
         if frame != lastFrame {
             lastFrame = frame
-            top.withUnsafeBufferPointer { topScreen?.show(pixels: $0.baseAddress!, width: Int(MD_SCREEN_WIDTH), height: Int(MD_SCREEN_HEIGHT)) }
-            bottom.withUnsafeBufferPointer { bottomScreen?.show(pixels: $0.baseAddress!, width: Int(MD_SCREEN_WIDTH), height: Int(MD_SCREEN_HEIGHT)) }
+            top.withUnsafeBufferPointer { buffer in
+                for screen in topScreens.allObjects {
+                    screen.show(pixels: buffer.baseAddress!, width: Int(MD_SCREEN_WIDTH), height: Int(MD_SCREEN_HEIGHT))
+                }
+            }
+            bottom.withUnsafeBufferPointer { buffer in
+                for screen in bottomScreens.allObjects {
+                    screen.show(pixels: buffer.baseAddress!, width: Int(MD_SCREEN_WIDTH), height: Int(MD_SCREEN_HEIGHT))
+                }
+            }
         }
         ticks += 1
         if ticks % 120 == 0 { writeSave(force: false) }

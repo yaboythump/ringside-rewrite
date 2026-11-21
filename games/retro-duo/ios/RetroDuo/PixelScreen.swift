@@ -4,18 +4,30 @@ import UIKit
 /// Shows the console's 160x144 picture with sharp, unblurred pixels.
 final class PixelScreenView: UIView {
     private static let colorSpace = CGColorSpaceCreateDeviceRGB()
+    // UIKit can clear a UIView's backing contents when its geometry changes.
+    // Keep the game picture in a dedicated child layer throughout rotation.
+    private let pictureLayer = CALayer()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .black
         isUserInteractionEnabled = false
-        layer.magnificationFilter = .nearest
-        layer.minificationFilter = .nearest
-        layer.contentsGravity = .resize // SwiftUI already gives this view the picture's exact shape
+        pictureLayer.magnificationFilter = .nearest
+        pictureLayer.minificationFilter = .nearest
+        pictureLayer.contentsGravity = .resize
+        layer.addSublayer(pictureLayer)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not used")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        pictureLayer.frame = bounds
+        CATransaction.commit()
     }
 
     func show(_ core: OpaquePointer) {
@@ -35,7 +47,7 @@ final class PixelScreenView: UIView {
                                   shouldInterpolate: false, intent: .defaultIntent) else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        layer.contents = image
+        pictureLayer.contents = image
         CATransaction.commit()
     }
 }
@@ -45,12 +57,12 @@ struct PixelScreen: UIViewRepresentable {
 
     func makeUIView(context: Context) -> PixelScreenView {
         let view = PixelScreenView(frame: .zero)
-        session.screen = view
+        session.attachScreen(view)
         return view
     }
 
     func updateUIView(_ view: PixelScreenView, context: Context) {
-        session.screen = view
+        session.attachScreen(view)
     }
 
     /// Always take exactly the space SwiftUI offers, so the picture fills its frame.
@@ -81,8 +93,8 @@ struct DSScreen: UIViewRepresentable {
 
     private func attach(_ view: PixelScreenView) {
         switch which {
-        case .top: session.topScreen = view
-        case .bottom: session.bottomScreen = view
+        case .top: session.attachScreen(view, top: true)
+        case .bottom: session.attachScreen(view, top: false)
         }
     }
 }

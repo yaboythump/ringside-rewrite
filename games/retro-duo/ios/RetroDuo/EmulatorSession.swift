@@ -31,7 +31,14 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     private var lastRumble = Date.distantPast
     private let rumble = UIImpactFeedbackGenerator(style: .rigid)
     private var toastTask: Task<Void, Never>?
-    weak var screen: PixelScreenView?
+    // Old and replacement views can overlap during SwiftUI's rotation transition.
+    // A late update from the old view must not disconnect the visible one.
+    private let screens = NSHashTable<PixelScreenView>.weakObjects()
+
+    func attachScreen(_ view: PixelScreenView) {
+        screens.add(view)
+        if let core { view.show(core) }
+    }
 
     init(game: Game, library: GameLibrary) {
         self.game = game
@@ -202,7 +209,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             frameDebt -= 1
             frames += 1
         }
-        screen?.show(core)
+        for screen in screens.allObjects { screen.show(core) }
 
         let strength = RDCoreRumble(core)
         if strength > 0.1, Date().timeIntervalSince(lastRumble) > 0.08 {

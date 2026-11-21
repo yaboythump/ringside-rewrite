@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 final class ControlsTests: XCTestCase {
     func testNativeControlsAudioAndLayouts() {
@@ -36,6 +37,61 @@ final class ControlsTests: XCTestCase {
         attach(app, "landscape")
         app.terminate()
     }
+    func testGameBoyPictureSurvivesRepeatedRotation() {
+        checkRotations(demo: "-RetroDuoDemo")
+    }
+
+    func testDSPictureSurvivesRepeatedRotation() {
+        checkRotations(demo: "-RetroDuoDemoDS")
+    }
+
+    private func checkRotations(demo: String) {
+        let app = XCUIApplication()
+        app.launchArguments = [demo, "-RetroDuoUITests", "-retroDuoTwoPanels", "YES",
+                               "-retroDuoOriginalProportions", "NO"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+        let diagnostics = app.staticTexts["rd-diagnostics"]
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: 15))
+        XCTAssertTrue(waitForCounter("frames", above: 180, in: diagnostics))
+        for orientation in [UIDeviceOrientation.landscapeLeft, .portrait, .landscapeRight, .portrait] {
+            let before = counter("frames", diagnostics.label)
+            XCUIDevice.shared.orientation = orientation
+            XCTAssertTrue(waitForCounter("frames", above: before + 30, in: diagnostics))
+            let panel = app.descendants(matching: .any).matching(identifier: "upperGamePanel").firstMatch
+            XCTAssertTrue(panel.waitForExistence(timeout: 5))
+            XCTAssertGreaterThan(panel.frame.width, app.frame.width * 0.95)
+            XCTAssertEqual(panel.frame.height, app.frame.height / 2, accuracy: 4)
+            XCTAssertTrue(hasGamePicture(app, frame: panel.frame), "Game picture became black after rotation")
+            attach(app, "\(demo)-\(orientation.rawValue)")
+        }
+    }
+
+    /// Inspect only the game area, so visible controls cannot hide a black renderer.
+    private func hasGamePicture(_ app: XCUIApplication, frame: CGRect) -> Bool {
+        guard let image = app.screenshot().image.cgImage, app.frame.width > 0 else { return false }
+        let sx = CGFloat(image.width) / app.frame.width
+        let sy = CGFloat(image.height) / app.frame.height
+        let area = frame.insetBy(dx: 12, dy: 12)
+        let rect = CGRect(x: (area.minX - app.frame.minX) * sx,
+                          y: (area.minY - app.frame.minY) * sy,
+                          width: area.width * sx, height: area.height * sy)
+        guard let picture = image.cropping(to: rect) else { return false }
+        var pixels = [UInt8](repeating: 0, count: 32 * 32 * 4)
+        return pixels.withUnsafeMutableBytes { bytes in
+            guard let context = CGContext(data: bytes.baseAddress, width: 32, height: 32,
+                                          bitsPerComponent: 8, bytesPerRow: 32 * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(picture, in: CGRect(x: 0, y: 0, width: 32, height: 32))
+            let values = bytes.bindMemory(to: UInt8.self)
+            return stride(from: 0, to: values.count, by: 4).filter {
+                max(values[$0], values[$0 + 1], values[$0 + 2]) > 30
+            }.count > 10
+        }
+    }
+
     private func counter(_ key: String, _ text: String) -> Int {
         text.split(separator: " ").first(where: { $0.hasPrefix(key + ":") })
             .flatMap { Int($0.split(separator: ":").last ?? "0") } ?? 0
