@@ -276,7 +276,9 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         let loaded = data.withUnsafeBytes {
             RDCoreLoadState(core, $0.bindMemory(to: UInt8.self).baseAddress, $0.count)
         }
-        if loaded { screen?.show(core) }
+        if loaded {
+            for screen in screens.allObjects { screen.show(core) }
+        }
         return loaded
     }
 
