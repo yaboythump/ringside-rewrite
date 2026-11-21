@@ -5,6 +5,10 @@ Quilune is CTInteractive's premium, fold-aware EPUB reader for iPhone Duo.
 - **Two-page spread:** unfold iPhone Duo and the book opens like a real one, a page on each side of the fold, with the fold as the spine. If the fold runs across the screen instead, the next page sits below it. Any wide screen without a fold gets a spread too, and the Appearance sheet can switch to one page at a time.
 - **Turning pages:** tap the right or left side, or swipe. Tap the middle for the contents, the appearance sheet and a progress slider. Links and footnotes inside the book work; touch and hold a word to look it up.
 - **Appearance:** Paper, Sepia, Dusk and Night themes, the book's own font or Serif / Sans / Rounded, text size, line spacing, margins and justification. Changes reflow the open page straight away.
+- **Personal shelves:** tap **NEW SHELF** to create a named collection, long-press a book cover to add/remove it from collections, and long-press a shelf chip to rename or remove it. Deleting a collection never deletes a book.
+- **Reading rhythm:** reading streaks count calendar days with actual page turns (not just opening a book) and are stored on-device in Application Support.
+- **Cinematic opening:** when an EPUB finishes layout, its actual book cover unfolds into the reading view; Reduce Motion disables this animation.
+- **Focus mode:** use the **FOCUS** button on the reader progress controls to hide all controls, the compact Library chip, and the page footer while maximizing page height. Tap the center to reveal controls and exit focus, or return to your shelf.
 - **Library:** search and filter titles, view reading progress, and tap **+** to add `.epub` files, share them to Quilune, or drop them into Files › On My iPhone › Book Duo. Each book remembers where you stopped, and the most recent one shows up as *Continue reading*.
 - **Included book:** *Alice's Adventures in Wonderland* with Tenniel's illustrations, from [Standard Ebooks](https://standardebooks.org) (public domain, CC0). `sample/build_sample.py` rebuilds it from their source.
 
