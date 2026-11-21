@@ -150,26 +150,38 @@ struct GameView: View {
         return VStack(spacing: 0) {
             gameplayPanel(width: size.width, height: half)
             VStack(spacing: 0) {
-                topBar
+                if system == .snes {
+                    // Four full-sized SNES face buttons need room. Put L/R in
+                    // the slim top row instead of stacking them above the diamond.
+                    HStack(spacing: 4) {
+                        ShoulderButton(label: "L", key: PadKey.l, session: session)
+                        topBar
+                        ShoulderButton(label: "R", key: PadKey.r, session: session)
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(height: 44)
+                } else {
+                    topBar
+                }
                 HStack(alignment: .center) {
                     if tuning.mirrored {
-                        actionButtons(diameter: button)
+                        actionButtons(diameter: button, showShoulder: system != .snes)
                         Spacer(minLength: 4)
                         MenuButtons(session: session, keys: system.menuKeys)
                         Spacer(minLength: 4)
-                        directionPad(size: pad)
+                        directionPad(size: pad, showShoulder: system != .snes)
                     } else {
-                        directionPad(size: pad)
+                        directionPad(size: pad, showShoulder: system != .snes)
                         Spacer(minLength: 4)
                         MenuButtons(session: session, keys: system.menuKeys)
                         Spacer(minLength: 4)
-                        actionButtons(diameter: button)
+                        actionButtons(diameter: button, showShoulder: system != .snes)
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, system == .snes ? 12 : 24)
                 .frame(maxHeight: .infinity)
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, system == .snes ? 0 : 10)
             .frame(width: size.width, height: half)
         }
     }
@@ -300,13 +312,14 @@ struct GameView: View {
     private var system: GameSystem { session.game.system }
 
     /// The D-pad, with the L shoulder button above it on systems that have one.
-    private func directionPad(size: CGFloat) -> some View {
-        VStack(spacing: 6) {
-            if system.hasShoulders {
+    private func directionPad(size: CGFloat, showShoulder: Bool = true) -> some View {
+        let withShoulder = system.hasShoulders && showShoulder
+        return VStack(spacing: 6) {
+            if withShoulder {
                 ShoulderButton(label: "L", key: PadKey.l, session: session)
             }
             DPad(session: session)
-                .frame(width: system.hasShoulders ? size - 34 : size, height: system.hasShoulders ? size - 34 : size)
+                .frame(width: withShoulder ? size - 34 : size, height: withShoulder ? size - 34 : size)
         }
         .scaleEffect(tuning.size)
         .opacity(tuning.opacity)
@@ -314,15 +327,20 @@ struct GameView: View {
     }
 
     /// The face buttons, with the R shoulder button above them on systems that have one.
-    private func actionButtons(diameter: CGFloat) -> some View {
+    private func actionButtons(diameter: CGFloat, showShoulder: Bool = true) -> some View {
         let faces = system.faceKeys
-        // Bigger layouts get smaller buttons so they take about the same room.
-        let size = faces.count >= 4 ? diameter * 0.62 : faces.count == 3 ? diameter * 0.78 : diameter
+        let withShoulder = system.hasShoulders && showShoulder
+        // Before: SNES four-button diamond was reduced to 62%, then again to
+        // 85% due to shoulder controls. A 52pt control became just 27pt.
+        // Keep SNES touch targets 44pt minimum, with larger portrait targets.
+        let size: CGFloat = system == .snes
+            ? (showShoulder ? min(58, max(48, diameter)) : min(50, max(44, diameter)))
+            : (faces.count >= 4 ? diameter * 0.62 : faces.count == 3 ? diameter * 0.78 : diameter)
         return VStack(spacing: 6) {
-            if system.hasShoulders {
+            if withShoulder {
                 ShoulderButton(label: "R", key: PadKey.r, session: session)
             }
-            FaceButtons(session: session, diameter: system.hasShoulders ? size * 0.85 : size, keys: faces)
+            FaceButtons(session: session, diameter: system == .snes ? size : (withShoulder ? size * 0.85 : size), keys: faces)
         }
         .scaleEffect(tuning.size)
         .opacity(tuning.opacity)
