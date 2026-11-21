@@ -102,7 +102,7 @@ final class GameLibrary: ObservableObject {
         if let cart = Bundle.main.url(forResource: "GraveMistakes", withExtension: "nds") {
             list.append(Game(id: "builtin.gravemistakes", url: cart, name: "Grave Mistakes",
                              isBuiltIn: true, system: .nintendoDS,
-                             isBundledGame: true, coverResource: "GraveMistakesCover"))
+                             isBundledGame: true, coverResource: "GraveMistakesPremiumCover"))
         }
         let urls = (try? FileManager.default.contentsOfDirectory(
             at: gamesFolder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
