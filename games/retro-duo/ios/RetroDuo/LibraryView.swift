@@ -13,7 +13,7 @@ struct LibraryView: View {
 
     @State private var importing = false
     @State private var playing: Game?
-    @State private var showingAbout = false
+    @State private var showingSettings = false
     @State private var settingCoverFor: Game?
     @State private var featuredIndex = 0
     @StateObject private var covers = GameCoverLibrary()
@@ -79,7 +79,7 @@ struct LibraryView: View {
             )) {
                 Button("OK", role: .cancel) {}
             }
-            .sheet(isPresented: $showingAbout) { AboutView() }
+            .sheet(isPresented: $showingSettings) { AVSettingsHome() }
             .sheet(isPresented: $showingProfile) {
                 AVPlayerProfileView(player: profile, games: ownedGames)
             }
@@ -173,7 +173,7 @@ struct LibraryView: View {
             .foregroundStyle(.white)
             .accessibilityLabel("AVYDRIX player profile")
 
-            Button { showingAbout = true } label: {
+            Button { showingSettings = true } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 17, weight: .medium))
                     .frame(width: 40, height: 40)
@@ -182,7 +182,7 @@ struct LibraryView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.white)
-            .accessibilityLabel("About and settings")
+            .accessibilityLabel("AVYDRIX settings")
 
             if !compact {
                 Button { importing = true } label: {
@@ -806,7 +806,13 @@ private final class GameCoverLibrary: ObservableObject {
     }
 
     func image(for game: Game) -> UIImage? {
-        images[game.id] ?? game.coverResource.flatMap { UIImage(named: $0) }
+        images[game.id] ?? game.coverResource.flatMap { resource in
+            if let url = Bundle.main.url(forResource: resource, withExtension: "jpg"),
+               let cover = UIImage(contentsOfFile: url.path) {
+                return cover
+            }
+            return UIImage(named: resource)
+        }
     }
 
     func discover(_ games: [Game], force: Bool = false) {
