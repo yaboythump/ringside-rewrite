@@ -1,0 +1,32 @@
+import { chromium } from 'playwright';
+import { strict as assert } from 'node:assert';
+import { pathToFileURL } from 'node:url';
+const browser=await chromium.launch({headless:true});
+const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+const errors=[];page.on('pageerror',e=>errors.push(String(e)));
+try{
+ await page.goto(pathToFileURL('/tmp/ct-arcade/index.html').href);
+ await page.click('#demo');
+ await page.waitForTimeout(180);
+ assert.match(await page.locator('#status').innerText(),/Star Runner/);
+ assert.equal(await page.locator('#pause').isDisabled(),false);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2),true,'folded layout overflow');
+ const px=await page.evaluate(()=>[...document.querySelector('#screen').getContext('2d').getImageData(120,120,1,1).data]);
+ assert(px[3]===255&&px.slice(0,3).some(x=>x!==0),'original game must paint the screen');
+ const header=Buffer.from([0x4e,0x45,0x53,0x1a,1,1,0,0,0,0,0,0,0,0,0,0]);
+ const prg=Buffer.alloc(16384,0xea);
+ prg.set([0x78,0xd8,0x4c,0x02,0x80],0);
+ for(const offset of [0x3ffa,0x3ffc,0x3ffe]){prg[offset]=0;prg[offset+1]=0x80}
+ const bytes=Buffer.concat([header,prg,Buffer.alloc(8192)]);
+ await page.setInputFiles('#rom-file',{name:'CT Homebrew Test.nes',mimeType:'application/octet-stream',buffer:bytes});
+ await page.waitForTimeout(400);
+ assert.match(await page.locator('#status').innerText(),/Playing CT Homebrew Test/);
+ assert.equal(await page.locator('#save').isDisabled(),false);
+ assert.equal(await page.locator('.game.rom').count(),1);
+ await page.setViewportSize({width:950,height:760});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2),true,'unfolded layout overflow');
+ await page.click('#pause');assert.match(await page.locator('#status').innerText(),/Paused/);
+ await page.click('#pause');assert.match(await page.locator('#status').innerText(),/resumed/);
+ assert.deepEqual(errors,[],'no browser runtime errors');
+ console.log('CT Arcade: original game, NES cartridge import, pause, Duo folded/unfolded PASS');
+} finally {await browser.close()}
