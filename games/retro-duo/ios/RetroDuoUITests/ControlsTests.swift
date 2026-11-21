@@ -39,8 +39,48 @@ final class ControlsTests: XCTestCase {
         XCTAssertTrue(app.buttons["Direction pad"].isHittable)
         XCTAssertTrue(app.buttons["A button"].isHittable)
         XCTAssertTrue(app.buttons["B button"].isHittable)
+        XCTAssertTrue(app.buttons["L button"].isHittable)
+        XCTAssertTrue(app.buttons["R button"].isHittable)
         XCTAssertTrue(app.buttons["START"].exists)
         XCTAssertTrue(app.buttons["SELECT"].exists)
+
+        // These controls must be in the console shell, NOT on top of gameplay.
+        let screen = app.descendants(matching: .any)
+            .matching(identifier: "gbaLandscapeGameScreen").firstMatch
+        XCTAssertTrue(screen.waitForExistence(timeout: 5))
+        for name in ["Direction pad", "A button", "B button", "L button", "R button", "Game menu"] {
+            let control = app.buttons[name]
+            XCTAssertFalse(control.frame.intersects(screen.frame),
+                           "\(name) must not obscure the game screen")
+        }
+        attach(app, "gba-separate-console-shell")
+    }
+
+    func testSNESFaceButtonsStayLargeInPortraitAndLandscape() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemoSNES", "-RetroDuoUITests",
+                               "-avydrix.duo.mode", "auto"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+
+        let buttons = ["A button", "B button", "X button", "Y button"]
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            for name in buttons {
+                let button = app.buttons[name]
+                XCTAssertTrue(button.waitForExistence(timeout: 10), "\(name) disappeared")
+                XCTAssertTrue(button.isHittable, "\(name) must be tappable")
+                XCTAssertGreaterThanOrEqual(button.frame.width, 43,
+                    "\(name) is too small for comfortable tapping")
+                XCTAssertGreaterThanOrEqual(button.frame.height, 43,
+                    "\(name) is too small for comfortable tapping")
+            }
+            XCTAssertTrue(app.buttons["L button"].exists)
+            XCTAssertTrue(app.buttons["R button"].exists)
+            XCTAssertTrue(app.buttons["Game menu"].exists)
+            attach(app, "snes-buttons-\(orientation.rawValue)")
+        }
     }
 
     func testNativeControlsAudioAndLayouts() {

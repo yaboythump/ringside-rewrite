@@ -150,26 +150,38 @@ struct GameView: View {
         return VStack(spacing: 0) {
             gameplayPanel(width: size.width, height: half)
             VStack(spacing: 0) {
-                topBar
+                if system == .snes {
+                    // Four full-sized SNES face buttons need room. Put L/R in
+                    // the slim top row instead of stacking them above the diamond.
+                    HStack(spacing: 4) {
+                        ShoulderButton(label: "L", key: PadKey.l, session: session)
+                        topBar
+                        ShoulderButton(label: "R", key: PadKey.r, session: session)
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(height: 44)
+                } else {
+                    topBar
+                }
                 HStack(alignment: .center) {
                     if tuning.mirrored {
-                        actionButtons(diameter: button)
+                        actionButtons(diameter: button, showShoulder: system != .snes)
                         Spacer(minLength: 4)
                         MenuButtons(session: session, keys: system.menuKeys)
                         Spacer(minLength: 4)
-                        directionPad(size: pad)
+                        directionPad(size: pad, showShoulder: system != .snes)
                     } else {
-                        directionPad(size: pad)
+                        directionPad(size: pad, showShoulder: system != .snes)
                         Spacer(minLength: 4)
                         MenuButtons(session: session, keys: system.menuKeys)
                         Spacer(minLength: 4)
-                        actionButtons(diameter: button)
+                        actionButtons(diameter: button, showShoulder: system != .snes)
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, system == .snes ? 12 : 24)
                 .frame(maxHeight: .infinity)
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, system == .snes ? 0 : 10)
             .frame(width: size.width, height: half)
         }
     }
@@ -224,89 +236,169 @@ struct GameView: View {
         .padding(.vertical, 10)
     }
 
-    /// Immersive GBA landscape with controls on the same visible pane.
-    /// The picture stays full-screen behind translucent gamepad surfaces, and
-    /// users with Bluetooth controllers can disable this overlay in Settings.
+    /// GBA landscape is an AVYDRIX handheld shell, not a transparent gamepad
+    /// covering the ROM's picture. Gameplay and touch targets never overlap.
+    /// User's tabletop/folded layout still uses the existing upper/lower panels.
     private func gbaLandscapeLayout(_ size: CGSize) -> some View {
-        let padSize = min(146, max(96, size.height * 0.32))
-        let actionSize = min(70, max(46, size.height * 0.16))
+        let side = min(210, max(108, size.width * 0.175))
+        let horizontalInset = min(24, max(12, size.width * 0.018))
+        let pictureWidth = max(145, min(
+            size.width - 2 * side - 2 * horizontalInset - 32,
+            (size.height - 180) / session.aspect - 10
+        ))
+        let padSize = min(154, max(88, side - 31))
+        let faceSize = min(76, max(52, (side - 13) / 2.15))
 
         return ZStack {
-            gameplayPanel(width: size.width, height: size.height)
-                .accessibilityIdentifier("gbaLandscapeGameScreen")
-
-            // A faint lower gradient improves button legibility without
-            // cropping or resizing the running GBA frame.
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.12), .black.opacity(0.50)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-            .allowsHitTesting(false)
+            RoundedRectangle(cornerRadius: 26)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.13, green: 0.18, blue: 0.31),
+                            Color(red: 0.035, green: 0.05, blue: 0.12),
+                            Color(red: 0.12, green: 0.075, blue: 0.23)
+                        ], startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+            RoundedRectangle(cornerRadius: 26)
+                .stroke(
+                    LinearGradient(
+                        colors: [.white.opacity(0.18), .cyan.opacity(0.20), .white.opacity(0.07)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ), lineWidth: 1
+                )
 
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
                     menuButton
-                        .padding(6)
-                        .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 14))
-                    Spacer(minLength: 0)
+                        .background(.black.opacity(0.27), in: RoundedRectangle(cornerRadius: 11))
+                    Spacer(minLength: 4)
+                    HStack(spacing: 7) {
+                        Circle().fill(Color.cyan).frame(width: 6, height: 6)
+                        Text("AVYDRIX  /  GAME BOY ADVANCE")
+                            .font(.system(size: size.width < 700 ? 9 : 12,
+                                          weight: .heavy, design: .monospaced))
+                            .tracking(size.width < 700 ? 0.5 : 1.6)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .foregroundStyle(.white.opacity(0.88))
+                    }
+                    Spacer(minLength: 4)
                     Button { session.toggleMute() } label: {
-                        Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        Image(systemName: session.isMuted
+                              ? "speaker.slash.fill" : "speaker.wave.2.fill")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 49, height: 46)
-                            .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 14))
+                            .frame(width: 44, height: 40)
+                            .foregroundStyle(.white.opacity(0.83))
+                            .background(.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 11))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(session.isMuted ? "Turn sound on" : "Mute sound")
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 26)
+                .frame(height: 48)
 
-                Spacer(minLength: 4)
+                HStack(alignment: .center, spacing: 10) {
+                    gbaShellControls(
+                        side: side,
+                        label: "D-PAD",
+                        shoulder: "L",
+                        shoulderKey: PadKey.l,
+                        isDirection: !tuning.mirrored,
+                        padSize: padSize,
+                        faceSize: faceSize
+                    )
 
-                HStack(alignment: .bottom, spacing: 5) {
-                    if tuning.mirrored {
-                        actionButtons(diameter: actionSize)
-                            .padding(8)
-                            .background(.black.opacity(0.44), in: RoundedRectangle(cornerRadius: 20))
-                        Spacer(minLength: 0)
-                        directionPad(size: padSize)
-                            .padding(8)
-                            .background(.black.opacity(0.44), in: RoundedRectangle(cornerRadius: 20))
-                    } else {
-                        directionPad(size: padSize)
-                            .padding(8)
-                            .background(.black.opacity(0.44), in: RoundedRectangle(cornerRadius: 20))
-                        Spacer(minLength: 0)
-                        actionButtons(diameter: actionSize)
-                            .padding(8)
-                            .background(.black.opacity(0.44), in: RoundedRectangle(cornerRadius: 20))
+                    VStack(spacing: 7) {
+                        // GBA picture has its own bezel and exclusive frame.
+                        // Buttons are siblings outside this region, never overlays.
+                        screen(width: pictureWidth)
+                            .accessibilityIdentifier("gbaLandscapeGameScreen")
+                        MenuButtons(session: session, keys: system.menuKeys)
+                            .scaleEffect(0.86)
+                            .frame(height: 45)
                     }
-                }
-                .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .contain)
 
-                MenuButtons(session: session, keys: system.menuKeys)
-                    .scaleEffect(0.85)
-                    .padding(.top, 1)
-                    .padding(.bottom, 21)
+                    gbaShellControls(
+                        side: side,
+                        label: "A / B",
+                        shoulder: "R",
+                        shoulderKey: PadKey.r,
+                        isDirection: tuning.mirrored,
+                        padSize: padSize,
+                        faceSize: faceSize
+                    )
+                }
+                .frame(maxHeight: .infinity)
+
+                HStack {
+                    Text("CTINTERACTIVE")
+                    Spacer()
+                    Text("PLAY WITHOUT LIMITS")
+                }
+                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                .tracking(1.1)
+                .foregroundStyle(.white.opacity(0.40))
+                .frame(height: 22)
+                .padding(.horizontal, 7)
             }
+            .padding(.horizontal, horizontalInset)
+            .padding(.vertical, 10)
         }
         .frame(width: size.width, height: size.height)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("gba-landscape-with-controls")
     }
 
+    private func gbaShellControls(
+        side: CGFloat,
+        label: String,
+        shoulder: String,
+        shoulderKey: Int,
+        isDirection: Bool,
+        padSize: CGFloat,
+        faceSize: CGFloat
+    ) -> some View {
+        VStack(spacing: 8) {
+            ShoulderButton(label: shoulder, key: shoulderKey, session: session)
+                .padding(.top, 9)
+            Spacer(minLength: 6)
+            if isDirection {
+                directionPad(size: padSize, showShoulder: false)
+            } else {
+                actionButtons(diameter: faceSize, showShoulder: false)
+            }
+            Spacer(minLength: 6)
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(1.3)
+                .foregroundStyle(.white.opacity(0.48))
+                .padding(.bottom, 10)
+        }
+        .frame(width: side)
+        .frame(maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.black.opacity(0.19))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(.white.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+
     private var system: GameSystem { session.game.system }
 
     /// The D-pad, with the L shoulder button above it on systems that have one.
-    private func directionPad(size: CGFloat) -> some View {
-        VStack(spacing: 6) {
-            if system.hasShoulders {
+    private func directionPad(size: CGFloat, showShoulder: Bool = true) -> some View {
+        let withShoulder = system.hasShoulders && showShoulder
+        return VStack(spacing: 6) {
+            if withShoulder {
                 ShoulderButton(label: "L", key: PadKey.l, session: session)
             }
             DPad(session: session)
-                .frame(width: system.hasShoulders ? size - 34 : size, height: system.hasShoulders ? size - 34 : size)
+                .frame(width: withShoulder ? size - 34 : size, height: withShoulder ? size - 34 : size)
         }
         .scaleEffect(tuning.size)
         .opacity(tuning.opacity)
@@ -314,15 +406,20 @@ struct GameView: View {
     }
 
     /// The face buttons, with the R shoulder button above them on systems that have one.
-    private func actionButtons(diameter: CGFloat) -> some View {
+    private func actionButtons(diameter: CGFloat, showShoulder: Bool = true) -> some View {
         let faces = system.faceKeys
-        // Bigger layouts get smaller buttons so they take about the same room.
-        let size = faces.count >= 4 ? diameter * 0.62 : faces.count == 3 ? diameter * 0.78 : diameter
+        let withShoulder = system.hasShoulders && showShoulder
+        // Before: SNES four-button diamond was reduced to 62%, then again to
+        // 85% due to shoulder controls. A 52pt control became just 27pt.
+        // Keep SNES touch targets 44pt minimum, with larger portrait targets.
+        let size: CGFloat = system == .snes
+            ? (showShoulder ? min(58, max(48, diameter)) : min(50, max(44, diameter)))
+            : (faces.count >= 4 ? diameter * 0.62 : faces.count == 3 ? diameter * 0.78 : diameter)
         return VStack(spacing: 6) {
-            if system.hasShoulders {
+            if withShoulder {
                 ShoulderButton(label: "R", key: PadKey.r, session: session)
             }
-            FaceButtons(session: session, diameter: system.hasShoulders ? size * 0.85 : size, keys: faces)
+            FaceButtons(session: session, diameter: system == .snes ? size : (withShoulder ? size * 0.85 : size), keys: faces)
         }
         .scaleEffect(tuning.size)
         .opacity(tuning.opacity)
