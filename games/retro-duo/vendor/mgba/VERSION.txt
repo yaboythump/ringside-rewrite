@@ -1,0 +1,1 @@
+mGBA 0.10.5, MPL 2.0 (GPL-compatible). Only the GBA core and the utilities it needs (no frontends, debugger, scripting, OpenGL, zip/7z/png/sqlite). include-generated/mgba/flags.h and version.c are what CMake generates for this configuration. Unmodified.

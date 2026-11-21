@@ -41,7 +41,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     }
 
     /// Picture height / width: 10:9 for Game Boy, 8:7 for the NES.
-    var aspect: CGFloat { game.system == .nes ? 224.0 / 256.0 : 0.9 }
+    var aspect: CGFloat { game.system.aspect }
 
     init(game: Game, library: GameLibrary) {
         self.game = game
@@ -146,7 +146,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     // MARK: Controls
 
     func setKey(_ key: Int, pressed: Bool) {
-        input.set(UInt8(key), pressed: pressed)
+        input.set(UInt32(truncatingIfNeeded: key), pressed: pressed)
     }
 
     func setDirections(_ mask: UInt8) { input.directions(mask) }
@@ -205,7 +205,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         var frames = 0
         while frameDebt >= 1 && frames < 6 {
             let keys = input.nextFrame() | controllerKeys()
-            if keys & 0xF0 != 0 { deliveredActions += 1 }
+            if keys & ~0x0F != 0 { deliveredActions += 1 }
             if keys & 0x0F != 0 { deliveredDirections += 1 }
             core.setKeys(keys)
             core.runFrame()
@@ -227,7 +227,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         }
     }
 
-    private func controllerKeys() -> UInt8 {
+    private func controllerKeys() -> UInt32 {
         var mask = 0
         for controller in GCController.controllers() {
             guard let pad = controller.extendedGamepad else { continue }
@@ -240,8 +240,16 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             if AVControllerMapping.pressed("B", pad: pad, system: game.system) { mask |= Int(RD_KEY_B) }
             if pad.buttonMenu.isPressed { mask |= Int(RD_KEY_START) }
             if pad.buttonOptions?.isPressed == true { mask |= Int(RD_KEY_SELECT) }
+            if game.system.hasShoulders {
+                if pad.leftShoulder.isPressed || pad.leftTrigger.isPressed { mask |= PadKey.l }
+                if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= PadKey.r }
+            }
+            if game.system.faceKeys.count > 2 {
+                if AVControllerMapping.pressed("X", pad: pad, system: game.system) { mask |= PadKey.x }
+                if AVControllerMapping.pressed("Y", pad: pad, system: game.system) { mask |= PadKey.y }
+            }
         }
-        return UInt8(truncatingIfNeeded: mask)
+        return UInt32(truncatingIfNeeded: mask)
     }
 
     // MARK: Saves

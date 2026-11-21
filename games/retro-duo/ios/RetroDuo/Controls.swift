@@ -162,16 +162,42 @@ struct PillButton: View {
     }
 }
 
+/// The face buttons for a system: a slanted pair (Game Boy, NES), an arc of three
+/// (Genesis) or a diamond of four (SNES). Keys are PadKey bits.
 struct FaceButtons: View {
     let session: any PadInput
     let diameter: CGFloat
+    var keys: [FaceKey] = GameSystem.gameBoy.faceKeys
+
     var body: some View {
-        HStack(spacing: diameter * 0.16) {
-            ActionButton(label: "B", key: Int(RD_KEY_B), color: Theme.buttonB, diameter: diameter, session: session)
-                .offset(y: diameter * 0.24)
-            ActionButton(label: "A", key: Int(RD_KEY_A), color: Theme.buttonA, diameter: diameter, session: session)
-                .offset(y: -diameter * 0.24)
+        switch keys.count {
+        case 4:
+            // Diamond: keys are [left, top, bottom, right], like Y X B A on a SNES pad.
+            let reach = diameter * 0.78
+            ZStack {
+                button(keys[0]).offset(x: -reach)
+                button(keys[1]).offset(y: -reach)
+                button(keys[2]).offset(y: reach)
+                button(keys[3]).offset(x: reach)
+            }
+            .frame(width: diameter + reach * 2, height: diameter + reach * 2)
+        case 3:
+            HStack(spacing: diameter * 0.12) {
+                ForEach(Array(keys.enumerated()), id: \.offset) { index, key in
+                    button(key).offset(y: CGFloat(1 - index) * diameter * 0.22)
+                }
+            }
+        default:
+            HStack(spacing: diameter * 0.16) {
+                ForEach(Array(keys.enumerated()), id: \.offset) { index, key in
+                    button(key).offset(y: index == 0 ? diameter * 0.24 : -diameter * 0.24)
+                }
+            }
         }
+    }
+
+    private func button(_ key: FaceKey) -> some View {
+        ActionButton(label: key.label, key: key.key, color: key.color, diameter: diameter, session: session)
     }
 }
 
@@ -179,10 +205,18 @@ struct MenuButtons: View {
     let session: any PadInput
     var selectKey = Int(RD_KEY_SELECT)
     var startKey = Int(RD_KEY_START)
+    /// When set, these replace SELECT/START (for example RUN on PC Engine, or just START on Sega).
+    var keys: [(label: String, key: Int)]? = nil
     var body: some View {
         HStack(spacing: 12) {
-            PillButton(label: "SELECT", key: selectKey, session: session)
-            PillButton(label: "START", key: startKey, session: session)
+            if let keys {
+                ForEach(Array(keys.enumerated()), id: \.offset) { _, item in
+                    PillButton(label: item.label, key: item.key, session: session)
+                }
+            } else {
+                PillButton(label: "SELECT", key: selectKey, session: session)
+                PillButton(label: "START", key: startKey, session: session)
+            }
         }
     }
 }

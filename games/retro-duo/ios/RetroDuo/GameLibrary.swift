@@ -2,13 +2,14 @@ import Foundation
 import UniformTypeIdentifiers
 
 enum GameSystem: String, Hashable {
-    case nes, gameBoy, gameBoyColor, nintendoDS
+    case nes, gameBoy, gameBoyColor, gameBoyAdvance, nintendoDS
 
     var displayName: String {
         switch self {
         case .nes: return "NES"
         case .gameBoy: return "Game Boy"
         case .gameBoyColor: return "Game Boy Color"
+        case .gameBoyAdvance: return "Game Boy Advance"
         case .nintendoDS: return "Nintendo DS"
         }
     }
@@ -19,6 +20,7 @@ enum GameSystem: String, Hashable {
         case "gbc", "cgb": self = .gameBoyColor
         case "nds": self = .nintendoDS
         case "nes": self = .nes
+        case "gba", "agb": self = .gameBoyAdvance
         default: return nil
         }
     }
@@ -27,6 +29,7 @@ enum GameSystem: String, Hashable {
         switch self {
         case .nintendoDS: return 512 * 1024 * 1024
         case .nes: return 16 * 1024 * 1024
+        case .gameBoyAdvance: return 32 * 1024 * 1024
         default: return 8 * 1024 * 1024
         }
     }
@@ -43,7 +46,7 @@ struct Game: Identifiable, Hashable {
     /// Cover art bundled with the app (PNG resource name).
     var coverResource: String? = nil
 
-    var isColor: Bool { system != .gameBoy && system != .nes }
+    var isColor: Bool { system == .gameBoyColor }
     var systemName: String { system.displayName }
 }
 
@@ -52,6 +55,7 @@ extension UTType {
     static let gameBoyColorROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gbc")
     static let nintendoDSROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.nds")
     static let nesROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.nes")
+    static let gameBoyAdvanceROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gba")
 }
 
 /// Games live in Documents/Games, which the Files app shows under
@@ -62,7 +66,7 @@ final class GameLibrary: ObservableObject {
     @Published private(set) var games: [Game] = []
     @Published var message: String?
 
-    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "nds"]
+    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "gba", "agb", "nds"]
     static let maximumROMSize = 8 * 1024 * 1024
 
     let documentsFolder: URL
@@ -93,6 +97,10 @@ final class GameLibrary: ObservableObject {
         if let cart = Bundle.main.url(forResource: "RetroDuoNESTestCart", withExtension: "nes") {
             list.append(Game(id: "builtin.nestestcart", url: cart, name: "Retro Duo NES Test Cart",
                              isBuiltIn: true, system: .nes))
+        }
+        if let cart = Bundle.main.url(forResource: "RetroDuoGBATestCart", withExtension: "gba") {
+            list.append(Game(id: "builtin.gbatestcart", url: cart, name: "Retro Duo GBA Test Cart",
+                             isBuiltIn: true, system: .gameBoyAdvance))
         }
         if let cart = Bundle.main.url(forResource: "RetroDuoDSTestCart", withExtension: "nds") {
             list.append(Game(id: "builtin.dstestcart", url: cart, name: "Retro Duo DS Test Cart",
@@ -146,7 +154,7 @@ final class GameLibrary: ObservableObject {
         }
         refresh()
         if !skipped.isEmpty {
-            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays NES (.nes), Game Boy (.gb, .gbc) and Nintendo DS (.nds) files."
+            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays NES (.nes), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
         } else if added.count == 1 {
             message = "Added \(added[0])."
         } else if added.count > 1 {
@@ -186,6 +194,7 @@ final class GameLibrary: ObservableObject {
         switch system {
         case .nintendoDS: return looksLikeDSROM(header)
         case .nes: return header.count >= 16 && header.prefix(4) == Data([0x4E, 0x45, 0x53, 0x1A])
+        case .gameBoyAdvance: return header.count >= 0xC0 && header[header.startIndex + 3] == 0xEA
         default: return looksLikeROM(header)
         }
     }
