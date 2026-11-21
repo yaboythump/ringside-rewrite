@@ -83,10 +83,10 @@ Start:
     ld hl, MAP + 32 * 5 + 5
     ld de, TextCart
     call PutText
-    ld hl, MAP + 32 * 12 + 2
+    ld hl, MAP + 32 * 10 + 2
     ld de, TextMove
     call PutText
-    ld hl, MAP + 32 * 13 + 2
+    ld hl, MAP + 32 * 12 + 2
     ld de, TextBeep
     call PutText
     ld hl, MAP + 32 * 14 + 2
@@ -213,7 +213,7 @@ ReadPad:
     ret
 
 Recentre:
-    ld a, 16 + 68
+    ld a, 16 + 56
     ld [wStarY], a
     ld a, 8 + 76
     ld [wStarX], a
