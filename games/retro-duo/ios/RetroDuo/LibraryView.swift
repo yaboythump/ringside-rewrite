@@ -72,6 +72,35 @@ struct LibraryView: View {
                 .refreshable { library.refresh() }
                 .background(AVBackdrop(animated: ambientMotionEnabled && !reduceMotion &&
                                        playing == nil && pendingLaunch == nil && scenePhase == .active))
+                // Keep ROM import reachable on the narrow folded display without
+                // squeezing the brand, profile and settings buttons in the header.
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if compact {
+                        HStack {
+                            Spacer(minLength: 0)
+                            Button { importing = true } label: {
+                                Label("ADD GAMES", systemImage: "plus")
+                                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                                    .tracking(0.9)
+                                    .padding(.horizontal, 22)
+                                    .frame(minHeight: 48)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.white)
+                            .background(
+                                LinearGradient(colors: [AVPalette.blue, AVPalette.purple],
+                                               startPoint: .leading, endPoint: .trailing),
+                                in: Capsule()
+                            )
+                            .shadow(color: AVPalette.blue.opacity(0.3), radius: 14, y: 5)
+                            .accessibilityLabel("Add games")
+                            .accessibilityIdentifier("avydrix-add-games-compact")
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 9)
+                        .background(Color(red: 0.014, green: 0.023, blue: 0.061).opacity(0.95))
+                    }
+                }
             }
             .toolbar(.hidden, for: .navigationBar)
             .fileImporter(isPresented: $importing,

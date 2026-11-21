@@ -2,6 +2,20 @@ import XCTest
 import UIKit
 
 final class ControlsTests: XCTestCase {
+    func testFoldedLibraryHasPersistentAddGamesButton() {
+        let app = XCUIApplication()
+        // The library launch flag skips the boot screen without auto-opening a ROM.
+        app.launchArguments = ["-RetroDuoUITests"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+
+        let addButton = app.buttons["avydrix-add-games-compact"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 15),
+                      "Add Games must be available without unfolding or scrolling")
+        XCTAssertTrue(addButton.isHittable)
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]
