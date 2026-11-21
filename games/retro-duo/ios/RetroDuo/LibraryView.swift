@@ -11,6 +11,31 @@ struct LibraryView: View {
         NavigationStack {
             List {
                 Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("CTINTERACTIVE").font(.system(size: 9, weight: .heavy, design: .monospaced)).tracking(3)
+                            Spacer()
+                            Image(systemName: "waveform.path").foregroundStyle(Theme.buttonB)
+                        }.foregroundStyle(Theme.accent)
+                        Text("YOUR POCKET.\nANOTHER WORLD.")
+                            .font(.system(size: 29, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        HStack(spacing: 8) {
+                            Text("GAME BOY + COLOR")
+                            Circle().fill(Theme.accent).frame(width: 4, height: 4)
+                            Text("DUO READY")
+                        }
+                        .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1)
+                        .foregroundStyle(.white.opacity(0.55))
+                    }
+                    .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(LinearGradient(colors: [Theme.panel, Theme.bezel], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.accent.opacity(0.25)))
+                    .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                }
+                Section {
+
                     ForEach(library.games) { game in
                         Button {
                             playing = game
@@ -34,7 +59,7 @@ struct LibraryView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Theme.background.ignoresSafeArea())
+            .background(ConsoleBackdrop())
             .navigationTitle("Retro Duo")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -125,7 +150,7 @@ private struct GameRow: View {
             Image(systemName: "play.fill")
                 .foregroundStyle(Theme.accent)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 10)
     }
 
     private var initials: String {

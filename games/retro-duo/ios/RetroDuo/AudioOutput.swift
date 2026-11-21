@@ -7,26 +7,35 @@ final class AudioOutput {
 
     private let engine = AVAudioEngine()
     private var source: AVAudioSourceNode?
-    private(set) var isRunning = false
+    var isRunning: Bool { engine.isRunning }
+    private(set) var lastError: String?
 
     func start(core: OpaquePointer) {
         stop()
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.ambient, mode: .default, options: [])
-        try? session.setPreferredIOBufferDuration(0.01)
-        try? session.setActive(true)
+        do {
+            // A game should remain audible with the phone's silent switch enabled.
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setPreferredSampleRate(Self.sampleRate)
+            try session.setPreferredIOBufferDuration(0.01)
+            try session.setActive(true)
+        } catch {
+            lastError = error.localizedDescription
+            return
+        }
 
         guard let format = AVAudioFormat(standardFormatWithSampleRate: Self.sampleRate, channels: 2) else { return }
         let node = Self.makeSource(core: core, format: format)
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
         do {
+            engine.prepare()
             try engine.start()
             source = node
-            isRunning = true
+            lastError = nil
         } catch {
             engine.detach(node)
-            isRunning = false
+            lastError = error.localizedDescription
         }
     }
 
@@ -36,7 +45,6 @@ final class AudioOutput {
             engine.detach(source)
         }
         source = nil
-        isRunning = false
     }
 
     func setMuted(_ muted: Bool) {

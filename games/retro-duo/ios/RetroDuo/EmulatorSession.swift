@@ -1,3 +1,4 @@
+import AVFoundation
 import GameController
 import QuartzCore
 import SwiftUI
@@ -17,7 +18,14 @@ final class EmulatorSession: NSObject, ObservableObject {
     private var core: OpaquePointer?
     private var displayLink: CADisplayLink?
     private let audio = AudioOutput()
-    private var touchKeys: UInt8 = 0
+    private var input = InputState()
+    private var deliveredActions = 0
+    private var deliveredDirections = 0
+    var diagnostics: String {
+        "frames:\(core.map { RDCoreFrameCount($0) } ?? 0) audio:\(audio.isRunning) actions:\(deliveredActions) directions:\(deliveredDirections)"
+    }
+    private var lastFrameTime: CFTimeInterval = 0
+    private var frameDebt: Double = 0
     private var savedBattery = Data()
     private var framesSinceSaveCheck = 0
     private var lastRumble = Date.distantPast
@@ -75,6 +83,10 @@ final class EmulatorSession: NSObject, ObservableObject {
         audio.start(core: created)
         audio.setMuted(isMuted)
         rumble.prepare()
+        NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)),
+                                               name: AVAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(audioRouteChanged(_:)),
+                                               name: AVAudioSession.routeChangeNotification, object: nil)
 
         let link = CADisplayLink(target: self, selector: #selector(step(_:)))
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 60)
@@ -84,6 +96,7 @@ final class EmulatorSession: NSObject, ObservableObject {
 
     /// Saves everything and shuts the console down.
     func stop() {
+        NotificationCenter.default.removeObserver(self)
         displayLink?.invalidate()
         displayLink = nil
         guard let core else { return }
@@ -96,13 +109,33 @@ final class EmulatorSession: NSObject, ObservableObject {
 
     func setPaused(_ paused: Bool) {
         isPaused = paused
+        lastFrameTime = 0
+        frameDebt = 0
         if paused {
-            touchKeys = 0
+            input.clear()
             writeBattery(force: true)
             audio.setMuted(true)
         } else {
+            if let core, !audio.isRunning { audio.start(core: core) }
             audio.setMuted(isMuted)
         }
+    }
+
+    @objc private func audioInterrupted(_ notification: Notification) {
+        guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        if type == .began {
+            audio.stop()
+        } else if !isPaused, let core {
+            audio.start(core: core)
+            audio.setMuted(isMuted)
+        }
+    }
+
+    @objc private func audioRouteChanged(_ notification: Notification) {
+        guard !isPaused, let core else { return }
+        audio.start(core: core)
+        audio.setMuted(isMuted)
     }
 
     /// Called when the app goes to the background, so nothing is lost if iOS closes it.
@@ -115,14 +148,10 @@ final class EmulatorSession: NSObject, ObservableObject {
     // MARK: Controls
 
     func setKey(_ key: Int, pressed: Bool) {
-        let bit = UInt8(key)
-        if pressed { touchKeys |= bit } else { touchKeys &= ~bit }
+        input.set(UInt8(key), pressed: pressed)
     }
 
-    func setDirections(_ mask: UInt8) {
-        let directions = UInt8(RD_KEY_RIGHT | RD_KEY_LEFT | RD_KEY_UP | RD_KEY_DOWN)
-        touchKeys = (touchKeys & ~directions) | (mask & directions)
-    }
+    func setDirections(_ mask: UInt8) { input.directions(mask) }
 
     // MARK: Menu actions
 
@@ -155,18 +184,19 @@ final class EmulatorSession: NSObject, ObservableObject {
 
     @objc private func step(_ link: CADisplayLink) {
         guard let core, !isPaused else { return }
-        RDCoreSetKeys(core, touchKeys | controllerKeys())
-
-        if audio.isRunning {
-            // Keep about 50 ms of sound queued. Tying emulation to the audio clock gives
-            // exact speed on 60 Hz and 120 Hz screens and avoids crackles.
-            var frames = 0
-            while frames < 3 && RDCoreBufferedAudioFrames(core) < 2_400 {
-                RDCoreRunFrame(core)
-                frames += 1
-            }
-        } else {
+        // The console clock must never stop when audio is interrupted or its queue fills.
+        let elapsed = lastFrameTime == 0 ? 1.0 / 60 : min(0.1, link.timestamp - lastFrameTime)
+        lastFrameTime = link.timestamp
+        frameDebt += elapsed * 59.7275
+        var frames = 0
+        while frameDebt >= 1 && frames < 6 {
+            let keys = input.nextFrame() | controllerKeys()
+            if keys & 0xF0 != 0 { deliveredActions += 1 }
+            if keys & 0x0F != 0 { deliveredDirections += 1 }
+            RDCoreSetKeys(core, keys)
             RDCoreRunFrame(core)
+            frameDebt -= 1
+            frames += 1
         }
         screen?.show(core)
 
