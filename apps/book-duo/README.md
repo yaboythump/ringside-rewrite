@@ -1,11 +1,11 @@
-# Book Duo
+# Quilune
 
-An EPUB reader for iPhone, built for iPhone Duo.
+Quilune is CTInteractive's premium, fold-aware EPUB reader for iPhone Duo.
 
 - **Two-page spread:** unfold iPhone Duo and the book opens like a real one, a page on each side of the fold, with the fold as the spine. If the fold runs across the screen instead, the next page sits below it. Any wide screen without a fold gets a spread too, and the Appearance sheet can switch to one page at a time.
 - **Turning pages:** tap the right or left side, or swipe. Tap the middle for the contents, the appearance sheet and a progress slider. Links and footnotes inside the book work; touch and hold a word to look it up.
 - **Appearance:** Paper, Sepia, Dusk and Night themes, the book's own font or Serif / Sans / Rounded, text size, line spacing, margins and justification. Changes reflow the open page straight away.
-- **Library:** tap **+** to add `.epub` files, share them to Book Duo, or drop them into Files › On My iPhone › Book Duo. Each book remembers where you stopped, and the most recent one shows up as *Continue reading*.
+- **Library:** search and filter titles, view reading progress, and tap **+** to add `.epub` files, share them to Quilune, or drop them into Files › On My iPhone › Book Duo. Each book remembers where you stopped, and the most recent one shows up as *Continue reading*.
 - **Included book:** *Alice's Adventures in Wonderland* with Tenniel's illustrations, from [Standard Ebooks](https://standardebooks.org) (public domain, CC0). `sample/build_sample.py` rebuilds it from their source.
 
 DRM-protected store books can't be opened.
@@ -31,3 +31,7 @@ On iPhone Duo the fold comes from `GeometryProxy.reservedRegions(kind: .division
 3. Go to **Actions → Book Duo TestFlight → Run workflow** on `main`. The build appears in TestFlight a few minutes later.
 
 The upload uses the same `ringside-testflight` signing secrets as the other apps.
+
+## Branding
+
+Quilune is the on-device display name and product brand. The Xcode target, internal source folder, and bundle ID `com.ctnetworkstudios.bookduo` remain unchanged so an update can replace the existing TestFlight installation without losing reading positions. The App Store Connect listing name is managed separately.

@@ -53,8 +53,8 @@ struct AboutView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Book Duo").font(.system(size: 28, weight: .bold, design: .serif))
-                        Text("An EPUB reader made for iPhone Duo. Unfold it and the book opens into a two-page spread, with the fold as the spine.")
+                        Text("Quilune").font(.system(size: 28, weight: .bold, design: .serif))
+                        Text("A beautiful, private EPUB library from CTInteractive, made for iPhone Duo. Unfold it and the book opens into a two-page spread, with the fold as the spine.")
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 6)
@@ -65,8 +65,8 @@ struct AboutView: View {
                     Label("Touch and hold a word to look it up or highlight it to copy", systemImage: "character.book.closed")
                 }
                 Section("Adding books") {
-                    Label("Tap + in the library, or share an EPUB to Book Duo", systemImage: "plus")
-                    Label("Or drop .epub files into Files › On My iPhone › Book Duo", systemImage: "folder")
+                    Label("Tap + in the library, or share an EPUB to Quilune", systemImage: "plus")
+                    Label("Or drop .epub files into Files › On My iPhone › Quilune (formerly Book Duo)", systemImage: "folder")
                     Text("Books bought from stores with DRM can't be opened. Free, DRM-free books are available from Standard Ebooks and Project Gutenberg.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }

@@ -55,7 +55,7 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$BD_BUNDLE"
           test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
           test "$(/usr/libexec/PlistBuddy -c 'Print UIFileSharingEnabled' "$app/Info.plist")" = true
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "Book Duo"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "Quilune"
           cmp "$app/reader.js" apps/book-duo/ios/BookDuo/Resources/reader.js
           cmp "$app/Alice.epub" apps/book-duo/ios/BookDuo/Resources/Alice.epub
       - name: Open the sample book in the simulator and keep screenshots
