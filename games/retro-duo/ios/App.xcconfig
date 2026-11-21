@@ -1,0 +1,29 @@
+ALWAYS_SEARCH_USER_PATHS = NO
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+CODE_SIGN_STYLE = Automatic
+CURRENT_PROJECT_VERSION = 1
+DEVELOPMENT_TEAM = J4Y8FY6JNZ
+ENABLE_USER_SCRIPT_SANDBOXING = YES
+GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_FILE = Info.plist
+INFOPLIST_KEY_CFBundleDisplayName = Retro Duo
+INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.games
+INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES
+INFOPLIST_KEY_UILaunchScreen_Generation = YES
+INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+MARKETING_VERSION = 0.1
+PRODUCT_BUNDLE_IDENTIFIER = com.ctnetworkstudios.retroduo
+PRODUCT_NAME = RetroDuo
+SUPPORTED_PLATFORMS = iphoneos iphonesimulator
+TARGETED_DEVICE_FAMILY = 1
+
+// Swift talks to the emulator through RDCore.h.
+SWIFT_OBJC_BRIDGING_HEADER = RetroDuo/Core/RetroDuo-Bridging-Header.h
+
+// SameBoy core (C). The prefix header sets SameBoy's build options for every C file.
+GCC_PREFIX_HEADER = RetroDuo/Core/SameBoyConfig.h
+GCC_PRECOMPILE_PREFIX_HEADER = NO
+GCC_C_LANGUAGE_STANDARD = gnu11
+GCC_OPTIMIZATION_LEVEL = 3
+GCC_WARN_INHIBIT_ALL_WARNINGS = YES
+HEADER_SEARCH_PATHS = $(SRCROOT)/../vendor/SameBoy $(SRCROOT)/RetroDuo/Core
