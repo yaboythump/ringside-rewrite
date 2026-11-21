@@ -244,7 +244,7 @@ struct GameView: View {
         let horizontalInset = min(24, max(12, size.width * 0.018))
         let pictureWidth = max(145, min(
             size.width - 2 * side - 2 * horizontalInset - 32,
-            (size.height - 125) / session.aspect - 10
+            (size.height - 180) / session.aspect - 10
         ))
         let padSize = min(154, max(88, side - 31))
         let faceSize = min(76, max(52, (side - 13) / 2.15))
