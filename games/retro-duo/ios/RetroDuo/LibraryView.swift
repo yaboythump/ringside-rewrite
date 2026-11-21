@@ -734,6 +734,15 @@ private final class GameCoverLibrary: ObservableObject {
             of: #"\s+\(Rev [^)]+\)"#, with: "", options: .regularExpression)
         if noRevision != normalized { names.append(noRevision) }
 
+        // Some DS No-Intro sets label these releases with combined regions or languages.
+        // Try the exact filename first so different revisions never steal artwork.
+        if game.system == .nintendoDS, normalized.hasSuffix(" (USA)") {
+            let base = String(normalized.dropLast(" (USA)".count))
+            names.append(base + " (USA, Australia)")
+            names.append(base + " (USA) (En,Fr,Es)")
+            names.append(base + " (USA) (En,Fr,De,Es,It)")
+        }
+
         for name in names {
             var components = URLComponents()
             components.scheme = "https"
@@ -769,7 +778,7 @@ private final class GameCoverLibrary: ObservableObject {
 
     private static func optimizedJPEG(_ original: UIImage) -> Data? {
         let maximum: CGFloat = 960
-        let factor = min(1, maximum / max(original.size.width, original.size.height, 1))
+        let factor = min(1, maximum / max(max(original.size.width, original.size.height), 1))
         let target = CGSize(width: max(1, original.size.width * factor),
                             height: max(1, original.size.height * factor))
         let format = UIGraphicsImageRendererFormat()
