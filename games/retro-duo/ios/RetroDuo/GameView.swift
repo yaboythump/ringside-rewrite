@@ -9,12 +9,18 @@ struct GameView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var hinge = HingeState()
     @State private var showingMenu = false
+    @State private var showingOptions = false
+    @State private var showingSaves = false
+    @StateObject private var tuning: AVControlTuning
+    @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
     @AppStorage("retroDuoTwoPanels") private var useTwoPanels = true
     @AppStorage("retroDuoOriginalProportions") private var originalProportions = false
     @State private var diagnostics = ""
 
     init(session: @autoclosure @escaping () -> EmulatorSession) {
-        _session = StateObject(wrappedValue: session())
+        let gameSession = session()
+        _session = StateObject(wrappedValue: gameSession)
+        _tuning = StateObject(wrappedValue: AVControlTuning(system: gameSession.game.system))
     }
 
     var body: some View {
@@ -23,7 +29,7 @@ struct GameView: View {
             Group {
                 if let error = session.errorMessage {
                     errorView(error)
-                } else if useTwoPanels || hinge.isHalfOpen {
+                } else if hinge.isHalfOpen || duoMode == "stacked" || (duoMode == "auto" && useTwoPanels) {
                     if size.width > size.height {
                         tabletopLayout(size)
                     } else {
@@ -65,6 +71,15 @@ struct GameView: View {
                 break
             }
         }
+        .sheet(isPresented: $showingOptions) {
+            AVGameSettings(tuning: tuning)
+        }
+        .sheet(isPresented: $showingSaves) {
+            AVSaveManager(game: session.game, save: { session.saveSlot($0) },
+                          load: { session.loadSlot($0) })
+        }
+        .onChange(of: showingSaves) { _, shown in session.setPaused(shown) }
+        .onChange(of: showingOptions) { _, shown in session.setPaused(shown) }
         .confirmationDialog(session.game.name, isPresented: $showingMenu, titleVisibility: .visible) {
             Button(originalProportions ? "Fill entire upper screen" : "Use original screen proportions") {
                 originalProportions.toggle()
@@ -72,6 +87,8 @@ struct GameView: View {
             Button(useTwoPanels ? "Use side controls in landscape" : "Use two-panel Duo layout") {
                 useTwoPanels.toggle()
             }
+            Button("Game Settings") { showingOptions = true }
+            Button("Visual Save Manager") { showingSaves = true }
             Button("Quick Save") { session.quickSave() }
             Button("Quick Load") { session.quickLoad() }
                 .disabled(!session.hasQuickSave)
@@ -98,9 +115,15 @@ struct GameView: View {
                 topBar
                 Spacer(minLength: 4)
                 HStack(alignment: .center) {
-                    DPad(session: session).frame(width: pad, height: pad)
-                    Spacer(minLength: 8)
-                    FaceButtons(session: session, diameter: button)
+                    if tuning.mirrored {
+                        actionButtons(diameter: button)
+                        Spacer(minLength: 8)
+                        directionPad(size: pad)
+                    } else {
+                        directionPad(size: pad)
+                        Spacer(minLength: 8)
+                        actionButtons(diameter: button)
+                    }
                 }
                 .padding(.horizontal, 16)
                 Spacer(minLength: 4)
@@ -120,11 +143,19 @@ struct GameView: View {
             VStack(spacing: 0) {
                 topBar
                 HStack(alignment: .center) {
-                    DPad(session: session).frame(width: pad, height: pad)
-                    Spacer(minLength: 4)
-                    MenuButtons(session: session)
-                    Spacer(minLength: 4)
-                    FaceButtons(session: session, diameter: button)
+                    if tuning.mirrored {
+                        actionButtons(diameter: button)
+                        Spacer(minLength: 4)
+                        MenuButtons(session: session)
+                        Spacer(minLength: 4)
+                        directionPad(size: pad)
+                    } else {
+                        directionPad(size: pad)
+                        Spacer(minLength: 4)
+                        MenuButtons(session: session)
+                        Spacer(minLength: 4)
+                        actionButtons(diameter: button)
+                    }
                 }
                 .padding(.horizontal, 24)
                 .frame(maxHeight: .infinity)
@@ -141,6 +172,7 @@ struct GameView: View {
                 let gameWidth = originalProportions ? min(available.size.width, available.size.height / session.aspect) : available.size.width
                 let gameHeight = originalProportions ? gameWidth * session.aspect : available.size.height
                 PixelScreen(session: session)
+                    .overlay(AVDisplayFilter())
                     .frame(width: gameWidth, height: gameHeight)
                     .position(x: available.size.width / 2, y: available.size.height / 2)
             }
@@ -162,8 +194,7 @@ struct GameView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 18)
                 Spacer()
-                DPad(session: session)
-                    .frame(width: min(side * 0.82, 170), height: min(side * 0.82, 170))
+                directionPad(size: min(side * 0.82, 170))
                 Spacer()
                 PillButton(label: "SELECT", key: Int(RD_KEY_SELECT), session: session)
             }
@@ -171,7 +202,7 @@ struct GameView: View {
             screen(width: screenHeight / session.aspect)
             VStack {
                 Spacer()
-                FaceButtons(session: session, diameter: button)
+                actionButtons(diameter: button)
                 Spacer()
                 PillButton(label: "START", key: Int(RD_KEY_START), session: session)
             }
@@ -180,12 +211,28 @@ struct GameView: View {
         .padding(.vertical, 10)
     }
 
+    private func directionPad(size: CGFloat) -> some View {
+        DPad(session: session)
+            .frame(width: size, height: size)
+            .scaleEffect(tuning.size)
+            .opacity(tuning.opacity)
+            .offset(y: tuning.directionOffset)
+    }
+
+    private func actionButtons(diameter: CGFloat) -> some View {
+        FaceButtons(session: session, diameter: diameter)
+            .scaleEffect(tuning.size)
+            .opacity(tuning.opacity)
+            .offset(y: tuning.actionOffset)
+    }
+
     // MARK: Pieces
 
     /// The game picture with a slim bezel. `width` is the picture itself; the bezel adds 10 points.
     private func screen(width: CGFloat) -> some View {
         let width = max(width, 80)
         return PixelScreen(session: session)
+            .overlay(AVDisplayFilter())
             .frame(width: width, height: width * session.aspect)
             .background(.black)
             .clipShape(RoundedRectangle(cornerRadius: 4))
