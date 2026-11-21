@@ -92,7 +92,9 @@ jobs:
           xcrun simctl install "$device" "$RUNNER_TEMP/rd-ui/Build/Products/Debug-iphonesimulator/RetroDuo.app"
           xcrun simctl launch "$device" com.ctnetworkstudios.retroduo -RetroDuoDemo
           sleep 4
-          xcrun simctl io "$device" screenshot "$RUNNER_TEMP/rd-portrait.png"
+          # The Duo has two displays; simctl refuses an ambiguous screenshot.
+          xcrun simctl io "$device" screenshot --display=3 "$RUNNER_TEMP/rd-portrait.png" || \
+            xcrun simctl io "$device" screenshot --display=1 "$RUNNER_TEMP/rd-portrait.png"
           xcrun simctl terminate "$device" com.ctnetworkstudios.retroduo
           python3 - "$device" <<'PYTEST'
           import os, subprocess, sys
