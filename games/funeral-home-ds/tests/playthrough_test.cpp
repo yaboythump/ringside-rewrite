@@ -200,6 +200,47 @@ static int find_index(const char *const *names, int n, const std::string &s)
     return -1;
 }
 
+// ---------------------------------------------------------------------------
+// Dialogue scenes: every scene shows a SKIP button, a name plate and a text box.
+
+struct Scene {
+    std::vector<std::string> speakers;   // name plates, in order of appearance
+    std::string text;                    // everything shown in the text box
+    int taps = 0;
+};
+
+static bool in_scene(const Emu &emu) { return find_text(emu.bottom, "SKIP"); }
+
+static void record(const Emu &emu, Scene &scene)
+{
+    std::string who = read_text(emu.bottom, 106, 15, 18);
+    if (!who.empty() && (scene.speakers.empty() || scene.speakers.back() != who))
+        scene.speakers.push_back(who);
+    for (int r = 0; r < 5; r++)
+        scene.text += read_text(emu.bottom, 12, 114 + r * 14, 29) + " ";
+}
+
+// Reads the whole scene line by line, tapping the text box like a player.
+static Scene talk_through(Emu &emu, int max_taps = 60)
+{
+    Scene scene;
+    while (in_scene(emu) && scene.taps < max_taps) {
+        emu.tap(128, 150);          // first tap finishes the line, the next one moves on
+        scene.taps++;
+        if (in_scene(emu))
+            record(emu, scene);
+    }
+    return scene;
+}
+
+static bool said(const Scene &s, const char *who)
+{
+    for (const auto &n : s.speakers)
+        if (n == who)
+            return true;
+    return false;
+}
+
 // Layout constants mirrored from source/game.c
 static int card_y(int i) { return 24 + i * 54; }
 static int fix_x(int i) { return 6 + (i % 2) * 124; }
@@ -235,9 +276,19 @@ int main(int argc, char **argv)
     check(find_text(emu.top, "FUNERAL HOME & CHAPEL"), "top screen shows the funeral home");
     check(find_text(emu.bottom, "TAP TO OPEN UP"), "touch screen says tap to open");
     emu.tap(128, 135);
+    emu.frames(30);
+    emu.shot("02_intro");
+    check(in_scene(emu), "the day opens with a story scene");
+    check(read_text(emu.bottom, 106, 15, 18) == "GREAT-UNCLE MORT", "Great-Uncle Mort's ghost speaks first");
+    check(find_text(emu.bottom, "Kiddo!"), "his line types out in the text box");
+    Scene intro = talk_through(emu);
+    check(said(intro, "KEVIN") && said(intro, "VIVIAN"), "the intro introduces Kevin and Vivian (%zu speakers)", intro.speakers.size());
+    check(intro.text.find("$7,500") != std::string::npos, "Vivian sets the $7,500 goal");
+    check(!in_scene(emu), "the intro ends after %d taps", intro.taps);
     emu.frames(10);
-    emu.shot("02_bookings");
+    emu.shot("03_bookings");
     check(find_text(emu.bottom, "DAY 1 BOOKINGS"), "bookings for day 1 are shown");
+    check(find_text(emu.bottom, "$0/$7,500"), "bookings show money against the goal");
 
     std::string names[3];
     for (int i = 0; i < 3; i++) {
@@ -263,9 +314,20 @@ int main(int argc, char **argv)
                 person = &CAST[k];
         if (!person) { check(false, "funeral %d has a known person", i + 1); break; }
 
-        // ---- Prep ----
+        // ---- Family meeting ----
         emu.tap(176 + 36, card_y(i) + 25);
         emu.frames(4);
+        check(in_scene(emu), "the family arrives to talk before prep");
+        Scene meeting = talk_through(emu);
+        std::string outfit_word = OUTFIT_NAMES[person->outfit_wish];
+        outfit_word = outfit_word.substr(0, outfit_word.find(' '));
+        check(meeting.speakers.size() == 1 && meeting.speakers[0] != "GREAT-UNCLE MORT", "%s speaks for the family", meeting.speakers.empty() ? "nobody" : meeting.speakers[0].c_str());
+        check(meeting.text.find(MAKEUP_NAMES[person->makeup_wish]) != std::string::npos &&
+              meeting.text.find(outfit_word) != std::string::npos, "they ask for %s makeup and the %s", MAKEUP_NAMES[person->makeup_wish], OUTFIT_NAMES[person->outfit_wish]);
+        if (i == 0) emu.shot("04_family");
+        emu.frames(4);
+
+        // ---- Prep ----
         check(read_text(emu.bottom, 4, 6) == names[i], "prep screen opens for %s", names[i].c_str());
         check(find_text(emu.top, ("PREP ROOM: " + names[i]).c_str()), "top screen moves to the prep room");
         check(find_text(emu.bottom, "START SERVICE"), "start button is on the prep screen");
@@ -279,7 +341,7 @@ int main(int argc, char **argv)
             emu.lift();
             emu.frames(6);
             check(much && find_text(emu.bottom, "TOO MUCH") && find_text(emu.bottom, "(TAP PUMP"), "over-pumping is recorded as TOO MUCH");
-            emu.shot("04_overpumped");
+            emu.shot("05_overpumped");
         }
         emu.touch(68, 100);
         bool right = wait_for(emu, 400, [&] { return find_text(emu.bottom, "JUST RIGHT"); }, 2);
@@ -345,6 +407,14 @@ int main(int argc, char **argv)
         // ---- Service ----
         emu.tap(128, 177);
         emu.frames(6);
+        if (i == 0) {
+            check(in_scene(emu) && read_text(emu.bottom, 106, 15, 18) == "GREAT-UNCLE MORT", "Mort briefs you before the first service");
+            emu.tap(226, 96);   // SKIP
+            emu.frames(4);
+            check(!in_scene(emu), "SKIP ends a scene");
+        } else {
+            check(!in_scene(emu), "no briefing after the first service");
+        }
         check(find_text(emu.bottom, ("SERVICE: " + names[i]).c_str()), "service for %s begins", names[i].c_str());
         check(find_text(emu.top, ("IN MEMORY: " + names[i]).c_str()), "top screen shows the chapel in memory of %s", names[i].c_str());
         Screen early = emu.top;
@@ -392,7 +462,15 @@ int main(int argc, char **argv)
         snprintf(tag, sizeof tag, "09_fixed_%d", i + 1);
         emu.shot(tag);
 
-        bool complete = wait_for(emu, 1500, [&] { return find_text(emu.bottom, "SERVICE COMPLETE"); });
+        bool aftermath = wait_for(emu, 1500, [&] { return in_scene(emu); });
+        check(aftermath, "a scene follows the service");
+        Scene after = talk_through(emu);
+        check(!after.speakers.empty() && after.speakers[0] == "KEVIN", "Kevin finds a clue");
+        check(after.text.find(i < 2 ? "Sabotage" : "VIVIAN") != std::string::npos || after.text.find("hat") != std::string::npos,
+              "Mort grows suspicious");
+        check(after.speakers.size() >= 3 && after.speakers.back() == meeting.speakers[0], "%s reacts to the service",
+              meeting.speakers.empty() ? "the family" : meeting.speakers[0].c_str());
+        bool complete = wait_for(emu, 300, [&] { return find_text(emu.bottom, "SERVICE COMPLETE"); });
         check(complete, "service %d completes", i + 1);
         snprintf(tag, sizeof tag, "10_result_%d", i + 1);
         emu.shot(tag);
@@ -421,13 +499,30 @@ int main(int argc, char **argv)
         nets[i] = net;
         emu.tap(128, 177);
         emu.frames(6);
+        if (i == 1) {
+            check(in_scene(emu), "Vivian drops by before the last funeral");
+            Scene visit = talk_through(emu);
+            check(!visit.speakers.empty() && visit.speakers[0] == "VIVIAN", "Vivian leads the midday visit");
+        } else if (i == 0) {
+            check(!in_scene(emu), "straight back to bookings after the first funeral");
+        }
     }
 
     check(service_peak > 0.02, "the organ plays during services (peak %.3f)", service_peak);
 
     // ---- End of day ----
     emu.frames(20);
-    emu.shot("11_day_end");
+    check(in_scene(emu), "the day ends with a scene");
+    emu.shot("11_day_end_scene");
+    Scene ending = talk_through(emu);
+    int total = nets[0] + nets[1] + nets[2];
+    bool goal_met = total >= 7500;
+    check(said(ending, "VIVIAN") && said(ending, "GREAT-UNCLE MORT"), "Vivian and Mort react to the day");
+    check(ending.text.find(goal_met ? "impossible" : "Adorable") != std::string::npos, "Vivian %s", goal_met ? "is furious" : "gloats");
+    check(ending.text.find("behind every disaster") != std::string::npos, "the sabotage is revealed");
+    emu.frames(10);
+    emu.shot("12_day_end");
+    check(find_text(emu.bottom, goal_met ? "GOAL $7,500 MET!" : "GOAL $7,500 MISSED"), "end of day says the goal was %s", goal_met ? "met" : "missed");
     check(find_text(emu.bottom, "END OF DAY 1"), "end-of-day money screen");
     int profit = parse_money(read_text(emu.bottom, 168, 76));
     check(profit == nets[0] + nets[1] + nets[2], "profit $%d is the sum of the three funerals", profit);
@@ -438,8 +533,12 @@ int main(int argc, char **argv)
     check(find_text(emu.bottom, rating), "%s", rating);
     emu.tap(128, 177);
     emu.frames(10);
+    check(in_scene(emu), "day 2 opens with a scene");
+    Scene day2 = talk_through(emu);
+    check(day2.text.find("Day 2") != std::string::npos && day2.text.find("$8,500") != std::string::npos, "day 2 raises the goal to $8,500");
+    emu.frames(10);
     check(find_text(emu.bottom, "DAY 2 BOOKINGS"), "a new day starts");
-    emu.shot("12_day2");
+    emu.shot("13_day2");
 
     printf("speed: %.1f frames per second\n", MDCoreSpeed(emu.core));
     MDCoreDestroy(emu.core);

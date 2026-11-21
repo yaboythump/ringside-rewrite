@@ -2,9 +2,7 @@
 
 #include "art.h"
 
-const color_t SKIN[SKIN_TONES] = {
-    RGB(31, 24, 19), RGB(28, 20, 14), RGB(23, 15, 9), RGB(17, 10, 6), RGB(11, 7, 4),
-};
+const color_t SKIN[SKIN_TONES] = { SKIN_C0, SKIN_C1, SKIN_C2, SKIN_C3, SKIN_C4 };
 
 // ---------------------------------------------------------------------------
 // People: 10x20, assembled from a head, a body and a pair of legs.

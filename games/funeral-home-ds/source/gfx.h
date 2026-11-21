@@ -53,6 +53,7 @@ void hline(Canvas *c, int x, int y, int w, color_t color);
 void vline(Canvas *c, int x, int y, int h, color_t color);
 void plot(Canvas *c, int x, int y, color_t color);
 void fill_circle(Canvas *c, int cx, int cy, int r, color_t color);
+void fill_ellipse(Canvas *c, int cx, int cy, int rx, int ry, color_t color);
 void panel(Canvas *c, int x, int y, int w, int h, color_t fill, color_t border);
 // Halves the brightness of a region `steps` times (0-3) - used for power cuts and greyed buttons.
 void darken(Canvas *c, int x, int y, int w, int h, int steps);

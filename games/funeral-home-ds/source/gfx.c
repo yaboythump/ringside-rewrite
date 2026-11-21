@@ -100,6 +100,20 @@ void fill_circle(Canvas *c, int cx, int cy, int r, color_t color)
                 plot(c, cx + dx, cy + dy, color);
 }
 
+void fill_ellipse(Canvas *c, int cx, int cy, int rx, int ry, color_t color)
+{
+    if (rx <= 0 || ry <= 0)
+        return;
+    for (int dy = -ry; dy <= ry; dy++) {
+        // Half-width of this row: rx * sqrt(1 - (dy/ry)^2), in integers.
+        int w = 0;
+        while (w <= rx && (w * w) * (ry * ry) + (dy * dy) * (rx * rx) <= (rx * rx) * (ry * ry) + rx * ry)
+            w++;
+        if (w > 0)
+            fill_rect(c, cx - (w - 1), cy + dy, 2 * (w - 1) + 1, 1, color);
+    }
+}
+
 void panel(Canvas *c, int x, int y, int w, int h, color_t fill, color_t border)
 {
     // Rounded-corner box: border with the corner pixels cut away.

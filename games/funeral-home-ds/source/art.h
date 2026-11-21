@@ -25,6 +25,11 @@ typedef struct {
     bool long_hair;
 } Look;
 
+#define SKIN_C0 RGB(31, 24, 19)
+#define SKIN_C1 RGB(28, 20, 14)
+#define SKIN_C2 RGB(23, 15, 9)
+#define SKIN_C3 RGB(17, 10, 6)
+#define SKIN_C4 RGB(11, 7, 4)
 #define SKIN_TONES 5
 extern const color_t SKIN[SKIN_TONES];
 

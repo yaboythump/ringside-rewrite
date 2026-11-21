@@ -58,6 +58,7 @@ typedef struct {
     bool timed_out;
     int fix_costs;
     bool done;
+    bool met;              // the family meeting has happened
     // Results
     int satisfaction;      // 0-100
     const char *notes[3];  // what the family thought
@@ -110,6 +111,7 @@ typedef struct {
     int last_fix;          // quick fix shown on the top screen
     // Day totals
     int best_profit;
+    bool tutorial_done;    // Mort's first-service briefing
 } Game;
 
 extern Game g;

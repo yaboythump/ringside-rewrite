@@ -5,7 +5,18 @@ A chaotic (not gory) funeral home sim for the Nintendo DS, written in C with [Bl
 - **Top screen:** the funeral home, live. The family waits in the chapel, the guest of honour lies in the prep room while you work, and during the service the mourners file in, the director reads the eulogy, and then something goes wrong.
 - **Touch screen:** the day's bookings, body prep, quick-fix buttons during the service, and the money.
 
-## A day (version 1)
+## Story and characters
+
+You've just inherited the funeral home from your Great-Uncle Mort. Scenes play as DS-style talking-head dialogue: animated portraits that blink and talk, typewriter text with a voice blip per character, tap to continue, and SKIP.
+
+- **Great-Uncle Mort**: the founder, now a friendly ghost who floats around the chapel giving advice. He passed last Tuesday (a casket brochure was involved).
+- **Kevin**: the intern. On break since 2019. Finds a clue after every disaster.
+- **Vivian Vance-Prestige**: owner of Eternal Elegance across the street. She'll buy the place for one dollar unless you hit the day's goal ($7,500 on day 1, then $1,000 more each day). Every disaster turns out to be her sabotage.
+- **The families**: a spokesperson for each funeral (eleven in all, each with their own portrait and voice) tells you about the deceased and what they want. They react to the service once it's over.
+
+Scenes happen at the start of each day, when you meet each family, before your first service, after every service, during Vivian's midday visit, and at closing time. That last scene depends on whether you hit the goal.
+
+## A day
 
 1. **Bookings:** three funerals (10 AM, 1 PM, 4 PM), each for a different fictional character with a family who wants a certain makeup look and outfit, and has a casket budget.
 2. **Prep, all by touch:**
@@ -35,8 +46,9 @@ CI checks that the committed ROM matches the source.
 
 ## Testing
 
-`tests/run_playthrough.sh [rom] [outdir]` builds Retro Duo's melonDS core and plays a whole day headlessly using only the stylus. It reads both screens with the game's own font, so it checks what a player sees. In 111 checks, it:
+`tests/run_playthrough.sh [rom] [outdir]` builds Retro Duo's melonDS core and plays a whole day headlessly using only the stylus. It reads both screens with the game's own font, so it checks what a player sees. In 153 checks, it:
 
+- reads every story scene by tapping through it (and checks the families ask for what the prep screen says they want),
 - preps all three bodies (including over-pumping once and redoing it),
 - matches each family's wishes,
 - deliberately goes over budget once,
@@ -54,7 +66,9 @@ It also writes screenshots (`*.ppm`) of each step. CI runs it on the bundled ROM
 | `source/game.c` | Rules, money, and the touch screen |
 | `source/scene.c` | Top screen: chapel, prep room, outside |
 | `source/art.c` | Pixel-art characters and props, faces, outfits, caskets |
-| `source/data.c` | The cast, disasters and quick fixes |
+| `source/data.c` | The deceased, disasters and quick fixes |
+| `source/story.c` | Mort, Kevin, Vivian, the families, every scene, and the dialogue box |
+| `source/portrait.c` | Talking-head portraits: hair, accessories, six expressions, blinking, talking |
 | `source/sfx.c` | PSG sound effects and a slow funeral march (Chopin, public domain) |
 | `source/gfx.c` | Software drawing into two 16-bit framebuffers |
 | `source/font8.h` | 8x8 font from libnds (zlib license), made by `tools/make_font.py` |
