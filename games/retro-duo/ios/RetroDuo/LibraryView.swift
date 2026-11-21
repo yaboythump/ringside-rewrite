@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// AVYDRIX Play's game-first dashboard. The emulator screens remain separate so
 /// changing the storefront cannot change the native controls or Duo layout.
@@ -52,7 +53,8 @@ struct LibraryView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .fileImporter(isPresented: $importing,
-                          allowedContentTypes: [.gameBoyROM, .gameBoyColorROM, .nintendoDSROM, .data],
+                          allowedContentTypes: [.gameBoyROM, .gameBoyColorROM, .nintendoDSROM,
+                                                UTType(importedAs: "com.ctnetworkstudios.retroduo.nes"), .data],
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result { library.importFiles(urls) }
             }
@@ -79,6 +81,8 @@ struct LibraryView: View {
             let arguments = ProcessInfo.processInfo.arguments
             if arguments.contains("-RetroDuoDemoDS") {
                 playing = library.games.first { $0.system == .nintendoDS }
+            } else if arguments.contains("-RetroDuoDemoNES") {
+                playing = library.games.first { $0.system.rawValue == "nes" }
             } else if arguments.contains("-RetroDuoDemo") {
                 playing = library.games.first
             }
@@ -276,6 +280,9 @@ struct LibraryView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 9) {
                     filterChip("ALL GAMES", system: nil, count: ownedGames.count)
+                    if let nes = GameSystem(rawValue: "nes") {
+                        filterChip("NES", system: nes, count: ownedGames.filter { $0.system == nes }.count)
+                    }
                     filterChip("NINTENDO DS", system: .nintendoDS, count: ownedGames.filter { $0.system == .nintendoDS }.count)
                     filterChip("GAME BOY COLOR", system: .gameBoyColor, count: ownedGames.filter { $0.system == .gameBoyColor }.count)
                     filterChip("GAME BOY", system: .gameBoy, count: ownedGames.filter { $0.system == .gameBoy }.count)
@@ -293,7 +300,7 @@ struct LibraryView: View {
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .tracking(1)
                         .foregroundStyle(.white)
-                    Text(ownedGames.isEmpty ? "Import a Game Boy, Game Boy Color or Nintendo DS game to build your collection." : "Try another system or search.")
+                    Text(ownedGames.isEmpty ? "Import a compatible game to build your collection." : "Try another system or search.")
                         .font(.system(size: 13))
                         .foregroundStyle(AVPalette.muted)
                         .multilineTextAlignment(.center)
@@ -415,6 +422,7 @@ private struct AVGameCard: View {
         case .nintendoDS: return [Color(red: 0.16, green: 0.25, blue: 0.52), Color(red: 0.08, green: 0.09, blue: 0.24)]
         case .gameBoyColor: return [Color(red: 0.32, green: 0.12, blue: 0.51), Color(red: 0.06, green: 0.15, blue: 0.34)]
         case .gameBoy: return [Color(red: 0.13, green: 0.34, blue: 0.37), Color(red: 0.06, green: 0.13, blue: 0.19)]
+        default: return [Color(red: 0.38, green: 0.16, blue: 0.22), Color(red: 0.12, green: 0.08, blue: 0.17)]
         }
     }
 
@@ -437,7 +445,7 @@ private struct AVGameCard: View {
                     .blur(radius: 12)
                     .offset(x: -45, y: 40)
                 VStack(spacing: 9) {
-                    Image(systemName: game.system == .nintendoDS ? "rectangle.split.2x1.fill" : "gamecontroller.fill")
+                    Image(systemName: game.system.rawValue == "nes" ? "gamecontroller.fill" : game.system == .nintendoDS ? "rectangle.split.2x1.fill" : "gamecontroller.fill")
                         .font(.system(size: compact ? 42 : 55, weight: .ultraLight))
                         .foregroundStyle(.white.opacity(0.28))
                     Text(initials.isEmpty ? "PLAY" : initials)
@@ -449,7 +457,7 @@ private struct AVGameCard: View {
                 .offset(y: 3)
                 VStack {
                     HStack {
-                        Text(game.system == .nintendoDS ? "DS" : game.system == .gameBoyColor ? "GBC" : "GB")
+                        Text(game.system.rawValue == "nes" ? "NES" : game.system == .nintendoDS ? "DS" : game.system == .gameBoyColor ? "GBC" : "GB")
                             .font(.system(size: 9, weight: .heavy, design: .monospaced))
                             .tracking(1)
                             .padding(.horizontal, 9)
