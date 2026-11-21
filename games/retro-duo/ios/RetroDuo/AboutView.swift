@@ -85,6 +85,11 @@ struct AboutView: View {
                         file: "Nestopia-LICENSE"
                     )
                     licenseSection(
+                        "bsnes • Super Nintendo",
+                        credit: "bsnes was developed by byuu (Near) and contributors, with its libretro port by the libretro team. It is free software under GNU GPL version 3; its source is at github.com/libretro/bsnes-libretro.",
+                        file: "bsnes-LICENSE"
+                    )
+                    licenseSection(
                         "mGBA • Game Boy Advance",
                         credit: "mGBA was developed by Vicki Pfau and contributors. It is free software under the Mozilla Public License 2.0; its source is at github.com/mgba-emu/mgba.",
                         file: "mGBA-LICENSE"

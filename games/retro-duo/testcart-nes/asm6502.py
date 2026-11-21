@@ -1,4 +1,5 @@
-"""A tiny two-pass 6502 assembler: just the instructions the Retro Duo NES test cart uses."""
+"""A tiny two-pass 6502 assembler: just the instructions the Retro Duo NES and SNES test carts use
+(the SNES cart runs in the 65816's 6502 emulation mode)."""
 
 IMPLIED = {"sei": 0x78, "cld": 0xD8, "txs": 0x9A, "inx": 0xE8, "iny": 0xC8, "dex": 0xCA, "dey": 0x88,
            "rts": 0x60, "rti": 0x40, "clc": 0x18, "tax": 0xAA, "txa": 0x8A, "tay": 0xA8, "tya": 0x98,
@@ -11,6 +12,7 @@ ABS = {"lda": 0xAD, "ldx": 0xAE, "ldy": 0xAC, "sta": 0x8D, "stx": 0x8E, "sty": 0
        "jsr": 0x20, "bit": 0x2C, "inc": 0xEE, "dec": 0xCE, "cmp": 0xCD}
 ABSX = {"lda": 0xBD, "sta": 0x9D}
 ABSY = {"lda": 0xB9, "sta": 0x99}
+INDY = {"lda": 0xB1, "sta": 0x91}   # (zp),y
 BRANCH = {"bpl": 0x10, "bmi": 0x30, "bne": 0xD0, "beq": 0xF0, "bcc": 0x90, "bcs": 0xB0}
 
 
@@ -42,14 +44,19 @@ class Assembler:
     def _size(mnemonic, operand, mode):
         if operand is None:
             return 1
-        if mnemonic in BRANCH or mode in ("imm", "zp"):
+        if mnemonic in BRANCH or mode in ("imm", "zp", "indy"):
             return 2
         return 3
 
     def _encode(self, mnemonic, operand, mode, pc):
         if operand is None:
             return bytes([IMPLIED[mnemonic]])
-        value = self.labels[operand] if isinstance(operand, str) else operand
+        if isinstance(operand, str) and operand[0] in "<>":
+            # "<label" / ">label": low or high byte of a label's address.
+            address = self.labels[operand[1:]]
+            value = address & 0xFF if operand[0] == "<" else address >> 8
+        else:
+            value = self.labels[operand] if isinstance(operand, str) else operand
         if mnemonic in BRANCH:
             offset = value - (pc + 2)
             assert -128 <= offset <= 127, f"branch to {operand} too far"
@@ -58,6 +65,8 @@ class Assembler:
             return bytes([IMM[mnemonic], value & 0xFF])
         if mode == "zp":
             return bytes([ZP[mnemonic], value])
+        if mode == "indy":
+            return bytes([INDY[mnemonic], value])
         table = {"x": ABSX, "y": ABSY}.get(mode, ABS)
         return bytes([table[mnemonic], value & 0xFF, value >> 8])
 

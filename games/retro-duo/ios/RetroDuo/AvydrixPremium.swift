@@ -137,8 +137,9 @@ enum AVControllerMapping {
         }
         // Keep the pre-upgrade mapping until a player explicitly changes it.
         switch logical {
-        case "A": return pad.buttonB.isPressed || (system != .nintendoDS && pad.buttonY.isPressed)
-        case "B": return pad.buttonA.isPressed || (system != .nintendoDS && pad.buttonX.isPressed)
+        // Two-button systems also accept the other face buttons; four-button pads use each one.
+        case "A": return pad.buttonB.isPressed || (system.faceKeys.count <= 2 && system != .nintendoDS && pad.buttonY.isPressed)
+        case "B": return pad.buttonA.isPressed || (system.faceKeys.count <= 2 && system != .nintendoDS && pad.buttonX.isPressed)
         case "X": return pad.buttonY.isPressed
         case "Y": return pad.buttonX.isPressed
         default: return false
@@ -475,6 +476,7 @@ struct AVSettingsHome: View {
     @StateObject private var gb = AVControlTuning(system: .gameBoy)
     @StateObject private var gbc = AVControlTuning(system: .gameBoyColor)
     @StateObject private var gba = AVControlTuning(system: .gameBoyAdvance)
+    @StateObject private var snes = AVControlTuning(system: .snes)
 
     private var tuning: AVControlTuning {
         switch system {
@@ -483,6 +485,7 @@ struct AVSettingsHome: View {
         case .gameBoy: return gb
         case .gameBoyColor: return gbc
         case .gameBoyAdvance: return gba
+        case .snes: return snes
         }
     }
 
@@ -549,6 +552,7 @@ struct AVSettingsHome: View {
                     Picker("Console", selection: $system) {
                         Text("Nintendo DS").tag(GameSystem.nintendoDS)
                         Text("NES").tag(GameSystem.nes)
+                        Text("Super Nintendo").tag(GameSystem.snes)
                         Text("Game Boy Color").tag(GameSystem.gameBoyColor)
                         Text("Game Boy Advance").tag(GameSystem.gameBoyAdvance)
                         Text("Game Boy").tag(GameSystem.gameBoy)

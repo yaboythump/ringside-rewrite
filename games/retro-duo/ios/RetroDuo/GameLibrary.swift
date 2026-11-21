@@ -2,11 +2,12 @@ import Foundation
 import UniformTypeIdentifiers
 
 enum GameSystem: String, Hashable {
-    case nes, gameBoy, gameBoyColor, gameBoyAdvance, nintendoDS
+    case nes, snes, gameBoy, gameBoyColor, gameBoyAdvance, nintendoDS
 
     var displayName: String {
         switch self {
         case .nes: return "NES"
+        case .snes: return "Super Nintendo"
         case .gameBoy: return "Game Boy"
         case .gameBoyColor: return "Game Boy Color"
         case .gameBoyAdvance: return "Game Boy Advance"
@@ -21,6 +22,7 @@ enum GameSystem: String, Hashable {
         case "nds": self = .nintendoDS
         case "nes": self = .nes
         case "gba", "agb": self = .gameBoyAdvance
+        case "sfc", "smc": self = .snes
         default: return nil
         }
     }
@@ -30,6 +32,7 @@ enum GameSystem: String, Hashable {
         case .nintendoDS: return 512 * 1024 * 1024
         case .nes: return 16 * 1024 * 1024
         case .gameBoyAdvance: return 32 * 1024 * 1024
+        case .snes: return 12 * 1024 * 1024
         default: return 8 * 1024 * 1024
         }
     }
@@ -56,6 +59,7 @@ extension UTType {
     static let nintendoDSROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.nds")
     static let nesROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.nes")
     static let gameBoyAdvanceROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gba")
+    static let snesROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.sfc")
 }
 
 /// Games live in Documents/Games, which the Files app shows under
@@ -66,7 +70,7 @@ final class GameLibrary: ObservableObject {
     @Published private(set) var games: [Game] = []
     @Published var message: String?
 
-    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "gba", "agb", "nds"]
+    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "gba", "agb", "nds", "sfc", "smc"]
     static let maximumROMSize = 8 * 1024 * 1024
 
     let documentsFolder: URL
@@ -97,6 +101,10 @@ final class GameLibrary: ObservableObject {
         if let cart = Bundle.main.url(forResource: "RetroDuoNESTestCart", withExtension: "nes") {
             list.append(Game(id: "builtin.nestestcart", url: cart, name: "Retro Duo NES Test Cart",
                              isBuiltIn: true, system: .nes))
+        }
+        if let cart = Bundle.main.url(forResource: "RetroDuoSNESTestCart", withExtension: "sfc") {
+            list.append(Game(id: "builtin.snestestcart", url: cart, name: "Retro Duo SNES Test Cart",
+                             isBuiltIn: true, system: .snes))
         }
         if let cart = Bundle.main.url(forResource: "RetroDuoGBATestCart", withExtension: "gba") {
             list.append(Game(id: "builtin.gbatestcart", url: cart, name: "Retro Duo GBA Test Cart",
@@ -154,7 +162,7 @@ final class GameLibrary: ObservableObject {
         }
         refresh()
         if !skipped.isEmpty {
-            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays NES (.nes), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
+            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays NES (.nes), Super Nintendo (.sfc, .smc), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
         } else if added.count == 1 {
             message = "Added \(added[0])."
         } else if added.count > 1 {
@@ -195,6 +203,7 @@ final class GameLibrary: ObservableObject {
         case .nintendoDS: return looksLikeDSROM(header)
         case .nes: return header.count >= 16 && header.prefix(4) == Data([0x4E, 0x45, 0x53, 0x1A])
         case .gameBoyAdvance: return header.count >= 0xC0 && header[header.startIndex + 3] == 0xEA
+        case .snes: return size.intValue >= 0x8000  // bsnes works out the layout itself (and strips copier headers)
         default: return looksLikeROM(header)
         }
     }

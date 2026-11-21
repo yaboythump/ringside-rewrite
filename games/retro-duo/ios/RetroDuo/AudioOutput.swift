@@ -16,14 +16,17 @@ final class AudioOutput {
         case nintendoDS(OpaquePointer)
         case nes(OpaquePointer)
         case gameBoyAdvance(OpaquePointer)
+        case libretro(OpaquePointer)
     }
 
     func start(core: OpaquePointer) { start(.gameBoy(core)) }
     func start(dsCore: OpaquePointer) { start(.nintendoDS(dsCore)) }
     func start(nesCore: OpaquePointer) { start(.nes(nesCore)) }
     func start(gbaCore: OpaquePointer) { start(.gameBoyAdvance(gbaCore)) }
+    /// libretro cores pick their own output rate (bsnes: 48 kHz); the mixer converts it.
+    func start(libretroCore: OpaquePointer, rate: Double) { start(.libretro(libretroCore), rate: rate) }
 
-    func start(_ sourceCore: Source) {
+    func start(_ sourceCore: Source, rate: Double = AudioOutput.sampleRate) {
         stop()
         let session = AVAudioSession.sharedInstance()
         do {
@@ -37,7 +40,7 @@ final class AudioOutput {
             return
         }
 
-        guard let format = AVAudioFormat(standardFormatWithSampleRate: Self.sampleRate, channels: 2) else { return }
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 2) else { return }
         let node = Self.makeSource(sourceCore, format: format)
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
@@ -77,6 +80,7 @@ final class AudioOutput {
             case .nintendoDS(let core): _ = MDCoreReadAudio(core, left, right, Int(frameCount))
             case .nes(let core): _ = NESCoreReadAudio(core, left, right, Int(frameCount))
             case .gameBoyAdvance(let core): _ = RDGBAReadAudio(core, left, right, Int(frameCount))
+            case .libretro(let core): _ = RDLRReadAudio(core, left, right, Int(frameCount))
             }
             return noErr
         }

@@ -72,6 +72,9 @@ jobs:
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/Nestopia-LICENSE.txt"
           cmp "$app/RetroDuoGBATestCart.gba" games/retro-duo/ios/RetroDuo/Resources/RetroDuoGBATestCart.gba
           grep -qF "Mozilla Public License" "$app/mGBA-LICENSE.txt"
+          cmp "$app/RetroDuoSNESTestCart.sfc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoSNESTestCart.sfc
+          grep -qF "bsnes - Super Nintendo emulator" "$app/bsnes-LICENSE.txt"
+          grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/bsnes-LICENSE.txt"
           grep -qF "Lior Halphon" "$app/SameBoy-LICENSE.txt"
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rd-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
@@ -168,6 +171,12 @@ jobs:
         run: |
           set -euo pipefail
           CC=clang CXX=clang++ games/retro-duo/tests/run_gba_core_test.sh "$RUNNER_TEMP/rd-core"
+      - name: Boot the SNES core and check the picture, buttons, audio and saves
+        run: |
+          set -euo pipefail
+          python3 games/retro-duo/testcart-snes/make_cart.py "$RUNNER_TEMP/snes-check.sfc"
+          cmp "$RUNNER_TEMP/snes-check.sfc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoSNESTestCart.sfc
+          CC=clang CXX=clang++ games/retro-duo/tests/run_snes_core_test.sh "$RUNNER_TEMP/rd-core"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

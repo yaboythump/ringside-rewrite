@@ -31,12 +31,13 @@ struct FaceKey: Identifiable {
 /// Everything that differs between the single-screen systems in one place:
 /// names, picture shape, buttons and where cover art comes from.
 extension GameSystem: CaseIterable {
-    static var allCases: [GameSystem] { [.nes, .gameBoy, .gameBoyColor, .gameBoyAdvance, .nintendoDS] }
+    static var allCases: [GameSystem] { [.nes, .snes, .gameBoy, .gameBoyColor, .gameBoyAdvance, .nintendoDS] }
 
     /// Short badge text.
     var shortName: String {
         switch self {
         case .nes: return "NES"
+        case .snes: return "SNES"
         case .gameBoy: return "GB"
         case .gameBoyColor: return "GBC"
         case .gameBoyAdvance: return "GBA"
@@ -50,7 +51,7 @@ extension GameSystem: CaseIterable {
     /// Picture height / width.
     var aspect: CGFloat {
         switch self {
-        case .nes: return 224.0 / 256.0
+        case .nes, .snes: return 224.0 / 256.0
         case .gameBoyAdvance: return 160.0 / 240.0
         case .nintendoDS: return 0.75
         default: return 144.0 / 160.0
@@ -61,6 +62,7 @@ extension GameSystem: CaseIterable {
     var artworkFolder: String {
         switch self {
         case .nes: return "Nintendo - Nintendo Entertainment System"
+        case .snes: return "Nintendo - Super Nintendo Entertainment System"
         case .gameBoy: return "Nintendo - Game Boy"
         case .gameBoyColor: return "Nintendo - Game Boy Color"
         case .gameBoyAdvance: return "Nintendo - Game Boy Advance"
@@ -70,11 +72,18 @@ extension GameSystem: CaseIterable {
 
     /// Face buttons from left to right.
     var faceKeys: [FaceKey] {
-        [FaceKey(label: "B", key: PadKey.b, color: Theme.buttonB),
+        if self == .snes {
+            // Diamond in SNES order: Y left, X top, B bottom, A right.
+            return [FaceKey(label: "Y", key: PadKey.y, color: Theme.buttonY),
+                    FaceKey(label: "X", key: PadKey.x, color: Theme.buttonX),
+                    FaceKey(label: "B", key: PadKey.b, color: Theme.buttonB),
+                    FaceKey(label: "A", key: PadKey.a, color: Theme.buttonA)]
+        }
+        return [FaceKey(label: "B", key: PadKey.b, color: Theme.buttonB),
          FaceKey(label: "A", key: PadKey.a, color: Theme.buttonA)]
     }
 
-    var hasShoulders: Bool { self == .gameBoyAdvance || self == .nintendoDS }
+    var hasShoulders: Bool { self == .gameBoyAdvance || self == .nintendoDS || self == .snes }
 
     /// The small buttons between the D-pad and the face buttons.
     var menuKeys: [(label: String, key: Int)] {
