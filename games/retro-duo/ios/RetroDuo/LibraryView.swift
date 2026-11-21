@@ -564,14 +564,21 @@ private struct AVGameCard: View {
                 ZStack {
                     LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
                     if let cover = covers.image(for: game) {
+                        // Keep the *entire* box art visible, including the top and title.
+                        // A blurred copy fills the unused side space without stretching art.
                         Image(uiImage: cover)
                             .resizable()
                             .scaledToFill()
                             .frame(width: geo.size.width, height: geo.size.height)
                             .clipped()
+                            .blur(radius: 18)
+                            .overlay(.black.opacity(0.36))
                             .accessibilityHidden(true)
-                        LinearGradient(colors: [.black.opacity(0.18), .clear, .black.opacity(0.12)],
-                                       startPoint: .top, endPoint: .bottom)
+                        Image(uiImage: cover)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .accessibilityHidden(true)
                     } else {
                         Circle()
                             .stroke(.white.opacity(0.08), lineWidth: 2)
@@ -669,13 +676,24 @@ private struct AVFeaturedSpotlight: View {
                 if let cover = covers.image(for: game) {
                     HStack(spacing: 0) {
                         Spacer(minLength: 0)
-                        Image(uiImage: cover)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geo.size.width * (compact ? 0.70 : 0.58),
-                                   height: geo.size.height)
-                            .clipped()
-                            .overlay(.black.opacity(0.11))
+                        ZStack {
+                            Image(uiImage: cover)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: geo.size.width * (compact ? 0.70 : 0.58),
+                                       height: geo.size.height)
+                                .clipped()
+                                .blur(radius: 20)
+                                .overlay(.black.opacity(0.24))
+                            Image(uiImage: cover)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: geo.size.width * (compact ? 0.70 : 0.58),
+                                       height: geo.size.height)
+                        }
+                        .frame(width: geo.size.width * (compact ? 0.70 : 0.58),
+                               height: geo.size.height)
+                        .clipped()
                     }
                     .accessibilityHidden(true)
                 } else {
