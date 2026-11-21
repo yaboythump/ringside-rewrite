@@ -16,6 +16,33 @@ final class ControlsTests: XCTestCase {
         XCTAssertTrue(addButton.isHittable)
     }
 
+    func testGBALandscapeRetainsTouchControlsAndGameMenu() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-RetroDuoDemoGBA", "-RetroDuoUITests",
+            "-avydrix.duo.mode", "auto",
+            "-avydrix.gba.landscapeControls", "YES"
+        ]
+        XCUIDevice.shared.orientation = .landscapeLeft
+        app.launch()
+        defer {
+            app.terminate()
+            XCUIDevice.shared.orientation = .portrait
+        }
+
+        let landscape = app.descendants(matching: .any)
+            .matching(identifier: "gba-landscape-with-controls").firstMatch
+        XCTAssertTrue(landscape.waitForExistence(timeout: 15),
+                      "GBA landscape must show its touch controls alongside the picture")
+        XCTAssertTrue(app.buttons["Game menu"].isHittable,
+                      "Game menu must remain reachable in landscape")
+        XCTAssertTrue(app.buttons["Direction pad"].exists)
+        XCTAssertTrue(app.buttons["A button"].exists)
+        XCTAssertTrue(app.buttons["B button"].exists)
+        XCTAssertTrue(app.buttons["START"].exists)
+        XCTAssertTrue(app.buttons["SELECT"].exists)
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]
