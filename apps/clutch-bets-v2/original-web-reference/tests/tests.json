@@ -1,0 +1,68 @@
+[
+  {
+    "name": "Open Clutch Bets capper desk safely",
+    "sanity": true,
+    "viewport": "desktop",
+    "covers": [
+      "capper navigation",
+      "sports feed status",
+      "missing-data guardrail",
+      "legacy preview disclosure"
+    ],
+    "description": "New research desk displays real connection state without creating fabricated recommendations.",
+    "steps": [
+      "Open Clutch Bets",
+      "Choose Capper Studio in the navigation",
+      "Review the provider connection badge and research board"
+    ],
+    "expected": "The capper desk shows a provider state and either source-timestamped market signals or a no-sourced-picks message, never the illustrative examples from Games."
+  },
+  {
+    "name": "Inspect automatic record",
+    "viewport": "desktop",
+    "covers": [
+      "persisted signal record",
+      "score verification disclosure",
+      "model ROI not sportsbook profits"
+    ],
+    "description": "The ledger shows sourced model selections and computed results, or an honest empty state.",
+    "steps": [
+      "Open Capper Studio",
+      "Select Verified Record",
+      "Review the model record and its result-source disclosures"
+    ],
+    "expected": "Each tracked signal has an outcome and original odds or the page shows that the record starts at zero. ROI is labeled hypothetical."
+  },
+  {
+    "name": "Prepare coach script on mobile",
+    "viewport": "mobile",
+    "covers": [
+      "coach persona identity",
+      "presenter narration draft",
+      "mobile layout"
+    ],
+    "description": "Presenter tools remain usable on phone and never represent a draft as a published video.",
+    "steps": [
+      "Open Clutch Bets on mobile",
+      "Choose Capper Studio",
+      "Choose Coach Clutch Studio"
+    ],
+    "expected": "The original Coach Clutch profile and a readable script are visible, and the draft is clearly labeled as not rendered or published."
+  },
+  {
+    "name": "Retain sample dashboard functionality",
+    "viewport": "desktop",
+    "covers": [
+      "legacy game selection",
+      "existing local bet slip persistence"
+    ],
+    "description": "The existing Clutch Bets sample slip still works after the capper tab addition.",
+    "steps": [
+      "Select Games",
+      "Add Dallas Cowboys moneyline",
+      "Open Bet Slip",
+      "Refresh and open Bet Slip"
+    ],
+    "expected": "The illustrative selection remains in the locally saved bet slip and the preview data warning remains visible."
+  }
+]
