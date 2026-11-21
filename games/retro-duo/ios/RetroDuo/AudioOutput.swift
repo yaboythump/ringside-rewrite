@@ -10,7 +10,16 @@ final class AudioOutput {
     var isRunning: Bool { engine.isRunning }
     private(set) var lastError: String?
 
-    func start(core: OpaquePointer) {
+    /// Which emulator the speaker reads from.
+    enum Source {
+        case gameBoy(OpaquePointer)
+        case nintendoDS(OpaquePointer)
+    }
+
+    func start(core: OpaquePointer) { start(.gameBoy(core)) }
+    func start(dsCore: OpaquePointer) { start(.nintendoDS(dsCore)) }
+
+    func start(_ sourceCore: Source) {
         stop()
         let session = AVAudioSession.sharedInstance()
         do {
@@ -25,7 +34,7 @@ final class AudioOutput {
         }
 
         guard let format = AVAudioFormat(standardFormatWithSampleRate: Self.sampleRate, channels: 2) else { return }
-        let node = Self.makeSource(core: core, format: format)
+        let node = Self.makeSource(sourceCore, format: format)
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
         do {
@@ -51,7 +60,7 @@ final class AudioOutput {
         engine.mainMixerNode.outputVolume = muted ? 0 : 1
     }
 
-    private static func makeSource(core: OpaquePointer, format: AVAudioFormat) -> AVAudioSourceNode {
+    private static func makeSource(_ sourceCore: Source, format: AVAudioFormat) -> AVAudioSourceNode {
         AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
             let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
             guard buffers.count >= 2,
@@ -59,7 +68,10 @@ final class AudioOutput {
                   let right = buffers[1].mData?.assumingMemoryBound(to: Float.self) else {
                 return noErr
             }
-            _ = RDCoreReadAudio(core, left, right, Int(frameCount))
+            switch sourceCore {
+            case .gameBoy(let core): _ = RDCoreReadAudio(core, left, right, Int(frameCount))
+            case .nintendoDS(let core): _ = MDCoreReadAudio(core, left, right, Int(frameCount))
+            }
             return noErr
         }
     }

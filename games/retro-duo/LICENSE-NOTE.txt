@@ -1,0 +1,1 @@
+Retro Duo is licensed under the GNU GPL v3 or later (see LICENSE), because it includes melonDS. SameBoy (vendor/SameBoy) is under the Expat license; teakra under MIT.
