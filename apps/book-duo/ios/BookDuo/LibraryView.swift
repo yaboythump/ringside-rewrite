@@ -9,6 +9,44 @@ struct LibraryView: View {
     @State private var bookToDelete: Book?
     @State private var showingAbout = false
     @State private var startedDemo = false
+    @State private var searchText = ""
+    @State private var shelfFilter: ShelfFilter = .all
+    @State private var shelfSort: ShelfSort = .recent
+
+    private var readingCount: Int {
+        library.books.filter {
+            let progress = library.position(for: $0)?.progress ?? 0
+            return progress > 0 && progress < 0.995
+        }.count
+    }
+
+    private var finishedCount: Int {
+        library.books.filter { (library.position(for: $0)?.progress ?? 0) >= 0.995 }.count
+    }
+
+    private var visibleBooks: [Book] {
+        let found = library.sortedBooks.filter { book in
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let matchesText = query.isEmpty || book.title.localizedStandardContains(query) ||
+                book.author.localizedStandardContains(query)
+            let progress = library.position(for: book)?.progress ?? 0
+            let matchesFilter: Bool
+            switch shelfFilter {
+            case .all: matchesFilter = true
+            case .reading: matchesFilter = progress > 0 && progress < 0.995
+            case .finished: matchesFilter = progress >= 0.995
+            }
+            return matchesText && matchesFilter
+        }
+        switch shelfSort {
+        case .recent: return found
+        case .title: return found.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case .author: return found.sorted {
+            ($0.author.isEmpty ? $0.title : $0.author)
+                .localizedStandardCompare($1.author.isEmpty ? $1.title : $1.author) == .orderedAscending
+        }
+        }
+    }
 
     private let columns = [GridItem(.adaptive(minimum: 130, maximum: 190), spacing: 18, alignment: .top)]
 
@@ -18,27 +56,32 @@ struct LibraryView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     masthead
                     intro
+                    collectionStats
                     if let book = library.sortedBooks.first {
                         ContinueCard(book: book, progress: library.position(for: book)?.progress ?? 0) {
                             open(book)
                         }
                     }
                     HStack(alignment: .firstTextBaseline) {
-                        Text("YOUR BOOKS")
+                        Text("YOUR SHELF")
                             .font(.system(size: 13, weight: .heavy, design: .rounded))
                             .tracking(2.6)
                             .foregroundStyle(Palette.softWhite)
                         Spacer()
-                        Text("\(library.sortedBooks.count) \(library.sortedBooks.count == 1 ? "TITLE" : "TITLES")")
+                        Text("\(visibleBooks.count) \(visibleBooks.count == 1 ? "TITLE" : "TITLES")")
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .tracking(1.4)
                             .foregroundStyle(Palette.muted)
                     }
+                    shelfSearch
+                    shelfControls
                     if library.books.isEmpty && !library.isWorking {
                         emptyState
+                    } else if visibleBooks.isEmpty && !library.isWorking {
+                        noMatches
                     } else {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 26) {
-                            ForEach(library.sortedBooks) { book in
+                            ForEach(visibleBooks) { book in
                                 Button { open(book) } label: {
                                     BookCell(book: book, progress: library.position(for: book)?.progress)
                                 }
@@ -62,7 +105,7 @@ struct LibraryView: View {
                     }
                     HStack(spacing: 8) {
                         Image(systemName: "book.closed.fill")
-                        Text("READ DIFFERENT. READ ANYWHERE.")
+                        Text("QUILUNE  •  STORIES, BEAUTIFULLY UNFOLDED.")
                     }
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .tracking(1.5)
@@ -97,7 +140,7 @@ struct LibraryView: View {
         } message: {
             Text("The book file is deleted from Book Duo's folder.")
         }
-        .alert("Book Duo", isPresented: Binding(get: { library.message != nil }, set: { if !$0 { library.message = nil } })) {
+        .alert("Quilune", isPresented: Binding(get: { library.message != nil }, set: { if !$0 { library.message = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(library.message ?? "")
@@ -129,7 +172,7 @@ struct LibraryView: View {
             .frame(width: 48, height: 48)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("BOOK DUO")
+                Text("QUILUNE")
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .tracking(1.2)
                     .foregroundStyle(Palette.softWhite)
@@ -149,7 +192,7 @@ struct LibraryView: View {
                     .background(Palette.card, in: Circle())
                     .overlay(Circle().stroke(.white.opacity(0.1)))
             }
-            .accessibilityLabel("About Book Duo")
+            .accessibilityLabel("About Quilune")
 
             Button { importing = true } label: {
                 Image(systemName: "plus")
@@ -169,12 +212,12 @@ struct LibraryView: View {
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .tracking(2.4)
                 .foregroundStyle(Palette.accentBlue)
-            Text("Every great story\nstarts here.")
+            Text("Lose yourself in\na good story.")
                 .font(.system(size: 34, weight: .bold, design: .serif))
                 .tracking(-0.9)
                 .foregroundStyle(Palette.softWhite)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("An immersive reading experience, made for your Duo.")
+            Text("Your private library, extraordinary when unfolded.")
                 .font(.system(size: 13))
                 .foregroundStyle(Palette.muted)
         }
@@ -203,10 +246,10 @@ struct LibraryView: View {
                 .font(.system(size: 42))
                 .foregroundStyle(Palette.accent)
                 .padding(.bottom, 4)
-            Text("Your shelf is waiting")
+            Text("A library of possibilities")
                 .font(.system(size: 21, weight: .semibold, design: .serif))
                 .foregroundStyle(Palette.softWhite)
-            Text("Import an EPUB to start reading. Your books stay right here on your iPhone.")
+            Text("Start with an EPUB. Quilune keeps your books and progress on your iPhone.")
                 .font(.system(size: 13))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Palette.muted)
