@@ -13,6 +13,7 @@ struct GameView: View {
     @State private var showingSaves = false
     @StateObject private var tuning: AVControlTuning
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
+    @AppStorage("avydrix.gba.landscapeControls") private var gbaLandscapeControls = true
     @AppStorage("retroDuoTwoPanels") private var useTwoPanels = true
     @AppStorage("retroDuoOriginalProportions") private var originalProportions = false
     @State private var diagnostics = ""
@@ -29,6 +30,14 @@ struct GameView: View {
             Group {
                 if let error = session.errorMessage {
                     errorView(error)
+                } else if system == .gameBoyAdvance &&
+                            size.width > size.height * 1.15 &&
+                            !hinge.isHalfOpen &&
+                            duoMode != "stacked" &&
+                            gbaLandscapeControls {
+                    // Landscape GBA always keeps touch controls on the visible screen.
+                    // Preserve explicit tabletop/hinge mode and the existing side-layout opt out.
+                    gbaLandscapeLayout(size)
                 } else if hinge.isHalfOpen || duoMode == "stacked" || (duoMode == "auto" && useTwoPanels) {
                     if size.width > size.height {
                         tabletopLayout(size)
@@ -213,6 +222,79 @@ struct GameView: View {
             .frame(width: side)
         }
         .padding(.vertical, 10)
+    }
+
+    /// Immersive GBA landscape with controls on the same visible pane.
+    /// The picture stays full-screen behind translucent gamepad surfaces, and
+    /// users with Bluetooth controllers can disable this overlay in Settings.
+    private func gbaLandscapeLayout(_ size: CGSize) -> some View {
+        let padSize = min(146, max(96, size.height * 0.32))
+        let actionSize = min(70, max(46, size.height * 0.16))
+
+        return ZStack {
+            gameplayPanel(width: size.width, height: size.height)
+                .accessibilityIdentifier("gbaLandscapeGameScreen")
+
+            // A faint lower gradient improves button legibility without
+            // cropping or resizing the running GBA frame.
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.12), .black.opacity(0.50)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
+
+            VStack(spacing: 0) {
+                HStack(spacing: 10) {
+                    menuButton
+                        .padding(6)
+                        .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 14))
+                    Spacer(minLength: 0)
+                    Button { session.toggleMute() } label: {
+                        Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 49, height: 46)
+                            .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(session.isMuted ? "Turn sound on" : "Mute sound")
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 26)
+
+                Spacer(minLength: 4)
+
+                HStack(alignment: .bottom, spacing: 5) {
+                    if tuning.mirrored {
+                        actionButtons(diameter: actionSize)
+                            .padding(8)
+                            .background(.black.opacity(0.44), in: RoundedRectangle(cornerRadius: 20))
+                        Spacer(minLength: 0)
+                        directionPad(size: padSize)
+                            .padding(8)
+                            .background(.black.opacity(0.44), in: RoundedRectangle(cornerRadius: 20))
+                    } else {
+                        directionPad(size: padSize)
+                            .padding(8)
+                            .background(.black.opacity(0.44), in: RoundedRectangle(cornerRadius: 20))
+                        Spacer(minLength: 0)
+                        actionButtons(diameter: actionSize)
+                            .padding(8)
+                            .background(.black.opacity(0.44), in: RoundedRectangle(cornerRadius: 20))
+                    }
+                }
+                .padding(.horizontal, 14)
+
+                MenuButtons(session: session, keys: system.menuKeys)
+                    .scaleEffect(0.85)
+                    .padding(.top, 1)
+                    .padding(.bottom, 21)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("gba-landscape-with-controls")
     }
 
     private var system: GameSystem { session.game.system }
