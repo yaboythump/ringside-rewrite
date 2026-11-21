@@ -177,7 +177,7 @@ final class ArcadeBridge: NSObject, ObservableObject, WKScriptMessageHandler, WK
         do {
             try FileManager.default.createDirectory(at: savesFolder, withIntermediateDirectories: true)
             try Data(value.utf8).write(to: savesFolder.appending(path: id + ".json"), options: .atomic)
-        } catch { error("Could not save state") }
+        } catch { self.error("Could not save state") }
     }
     private func load(id: String) {
         guard cartridges.contains(where: { $0.id == id }),
