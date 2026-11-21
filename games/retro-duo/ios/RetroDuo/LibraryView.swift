@@ -10,9 +10,15 @@ struct LibraryView: View {
     @EnvironmentObject private var library: GameLibrary
     @AppStorage("avydrix.lastPlayedGameID") private var lastPlayedGameID = ""
     @AppStorage("avydrix.bootSoundEnabled") private var bootSoundEnabled = true
+    @AppStorage("avydrix.ambientMotionEnabled") private var ambientMotionEnabled = true
+    @AppStorage("avydrix.launchAnimationEnabled") private var launchAnimationEnabled = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var importing = false
     @State private var playing: Game?
+    @State private var pendingLaunch: Game?
+    @State private var launchTask: Task<Void, Never>?
     @State private var showingSettings = false
     @State private var settingCoverFor: Game?
     @State private var featuredIndex = 0
@@ -64,7 +70,8 @@ struct LibraryView: View {
                 }
                 .scrollIndicators(.hidden)
                 .refreshable { library.refresh() }
-                .background(AVBackdrop())
+                .background(AVBackdrop(animated: ambientMotionEnabled && !reduceMotion &&
+                                       playing == nil && pendingLaunch == nil && scenePhase == .active))
             }
             .toolbar(.hidden, for: .navigationBar)
             .fileImporter(isPresented: $importing,
@@ -88,6 +95,15 @@ struct LibraryView: View {
                     .presentationDetents([.medium, .large])
             }
         }
+        .overlay {
+            if let game = pendingLaunch {
+                AVCartridgeLaunchView(game: game, artwork: covers.image(for: game))
+                    .transition(.opacity)
+                    .zIndex(30)
+                    .accessibilityIdentifier("avydrix-cartridge-launch")
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: pendingLaunch?.id)
         .fullScreenCover(item: $playing, onDismiss: { profile.finish() }) { game in
             if game.system == .nintendoDS {
                 DSGameView(session: DSSession(game: game, library: library))
@@ -100,7 +116,7 @@ struct LibraryView: View {
             covers.discover(ownedGames)
         }
         .onReceive(Timer.publish(every: 5.0, on: .main, in: .common).autoconnect()) { _ in
-            guard playing == nil, showcasedGames.count > 1 else { return }
+            guard playing == nil, pendingLaunch == nil, showcasedGames.count > 1 else { return }
             withAnimation(.easeInOut(duration: 0.4)) {
                 featuredIndex = (featuredIndex + 1) % showcasedGames.count
             }
@@ -108,6 +124,18 @@ struct LibraryView: View {
         .task(id: ownedGames.map(\.id).joined(separator: "|")) {
             covers.discover(ownedGames)
             if featuredIndex >= showcasedGames.count { featuredIndex = 0 }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // An interrupted insert animation should never unexpectedly open a game.
+            if newPhase != .active, pendingLaunch != nil {
+                launchTask?.cancel()
+                launchTask = nil
+                pendingLaunch = nil
+            }
+        }
+        .onDisappear {
+            launchTask?.cancel()
+            launchTask = nil
         }
         .task {
             // UI test launch arguments must continue to jump directly into gameplay.
@@ -123,6 +151,27 @@ struct LibraryView: View {
     }
 
     private func launch(_ game: Game) {
+        // All library, featured and recently-played actions share this entrypoint.
+        // Never queue two ROM launches or re-trigger play while a game is open.
+        guard pendingLaunch == nil, playing == nil else { return }
+        let isUITesting = ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests")
+        guard launchAnimationEnabled && !reduceMotion && !isUITesting && scenePhase == .active else {
+            openGame(game)
+            return
+        }
+
+        pendingLaunch = game
+        launchTask?.cancel()
+        launchTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_100_000_000)
+            guard !Task.isCancelled, pendingLaunch?.id == game.id else { return }
+            pendingLaunch = nil
+            launchTask = nil
+            openGame(game)
+        }
+    }
+
+    private func openGame(_ game: Game) {
         if !game.isBuiltIn || game.isBundledGame { lastPlayedGameID = game.id }
         profile.start(game)
         playing = game
@@ -767,26 +816,99 @@ private enum AVPalette {
 }
 
 private struct AVBackdrop: View {
+    let animated: Bool
+
     var body: some View {
-        ZStack {
-            Color(red: 0.018, green: 0.027, blue: 0.066)
-            RadialGradient(colors: [AVPalette.blue.opacity(0.12), .clear],
-                           center: .topLeading, startRadius: 30, endRadius: 620)
-            RadialGradient(colors: [AVPalette.purple.opacity(0.09), .clear],
-                           center: .bottomTrailing, startRadius: 30, endRadius: 570)
-            Canvas { context, size in
-                var lines = Path()
-                for y in stride(from: 0.0, through: size.height, by: 5.0) {
-                    lines.move(to: CGPoint(x: 0, y: y))
-                    lines.addLine(to: CGPoint(x: size.width, y: y))
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: !animated)) { timeline in
+            let time = animated ? timeline.date.timeIntervalSinceReferenceDate : 0
+            Canvas(opaque: true) { context, size in
+                let width = size.width
+                let height = size.height
+                let background = Color(red: 0.013, green: 0.021, blue: 0.058)
+                context.fill(Path(CGRect(origin: .zero, size: size)),
+                             with: .color(background))
+
+                // Slow, diffuse cyan/violet light pools evoke the powered-on console.
+                // These are rendered with Canvas, not continuous heavy view blurs.
+                let lights: [(CGPoint, CGFloat, Color)] = [
+                    (
+                        CGPoint(x: width * (0.12 + 0.12 * sin(time * 0.16)),
+                                y: height * (0.17 + 0.07 * cos(time * 0.13))),
+                        max(width, height) * 0.61,
+                        Color(red: 0.0, green: 0.47, blue: 0.96)
+                    ),
+                    (
+                        CGPoint(x: width * (0.89 + 0.08 * cos(time * 0.11)),
+                                y: height * (0.72 + 0.11 * sin(time * 0.17))),
+                        max(width, height) * 0.59,
+                        Color(red: 0.37, green: 0.17, blue: 0.88)
+                    ),
+                    (
+                        CGPoint(x: width * (0.76 + 0.09 * sin(time * 0.09)),
+                                y: height * (0.23 + 0.09 * cos(time * 0.14))),
+                        max(width, height) * 0.35,
+                        Color(red: 0.05, green: 0.69, blue: 0.94)
+                    )
+                ]
+
+                for (center, radius, color) in lights {
+                    context.fill(
+                        Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius,
+                                              width: radius * 2, height: radius * 2)),
+                        with: .radialGradient(
+                            Gradient(colors: [
+                                color.opacity(0.16),
+                                color.opacity(0.045),
+                                color.opacity(0.0)
+                            ]),
+                            center: center,
+                            startRadius: 0,
+                            endRadius: radius
+                        )
+                    )
                 }
-                context.stroke(lines, with: .color(.white.opacity(0.012)), lineWidth: 0.5)
+
+                // Light schematic rings drift slowly, but the card text stays stable.
+                let orbit = CGPoint(x: width * 0.74, y: height * 0.44)
+                for index in 0..<3 {
+                    let wave = CGFloat(sin(time * 0.13 + Double(index) * 0.8))
+                    let radius = CGFloat(190 + index * 112) + wave * 14
+                    context.stroke(
+                        Path(ellipseIn: CGRect(x: orbit.x - radius, y: orbit.y - radius,
+                                              width: radius * 2, height: radius * 2)),
+                        with: .color(Color(red: 0.27, green: 0.69, blue: 1).opacity(0.035)),
+                        lineWidth: 0.9
+                    )
+                }
+
+                var grid = Path()
+                for y in stride(from: CGFloat(0), through: height, by: CGFloat(33)) {
+                    grid.move(to: CGPoint(x: 0, y: y))
+                    grid.addLine(to: CGPoint(x: width, y: y))
+                }
+                context.stroke(grid, with: .color(.white.opacity(0.018)), lineWidth: 0.5)
+
+                // Tiny drifting particles add motion without obstructing game covers.
+                for index in 0..<16 {
+                    let seed = Double(index)
+                    let x = width * CGFloat((seed * 0.6180339887).truncatingRemainder(dividingBy: 1))
+                    let yPhase = (seed * 0.371 + time * (0.007 + seed * 0.00035))
+                        .truncatingRemainder(dividingBy: 1)
+                    let y = height * CGFloat(yPhase)
+                    let dot = CGFloat(index.isMultiple(of: 4) ? 2.3 : 1.3)
+                    context.fill(
+                        Path(ellipseIn: CGRect(x: x, y: y, width: dot, height: dot)),
+                        with: .color(Color(red: 0.55, green: 0.80, blue: 1)
+                            .opacity(index.isMultiple(of: 4) ? 0.25 : 0.13))
+                    )
+                }
             }
         }
         .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
-
 
 // Cover art lives in Documents/Covers and never touches ROM contents or save games.
 // Exact filename matching gets existing Libretro box art; users can override any image.
