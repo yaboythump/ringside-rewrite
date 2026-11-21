@@ -452,3 +452,128 @@ struct AVPlayerProfileView: View {
         return minutes < 60 ? "\(minutes)m" : "\(minutes / 60)h \(minutes % 60)m"
     }
 }
+
+
+struct AVSettingsHome: View {
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("avydrix.bootSoundEnabled") private var bootSound = true
+    @AppStorage("muted") private var muted = false
+    @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
+    @AppStorage("retroDuoOriginalProportions") private var proportions = false
+    @AppStorage("avydrix.displayFilter") private var filter = "off"
+    @AppStorage("avydrix.dsSwapScreens") private var swapDS = false
+    @AppStorage("avydrix.dsTouchScale") private var lowerScale = 1.0
+
+    @State private var system: GameSystem = .nintendoDS
+    @State private var showControls = false
+    @State private var showAbout = false
+
+    @StateObject private var nes = AVControlTuning(system: .nes)
+    @StateObject private var ds = AVControlTuning(system: .nintendoDS)
+    @StateObject private var gb = AVControlTuning(system: .gameBoy)
+    @StateObject private var gbc = AVControlTuning(system: .gameBoyColor)
+
+    private var tuning: AVControlTuning {
+        switch system {
+        case .nes: return nes
+        case .nintendoDS: return ds
+        case .gameBoy: return gb
+        case .gameBoyColor: return gbc
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack(spacing: 14) {
+                        Image(systemName: "gamecontroller.fill")
+                            .font(.system(size: 27, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 60, height: 60)
+                            .background(
+                                LinearGradient(colors: [
+                                    Color(red: 0.08, green: 0.59, blue: 1),
+                                    Color(red: 0.43, green: 0.24, blue: 0.95)
+                                ], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: RoundedRectangle(cornerRadius: 16))
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("AVYDRIX PLAY")
+                                .font(.system(size: 18, weight: .black, design: .rounded))
+                            Text("Make every screen yours.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 7)
+                }
+                Section("Audio") {
+                    Toggle("Startup sound", isOn: $bootSound)
+                    Toggle("Mute game audio", isOn: $muted)
+                }
+                Section("Duo Display") {
+                    Picker("Screen layout", selection: $duoMode) {
+                        Text("Automatic").tag("auto")
+                        Text("Upper game, lower controls").tag("stacked")
+                        Text("Side controls when unfolded").tag("side")
+                    }
+                    Toggle("Original screen proportions", isOn: $proportions)
+                    Toggle("Swap Nintendo DS screens", isOn: $swapDS)
+                    HStack {
+                        Text("Lower DS screen size")
+                        Slider(value: $lowerScale, in: 0.8...1.2, step: 0.05)
+                        Text("\(Int(lowerScale * 100))%").font(.caption).monospacedDigit()
+                    }
+                }
+                Section("Display") {
+                    Picker("Picture filter", selection: $filter) {
+                        Text("Sharp pixels").tag("off")
+                        Text("LCD pixel grid").tag("lcd")
+                        Text("CRT scanlines").tag("crt")
+                    }
+                }
+                Section("Controls & Bluetooth") {
+                    Picker("Console", selection: $system) {
+                        Text("Nintendo DS").tag(GameSystem.nintendoDS)
+                        Text("NES").tag(GameSystem.nes)
+                        Text("Game Boy Color").tag(GameSystem.gameBoyColor)
+                        Text("Game Boy").tag(GameSystem.gameBoy)
+                    }
+                    Button {
+                        showControls = true
+                    } label: {
+                        Label("Customize buttons & controller mapping", systemImage: "slider.horizontal.3")
+                    }
+                    Text("Adjust button size, opacity, position, layout, and Bluetooth button mappings for each console.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Information") {
+                    Button {
+                        showAbout = true
+                    } label: {
+                        Label("About & open-source licenses", systemImage: "info.circle")
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color(red: 0.018, green: 0.028, blue: 0.065).ignoresSafeArea())
+            .navigationTitle("AVYDRIX Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .sheet(isPresented: $showControls) {
+                AVGameSettings(tuning: tuning)
+            }
+            .sheet(isPresented: $showAbout) {
+                AboutView()
+            }
+        }
+        .tint(Color(red: 0.36, green: 0.75, blue: 1))
+        .preferredColorScheme(.dark)
+        .accessibilityIdentifier("avydrix-settings")
+    }
+}
