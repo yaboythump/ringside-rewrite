@@ -548,9 +548,15 @@ struct CoverView: View {
                 .padding(10)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(.black.opacity(0.08)))
-        .shadow(color: .black.opacity(0.18), radius: 5, x: 0, y: 3)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay(alignment: .leading) {
+            LinearGradient(colors: [.black.opacity(0.30), .white.opacity(0.12), .clear],
+                           startPoint: .leading, endPoint: .trailing)
+                .frame(width: 12)
+                .allowsHitTesting(false)
+        }
+        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(.white.opacity(0.13)))
+        .shadow(color: .black.opacity(0.31), radius: 10, x: 1, y: 7)
         .task(id: book.coverURL) {
             if let url = book.coverURL { image = await CoverCache.shared.image(for: url) }
         }
