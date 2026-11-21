@@ -7,6 +7,7 @@ final class PixelScreenView: UIView {
     // UIKit can clear a UIView's backing contents when its geometry changes.
     // Keep the game picture in a dedicated child layer throughout rotation.
     private let pictureLayer = CALayer()
+    private var lastImage: CGImage?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -32,7 +33,7 @@ final class PixelScreenView: UIView {
 
     /// Captures the last fully rendered frame for the visual save-slot preview.
     func screenshotPNG() -> Data? {
-        guard let pixels = pictureLayer.contents as? CGImage else { return nil }
+        guard let pixels = lastImage else { return nil }
         return UIImage(cgImage: pixels).pngData()
     }
 
@@ -54,6 +55,7 @@ final class PixelScreenView: UIView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         pictureLayer.contents = image
+        lastImage = image
         CATransaction.commit()
     }
 }
