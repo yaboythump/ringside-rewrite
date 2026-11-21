@@ -151,9 +151,9 @@ jobs:
           retention-days: 14
 
   upload:
-    # Uploads only when started by hand (Actions > Retro Duo TestFlight > Run workflow),
-    # so merging never fails before the App Store Connect app record exists.
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.upload
+    # Automatically ship verified Retro Duo changes merged to main.
+    # Feature branches only verify; manual dispatch can still opt out of upload.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.upload))
     needs: [verify, core]
     environment: ringside-testflight
     runs-on: xcode-27
