@@ -76,54 +76,73 @@ struct GameView: View {
 
     // MARK: Layouts
 
+    // The unfolded Duo dedicates its entire upper half to the game, not a small
+    // simulated handheld bezel. The native 160:144 image is scaled to fit without
+    // cropping or distorting pixels; only unavoidable aspect-ratio bars remain.
     private func portraitLayout(_ size: CGSize) -> some View {
-        // The picture gets nearly the full width; the controls share what's left below it.
-        let barHeight: CGFloat = 44
-        let controlsMinimum: CGFloat = 225
-        let screenWidth = max(80, min(size.width - 16, (size.height - barHeight - controlsMinimum) * 10 / 9))
-        let controlsHeight = size.height - barHeight - screenWidth * 0.9 - 20
-        let pad = max(108, min(size.width * 0.40, controlsHeight * 0.62, 170))
-        let button = max(50, min(size.width * 0.17, pad * 0.46, 76))
+        let half = size.height / 2
+        let pad = min(size.width * 0.40, half * 0.55, 170)
+        let button = min(size.width * 0.17, pad * 0.46, 76)
         return VStack(spacing: 0) {
-            topBar
-            screen(width: screenWidth)
-            Spacer(minLength: 4)
-            HStack(alignment: .center) {
-                DPad(session: session)
-                    .frame(width: pad, height: pad)
-                Spacer()
-                FaceButtons(session: session, diameter: button)
-                    .padding(.trailing, 4)
+            gameplayPanel(width: size.width, height: half)
+            VStack(spacing: 0) {
+                HStack(alignment: .center) {
+                    DPad(session: session).frame(width: pad, height: pad)
+                    Spacer(minLength: 8)
+                    FaceButtons(session: session, diameter: button)
+                }
+                .padding(.horizontal, 16)
+                Spacer(minLength: 4)
+                MenuButtons(session: session)
+                Spacer(minLength: 4)
             }
-            .padding(.horizontal, 16)
-            Spacer(minLength: 4)
-            MenuButtons(session: session)
-                .padding(.bottom, 6)
+            .frame(width: size.width, height: half)
         }
     }
 
     private func tabletopLayout(_ size: CGSize) -> some View {
         let half = size.height / 2
-        let screenHeight = max(60, half - 54)
-        let button = min(half * 0.3, 84)
+        let pad = min(half * 0.62, size.width * 0.26, 170)
+        let button = min(half * 0.30, 84)
         return VStack(spacing: 0) {
-            VStack(spacing: 0) {
-                topBar
-                screen(width: screenHeight * 10 / 9)
-                Spacer(minLength: 0)
-            }
-            .frame(height: half)
+            gameplayPanel(width: size.width, height: half)
             HStack(alignment: .center) {
-                DPad(session: session)
-                    .frame(width: half * 0.62, height: half * 0.62)
-                Spacer()
+                DPad(session: session).frame(width: pad, height: pad)
+                Spacer(minLength: 4)
                 MenuButtons(session: session)
-                Spacer()
+                Spacer(minLength: 4)
                 FaceButtons(session: session, diameter: button)
             }
-            .padding(.horizontal, 48)
-            .frame(height: half)
+            .padding(.horizontal, 24)
+            .frame(width: size.width, height: half)
         }
+    }
+
+    private func gameplayPanel(width: CGFloat, height: CGFloat) -> some View {
+        ZStack {
+            Color.black
+            GeometryReader { available in
+                let gameWidth = min(available.size.width, available.size.height * 10 / 9)
+                PixelScreen(session: session)
+                    .frame(width: gameWidth, height: gameWidth * 0.9)
+                    .position(x: available.size.width / 2, y: available.size.height / 2)
+            }
+        }
+        .frame(width: width, height: height)
+        .clipped()
+        .overlay(alignment: .topLeading) {
+            menuButton.padding(8)
+        }
+        .overlay(alignment: .topTrailing) {
+            Button { session.toggleMute() } label: {
+                Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 44, height: 40)
+            }
+            .accessibilityLabel(session.isMuted ? "Turn sound on" : "Mute sound")
+            .padding(8)
+        }
+        .accessibilityLabel("Game screen")
     }
 
     private func landscapeLayout(_ size: CGSize) -> some View {
