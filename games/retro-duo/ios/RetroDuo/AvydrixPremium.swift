@@ -293,7 +293,8 @@ struct AVSaveManager: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(game.name).font(.headline).padding(.bottom, 3)
-                    ForEach(slots, id: \.id) { slot in
+                    ForEach(slots.indices, id: \.self) { index in
+                        let slot = slots[index]
                         let exists = FileManager.default.fileExists(atPath: library.stateURL(for: game, slot: slot.id).path)
                         HStack(spacing: 12) {
                             if let cover = UIImage(contentsOfFile: library.statePreviewURL(for: game, slot: slot.id).path) {
