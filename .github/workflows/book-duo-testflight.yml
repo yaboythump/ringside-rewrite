@@ -98,7 +98,10 @@ jobs:
           }
           run library
           run reader -BookDuoDemo
-          run landscape -BookDuoDemo -BookDuoLandscape
+          run turned -BookDuoDemo -BookDuoTurn
+          run spread -BookDuoDemo -BookDuoLandscape -BookDuoFakeFold -BookDuoTurn
+          xcrun simctl help 2>&1 | grep -iE "hinge|fold|posture|display|unfold" | head -20 || true
+          xcrun simctl io help 2>&1 | grep -iE "hinge|fold|posture|display|unfold" | head -20 || true
           xcrun simctl spawn "$dev" log show --last 3m --predicate 'process == "BookDuo"' --style compact 2>/dev/null \
             | grep -iE "fault|crash|error" | head -20 || true
       - uses: actions/upload-artifact@v4

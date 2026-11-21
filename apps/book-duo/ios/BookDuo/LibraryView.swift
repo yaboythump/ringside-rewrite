@@ -5,8 +5,7 @@ struct LibraryView: View {
     @EnvironmentObject private var library: BookLibrary
     @EnvironmentObject private var settings: ReaderSettings
     @State private var importing = false
-    @State private var reading: Book?
-    @State private var demoChapter: Int?
+    @State private var reading: OpenBook?
     @State private var bookToDelete: Book?
     @State private var showingAbout = false
     @State private var startedDemo = false
@@ -67,8 +66,8 @@ struct LibraryView: View {
         .fileImporter(isPresented: $importing, allowedContentTypes: [.epub], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { library.importFiles(urls) }
         }
-        .fullScreenCover(item: $reading) { book in
-            ReaderView(book: book, library: library, startAt: demoChapter)
+        .fullScreenCover(item: $reading) { request in
+            ReaderView(book: request.book, library: library, startAt: request.chapter)
                 .environmentObject(settings)
         }
         .sheet(isPresented: $showingAbout) { AboutView() }
@@ -90,8 +89,7 @@ struct LibraryView: View {
     }
 
     private func open(_ book: Book) {
-        demoChapter = nil
-        reading = book
+        reading = OpenBook(book: book, chapter: nil)
     }
 
     /// `-BookDuoDemo` opens the sample at chapter one, for simulator previews.
@@ -103,8 +101,7 @@ struct LibraryView: View {
            let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
             scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight)) { _ in }
         }
-        demoChapter = book.manifest.spine.firstIndex { $0.path.contains("chapter-1.") }
-        reading = book
+        reading = OpenBook(book: book, chapter: book.manifest.spine.firstIndex { $0.path.contains("chapter-1.") })
     }
 
     private var emptyState: some View {
@@ -119,6 +116,12 @@ struct LibraryView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
     }
+}
+
+struct OpenBook: Identifiable {
+    let book: Book
+    let chapter: Int?
+    var id: String { book.id }
 }
 
 private struct ContinueCard: View {

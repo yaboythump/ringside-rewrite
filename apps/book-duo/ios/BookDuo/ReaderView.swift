@@ -18,7 +18,8 @@ struct ReaderView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let layout = PaneLayout.make(size: proxy.size, fold: PaneLayout.fold(in: proxy), mode: settings.spread)
+            let layout = PaneLayout.make(size: proxy.size, fold: PaneLayout.fold(in: proxy) ?? Self.debugFold(proxy.size),
+                                         mode: settings.spread)
             ZStack(alignment: .topLeading) {
                 if layout.kind == .sideBySide, let fold = layout.fold {
                     SpineShade(theme: theme).frame(width: max(fold.width, 2) + 36, height: proxy.size.height)
@@ -55,8 +56,20 @@ struct ReaderView: View {
         }
         .onChange(of: scenePhase) { _, phase in if phase != .active { model.save() } }
         .onDisappear { model.save() }
+        .task {
+            // `-BookDuoTurn` turns one page after opening, for simulator checks.
+            guard ProcessInfo.processInfo.arguments.contains("-BookDuoTurn") else { return }
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            model.next()
+        }
         .accessibilityAction(named: "Next page") { model.next() }
         .accessibilityAction(named: "Previous page") { model.previous() }
+    }
+
+    /// `-BookDuoFakeFold` pretends there is a 16-point fold down the middle, for simulator checks.
+    private static func debugFold(_ size: CGSize) -> CGRect? {
+        guard ProcessInfo.processInfo.arguments.contains("-BookDuoFakeFold"), size.width > size.height else { return nil }
+        return CGRect(x: size.width / 2 - 8, y: 0, width: 16, height: size.height)
     }
 
     // MARK: Pages
