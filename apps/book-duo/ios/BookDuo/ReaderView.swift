@@ -6,9 +6,12 @@ struct ReaderView: View {
     @EnvironmentObject private var settings: ReaderSettings
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingContents = false
     @State private var showingAppearance = false
     @State private var scrubbing: Double?
+    @State private var focusMode = false
+    @State private var isOpeningCoverVisible = true
 
     init(book: Book, library: BookLibrary, startAt chapter: Int? = nil) {
         _model = StateObject(wrappedValue: ReaderModel(book: book, library: library, startAt: chapter))
@@ -42,8 +45,13 @@ struct ReaderView: View {
         }
         .background(theme.backgroundColor.ignoresSafeArea())
         .overlay(alignment: .top) { if model.chromeVisible { topBar.transition(.move(edge: .top).combined(with: .opacity)) } }
-        .overlay(alignment: .topLeading) { if !model.chromeVisible { compactLibraryButton.transition(.opacity) } }
-        .overlay(alignment: .bottom) { if model.chromeVisible { bottomBar.transition(.move(edge: .bottom).combined(with: .opacity)) } }
+        .overlay(alignment: .topLeading) {
+            if !model.chromeVisible && !focusMode { compactLibraryButton.transition(.opacity) }
+        }
+        .overlay(alignment: .bottom) {
+            if model.chromeVisible { bottomBar.transition(.move(edge: .bottom).combined(with: .opacity)) }
+        }
+        .overlay { cinematicBookOpening }
         .statusBarHidden(!model.chromeVisible)
         .persistentSystemOverlays(model.chromeVisible ? .automatic : .hidden)
         .preferredColorScheme(theme.isDark ? .dark : .light)
@@ -58,6 +66,17 @@ struct ReaderView: View {
                 .presentationBackgroundInteraction(.enabled(upThrough: .height(440)))
         }
         .onChange(of: scenePhase) { _, phase in if phase != .active { model.save() } }
+        .onChange(of: model.isRevealed, initial: true) { _, ready in
+            guard ready && isOpeningCoverVisible else { return }
+            if reduceMotion {
+                isOpeningCoverVisible = false
+            } else {
+                Task {
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    withAnimation(.easeInOut(duration: 0.8)) { isOpeningCoverVisible = false }
+                }
+            }
+        }
         .onDisappear { model.save() }
         .task {
             // `-BookDuoTurn` turns one page after opening, for simulator checks.
@@ -68,6 +87,9 @@ struct ReaderView: View {
         }
         .accessibilityAction(named: "Next page") { model.next() }
         .accessibilityAction(named: "Previous page") { model.previous() }
+        .accessibilityAction(named: "Show reading controls") {
+            withAnimation(.easeInOut(duration: 0.2)) { model.chromeVisible = true }
+        }
     }
 
     /// `-BookDuoFakeFold` pretends there is a 16-point fold down the middle, for simulator checks.
@@ -79,7 +101,7 @@ struct ReaderView: View {
     // MARK: Pages
 
     private func pane(_ index: Int, frame: CGRect, layout: PaneLayout) -> some View {
-        let footer: CGFloat = 28
+        let footer: CGFloat = focusMode ? 0 : 28
         let pageSize = CGSize(width: frame.width, height: max(100, frame.height - footer))
         let number = model.page + index
         let isVisiblePage = number < model.pageCount && model.isRevealed
@@ -90,22 +112,58 @@ struct ReaderView: View {
             }
             .frame(width: pageSize.width, height: pageSize.height)
             .accessibilityLabel("Book page \(number + 1)")
-            HStack(spacing: 5) {
-                if isVisiblePage {
+            if !focusMode {
+                HStack(spacing: 5) {
+                    if isVisiblePage {
                     Text("PAGE \(number + 1) / \(model.pageCount)")
                     Text("·")
                     Text("\(remaining) LEFT IN CHAPTER")
+                    }
                 }
-            }
             .font(.system(size: 9, weight: .semibold, design: .rounded))
             .tracking(0.8)
             .monospacedDigit()
             .foregroundStyle(theme.textColor.opacity(0.48))
             .frame(width: frame.width, height: footer, alignment: .center)
             .allowsHitTesting(false)
+            }
         }
         .frame(width: frame.width, height: frame.height)
         .offset(x: frame.minX, y: frame.minY)
+    }
+
+    // A brief cover-to-page reveal, timed to the EPUB layout becoming ready.
+    // Reduced Motion skips the effect. No book content or cover is synthesized.
+    private var cinematicBookOpening: some View {
+        ZStack {
+            RadialGradient(colors: [Color(hex: "#2D244F"), Color(hex: "#080D18")],
+                           center: .center, startRadius: 20, endRadius: 550)
+                .opacity(isOpeningCoverVisible ? 1 : 0)
+
+            VStack(spacing: 27) {
+                CoverView(book: model.book)
+                    .frame(width: 185, height: 278)
+                    .rotation3DEffect(.degrees(isOpeningCoverVisible ? 0 : -75),
+                                      axis: (x: 0, y: 1, z: 0),
+                                      anchor: .leading, perspective: 0.7)
+                    .scaleEffect(isOpeningCoverVisible ? 1 : 1.18)
+                    .shadow(color: .black.opacity(0.48), radius: 30, x: 8, y: 24)
+
+                VStack(spacing: 8) {
+                    Text("QUILUNE")
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .tracking(4)
+                        .foregroundStyle(Palette.accent)
+                    Text("A new chapter awaits")
+                        .font(.system(size: 20, weight: .semibold, design: .serif))
+                        .foregroundStyle(.white)
+                }
+            }
+            .opacity(isOpeningCoverVisible ? 1 : 0)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(isOpeningCoverVisible)
+        .accessibilityHidden(true)
     }
 
     // MARK: Reader controls
@@ -210,10 +268,25 @@ struct ReaderView: View {
                         .monospacedDigit()
                 }
                 Spacer(minLength: 6)
-                Text(model.isRevealed ? "\(model.currentChapterPage) / \(model.pageCount)" : "···")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(theme.textColor.opacity(0.7))
+                VStack(alignment: .trailing, spacing: 8) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            focusMode.toggle()
+                            model.chromeVisible = !focusMode
+                        }
+                    } label: {
+                        Label(focusMode ? "EXIT FOCUS" : "FOCUS",
+                              systemImage: focusMode ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(theme.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(focusMode ? "Exit full screen reading" : "Enter full screen reading")
+                    Text(model.isRevealed ? "\(model.currentChapterPage) / \(model.pageCount)" : "···")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(theme.textColor.opacity(0.7))
+                }
             }
 
             HStack(spacing: 12) {
