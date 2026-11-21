@@ -806,7 +806,13 @@ private final class GameCoverLibrary: ObservableObject {
     }
 
     func image(for game: Game) -> UIImage? {
-        images[game.id] ?? game.coverResource.flatMap { UIImage(named: $0) }
+        images[game.id] ?? game.coverResource.flatMap { resource in
+            if let url = Bundle.main.url(forResource: resource, withExtension: "jpg"),
+               let cover = UIImage(contentsOfFile: url.path) {
+                return cover
+            }
+            return UIImage(named: resource)
+        }
     }
 
     func discover(_ games: [Game], force: Bool = false) {
