@@ -85,6 +85,11 @@ struct AboutView: View {
                         file: "Nestopia-LICENSE"
                     )
                     licenseSection(
+                        "mGBA • Game Boy Advance",
+                        credit: "mGBA was developed by Vicki Pfau and contributors. It is free software under the Mozilla Public License 2.0; its source is at github.com/mgba-emu/mgba.",
+                        file: "mGBA-LICENSE"
+                    )
+                    licenseSection(
                         "melonDS • Nintendo DS",
                         credit: "melonDS was developed by the melonDS team. Its emulator and this distribution include software covered by GNU GPL version 3 or later.",
                         file: "melonDS-LICENSE"
