@@ -60,6 +60,13 @@ jobs:
           grep -F 'app-store-connect' "$RUNNER_TEMP/ca-xcode-help.txt" >/dev/null
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/ca-xcode-help.txt" >/dev/null
 
+      - name: Preserve verified unsigned archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ct-arcade-verified-${{ github.sha }}
+          path: ${{ runner.temp }}/ca-verify.xcarchive
+          retention-days: 14
+          if-no-files-found: error
 
   gameplay:
     if: github.ref == 'refs/heads/main'
@@ -93,7 +100,7 @@ jobs:
     needs: [verify, gameplay]
     environment: ringside-testflight
     runs-on: xcode-27
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -213,9 +220,19 @@ jobs:
                       return json.load(response)["data"]
               except HTTPError as error:
                   method = "POST" if payload else "GET"
+                  try:
+                      errors = json.load(error).get("errors", [])
+                  except (ValueError, AttributeError):
+                      errors = []
+                  for issue in errors:
+                      # Print only Apple's public error fields, never request headers or credentials.
+                      detail = " ".join(str(issue.get(k, "")) for k in ("code", "title", "detail"))
+                      print("Apple authorization detail:", detail.replace("\n", " "), flush=True)
                   sys.exit(f"::error::Apple rejected {method} {path} (HTTP {error.code}).")
 
 
+          app_records = apple("apps", filters={"filter[bundleId]": identifier, "fields[apps]": "bundleId"})
+          print(f"CT Arcade App Store Connect record exists={bool(app_records)}.", flush=True)
           bundle_ids = apple("bundleIds", filters={"filter[identifier]": identifier})
           if bundle_ids:
               bundle = bundle_ids[0]
@@ -254,7 +271,7 @@ jobs:
               base64.b64decode(profile["attributes"]["profileContent"], validate=True)
           )
           print("CT Arcade App Store provisioning profile is ready.", flush=True)
-          if not apple("apps", filters={"filter[bundleId]": identifier, "fields[apps]": "bundleId"}):
+          if not app_records:
               sys.exit("::error::Create the CT Arcade app record in App Store Connect before uploading.")
           PY
           unset token
@@ -306,3 +323,30 @@ jobs:
           plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
           xcodebuild -exportArchive -archivePath "$archive" \
             -exportPath "$RUNNER_TEMP/ca-testflight-export" -exportOptionsPlist "$export_options" "${auth[@]}"
+
+          # Read Apple’s processing and TestFlight state with the existing upload key.
+          token="$(ruby -ropenssl -rbase64 -rjson - "$auth_key" "$ASC_KEY_ID" "$ASC_ISSUER_ID" <<'RUBY'
+          key_path, key_id, issuer = ARGV
+          encode = ->(value) { Base64.urlsafe_encode64(value, padding: false) }
+          now = Time.now.to_i
+          header = encode.call(JSON.generate(alg: "ES256", kid: key_id, typ: "JWT"))
+          claims = encode.call(JSON.generate(iss: issuer, iat: now, exp: now + 1200, aud: "appstoreconnect-v1"))
+          input = "#{header}.#{claims}"
+          key = OpenSSL::PKey.read(File.binread(key_path))
+          der = key.sign("SHA256", input)
+          raw = OpenSSL::ASN1.decode(der).value.map { |part| part.value.to_s(2).rjust(32, "\x00") }.join
+          puts "#{input}.#{encode.call(raw)}"
+          RUBY
+          )"
+          echo "::add-mask::$token"
+          CA_ASC_TOKEN="$token" CA_BUILD="$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" \
+            python3 games/ct-arcade/ios/verify-testflight.py
+          unset token
+      - name: Preserve Apple release status
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ct-arcade-release-status-${{ github.run_number }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ct-arcade-testflight-status.json
+          retention-days: 14
+          if-no-files-found: ignore

@@ -5,6 +5,7 @@ const browser=await chromium.launch({headless:true});
 const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
 const errors=[];page.on('pageerror',e=>errors.push(String(e)));
 try{
+ await page.context().setOffline(true);
  await page.goto(pathToFileURL('/tmp/ct-arcade/index.html').href);
  await page.click('#demo');
  await page.waitForTimeout(180);
@@ -23,10 +24,20 @@ try{
  assert.match(await page.locator('#status').innerText(),/Playing CT Homebrew Test/);
  assert.equal(await page.locator('#save').isDisabled(),false);
  assert.equal(await page.locator('.game.rom').count(),1);
+ await page.click('#save');
+ await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Saved CT Homebrew Test'));
+ await page.click('#load');
+ await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Save restored'));
+ await page.reload();
+ await page.waitForSelector('.game.rom');
+ await page.click('.game.rom');
+ await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Playing CT Homebrew Test'));
+ await page.click('#load');
+ await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Save restored'));
  await page.setViewportSize({width:950,height:760});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2),true,'unfolded layout overflow');
  await page.click('#pause');assert.match(await page.locator('#status').innerText(),/Paused/);
  await page.click('#pause');assert.match(await page.locator('#status').innerText(),/resumed/);
  assert.deepEqual(errors,[],'no browser runtime errors');
- console.log('CT Arcade: original game, NES cartridge import, pause, Duo folded/unfolded PASS');
+ console.log('CT Arcade: original game, NES cartridge import, save/restore across reload, offline, pause, Duo folded/unfolded PASS');
 } finally {await browser.close()}
