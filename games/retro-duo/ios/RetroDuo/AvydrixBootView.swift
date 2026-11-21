@@ -128,6 +128,8 @@ struct AvydrixBootView: View {
             try? await Task.sleep(for: .milliseconds(950))
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.75)) { wordmarkVisible = true }
+            // The whispered console name begins with the wordmark reveal.
+            if bootSoundEnabled { sound.playWhisper() }
             try? await Task.sleep(for: .milliseconds(650))
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.8)) { sweepVisible = true }
@@ -198,6 +200,7 @@ private struct AvydrixMark: View {
 @MainActor
 private final class AvydrixBootSound {
     private var player: AVAudioPlayer?
+    private var whisperPlayer: AVAudioPlayer?
 
     func play() {
         let rate = 44_100
@@ -248,7 +251,28 @@ private final class AvydrixBootSound {
         }
     }
 
+    /// Original voiced signature, bundled locally for offline start-up.
+    /// Played only when the logo appears and only when boot sound is enabled.
+    func playWhisper() {
+        guard let url = Bundle.main.url(forResource: "AvydrixWhisper", withExtension: "mp3") else { return }
+        do {
+            let vocal = try AVAudioPlayer(contentsOf: url)
+            vocal.volume = 0.94
+            vocal.prepareToPlay()
+            // Let the whispered name stand out without eliminating the power-on synth.
+            if vocal.play() {
+                player?.setVolume(0.38, fadeDuration: 0.24)
+                whisperPlayer = vocal
+            }
+        } catch {
+            // Do not delay access to the game library if audio fails.
+            whisperPlayer = nil
+        }
+    }
+
     func stop() {
+        whisperPlayer?.stop()
+        whisperPlayer = nil
         player?.stop()
         player = nil
     }
