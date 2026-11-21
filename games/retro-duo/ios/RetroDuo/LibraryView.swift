@@ -815,6 +815,292 @@ private enum AVPalette {
     static let card = Color(red: 0.055, green: 0.068, blue: 0.12)
 }
 
+/// Cinematic but lightweight game handoff: cartridge visibly slides into a system
+/// slot before the existing emulator view is opened. No emulator code is touched.
+private struct AVCartridgeLaunchView: View {
+    let game: Game
+    let artwork: UIImage?
+
+    @State private var inserted = false
+    @State private var powered = false
+
+    private var systemCode: String {
+        switch game.system.rawValue {
+        case "nes": return "NES"
+        case "gameBoy": return "GB"
+        case "gameBoyColor": return "GBC"
+        case "nintendoDS": return "DS"
+        default: return game.systemName.uppercased()
+        }
+    }
+
+    private var cartWidth: CGFloat {
+        switch game.system.rawValue {
+        case "nes": return 142
+        case "nintendoDS": return 104
+        default: return 124
+        }
+    }
+
+    private var cartHeight: CGFloat {
+        game.system.rawValue == "nintendoDS" ? 133 : 164
+    }
+
+    var body: some View {
+        GeometryReader { screen in
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.007, green: 0.020, blue: 0.058),
+                        Color(red: 0.047, green: 0.034, blue: 0.13),
+                        Color(red: 0.009, green: 0.013, blue: 0.04)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                RadialGradient(
+                    colors: [
+                        Color(red: 0.05, green: 0.62, blue: 1).opacity(powered ? 0.27 : 0.10),
+                        .clear
+                    ],
+                    center: .center, startRadius: 20, endRadius: 360
+                )
+
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(Color(red: 0.12, green: 0.70, blue: 1))
+                            .frame(width: 7, height: 7)
+                            .shadow(color: .cyan.opacity(0.85), radius: 8)
+                        Text("AVYDRIX PLAY")
+                            .font(.system(size: 12, weight: .black, design: .monospaced))
+                            .tracking(2.5)
+                        Spacer()
+                        Text("GAME LOAD")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .tracking(1.1)
+                            .foregroundStyle(.white.opacity(0.48))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.top, 42)
+
+                    Spacer(minLength: 12)
+
+                    ZStack {
+                        Circle()
+                            .stroke(Color(red: 0.20, green: 0.59, blue: 1).opacity(powered ? 0.30 : 0.12),
+                                    lineWidth: 1)
+                            .frame(width: 265, height: 265)
+                            .scaleEffect(powered ? 1.08 : 0.93)
+                        Circle()
+                            .stroke(Color(red: 0.55, green: 0.33, blue: 1).opacity(0.17),
+                                    lineWidth: 1.2)
+                            .frame(width: 216, height: 216)
+                            .scaleEffect(powered ? 1.12 : 1)
+
+                        // The cartridge is behind the system's front plate.
+                        cartridge
+                            .frame(width: cartWidth, height: cartHeight)
+                            .offset(y: inserted ? 49 : -121)
+                            .shadow(color: Color(red: 0.16, green: 0.55, blue: 1).opacity(0.34),
+                                    radius: 22, y: 2)
+
+                        systemHousing
+                            .offset(y: 99)
+
+                        Capsule()
+                            .fill(Color.black.opacity(0.91))
+                            .frame(width: systemCode == "NES" ? 174 : 147, height: 11)
+                            .overlay(
+                                Capsule().stroke(
+                                    Color(red: 0.40, green: 0.78, blue: 1).opacity(powered ? 0.95 : 0.23),
+                                    lineWidth: 1
+                                )
+                            )
+                            .shadow(color: .cyan.opacity(powered ? 0.65 : 0), radius: 12)
+                            .offset(y: 36)
+                    }
+                    .frame(width: 320, height: 335)
+                    .animation(.easeInOut(duration: 0.24), value: powered)
+
+                    Spacer(minLength: 14)
+
+                    VStack(spacing: 10) {
+                        Text(game.name.uppercased())
+                            .font(.system(size: screen.size.width < 520 ? 22 : 29,
+                                          weight: .black, design: .rounded))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.white)
+                        Text(game.systemName.uppercased())
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundStyle(Color(red: 0.60, green: 0.81, blue: 1))
+                        HStack(spacing: 8) {
+                            Image(systemName: powered ? "checkmark.circle.fill" : "arrow.down.to.line.compact")
+                                .foregroundStyle(powered ? .green : .cyan)
+                            Text(powered ? "CARTRIDGE LOADED" : "INSERTING CARTRIDGE")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .tracking(1.25)
+                        }
+                        .foregroundStyle(.white.opacity(0.78))
+                        .padding(.top, 8)
+
+                        Capsule()
+                            .fill(.white.opacity(0.10))
+                            .frame(width: 192, height: 4)
+                            .overlay(alignment: .leading) {
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(colors: [
+                                            Color(red: 0.08, green: 0.69, blue: 1),
+                                            Color(red: 0.49, green: 0.30, blue: 1)
+                                        ], startPoint: .leading, endPoint: .trailing)
+                                    )
+                                    .frame(width: inserted ? (powered ? 192 : 140) : 14, height: 4)
+                            }
+                            .animation(.easeInOut(duration: 0.48), value: inserted)
+                            .animation(.easeInOut(duration: 0.17), value: powered)
+                            .padding(.top, 10)
+                    }
+                    .frame(maxWidth: 355)
+                    .padding(.bottom, 44)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 29)
+                .frame(maxWidth: 460)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(width: screen.size.width, height: screen.size.height)
+        }
+        .ignoresSafeArea()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Inserting \(game.name) cartridge for \(game.systemName)")
+        .task {
+            try? await Task.sleep(nanoseconds: 95_000_000)
+            guard !Task.isCancelled else { return }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(.spring(response: 0.48, dampingFraction: 0.83)) {
+                inserted = true
+            }
+            try? await Task.sleep(nanoseconds: 560_000_000)
+            guard !Task.isCancelled else { return }
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            withAnimation(.easeOut(duration: 0.17)) {
+                powered = true
+            }
+        }
+    }
+
+    private var cartridge: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: systemCode == "DS" ? 10 : 15)
+                .fill(LinearGradient(
+                    colors: [
+                        Color(red: 0.26, green: 0.32, blue: 0.48),
+                        Color(red: 0.09, green: 0.11, blue: 0.22)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
+            RoundedRectangle(cornerRadius: systemCode == "DS" ? 10 : 15)
+                .stroke(.white.opacity(0.22), lineWidth: 1.4)
+
+            VStack(spacing: 7) {
+                HStack {
+                    Text(systemCode)
+                        .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                        .tracking(1)
+                    Spacer()
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 9))
+                }
+                .foregroundStyle(.white.opacity(0.78))
+
+                GeometryReader { label in
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(LinearGradient(
+                                colors: [
+                                    Color(red: 0.10, green: 0.42, blue: 0.87),
+                                    Color(red: 0.38, green: 0.16, blue: 0.66)
+                                ], startPoint: .topLeading, endPoint: .bottomTrailing
+                            ))
+                        if let artwork {
+                            Image(uiImage: artwork)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: label.size.width, height: label.size.height)
+                                .clipped()
+                        } else {
+                            VStack(spacing: 4) {
+                                Image(systemName: "gamecontroller.fill")
+                                    .font(.system(size: 18))
+                                Text(game.name.uppercased())
+                                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                                    .lineLimit(3)
+                                    .minimumScaleFactor(0.65)
+                            }
+                            .foregroundStyle(.white)
+                            .padding(4)
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                Text("CTINTERACTIVE")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .tracking(0.4)
+                    .foregroundStyle(.white.opacity(0.59))
+            }
+            .padding(9)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var systemHousing: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 23)
+                .fill(LinearGradient(
+                    colors: [
+                        Color(red: 0.21, green: 0.25, blue: 0.39),
+                        Color(red: 0.07, green: 0.09, blue: 0.19),
+                        Color(red: 0.035, green: 0.045, blue: 0.11)
+                    ], startPoint: .top, endPoint: .bottom
+                ))
+            RoundedRectangle(cornerRadius: 23)
+                .stroke(.white.opacity(0.18), lineWidth: 1)
+            HStack(spacing: 15) {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("AVYDRIX")
+                        .font(.system(size: 17, weight: .black, design: .rounded))
+                        .tracking(2)
+                        .foregroundStyle(.white.opacity(0.90))
+                    Text("\(systemCode)  /  PLAY")
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.48))
+                }
+                Spacer()
+                HStack(spacing: 10) {
+                    Image(systemName: systemCode == "DS" ? "rectangle.split.2x1" : "gamecontroller")
+                        .font(.system(size: 23, weight: .light))
+                        .foregroundStyle(.white.opacity(0.39))
+                    Circle()
+                        .fill(powered ? Color.green : Color(red: 0.21, green: 0.28, blue: 0.34))
+                        .frame(width: 9, height: 9)
+                        .shadow(color: powered ? .green : .clear, radius: 9)
+                }
+            }
+            .padding(.horizontal, 21)
+            .padding(.top, 29)
+        }
+        .frame(width: 284, height: 128)
+        .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
+    }
+}
+
 private struct AVBackdrop: View {
     let animated: Bool
 
