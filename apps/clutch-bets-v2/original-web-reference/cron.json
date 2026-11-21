@@ -1,0 +1,14 @@
+[
+  {
+    "name": "capper-daily-board",
+    "cron": "15 12 * * *",
+    "handler": "refreshCapperBoard",
+    "timezone": "America/New_York"
+  },
+  {
+    "name": "capper-grade-results",
+    "cron": "5 9 * * *",
+    "handler": "gradeCapperResults",
+    "timezone": "America/New_York"
+  }
+]
