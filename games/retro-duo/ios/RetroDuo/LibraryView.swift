@@ -21,7 +21,7 @@ struct LibraryView: View {
                             .font(.system(size: 29, weight: .black, design: .rounded))
                             .foregroundStyle(.white)
                         HStack(spacing: 8) {
-                            Text("GAME BOY + COLOR")
+                            Text("GAME BOY + DS")
                             Circle().fill(Theme.accent).frame(width: 4, height: 4)
                             Text("DUO READY")
                         }
@@ -79,7 +79,7 @@ struct LibraryView: View {
                 }
             }
             .fileImporter(isPresented: $importing,
-                          allowedContentTypes: [.gameBoyROM, .gameBoyColorROM, .data],
+                          allowedContentTypes: [.gameBoyROM, .gameBoyColorROM, .nintendoDSROM, .data],
                           allowsMultipleSelection: true) { result in
                 if case .success(let urls) = result {
                     library.importFiles(urls)
@@ -95,7 +95,11 @@ struct LibraryView: View {
             .sheet(isPresented: $showingAbout) { AboutView() }
         }
         .fullScreenCover(item: $playing) { game in
-            GameView(session: EmulatorSession(game: game, library: library))
+            if game.system == .nintendoDS {
+                DSGameView(session: DSSession(game: game, library: library))
+            } else {
+                GameView(session: EmulatorSession(game: game, library: library))
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             library.refresh()
@@ -128,10 +132,7 @@ private struct GameRow: View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(game.isColor
-                          ? LinearGradient(colors: [Theme.buttonA, Theme.buttonB], startPoint: .topLeading, endPoint: .bottomTrailing)
-                          : LinearGradient(colors: [Color(red: 0.55, green: 0.67, blue: 0.25), Color(red: 0.2, green: 0.32, blue: 0.12)],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(LinearGradient(colors: iconColors, startPoint: .topLeading, endPoint: .bottomTrailing))
                 Text(initials)
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
@@ -151,6 +152,14 @@ private struct GameRow: View {
                 .foregroundStyle(Theme.accent)
         }
         .padding(.vertical, 10)
+    }
+
+    private var iconColors: [Color] {
+        switch game.system {
+        case .nintendoDS: return [Color(red: 0.45, green: 0.50, blue: 0.62), Color(red: 0.14, green: 0.17, blue: 0.25)]
+        case .gameBoyColor: return [Theme.buttonA, Theme.buttonB]
+        case .gameBoy: return [Color(red: 0.55, green: 0.67, blue: 0.25), Color(red: 0.2, green: 0.32, blue: 0.12)]
+        }
     }
 
     private var initials: String {

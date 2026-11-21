@@ -6,7 +6,7 @@ import UIKit
 
 /// Runs one game: owns the emulated console, paces it, and keeps its saves.
 @MainActor
-final class EmulatorSession: NSObject, ObservableObject {
+final class EmulatorSession: NSObject, ObservableObject, PadInput {
     @Published private(set) var isPaused = false
     @Published private(set) var hasQuickSave = false
     @Published private(set) var isMuted = UserDefaults.standard.bool(forKey: "muted")

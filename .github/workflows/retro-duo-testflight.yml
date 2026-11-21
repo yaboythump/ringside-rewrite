@@ -63,6 +63,8 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "Retro Duo"
           cmp "$app/cgb_boot.bin" games/retro-duo/ios/RetroDuo/Resources/cgb_boot.bin
           cmp "$app/RetroDuoTestCart.gbc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoTestCart.gbc
+          cmp "$app/RetroDuoDSTestCart.nds" games/retro-duo/ios/RetroDuo/Resources/RetroDuoDSTestCart.nds
+          grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/melonDS-LICENSE.txt"
           grep -qF "Lior Halphon" "$app/SameBoy-LICENSE.txt"
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rd-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
@@ -143,6 +145,10 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$RD_SOURCE"
           CC=clang games/retro-duo/tests/run_core_test.sh "$RUNNER_TEMP/rd-core"
+      - name: Boot the DS core and check both screens, buttons, touch, sound and saves
+        run: |
+          set -euo pipefail
+          CC=clang CXX=clang++ games/retro-duo/tests/run_ds_core_test.sh "$RUNNER_TEMP/rd-core"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

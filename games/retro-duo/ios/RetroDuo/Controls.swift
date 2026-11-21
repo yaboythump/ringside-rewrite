@@ -1,11 +1,18 @@
 import SwiftUI
 import UIKit
 
-@MainActor private let haptics = UIImpactFeedbackGenerator(style: .light)
+@MainActor let haptics = UIImpactFeedbackGenerator(style: .light)
+
+/// What the on-screen controls talk to: a Game Boy or DS session.
+/// Directions always use RD_KEY_* bits (right 1, left 2, up 4, down 8); each session maps them.
+@MainActor protocol PadInput: AnyObject {
+    func setKey(_ key: Int, pressed: Bool)
+    func setDirections(_ mask: UInt8)
+}
 
 /// Raw UIKit touches avoid competing SwiftUI drag recognizers. Each surface owns
 /// its fingers, so direction + A/B work together and cancellations always release.
-private struct TouchSurface: UIViewRepresentable {
+struct TouchSurface: UIViewRepresentable {
     let label: String
     let changed: (CGPoint?, CGSize) -> Void
     func makeUIView(context: Context) -> TouchView {
@@ -24,7 +31,7 @@ private struct TouchSurface: UIViewRepresentable {
     static func dismantleUIView(_ view: TouchView, coordinator: ()) { view.releaseAll() }
 }
 
-private final class TouchView: UIView {
+final class TouchView: UIView {
     var changed: ((CGPoint?, CGSize) -> Void)?
     private var fingers: [UITouch: CGPoint] = [:]
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches) }
@@ -49,7 +56,7 @@ private final class TouchView: UIView {
 }
 
 struct DPad: View {
-    let session: EmulatorSession
+    let session: any PadInput
     @State private var mask: UInt8 = 0
     var body: some View {
         GeometryReader { geo in
@@ -108,7 +115,7 @@ struct ActionButton: View {
     let key: Int
     let color: Color
     let diameter: CGFloat
-    let session: EmulatorSession
+    let session: any PadInput
     @State private var pressed = false
     var body: some View {
         Circle()
@@ -133,7 +140,7 @@ struct ActionButton: View {
 struct PillButton: View {
     let label: String
     let key: Int
-    let session: EmulatorSession
+    let session: any PadInput
     @State private var pressed = false
     var body: some View {
         VStack(spacing: 7) {
@@ -156,7 +163,7 @@ struct PillButton: View {
 }
 
 struct FaceButtons: View {
-    let session: EmulatorSession
+    let session: any PadInput
     let diameter: CGFloat
     var body: some View {
         HStack(spacing: diameter * 0.16) {
@@ -169,11 +176,13 @@ struct FaceButtons: View {
 }
 
 struct MenuButtons: View {
-    let session: EmulatorSession
+    let session: any PadInput
+    var selectKey = Int(RD_KEY_SELECT)
+    var startKey = Int(RD_KEY_START)
     var body: some View {
         HStack(spacing: 12) {
-            PillButton(label: "SELECT", key: Int(RD_KEY_SELECT), session: session)
-            PillButton(label: "START", key: Int(RD_KEY_START), session: session)
+            PillButton(label: "SELECT", key: selectKey, session: session)
+            PillButton(label: "START", key: startKey, session: session)
         }
     }
 }

@@ -20,8 +20,11 @@ final class PixelScreenView: UIView {
 
     func show(_ core: OpaquePointer) {
         guard let pixels = RDCorePixels(core) else { return }
-        let width = Int(RDCoreScreenWidth(core))
-        let height = Int(RDCoreScreenHeight(core))
+        show(pixels: pixels, width: Int(RDCoreScreenWidth(core)), height: Int(RDCoreScreenHeight(core)))
+    }
+
+    /// Shows RGBX pixels (red byte first).
+    func show(pixels: UnsafePointer<UInt32>, width: Int, height: Int) {
         let data = Data(bytes: pixels, count: width * height * 4)
         guard let provider = CGDataProvider(data: data as CFData),
               let image = CGImage(width: width, height: height,
@@ -53,5 +56,33 @@ struct PixelScreen: UIViewRepresentable {
     /// Always take exactly the space SwiftUI offers, so the picture fills its frame.
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: PixelScreenView, context: Context) -> CGSize? {
         CGSize(width: proposal.width ?? 160, height: proposal.height ?? 144)
+    }
+}
+
+/// One of the DS's two screens.
+struct DSScreen: UIViewRepresentable {
+    enum Which { case top, bottom }
+    let session: DSSession
+    let which: Which
+
+    func makeUIView(context: Context) -> PixelScreenView {
+        let view = PixelScreenView(frame: .zero)
+        attach(view)
+        return view
+    }
+
+    func updateUIView(_ view: PixelScreenView, context: Context) {
+        attach(view)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: PixelScreenView, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? 256, height: proposal.height ?? 192)
+    }
+
+    private func attach(_ view: PixelScreenView) {
+        switch which {
+        case .top: session.topScreen = view
+        case .bottom: session.bottomScreen = view
+        }
     }
 }

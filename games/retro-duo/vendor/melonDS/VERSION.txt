@@ -1,0 +1,2 @@
+melonDS 1.1 (commit b86390e4428bf38ce4c1ce0e9ca446d6d25955e8), GPLv3. src/ holds the emulator core only (no frontend, JIT, OpenGL or GDB stub), unmodified apart from version.h, which CMake normally generates. teakra (MIT) is melonDS's DSi DSP library.
+Only change: teakra's src/dma.cpp is renamed teakra_dma.cpp so its object file can't clash with melonDS's DMA.cpp on case-insensitive disks.

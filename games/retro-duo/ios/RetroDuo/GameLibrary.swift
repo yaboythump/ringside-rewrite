@@ -1,19 +1,46 @@
 import Foundation
 import UniformTypeIdentifiers
 
+enum GameSystem: String, Hashable {
+    case gameBoy, gameBoyColor, nintendoDS
+
+    var displayName: String {
+        switch self {
+        case .gameBoy: return "Game Boy"
+        case .gameBoyColor: return "Game Boy Color"
+        case .nintendoDS: return "Nintendo DS"
+        }
+    }
+
+    init?(fileExtension: String) {
+        switch fileExtension.lowercased() {
+        case "gb": self = .gameBoy
+        case "gbc", "cgb": self = .gameBoyColor
+        case "nds": self = .nintendoDS
+        default: return nil
+        }
+    }
+
+    var maximumROMSize: Int {
+        self == .nintendoDS ? 512 * 1024 * 1024 : 8 * 1024 * 1024
+    }
+}
+
 struct Game: Identifiable, Hashable {
     let id: String
     let url: URL
     let name: String
     let isBuiltIn: Bool
-    let isColor: Bool
+    let system: GameSystem
 
-    var systemName: String { isColor ? "Game Boy Color" : "Game Boy" }
+    var isColor: Bool { system != .gameBoy }
+    var systemName: String { system.displayName }
 }
 
 extension UTType {
     static let gameBoyROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gb")
     static let gameBoyColorROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gbc")
+    static let nintendoDSROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.nds")
 }
 
 /// Games live in Documents/Games, which the Files app shows under
@@ -24,7 +51,7 @@ final class GameLibrary: ObservableObject {
     @Published private(set) var games: [Game] = []
     @Published var message: String?
 
-    static let romExtensions: Set<String> = ["gb", "gbc", "cgb"]
+    static let romExtensions: Set<String> = ["gb", "gbc", "cgb", "nds"]
     static let maximumROMSize = 8 * 1024 * 1024
 
     let documentsFolder: URL
@@ -50,40 +77,44 @@ final class GameLibrary: ObservableObject {
         var list: [Game] = []
         if let cart = Bundle.main.url(forResource: "RetroDuoTestCart", withExtension: "gbc") {
             list.append(Game(id: "builtin.testcart", url: cart, name: "Retro Duo Test Cart",
-                             isBuiltIn: true, isColor: true))
+                             isBuiltIn: true, system: .gameBoyColor))
+        }
+        if let cart = Bundle.main.url(forResource: "RetroDuoDSTestCart", withExtension: "nds") {
+            list.append(Game(id: "builtin.dstestcart", url: cart, name: "Retro Duo DS Test Cart",
+                             isBuiltIn: true, system: .nintendoDS))
         }
         let urls = (try? FileManager.default.contentsOfDirectory(
             at: gamesFolder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
         list += urls
-            .filter { Self.romExtensions.contains($0.pathExtension.lowercased()) }
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-            .map { url in
-                Game(id: url.lastPathComponent, url: url,
-                     name: url.deletingPathExtension().lastPathComponent,
-                     isBuiltIn: false,
-                     isColor: ["gbc", "cgb"].contains(url.pathExtension.lowercased()))
+            .compactMap { url in
+                guard let system = GameSystem(fileExtension: url.pathExtension) else { return nil }
+                return Game(id: url.lastPathComponent, url: url,
+                            name: url.deletingPathExtension().lastPathComponent,
+                            isBuiltIn: false, system: system)
             }
         games = list
     }
 
-    /// Copies picked or shared files into the library. Files that are not Game Boy cartridges are skipped.
+    /// Copies picked or shared files into the library. Files that aren't games Retro Duo can play are skipped.
     func importFiles(_ urls: [URL]) {
         var added: [String] = []
         var skipped: [String] = []
+        let files = FileManager.default
         for url in urls {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             let name = url.lastPathComponent
-            guard Self.romExtensions.contains(url.pathExtension.lowercased()),
-                  let data = try? Data(contentsOf: url),
-                  Self.looksLikeROM(data) else {
+            guard let system = GameSystem(fileExtension: url.pathExtension),
+                  Self.isPlayable(url, system: system) else {
                 skipped.append(name)
                 continue
             }
             let destination = gamesFolder.appendingPathComponent(name)
             if destination.standardizedFileURL != url.standardizedFileURL {
                 do {
-                    try data.write(to: destination, options: .atomic)
+                    if files.fileExists(atPath: destination.path) { try files.removeItem(at: destination) }
+                    try files.copyItem(at: url, to: destination)
                 } catch {
                     skipped.append(name)
                     continue
@@ -94,7 +125,7 @@ final class GameLibrary: ObservableObject {
         }
         refresh()
         if !skipped.isEmpty {
-            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays .gb and .gbc Game Boy files."
+            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays Game Boy (.gb, .gbc) and Nintendo DS (.nds) files."
         } else if added.count == 1 {
             message = "Added \(added[0])."
         } else if added.count > 1 {
@@ -119,7 +150,17 @@ final class GameLibrary: ObservableObject {
         statesFolder.appendingPathComponent("\(game.name).\(slot).state")
     }
 
-    /// A real cartridge has a valid header checksum; the console refuses to boot one without it.
+    /// Checks size and header without reading a whole (possibly huge) DS file into memory.
+    static func isPlayable(_ url: URL, system: GameSystem) -> Bool {
+        guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber,
+              size.intValue <= system.maximumROMSize,
+              let handle = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? handle.close() }
+        guard let header = try? handle.read(upToCount: 0x200) else { return false }
+        return system == .nintendoDS ? looksLikeDSROM(header) : looksLikeROM(header)
+    }
+
+    /// A real Game Boy cartridge has a valid header checksum; the console refuses to boot one without it.
     static func looksLikeROM(_ data: Data) -> Bool {
         guard data.count >= 0x150, data.count <= maximumROMSize else { return false }
         let bytes = [UInt8](data.prefix(0x150))
@@ -128,6 +169,20 @@ final class GameLibrary: ObservableObject {
             checksum = checksum &- bytes[index] &- 1
         }
         return checksum == bytes[0x14D]
+    }
+
+    /// A DS cartridge header carries a CRC-16 of its first 0x15E bytes.
+    static func looksLikeDSROM(_ data: Data) -> Bool {
+        guard data.count >= 0x160 else { return false }
+        let bytes = [UInt8](data.prefix(0x160))
+        var crc: UInt16 = 0xFFFF
+        for byte in bytes[0..<0x15E] {
+            crc ^= UInt16(byte)
+            for _ in 0..<8 {
+                crc = crc & 1 != 0 ? (crc >> 1) ^ 0xA001 : crc >> 1
+            }
+        }
+        return crc == UInt16(bytes[0x15E]) | (UInt16(bytes[0x15F]) << 8)
     }
 
     /// Games dropped straight into the app's top folder in Files are moved into Games.
