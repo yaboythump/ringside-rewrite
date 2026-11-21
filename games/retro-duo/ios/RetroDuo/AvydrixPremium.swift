@@ -194,7 +194,7 @@ struct AVGameSettings: View {
                     Toggle("Original picture proportions", isOn: $originalAspect)
                     if tuning.system == .gameBoyAdvance {
                         Toggle("Show touch controls in landscape", isOn: $gbaLandscapeControls)
-                        Text("Keep GBA gameplay full-screen with floating D-pad, A/B, shoulder, Start/Select and Menu controls.")
+                        Text("GBA gameplay sits in a dedicated console display, with controls on its left and right panels instead of covering the game.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if tuning.system == .nintendoDS {
