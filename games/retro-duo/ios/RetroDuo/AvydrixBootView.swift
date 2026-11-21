@@ -14,6 +14,7 @@ struct AvydrixBootView: View {
     @State private var hasFinished = false
     @State private var bootTask: Task<Void, Never>?
     @State private var sound = AvydrixBootSound()
+    @AppStorage("avydrix.bootSoundEnabled") private var bootSoundEnabled = true
 
     private let blue = Color(red: 0.09, green: 0.54, blue: 1)
     private let violet = Color(red: 0.43, green: 0.22, blue: 1)
@@ -117,7 +118,9 @@ struct AvydrixBootView: View {
 
     private func start() {
         guard bootTask == nil else { return }
-        if !UserDefaults.standard.bool(forKey: "muted") { sound.play() }
+        // Startup audio is independent of the in-game mute toggle.
+        // An explicit startup-sound switch is available on the library dashboard.
+        if bootSoundEnabled { sound.play() }
         bootTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
@@ -229,11 +232,20 @@ private final class AvydrixBootSound {
         wav.append(contentsOf: Array("data".utf8)); append(dataSize.littleEndian)
         samples.withUnsafeBytes { wav.append(contentsOf: $0) }
 
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-        try? AVAudioSession.sharedInstance().setActive(true)
-        player = try? AVAudioPlayer(data: wav)
-        player?.volume = 0.9
-        player?.play()
+        do {
+            let session = AVAudioSession.sharedInstance()
+            // .ambient follows the hardware silent switch and made the intro inaudible.
+            // .playback makes the original AVYDRIX startup chime audible on iPhone Duo.
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+            let bootPlayer = try AVAudioPlayer(data: wav)
+            bootPlayer.volume = 1.0
+            bootPlayer.prepareToPlay()
+            if bootPlayer.play() { player = bootPlayer }
+        } catch {
+            // Boot animation remains available even when an audio route is unavailable.
+            player = nil
+        }
     }
 
     func stop() {
