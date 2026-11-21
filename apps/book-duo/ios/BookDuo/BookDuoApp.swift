@@ -62,7 +62,12 @@ struct AboutView: View {
                 Section("Reading") {
                     Label("Tap the right side or swipe left to turn the page", systemImage: "hand.tap")
                     Label("Tap the middle for contents, appearance and progress", systemImage: "list.bullet")
+                    Label("Choose Focus in the controls for uninterrupted full-screen reading", systemImage: "arrow.up.left.and.arrow.down.right")
                     Label("Touch and hold a word to look it up or highlight it to copy", systemImage: "character.book.closed")
+                }
+                Section("Personal shelves & reading rhythm") {
+                    Label("Create named shelves and long-press any book to organize it", systemImage: "books.vertical")
+                    Label("Turn pages on different days to grow your reading streak", systemImage: "flame")
                 }
                 Section("Adding books") {
                     Label("Tap + in the library, or share an EPUB to Quilune", systemImage: "plus")
