@@ -461,7 +461,64 @@ struct AVPlayerProfileView: View {
 }
 
 
+/// Built-in emulator test cartridges live behind Settings > Advanced,
+/// never in the player-facing home game library.
+private struct AVSystemToolsView: View {
+    let diagnosticGames: [Game]
+    let launchDiagnostic: (Game) -> Void
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(diagnosticGames) { game in
+                    Button {
+                        launchDiagnostic(game)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: game.system == .nintendoDS
+                                  ? "rectangle.split.2x1" : "gamecontroller")
+                                .font(.system(size: 21))
+                                .frame(width: 40, height: 40)
+                                .foregroundStyle(Color(red: 0.36, green: 0.75, blue: 1))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(game.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Text("Built-in controls and sound test")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "play.circle.fill")
+                                .foregroundStyle(Color(red: 0.36, green: 0.75, blue: 1))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("avydrix-diagnostic-\(game.id)")
+                }
+            } header: {
+                Text("Diagnostic cartridges")
+            } footer: {
+                Text("These test cartridges help verify controllers, audio, and emulator output. Your imported games remain in the main library.")
+            }
+        }
+        .navigationTitle("System Tools")
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay {
+            if diagnosticGames.isEmpty {
+                ContentUnavailableView("No diagnostic cartridges",
+                                       systemImage: "wrench.and.screwdriver",
+                                       description: Text("The built-in system tests are unavailable."))
+            }
+        }
+        .accessibilityIdentifier("avydrix-system-tools")
+    }
+}
+
 struct AVSettingsHome: View {
+    let diagnosticGames: [Game]
+    let launchDiagnostic: (Game) -> Void
+
     @Environment(\.dismiss) private var dismiss
     @AppStorage("avydrix.bootSoundEnabled") private var bootSound = true
     @AppStorage("avydrix.taglineVoiceEnabled") private var femaleTagline = true
@@ -578,6 +635,15 @@ struct AVSettingsHome: View {
                     Text("Adjust button size, opacity, position, layout, and Bluetooth button mappings for each console.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                Section("Advanced") {
+                    NavigationLink {
+                        AVSystemToolsView(diagnosticGames: diagnosticGames,
+                                          launchDiagnostic: launchDiagnostic)
+                    } label: {
+                        Label("System Tools", systemImage: "wrench.and.screwdriver")
+                    }
+                    .accessibilityIdentifier("avydrix-system-tools-link")
                 }
                 Section("Information") {
                     Button {
