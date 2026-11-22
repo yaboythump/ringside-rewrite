@@ -1132,6 +1132,9 @@ private struct AVCartridgeLaunchView: View {
     }
 }
 
+/// A visibly living, but low-power, AVYDRIX dashboard background.
+/// The artwork and text remain above the backdrop; all motion respects
+/// the in-app toggle, system Reduce Motion, scene visibility and gameplay.
 private struct AVBackdrop: View {
     let animated: Bool
 
@@ -1139,84 +1142,125 @@ private struct AVBackdrop: View {
         TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: !animated)) { timeline in
             let time = animated ? timeline.date.timeIntervalSinceReferenceDate : 0
             Canvas(opaque: true) { context, size in
-                let width = size.width
-                let height = size.height
-                let background = Color(red: 0.013, green: 0.021, blue: 0.058)
-                context.fill(Path(CGRect(origin: .zero, size: size)),
-                             with: .color(background))
+                let width = max(size.width, 1)
+                let height = max(size.height, 1)
+                let frame = Path(CGRect(origin: .zero, size: size))
+                context.fill(frame, with: .linearGradient(
+                    Gradient(colors: [
+                        Color(red: 0.017, green: 0.048, blue: 0.12),
+                        Color(red: 0.027, green: 0.025, blue: 0.095),
+                        Color(red: 0.016, green: 0.019, blue: 0.065)
+                    ]),
+                    startPoint: CGPoint(x: 0, y: 0),
+                    endPoint: CGPoint(x: width, y: height)
+                ))
 
-                // Slow, diffuse cyan/violet light pools evoke the powered-on console.
-                // These are rendered with Canvas, not continuous heavy view blurs.
-                let lights: [(CGPoint, CGFloat, Color)] = [
-                    (
-                        CGPoint(x: width * (0.12 + 0.12 * sin(time * 0.16)),
-                                y: height * (0.17 + 0.07 * cos(time * 0.13))),
-                        max(width, height) * 0.61,
-                        Color(red: 0.0, green: 0.47, blue: 0.96)
-                    ),
-                    (
-                        CGPoint(x: width * (0.89 + 0.08 * cos(time * 0.11)),
-                                y: height * (0.72 + 0.11 * sin(time * 0.17))),
-                        max(width, height) * 0.59,
-                        Color(red: 0.37, green: 0.17, blue: 0.88)
-                    ),
-                    (
-                        CGPoint(x: width * (0.76 + 0.09 * sin(time * 0.09)),
-                                y: height * (0.23 + 0.09 * cos(time * 0.14))),
-                        max(width, height) * 0.35,
-                        Color(red: 0.05, green: 0.69, blue: 0.94)
-                    )
+                // Two luminous auroras cross the open areas of the library.
+                // Rendering as gradients in one Canvas avoids GPU-heavy blurs.
+                let palette: [Color] = [
+                    Color(red: 0.05, green: 0.67, blue: 1),
+                    Color(red: 0.54, green: 0.28, blue: 1),
+                    Color(red: 0.17, green: 0.92, blue: 0.96)
                 ]
+                for index in 0..<3 {
+                    let shift = CGFloat(sin(time * (0.23 + Double(index) * 0.045)
+                                             + Double(index) * 1.3))
+                    let sway = CGFloat(cos(time * 0.19 + Double(index)))
+                    let baseX = width * (0.14 + CGFloat(index) * 0.33)
+                    var ribbon = Path()
+                    ribbon.move(to: CGPoint(x: baseX - 85 + shift * 96, y: -height * 0.15))
+                    ribbon.addCurve(
+                        to: CGPoint(x: baseX + sway * 95, y: height * 1.15),
+                        control1: CGPoint(x: baseX + 170 + shift * 65, y: height * 0.25),
+                        control2: CGPoint(x: baseX - 150 + sway * 70, y: height * 0.72)
+                    )
+                    let glow = palette[index]
+                    context.stroke(
+                        ribbon,
+                        with: .linearGradient(
+                            Gradient(colors: [
+                                glow.opacity(0.005),
+                                glow.opacity(index == 0 ? 0.18 : 0.115),
+                                glow.opacity(0.055),
+                                glow.opacity(0.0)
+                            ]),
+                            startPoint: CGPoint(x: baseX - 180, y: 0),
+                            endPoint: CGPoint(x: baseX + 180, y: height)
+                        ),
+                        style: StrokeStyle(lineWidth: 155, lineCap: .round)
+                    )
+                    context.stroke(ribbon,
+                                   with: .color(glow.opacity(0.035)),
+                                   style: StrokeStyle(lineWidth: 26, lineCap: .round))
+                }
 
+                let lights: [(CGPoint, CGFloat, Color)] = [
+                    (CGPoint(x: width * (0.07 + 0.24 * sin(time * 0.21)),
+                             y: height * (0.13 + 0.10 * cos(time * 0.14))),
+                     max(width, height) * 0.52,
+                     Color(red: 0.04, green: 0.55, blue: 1)),
+                    (CGPoint(x: width * (0.84 + 0.12 * cos(time * 0.13)),
+                             y: height * (0.73 + 0.11 * sin(time * 0.17))),
+                     max(width, height) * 0.63,
+                     Color(red: 0.47, green: 0.22, blue: 1)),
+                    (CGPoint(x: width * (0.75 + 0.17 * sin(time * 0.17)),
+                             y: height * (0.28 + 0.12 * cos(time * 0.11))),
+                     max(width, height) * 0.39,
+                     Color(red: 0.02, green: 0.78, blue: 0.9))
+                ]
                 for (center, radius, color) in lights {
                     context.fill(
                         Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius,
                                               width: radius * 2, height: radius * 2)),
                         with: .radialGradient(
                             Gradient(colors: [
-                                color.opacity(0.16),
-                                color.opacity(0.045),
-                                color.opacity(0.0)
+                                color.opacity(0.29),
+                                color.opacity(0.09),
+                                color.opacity(0)
                             ]),
-                            center: center,
-                            startRadius: 0,
-                            endRadius: radius
+                            center: center, startRadius: 0, endRadius: radius
                         )
                     )
                 }
 
-                // Light schematic rings drift slowly, but the card text stays stable.
-                let orbit = CGPoint(x: width * 0.74, y: height * 0.44)
+                // A restrained constellation and slow shifting technical rings.
+                let orbit = CGPoint(x: width * 0.70, y: height * 0.43)
                 for index in 0..<3 {
-                    let wave = CGFloat(sin(time * 0.13 + Double(index) * 0.8))
-                    let radius = CGFloat(190 + index * 112) + wave * 14
+                    let radius = CGFloat(165 + index * 130) +
+                                 CGFloat(sin(time * 0.22 + Double(index))) * 24
                     context.stroke(
                         Path(ellipseIn: CGRect(x: orbit.x - radius, y: orbit.y - radius,
                                               width: radius * 2, height: radius * 2)),
-                        with: .color(Color(red: 0.27, green: 0.69, blue: 1).opacity(0.035)),
-                        lineWidth: 0.9
+                        with: .color(.cyan.opacity(index == 0 ? 0.095 : 0.055)),
+                        lineWidth: 1.1
                     )
                 }
 
-                var grid = Path()
-                for y in stride(from: CGFloat(0), through: height, by: CGFloat(33)) {
-                    grid.move(to: CGPoint(x: 0, y: y))
-                    grid.addLine(to: CGPoint(x: width, y: y))
+                var scanlines = Path()
+                for y in stride(from: CGFloat(0), through: height, by: CGFloat(36)) {
+                    scanlines.move(to: CGPoint(x: 0, y: y))
+                    scanlines.addLine(to: CGPoint(x: width, y: y))
                 }
-                context.stroke(grid, with: .color(.white.opacity(0.018)), lineWidth: 0.5)
+                context.stroke(scanlines, with: .color(.white.opacity(0.018)),
+                               lineWidth: 0.5)
 
-                // Tiny drifting particles add motion without obstructing game covers.
-                for index in 0..<16 {
+                for index in 0..<34 {
                     let seed = Double(index)
-                    let x = width * CGFloat((seed * 0.6180339887).truncatingRemainder(dividingBy: 1))
-                    let yPhase = (seed * 0.371 + time * (0.007 + seed * 0.00035))
-                        .truncatingRemainder(dividingBy: 1)
-                    let y = height * CGFloat(yPhase)
-                    let dot = CGFloat(index.isMultiple(of: 4) ? 2.3 : 1.3)
+                    let x = width * CGFloat(
+                        (seed * 0.6180339887 + time * 0.0013 *
+                         (index.isMultiple(of: 2) ? 1 : -1))
+                            .truncatingRemainder(dividingBy: 1).magnitude
+                    )
+                    let y = height * CGFloat(
+                        (seed * 0.371 + time * (0.010 + seed * 0.00037))
+                            .truncatingRemainder(dividingBy: 1).magnitude
+                    )
+                    let radius: CGFloat = index.isMultiple(of: 5) ? 2.8 : 1.3
                     context.fill(
-                        Path(ellipseIn: CGRect(x: x, y: y, width: dot, height: dot)),
-                        with: .color(Color(red: 0.55, green: 0.80, blue: 1)
-                            .opacity(index.isMultiple(of: 4) ? 0.25 : 0.13))
+                        Path(ellipseIn: CGRect(x: x, y: y,
+                                              width: radius, height: radius)),
+                        with: .color(Color(red: 0.64, green: 0.89, blue: 1)
+                            .opacity(index.isMultiple(of: 5) ? 0.44 : 0.21))
                     )
                 }
             }
@@ -1224,6 +1268,7 @@ private struct AVBackdrop: View {
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+        .accessibilityIdentifier("avydrix-animated-aurora")
     }
 }
 
