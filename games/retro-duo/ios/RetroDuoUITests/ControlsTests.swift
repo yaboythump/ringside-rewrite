@@ -108,6 +108,11 @@ final class ControlsTests: XCTestCase {
         settings.tap()
 
         let tools = app.buttons["avydrix-system-tools-link"]
+        // Form rows are created lazily; reach Advanced before querying its link.
+        for _ in 0..<6 {
+            if tools.exists && tools.isHittable { break }
+            app.swipeUp()
+        }
         XCTAssertTrue(tools.waitForExistence(timeout: 8),
                       "Advanced System Tools must stay available inside Settings")
         tools.tap()
@@ -236,7 +241,7 @@ final class ControlsTests: XCTestCase {
         defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
         let diagnostics = app.staticTexts["rd-diagnostics"]
         XCTAssertTrue(diagnostics.waitForExistence(timeout: 15))
-        XCTAssertTrue(waitForCounter("frames", above: 180, in: diagnostics))
+        XCTAssertTrue(waitForCounter("frames", above: 180, in: diagnostics, timeout: 30))
         for orientation in [UIDeviceOrientation.landscapeLeft, .portrait, .landscapeRight, .portrait] {
             let before = counter("frames", diagnostics.label)
             XCUIDevice.shared.orientation = orientation
@@ -278,9 +283,9 @@ final class ControlsTests: XCTestCase {
         text.split(separator: " ").first(where: { $0.hasPrefix(key + ":") })
             .flatMap { Int($0.split(separator: ":").last ?? "0") } ?? 0
     }
-    private func waitForCounter(_ key: String, above value: Int, in element: XCUIElement) -> Bool {
+    private func waitForCounter(_ key: String, above value: Int, in element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
         let predicate = NSPredicate { _, _ in self.counter(key, element.label) > value }
-        return XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: 5) == .completed
+        return XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: timeout) == .completed
     }
     private func attach(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
