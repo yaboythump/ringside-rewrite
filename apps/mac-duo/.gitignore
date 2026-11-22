@@ -1,0 +1,6 @@
+# Never commit Apple ROMs or system disks.
+*.rom
+*.ROM
+*.dsk
+*.hfv
+xcuserdata/
