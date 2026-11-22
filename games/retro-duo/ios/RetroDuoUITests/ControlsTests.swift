@@ -252,6 +252,28 @@ final class ControlsTests: XCTestCase {
         attach(app, "landscape")
         app.terminate()
     }
+    func testFloatingThumbstickMovesWhereverTheThumbLands() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests", "-avydrix.thumbstick", "YES"]
+        app.launch()
+        defer { app.terminate() }
+        let diagnostics = app.staticTexts["rd-diagnostics"]
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: 15))
+        sleep(3)
+        let stick = app.buttons["Thumbstick"]
+        XCTAssertTrue(stick.waitForExistence(timeout: 5), "Thumbstick replaces the D-pad when turned on")
+        XCTAssertFalse(app.buttons["Direction pad"].exists)
+        // Start off-centre (the stick appears under the thumb) and slide right, then left.
+        for (start, end) in [(CGVector(dx: 0.3, dy: 0.6), CGVector(dx: 0.75, dy: 0.6)),
+                             (CGVector(dx: 0.7, dy: 0.3), CGVector(dx: 0.2, dy: 0.35))] {
+            let before = counter("directions", diagnostics.label)
+            stick.coordinate(withNormalizedOffset: start)
+                .press(forDuration: 0.1, thenDragTo: stick.coordinate(withNormalizedOffset: end),
+                       withVelocity: .slow, thenHoldForDuration: 0.3)
+            XCTAssertTrue(waitForCounter("directions", above: before, in: diagnostics))
+        }
+        attach(app, "thumbstick")
+    }
     func testGameBoyPictureSurvivesRepeatedRotation() {
         checkRotations(demo: "-RetroDuoDemo")
     }
