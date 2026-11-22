@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct RetroDuoApp: App {
     @StateObject private var library = GameLibrary()
+    @AppStorage("avydrix.skin") private var skinName = "obsidian"
     /// Shows the AVYDRIX console boot sequence on a normal app launch.
     /// Skip when launched by simulator snapshots or automated UI tests.
     @State private var showingBoot = !ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-RetroDuo") }
@@ -19,7 +20,7 @@ struct RetroDuoApp: App {
             }
                 .environmentObject(library)
                 .preferredColorScheme(.dark)
-                .tint(Theme.accent)
+                .tint(AVConsoleSkin.selected(skinName).accent)
                 .onOpenURL { url in library.importFiles([url]) }
         }
     }
@@ -39,16 +40,20 @@ enum Theme {
 
 /// Brushed midnight-metal shell with restrained technical detailing.
 struct ConsoleBackdrop: View {
+    @AppStorage("avydrix.skin") private var skinName = "obsidian"
+
     var body: some View {
+        let skin = AVConsoleSkin.selected(skinName)
         ZStack {
-            LinearGradient(colors: [Color(red: 0.15, green: 0.19, blue: 0.26), Theme.background, Color(red: 0.10, green: 0.13, blue: 0.20)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [skin.secondary.opacity(0.5), skin.shell, skin.accent.opacity(0.15)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
             Canvas { context, size in
                 var lines = Path()
                 for y in stride(from: 0.0, to: size.height, by: 4) {
                     lines.move(to: CGPoint(x: 0, y: y))
                     lines.addLine(to: CGPoint(x: size.width, y: y))
                 }
-                context.stroke(lines, with: .color(.white.opacity(0.018)), lineWidth: 0.5)
+                context.stroke(lines, with: .color(skin.accent.opacity(0.024)), lineWidth: 0.5)
             }
         }
         .ignoresSafeArea()

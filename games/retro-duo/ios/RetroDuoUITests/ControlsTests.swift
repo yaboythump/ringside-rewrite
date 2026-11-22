@@ -2,6 +2,47 @@ import XCTest
 import UIKit
 
 final class ControlsTests: XCTestCase {
+    func testPlay2ConsoleShelfAndSkins() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoUITests"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+
+        let shelf = app.descendants(matching: .any)
+            .matching(identifier: "avydrix-3d-console-shelf").firstMatch
+        XCTAssertTrue(shelf.waitForExistence(timeout: 15),
+                      "Interactive console shelf should appear in the existing library")
+        XCTAssertTrue(app.buttons["avydrix-add-games-compact"].exists)
+        app.buttons["AVYDRIX settings"].tap()
+        let violet = app.buttons["avydrix-skin-ultraviolet"]
+        XCTAssertTrue(violet.waitForExistence(timeout: 8),
+                      "Console skins must be available in Settings")
+        violet.tap()
+        XCTAssertTrue(violet.isSelected)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(shelf.exists, "Changing skins must not remove the library")
+    }
+
+    func testCommandCenterRetainsResumeAndSaveActions() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemoGBA", "-RetroDuoUITests"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+        let menu = app.buttons["Game menu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 15))
+        menu.tap()
+        let center = app.descendants(matching: .any)
+            .matching(identifier: "avydrix-command-center").firstMatch
+        XCTAssertTrue(center.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["QUICK SAVE"].exists)
+        XCTAssertTrue(app.staticTexts["SAVE VAULT"].exists)
+        XCTAssertTrue(app.staticTexts["CONTROLS"].exists)
+        app.buttons["avydrix-resume-game"].tap()
+        XCTAssertTrue(app.buttons["Game menu"].isHittable)
+    }
+
     func testFoldedLibraryHasPersistentAddGamesButton() {
         let app = XCUIApplication()
         // The library launch flag skips the boot screen without auto-opening a ROM.

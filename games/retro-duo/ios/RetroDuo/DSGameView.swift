@@ -8,8 +8,6 @@ struct DSGameView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var hinge = HingeState()
     @State private var showingMenu = false
-    @State private var showingOptions = false
-    @State private var showingSaves = false
     @StateObject private var tuning: AVControlTuning
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
     @AppStorage("avydrix.dsSwapScreens") private var swapScreens = false
@@ -72,31 +70,27 @@ struct DSGameView: View {
                 break
             }
         }
-        .sheet(isPresented: $showingOptions) {
-            AVGameSettings(tuning: tuning)
-        }
-        .sheet(isPresented: $showingSaves) {
-            AVSaveManager(game: session.game, save: { session.saveSlot($0) },
-                          load: { session.loadSlot($0) })
-        }
-        .onChange(of: showingSaves) { _, shown in session.setPaused(shown) }
-        .onChange(of: showingOptions) { _, shown in session.setPaused(shown) }
-        .confirmationDialog(session.game.name, isPresented: $showingMenu, titleVisibility: .visible) {
-            Button(originalProportions ? "Fill entire upper screen" : "Use original screen proportions") {
-                originalProportions.toggle()
-            }
-            Button(useTwoPanels ? "Use side controls in landscape" : "Use two-panel Duo layout") {
-                useTwoPanels.toggle()
-            }
-            Button("Game Settings") { showingOptions = true }
-            Button("Visual Save Manager") { showingSaves = true }
-            Button("Quick Save") { session.quickSave() }
-            Button("Quick Load") { session.quickLoad() }
-                .disabled(!session.hasQuickSave)
-            Button(session.isMuted ? "Turn Sound On" : "Turn Sound Off") { session.toggleMute() }
-            Button("Restart Game", role: .destructive) { session.restart() }
-            Button("Back to Library") { dismiss() }
-            Button("Resume", role: .cancel) {}
+        .sheet(isPresented: $showingMenu) {
+            AVInGameCommandCenter(
+                game: session.game,
+                muted: session.isMuted,
+                quickAvailable: session.hasQuickSave,
+                tuning: tuning,
+                originalProportions: $originalProportions,
+                useTwoPanels: $useTwoPanels,
+                save: { session.saveSlot($0) },
+                load: { session.loadSlot($0) },
+                quickSave: { session.quickSave() },
+                quickLoad: { session.quickLoad() },
+                toggleMute: { session.toggleMute() },
+                restart: { session.restart() },
+                exit: {
+                    session.persistNow()
+                    showingMenu = false
+                    dismiss()
+                }
+            )
+            .presentationDetents([.medium, .large])
         }
         .onChange(of: showingMenu) { _, open in
             session.setPaused(open)

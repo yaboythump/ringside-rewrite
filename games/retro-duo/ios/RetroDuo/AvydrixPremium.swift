@@ -529,6 +529,7 @@ struct AVSettingsHome: View {
     @AppStorage("avydrix.displayFilter") private var filter = "off"
     @AppStorage("avydrix.ambientMotionEnabled") private var ambientMotionEnabled = true
     @AppStorage("avydrix.launchAnimationEnabled") private var launchAnimationEnabled = true
+    @AppStorage("avydrix.skin") private var selectedSkin = "obsidian"
     @AppStorage("avydrix.dsSwapScreens") private var swapDS = false
     @AppStorage("avydrix.dsTouchScale") private var lowerScale = 1.0
 
@@ -578,6 +579,12 @@ struct AVSettingsHome: View {
                         }
                     }
                     .padding(.vertical, 7)
+                }
+                Section("Console Skins") {
+                    AVConsoleSkinPicker(selectedSkin: $selectedSkin)
+                    Text("Your finish changes the dashboard accents and console shell without modifying games, covers or audio.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Audio") {
                     Toggle("Startup sound", isOn: $bootSound)
@@ -672,5 +679,275 @@ struct AVSettingsHome: View {
         .tint(Color(red: 0.36, green: 0.75, blue: 1))
         .preferredColorScheme(.dark)
         .accessibilityIdentifier("avydrix-settings")
+    }
+}
+
+ 
+// MARK: - AVYDRIX Play 2.0 console identity
+
+enum AVConsoleSkin: String, CaseIterable, Identifiable {
+    case obsidian, titanium, ultraviolet, afterburn
+
+    var id: String { rawValue }
+    var name: String {
+        switch self {
+        case .obsidian: return "Obsidian"
+        case .titanium: return "Titanium"
+        case .ultraviolet: return "Ultraviolet"
+        case .afterburn: return "Afterburn"
+        }
+    }
+    var detail: String {
+        switch self {
+        case .obsidian: return "Midnight metal"
+        case .titanium: return "Frosted silver"
+        case .ultraviolet: return "Electric violet"
+        case .afterburn: return "Arcade neon"
+        }
+    }
+    var accent: Color {
+        switch self {
+        case .obsidian: return Color(red: 0.17, green: 0.65, blue: 1)
+        case .titanium: return Color(red: 0.73, green: 0.85, blue: 0.96)
+        case .ultraviolet: return Color(red: 0.67, green: 0.42, blue: 1)
+        case .afterburn: return Color(red: 0.20, green: 0.98, blue: 0.76)
+        }
+    }
+    var secondary: Color {
+        switch self {
+        case .obsidian: return Color(red: 0.45, green: 0.22, blue: 0.93)
+        case .titanium: return Color(red: 0.29, green: 0.48, blue: 0.68)
+        case .ultraviolet: return Color(red: 0.18, green: 0.42, blue: 1)
+        case .afterburn: return Color(red: 0.06, green: 0.48, blue: 0.91)
+        }
+    }
+    var shell: Color {
+        switch self {
+        case .obsidian: return Color(red: 0.025, green: 0.039, blue: 0.088)
+        case .titanium: return Color(red: 0.11, green: 0.15, blue: 0.21)
+        case .ultraviolet: return Color(red: 0.068, green: 0.026, blue: 0.14)
+        case .afterburn: return Color(red: 0.01, green: 0.09, blue: 0.11)
+        }
+    }
+    static func selected(_ raw: String) -> AVConsoleSkin { AVConsoleSkin(rawValue: raw) ?? .obsidian }
+}
+
+struct AVConsoleSkinPicker: View {
+    @Binding var selectedSkin: String
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 12) {
+                ForEach(AVConsoleSkin.allCases) { skin in
+                    let chosen = selectedSkin == skin.rawValue
+                    Button {
+                        selectedSkin = skin.rawValue
+                    } label: {
+                        VStack(alignment: .leading, spacing: 9) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(LinearGradient(colors: [skin.secondary, skin.shell, skin.accent.opacity(0.35)],
+                                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(.white.opacity(0.55), lineWidth: 2)
+                                    .padding(14)
+                                Image(systemName: "gamecontroller.fill")
+                                    .font(.system(size: 24, weight: .semibold))
+                                    .foregroundStyle(skin.accent)
+                            }
+                            .frame(height: 86)
+                            Text(skin.name).font(.system(size: 13, weight: .bold))
+                            Text(skin.detail)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(width: 129)
+                        .padding(9)
+                        .background(.white.opacity(chosen ? 0.10 : 0.035),
+                                    in: RoundedRectangle(cornerRadius: 17))
+                        .overlay(RoundedRectangle(cornerRadius: 17)
+                            .stroke(chosen ? skin.accent : .white.opacity(0.10), lineWidth: chosen ? 2 : 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(skin.name) console skin")
+                    .accessibilityAddTraits(chosen ? .isSelected : [])
+                    .accessibilityIdentifier("avydrix-skin-\(skin.rawValue)")
+                }
+            }
+            .padding(.vertical, 6)
+        }
+        .scrollIndicators(.hidden)
+    }
+}
+
+// One command surface for GB/NES/GBA/SNES and DS, without altering emulator input.
+// Nested tool sheets leave the game paused until the command center is dismissed.
+struct AVInGameCommandCenter: View {
+    let game: Game
+    let muted: Bool
+    let quickAvailable: Bool
+    @ObservedObject var tuning: AVControlTuning
+    @Binding var originalProportions: Bool
+    @Binding var useTwoPanels: Bool
+    let save: (String) -> Bool
+    let load: (String) -> Bool
+    let quickSave: () -> Void
+    let quickLoad: () -> Void
+    let toggleMute: () -> Void
+    let restart: () -> Void
+    let exit: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("avydrix.skin") private var skinName = "obsidian"
+    @State private var showingSettings = false
+    @State private var showingSaves = false
+    @State private var confirmRestart = false
+
+    private var skin: AVConsoleSkin { .selected(skinName) }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 13) {
+                        Image(systemName: "gamecontroller.fill")
+                            .font(.system(size: 28, weight: .bold))
+                            .frame(width: 60, height: 60)
+                            .foregroundStyle(skin.accent)
+                            .background(skin.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 15))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("COMMAND CENTER")
+                                .font(.system(size: 10, weight: .black, design: .monospaced))
+                                .tracking(2.0)
+                                .foregroundStyle(skin.accent)
+                            Text(game.name)
+                                .font(.system(size: 20, weight: .heavy, design: .rounded))
+                                .lineLimit(2)
+                            Text(game.systemName.uppercased())
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white.opacity(0.58))
+                        }
+                    }
+                    .padding(.vertical, 5)
+
+                    HStack(spacing: 10) {
+                        command("QUICK SAVE", subtitle: "Capture progress", icon: "square.and.arrow.down.fill") {
+                            quickSave()
+                        }
+                        command("QUICK LOAD", subtitle: "Return to save", icon: "arrow.counterclockwise",
+                                disabled: !quickAvailable) {
+                            quickLoad()
+                        }
+                    }
+                    HStack(spacing: 10) {
+                        command("SAVE VAULT", subtitle: "Manage slots", icon: "square.stack.3d.up.fill") {
+                            showingSaves = true
+                        }
+                        command("CONTROLS", subtitle: "Layouts & filters", icon: "slider.horizontal.3") {
+                            showingSettings = true
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("CONSOLE OPTIONS")
+                            .font(.system(size: 10, weight: .black, design: .monospaced))
+                            .tracking(1.6)
+                            .foregroundStyle(skin.accent)
+                        Toggle("Fill upper screen", isOn: Binding(
+                            get: { !originalProportions },
+                            set: { originalProportions = !$0 }
+                        ))
+                        Toggle("Two-panel Duo layout", isOn: $useTwoPanels)
+                        Button {
+                            toggleMute()
+                        } label: {
+                            Label(muted ? "Turn game audio on" : "Mute game audio",
+                                  systemImage: muted ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .padding(17)
+                    .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 16))
+
+                    HStack {
+                        Button {
+                            confirmRestart = true
+                        } label: {
+                            Label("Restart game", systemImage: "arrow.clockwise")
+                        }
+                        Spacer()
+                        Button(action: exit) {
+                            Label("Exit to library", systemImage: "rectangle.portrait.and.arrow.right")
+                        }
+                    }
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.84))
+                    .padding(.horizontal, 3)
+                }
+                .padding(20)
+            }
+            .scrollIndicators(.hidden)
+            .background(LinearGradient(colors: [skin.shell, Color(red: 0.012, green: 0.016, blue: 0.041)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                .ignoresSafeArea())
+            .navigationTitle("AVYDRIX PLAY 2.0")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("RESUME") { dismiss() }
+                        .fontWeight(.bold)
+                        .accessibilityIdentifier("avydrix-resume-game")
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                AVGameSettings(tuning: tuning)
+            }
+            .sheet(isPresented: $showingSaves) {
+                AVSaveManager(game: game, save: save, load: load)
+            }
+            .confirmationDialog("Restart \(game.name)?", isPresented: $confirmRestart,
+                                titleVisibility: .visible) {
+                Button("Restart Game", role: .destructive) {
+                    restart()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This resets the active game and its automatic resume. Manual save slots stay intact.")
+            }
+        }
+        .tint(skin.accent)
+        .preferredColorScheme(.dark)
+        .accessibilityIdentifier("avydrix-command-center")
+    }
+
+    private func command(_ title: String, subtitle: String, icon: String,
+                         disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 21, weight: .medium))
+                    .foregroundStyle(skin.accent)
+                    .frame(height: 29)
+                Text(title)
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .tracking(0.4)
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.58))
+            }
+            .frame(maxWidth: .infinity, minHeight: 97, alignment: .leading)
+            .padding(14)
+            .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16)
+                .stroke(skin.accent.opacity(0.24), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.42 : 1)
     }
 }

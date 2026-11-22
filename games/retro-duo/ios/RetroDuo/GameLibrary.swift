@@ -192,6 +192,62 @@ final class GameLibrary: ObservableObject {
         statesFolder.appendingPathComponent("\(game.name).\(slot).preview.png")
     }
 
+    // AVYDRIX 2.0 keeps the original resume file and serialization format.
+    // A second generation is held separately; manual slots and battery RAM are untouched.
+    private var verifiedResumeGames = Set<String>()
+
+    func hasProtectedResume(for game: Game) -> Bool {
+        let files = FileManager.default
+        return ["resume", "resume.backup"].contains {
+            files.fileExists(atPath: stateURL(for: game, slot: $0).path)
+        }
+    }
+
+    func restoreProtectedResume(for game: Game, using load: (Data) -> Bool) -> Bool {
+        for slot in ["resume", "resume.backup"] {
+            let url = stateURL(for: game, slot: slot)
+            guard let data = try? Data(contentsOf: url), data.count >= 32 else { continue }
+            guard load(data) else { continue }
+            verifiedResumeGames.insert(game.id)
+            // Repair the primary checkpoint only after the core confirms it can load the backup.
+            if slot == "resume.backup" {
+                try? data.write(to: stateURL(for: game, slot: "resume"), options: .atomic)
+            }
+            return true
+        }
+        return false
+    }
+
+    @discardableResult
+    func saveProtectedResume(_ data: Data, for game: Game) -> Bool {
+        // Reject empty/truncated core results before touching either generation.
+        guard data.count >= 32 else { return false }
+        let primary = stateURL(for: game, slot: "resume")
+        let backup = stateURL(for: game, slot: "resume.backup")
+        let files = FileManager.default
+        if files.fileExists(atPath: primary.path) {
+            // Preserve an unvalidated legacy checkpoint until the emulator confirms it.
+            // Once validated, rotate to the backup before replacing the primary.
+            let shouldBackup = verifiedResumeGames.contains(game.id) ||
+                               !files.fileExists(atPath: backup.path)
+            if shouldBackup {
+                guard let older = try? Data(contentsOf: primary), older.count >= 32,
+                      (try? older.write(to: backup, options: .atomic)) != nil else { return false }
+            }
+        }
+        let saved = (try? data.write(to: primary, options: .atomic)) != nil
+        if saved { verifiedResumeGames.insert(game.id) }
+        return saved
+    }
+
+    func clearProtectedResume(for game: Game) {
+        // Only an explicit in-game Restart removes the auto-resume generations.
+        for slot in ["resume", "resume.backup"] {
+            try? FileManager.default.removeItem(at: stateURL(for: game, slot: slot))
+        }
+        verifiedResumeGames.remove(game.id)
+    }
+
     /// Checks size and header without reading a whole (possibly huge) DS file into memory.
     static func isPlayable(_ url: URL, system: GameSystem) -> Bool {
         guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber,
