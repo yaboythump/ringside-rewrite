@@ -1188,8 +1188,10 @@ private struct AVCartridgeLaunchView: View {
 /// the in-app toggle, system Reduce Motion, scene visibility and gameplay.
 private struct AVBackdrop: View {
     let animated: Bool
+    @AppStorage("avydrix.skin") private var skinName = "obsidian"
 
     var body: some View {
+        let skin = AVConsoleSkin.selected(skinName)
         TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: !animated)) { timeline in
             let time = animated ? timeline.date.timeIntervalSinceReferenceDate : 0
             Canvas(opaque: true) { context, size in
@@ -1197,22 +1199,14 @@ private struct AVBackdrop: View {
                 let height = max(size.height, 1)
                 let frame = Path(CGRect(origin: .zero, size: size))
                 context.fill(frame, with: .linearGradient(
-                    Gradient(colors: [
-                        Color(red: 0.017, green: 0.048, blue: 0.12),
-                        Color(red: 0.027, green: 0.025, blue: 0.095),
-                        Color(red: 0.016, green: 0.019, blue: 0.065)
-                    ]),
+                    Gradient(colors: [skin.shell, skin.secondary.opacity(0.26), skin.shell]),
                     startPoint: CGPoint(x: 0, y: 0),
                     endPoint: CGPoint(x: width, y: height)
                 ))
 
                 // Two luminous auroras cross the open areas of the library.
                 // Rendering as gradients in one Canvas avoids GPU-heavy blurs.
-                let palette: [Color] = [
-                    Color(red: 0.05, green: 0.67, blue: 1),
-                    Color(red: 0.54, green: 0.28, blue: 1),
-                    Color(red: 0.17, green: 0.92, blue: 0.96)
-                ]
+                let palette: [Color] = [skin.accent, skin.secondary, skin.accent.opacity(0.75)]
                 for index in 0..<3 {
                     let shift = CGFloat(sin(time * (0.23 + Double(index) * 0.045)
                                              + Double(index) * 1.3))
@@ -1249,15 +1243,15 @@ private struct AVBackdrop: View {
                     (CGPoint(x: width * (0.07 + 0.24 * sin(time * 0.21)),
                              y: height * (0.13 + 0.10 * cos(time * 0.14))),
                      max(width, height) * 0.52,
-                     Color(red: 0.04, green: 0.55, blue: 1)),
+                     skin.accent),
                     (CGPoint(x: width * (0.84 + 0.12 * cos(time * 0.13)),
                              y: height * (0.73 + 0.11 * sin(time * 0.17))),
                      max(width, height) * 0.63,
-                     Color(red: 0.47, green: 0.22, blue: 1)),
+                     skin.secondary),
                     (CGPoint(x: width * (0.75 + 0.17 * sin(time * 0.17)),
                              y: height * (0.28 + 0.12 * cos(time * 0.11))),
                      max(width, height) * 0.39,
-                     Color(red: 0.02, green: 0.78, blue: 0.9))
+                     skin.accent.opacity(0.75))
                 ]
                 for (center, radius, color) in lights {
                     context.fill(
