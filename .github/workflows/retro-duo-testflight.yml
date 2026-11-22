@@ -210,7 +210,8 @@ jobs:
           python3 games/retro-duo/testcart-sega/make_genesis.py "$RUNNER_TEMP/check.md"
           python3 games/retro-duo/testcart-sega/make_sms.py "$RUNNER_TEMP/check.sms"
           python3 games/retro-duo/testcart-sega/make_sms.py --gg "$RUNNER_TEMP/check.gg"
-          cmp "$RUNNER_TEMP/check.md" "$res/RetroDuoGenesisTestCart.md"
+          # The Genesis cart is compiled by clang, whose 68000 output differs between versions,
+          # so CI only checks that it still builds; the Z80 carts come from our own assembler.
           cmp "$RUNNER_TEMP/check.sms" "$res/RetroDuoMasterSystemTestCart.sms"
           cmp "$RUNNER_TEMP/check.gg" "$res/RetroDuoGameGearTestCart.gg"
           CC=clang CXX=clang++ games/retro-duo/tests/run_sega_core_test.sh "$RUNNER_TEMP/rd-core"
