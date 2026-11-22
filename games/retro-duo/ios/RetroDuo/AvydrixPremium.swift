@@ -215,6 +215,8 @@ struct AVGameSettings: View {
                 Section("Game display") {
                     Picker("Picture filter", selection: $displayFilter) {
                         Text("Sharp pixels").tag("off")
+                        Text("Smooth").tag("smooth")
+                        Text("Soft").tag("soft")
                         Text("LCD pixel grid").tag("lcd")
                         Text("CRT scanlines").tag("crt")
                     }
@@ -261,7 +263,7 @@ struct AVDisplayFilter: View {
     var body: some View {
         GeometryReader { geo in
             Canvas { context, size in
-                guard style != "off" else { return }
+                guard style == "lcd" || style == "crt" else { return }
                 var lines = Path()
                 let pitch: CGFloat = style == "crt" ? 4 : 5
                 for y in stride(from: CGFloat(0), through: size.height, by: pitch) {
@@ -623,6 +625,8 @@ struct AVSettingsHome: View {
                 Section("Display") {
                     Picker("Picture filter", selection: $filter) {
                         Text("Sharp pixels").tag("off")
+                        Text("Smooth").tag("smooth")
+                        Text("Soft").tag("soft")
                         Text("LCD pixel grid").tag("lcd")
                         Text("CRT scanlines").tag("crt")
                     }
