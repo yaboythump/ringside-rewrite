@@ -60,7 +60,8 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$RD_BUNDLE"
           test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
           test "$(/usr/libexec/PlistBuddy -c 'Print UIFileSharingEnabled' "$app/Info.plist")" = true
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "Retro Duo"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "AVYDRIX Play"
+          cmp "$app/PrivacyInfo.xcprivacy" games/retro-duo/ios/RetroDuo/PrivacyInfo.xcprivacy
           cmp "$app/cgb_boot.bin" games/retro-duo/ios/RetroDuo/Resources/cgb_boot.bin
           cmp "$app/RetroDuoTestCart.gbc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoTestCart.gbc
           cmp "$app/RetroDuoDSTestCart.nds" games/retro-duo/ios/RetroDuo/Resources/RetroDuoDSTestCart.nds
@@ -80,6 +81,8 @@ jobs:
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rd-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
+      - name: Verify public branding and production icon
+        run: python3 games/retro-duo/tests/verify_store_branding.py
       - name: Test TestFlight processing and tester assignment verification
         run: ruby games/retro-duo/tests/test_release_verification.rb
       - name: Verify short taps and simultaneous inputs
@@ -88,7 +91,7 @@ jobs:
           swiftc games/retro-duo/ios/RetroDuo/InputState.swift "$RUNNER_TEMP/main.swift" -o "$RUNNER_TEMP/input-tests"
           "$RUNNER_TEMP/input-tests"
       - name: Test native touches, audio engine and portrait / landscape
-        if: github.event_name == 'workflow_dispatch' && inputs.ui_tests
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.ui_tests)
         run: |
           set -euo pipefail
           device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; devices=[v for k,items in d.items() if "iOS" in k for v in items]; pick=next((v for v in devices if "Duo" in v["name"]), next(v for v in devices if "iPhone" in v["name"])); print(pick["udid"])')
@@ -127,7 +130,7 @@ jobs:
           PYTEST
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/rd-ui.xcresult" --output-path "$RUNNER_TEMP/rd-ui-attachments"
       - name: Keep simulator test evidence
-        if: always() && github.event_name == 'workflow_dispatch' && inputs.ui_tests
+        if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.ui_tests))
         uses: actions/upload-artifact@v4
         with:
           name: retro-duo-ui-results

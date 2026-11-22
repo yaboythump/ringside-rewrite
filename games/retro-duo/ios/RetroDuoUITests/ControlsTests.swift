@@ -2,6 +2,40 @@ import XCTest
 import UIKit
 
 final class ControlsTests: XCTestCase {
+    func testAppStoreScreenshots() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoUITests", "-avydrix.ambientMotionEnabled", "NO"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+        XCTAssertTrue(app.buttons["AVYDRIX settings"].waitForExistence(timeout: 15))
+        attach(app, "store-01-your-console")
+        let shelf = app.descendants(matching: .any)
+            .matching(identifier: "avydrix-3d-console-shelf").firstMatch
+        XCTAssertTrue(shelf.waitForExistence(timeout: 10))
+        app.swipeUp()
+        attach(app, "store-02-explore-library")
+        app.swipeDown()
+        app.buttons["AVYDRIX settings"].tap()
+        XCTAssertTrue(app.buttons["avydrix-skin-ultraviolet"].waitForExistence(timeout: 8))
+        app.buttons["avydrix-skin-ultraviolet"].tap()
+        attach(app, "store-05-make-it-yours")
+        app.buttons["Done"].tap()
+        // Only the original bundled game is used in promotional captures.
+        let game = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Play featured game")).firstMatch
+        XCTAssertTrue(game.waitForExistence(timeout: 8))
+        game.tap()
+        XCTAssertTrue(app.buttons["Game menu"].waitForExistence(timeout: 15))
+        attach(app, "store-03-dual-screen-gaming")
+        app.buttons["Game menu"].tap()
+        XCTAssertTrue(app.staticTexts["COMMAND CENTER"].waitForExistence(timeout: 8))
+        attach(app, "store-04-control-everything")
+        app.buttons.containing(.staticText, identifier: "QUICK SAVE").firstMatch.tap()
+        app.buttons.containing(.staticText, identifier: "SAVE VAULT").firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Visual Save Manager"].waitForExistence(timeout: 8))
+        attach(app, "store-06-never-lose-your-place")
+    }
+
     func testPlay2ConsoleShelfAndSkins() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoUITests"]

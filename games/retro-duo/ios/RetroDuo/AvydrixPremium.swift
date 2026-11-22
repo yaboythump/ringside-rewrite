@@ -893,7 +893,7 @@ struct AVInGameCommandCenter: View {
             .background(LinearGradient(colors: [skin.shell, Color(red: 0.012, green: 0.016, blue: 0.041)],
                                        startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea())
-            .navigationTitle("AVYDRIX PLAY 2.0")
+            .navigationTitle("AVYDRIX PLAY")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

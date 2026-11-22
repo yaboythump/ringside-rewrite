@@ -162,7 +162,7 @@ final class GameLibrary: ObservableObject {
         }
         refresh()
         if !skipped.isEmpty {
-            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays NES (.nes), Super Nintendo (.sfc, .smc), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
+            message = "Couldn't add \(skipped.joined(separator: ", ")). AVYDRIX Play plays NES (.nes), Super Nintendo (.sfc, .smc), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
         } else if added.count == 1 {
             message = "Added \(added[0])."
         } else if added.count > 1 {

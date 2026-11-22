@@ -49,7 +49,7 @@ final class GameBoyBackend: ConsoleBackend {
     static func make(rom: Data, battery: Data?, name: String) -> Result<ConsoleBackend, ConsoleError> {
         guard let bootURL = Bundle.main.url(forResource: "cgb_boot", withExtension: "bin"),
               let boot = try? Data(contentsOf: bootURL) else {
-            return .failure(ConsoleError(message: "Retro Duo is missing its start-up file. Reinstall the app."))
+            return .failure(ConsoleError(message: "AVYDRIX Play is missing its start-up file. Reinstall the app."))
         }
         guard GameLibrary.looksLikeROM(rom) else {
             return .failure(ConsoleError(message: "\(name) couldn't be opened. The file may be damaged or not a Game Boy game."))
@@ -63,7 +63,7 @@ final class GameBoyBackend: ConsoleBackend {
         }
         guard loaded else {
             RDCoreDestroy(created)
-            return .failure(ConsoleError(message: "\(name) isn't a Game Boy game Retro Duo can run."))
+            return .failure(ConsoleError(message: "\(name) isn't a Game Boy game AVYDRIX Play can run."))
         }
         if let battery, !battery.isEmpty {
             battery.withUnsafeBytes { RDCoreLoadBattery(created, $0.bindMemory(to: UInt8.self).baseAddress, $0.count) }
@@ -157,7 +157,7 @@ final class NESBackend: ConsoleBackend {
         }
         guard loaded else {
             NESCoreDestroy(created)
-            return .failure(ConsoleError(message: "This NES game uses hardware Retro Duo can't run yet, or the file is damaged."))
+            return .failure(ConsoleError(message: "This NES game uses hardware AVYDRIX Play can't run yet, or the file is damaged."))
         }
         return .success(NESBackend(core: created))
     }
@@ -255,7 +255,7 @@ final class GBABackend: ConsoleBackend {
         }
         guard loaded else {
             RDGBADestroy(created)
-            return .failure(ConsoleError(message: "This file isn't a Game Boy Advance game Retro Duo can run, or it's damaged."))
+            return .failure(ConsoleError(message: "This file isn't a Game Boy Advance game AVYDRIX Play can run, or it's damaged."))
         }
         return .success(GBABackend(core: created))
     }
@@ -359,7 +359,7 @@ final class LibretroBackend: ConsoleBackend {
         }
         guard loaded else {
             RDLRDestroy(created)
-            return .failure(ConsoleError(message: "This file isn't a \(consoleName) game Retro Duo can run, or it's damaged."))
+            return .failure(ConsoleError(message: "This file isn't a \(consoleName) game AVYDRIX Play can run, or it's damaged."))
         }
         return .success(LibretroBackend(core: created))
     }

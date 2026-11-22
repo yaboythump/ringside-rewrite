@@ -75,7 +75,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         }
         guard loaded else {
             MDCoreDestroy(created)
-            errorMessage = "\(game.name) isn't a DS game Retro Duo can run."
+            errorMessage = "\(game.name) isn't a DS game AVYDRIX Play can run."
             return
         }
         core = created

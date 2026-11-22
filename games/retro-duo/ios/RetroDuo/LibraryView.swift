@@ -242,7 +242,7 @@ struct LibraryView: View {
                     .font(.system(size: compact ? 19 : 23, weight: .black, design: .rounded))
                     .tracking(2.4)
                     .foregroundStyle(.white)
-                Text("PLAY 2.0  /  RETRO DUO")
+                Text("PLAY  /  CTINTERACTIVE")
                     .font(.system(size: compact ? 8 : 10, weight: .bold, design: .monospaced))
                     .tracking(1.7)
                     .foregroundStyle(AVPalette.muted)
