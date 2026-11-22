@@ -67,6 +67,7 @@ jobs:
           cmp "$app/GraveMistakes.nds" games/retro-duo/ios/RetroDuo/Resources/GraveMistakes.nds
           cmp "$app/GraveMistakesPremiumCover.jpg" games/retro-duo/ios/RetroDuo/Resources/GraveMistakesPremiumCover.jpg
           cmp "$app/AvydrixWhisper.mp3" games/retro-duo/ios/RetroDuo/Resources/AvydrixWhisper.mp3
+          cmp "$app/AvydrixFemaleTagline.mp3" games/retro-duo/ios/RetroDuo/Resources/AvydrixFemaleTagline.mp3
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/melonDS-LICENSE.txt"
           cmp "$app/RetroDuoNESTestCart.nes" games/retro-duo/ios/RetroDuo/Resources/RetroDuoNESTestCart.nes
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/Nestopia-LICENSE.txt"
