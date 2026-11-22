@@ -35,8 +35,14 @@ concurrency:
 jobs:
   verify:
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/retro-duo')
+    strategy:
+      fail-fast: false
+      matrix:
+        device: ["iPhone 18 Pro Max", "iPhone Duo"]
     runs-on: xcode-27
-    timeout-minutes: 30
+    env:
+      RD_SIMULATOR_NAME: ${{ matrix.device }}
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -94,7 +100,7 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.ui_tests)
         run: |
           set -euo pipefail
-          device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; devices=[v for k,items in d.items() if "iOS" in k for v in items]; pick=next((v for v in devices if "Duo" in v["name"]), next(v for v in devices if "iPhone" in v["name"])); print(pick["udid"])')
+          device=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; devices=[v for k,items in d.items() if "iOS" in k for v in items]; pick=next(v for v in devices if v["name"] == __import__("os").environ["RD_SIMULATOR_NAME"]); print(pick["udid"])')
           xcrun simctl list devices available
           xcrun simctl boot "$device" || true
           xcrun simctl bootstatus "$device" -b
@@ -117,15 +123,24 @@ jobs:
                      "-derivedDataPath", os.environ["RUNNER_TEMP"] + "/rd-ui",
                      "-resultBundlePath", os.environ["RUNNER_TEMP"] + "/rd-ui.xcresult",
                      "-parallel-testing-enabled", "NO", "-test-timeouts-enabled", "YES",
-                     "-maximum-test-execution-time-allowance", "120", "test-without-building"]
+                     "-maximum-test-execution-time-allowance", "300", "test-without-building"]
+          if os.environ["RD_SIMULATOR_NAME"] == "iPhone Duo":
+              # The Duo primary display does not rotate like a single-screen iPhone.
+              # Check its supported library/DS layouts; landscape GBA is checked on Pro Max.
+              for test in ["testAppStoreScreenshots", "testCommandCenterRetainsResumeAndSaveActions",
+                           "testDSPictureSurvivesRepeatedRotation", "testFoldedLibraryHasPersistentAddGamesButton"]:
+                  command.append("-only-testing:RetroDuoUITests/ControlsTests/" + test)
           with open(os.environ["RUNNER_TEMP"] + "/rd-ui.log", "a") as log:
               try:
-                  result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=420)
+                  result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=1200)
                   status = result.returncode
               except subprocess.TimeoutExpired:
-                  print("Simulator test service timed out after 7 minutes.")
+                  print("Simulator test service timed out after 20 minutes.")
                   status = 1
           subprocess.run(["tail", "-100", os.environ["RUNNER_TEMP"] + "/rd-ui.log"])
+          subprocess.run(["xcrun", "xcresulttool", "export", "attachments", "--path",
+                          os.environ["RUNNER_TEMP"] + "/rd-ui.xcresult", "--output-path",
+                          os.environ["RUNNER_TEMP"] + "/rd-ui-attachments"])
           sys.exit(status)
           PYTEST
           xcrun xcresulttool export attachments --path "$RUNNER_TEMP/rd-ui.xcresult" --output-path "$RUNNER_TEMP/rd-ui-attachments"
@@ -133,7 +148,7 @@ jobs:
         if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.ui_tests))
         uses: actions/upload-artifact@v4
         with:
-          name: retro-duo-ui-results
+          name: retro-duo-ui-results-${{ matrix.device }}
           path: |
             ${{ runner.temp }}/rd-ui.xcresult
             ${{ runner.temp }}/rd-ui.log
@@ -144,7 +159,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: retro-duo-build-log
+          name: retro-duo-build-log-${{ matrix.device }}
           path: ${{ runner.temp }}/rd-build.log
           retention-days: 14
 

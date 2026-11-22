@@ -4,7 +4,7 @@ import UIKit
 final class ControlsTests: XCTestCase {
     func testAppStoreScreenshots() {
         let app = XCUIApplication()
-        app.launchArguments = ["-RetroDuoUITests", "-avydrix.ambientMotionEnabled", "NO"]
+        app.launchArguments = ["-RetroDuoUITests", "-AvydrixStoreScreenshots", "-avydrix.ambientMotionEnabled", "NO"]
         XCUIDevice.shared.orientation = .portrait
         app.launch()
         defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
@@ -124,8 +124,8 @@ final class ControlsTests: XCTestCase {
             "-avydrix.duo.mode", "auto",
             "-avydrix.gba.landscapeControls", "YES"
         ]
-        XCUIDevice.shared.orientation = .landscapeLeft
         app.launch()
+        XCUIDevice.shared.orientation = .landscapeLeft
         defer {
             app.terminate()
             XCUIDevice.shared.orientation = .portrait

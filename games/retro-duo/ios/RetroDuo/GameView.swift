@@ -54,7 +54,8 @@ struct GameView: View {
         .background(ConsoleBackdrop())
         .overlay(alignment: .top) { toastView }
         .overlay(alignment: .bottom) {
-            if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") {
+            if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") &&
+                !ProcessInfo.processInfo.arguments.contains("-AvydrixStoreScreenshots") {
                 Text(diagnostics).font(.system(size: 6)).accessibilityIdentifier("rd-diagnostics")
                     .allowsHitTesting(false)
                     .onReceive(Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()) { _ in diagnostics = session.diagnostics }
