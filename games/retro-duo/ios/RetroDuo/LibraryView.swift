@@ -1435,40 +1435,53 @@ private final class GameCoverLibrary: ObservableObject {
             names.append(base + " (USA) (En,Fr,De,Es,It)")
         }
 
+        let repo = system.replacingOccurrences(of: " ", with: "_")
         for name in names {
-            // Try upstream GitHub box art first, with libretro CDN as a fallback.
-            // Some thumbnail mirrors intermittently reject requests; do not leave
-            // a permanent no-cover state after one failed attempt.
-            let repo = system.replacingOccurrences(of: " ", with: "_")
-            let hostsAndPaths: [(String, String)] = [
-                ("raw.githubusercontent.com", "/libretro-thumbnails/\(repo)/master/Named_Boxarts/\(name).png"),
-                ("thumbnails.libretro.com", "/\(system)/Named_Boxarts/\(name).png")
-            ]
-            for (host, path) in hostsAndPaths {
-                var components = URLComponents()
-                components.scheme = "https"
-                components.host = host
-                components.path = path
-                guard let url = components.url else { continue }
-                var request = URLRequest(url: url)
-                request.timeoutInterval = 7
-                request.cachePolicy = .reloadIgnoringLocalCacheData
-                do {
-                    let (data, response) = try await URLSession.shared.data(for: request)
-                    guard (response as? HTTPURLResponse)?.statusCode == 200,
-                          !data.isEmpty, data.count <= 4_000_000,
-                          let downloaded = UIImage(data: data),
-                          let compressed = Self.optimizedJPEG(downloaded) else { continue }
-                    // Do not overwrite a manually selected cover mid-download.
-                    if images[game.id] != nil { return }
-                    try? compressed.write(to: destination(for: game), options: .atomic)
-                    images[game.id] = UIImage(data: compressed) ?? downloaded
-                    return
-                } catch {
-                    continue
-                }
+            if await download(name, system: system, repo: repo, for: game) { return }
+        }
+
+        // No exact match: look the title up in the system's list of box art names, so files
+        // named "Donkey Kong Country (U) (V1.2) [!]" still find "Donkey Kong Country (USA) (Rev 2)".
+        if let index = await CoverIndex.shared.names(repo: repo),
+           let match = CoverMatcher.bestMatch(for: game.name, in: index), !names.contains(match) {
+            _ = await download(match, system: system, repo: repo, for: game)
+        }
+    }
+
+    /// Downloads one box art by its libretro-thumbnails name. Returns true once the game has a cover.
+    private func download(_ name: String, system: String, repo: String, for game: Game) async -> Bool {
+        // Try upstream GitHub box art first, with libretro CDN as a fallback.
+        // Some thumbnail mirrors intermittently reject requests; do not leave
+        // a permanent no-cover state after one failed attempt.
+        let hostsAndPaths: [(String, String)] = [
+            ("raw.githubusercontent.com", "/libretro-thumbnails/\(repo)/master/Named_Boxarts/\(name).png"),
+            ("thumbnails.libretro.com", "/\(system)/Named_Boxarts/\(name).png")
+        ]
+        for (host, path) in hostsAndPaths {
+            var components = URLComponents()
+            components.scheme = "https"
+            components.host = host
+            components.path = path
+            guard let url = components.url else { continue }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 7
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200,
+                      !data.isEmpty, data.count <= 4_000_000,
+                      let downloaded = UIImage(data: data),
+                      let compressed = Self.optimizedJPEG(downloaded) else { continue }
+                // Do not overwrite a manually selected cover mid-download.
+                if images[game.id] != nil { return true }
+                try? compressed.write(to: destination(for: game), options: .atomic)
+                images[game.id] = UIImage(data: compressed) ?? downloaded
+                return true
+            } catch {
+                continue
             }
         }
+        return false
     }
 
     private static func artworkFolder(for game: Game) -> String? {

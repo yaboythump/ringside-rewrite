@@ -51,6 +51,12 @@ jobs:
           persist-credentials: false
       - name: Generate BlastEm's CPU cores (too big to keep in git)
         run: python3 games/retro-duo/tools/generate_blastem.py
+      - name: Check box art matching against real libretro-thumbnails names
+        run: |
+          set -euo pipefail
+          xcrun swiftc -O games/retro-duo/ios/RetroDuo/CoverMatcher.swift games/retro-duo/tests/cover_matcher/main.swift \
+            -o "$RUNNER_TEMP/cover_matcher_test"
+          "$RUNNER_TEMP/cover_matcher_test" games/retro-duo/tests/cover_matcher/names.tsv games/retro-duo/tests/cover_matcher/expected.tsv
       - name: Archive the iPhone build without signing
         run: |
           set -euo pipefail
