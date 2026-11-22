@@ -538,17 +538,36 @@ struct LibraryView: View {
                     .padding(.vertical, 6)
                     .background(AVPalette.blue.opacity(0.11), in: Capsule())
                 Spacer(minLength: 0)
-                if !ownedGames.isEmpty && ownedGames.contains(where: { !$0.isBuiltIn && covers.image(for: $0) == nil }) {
+                if covers.searching || (!ownedGames.isEmpty && ownedGames.contains(where: { !$0.isBuiltIn && covers.image(for: $0) == nil })) {
                     Button { covers.retryMissing(ownedGames) } label: {
-                        Label("FIND COVERS", systemImage: "arrow.clockwise")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
+                        HStack(spacing: 6) {
+                            if covers.searching {
+                                ProgressView().controlSize(.mini).tint(AVPalette.lightBlue)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            Text(covers.searching ? "FINDING…" : "FIND COVERS")
+                        }
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 8)
+                        .background(AVPalette.blue.opacity(0.16), in: Capsule())
+                        .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
+                    .disabled(covers.searching)
                     .foregroundStyle(AVPalette.lightBlue)
                     .accessibilityIdentifier("avydrix-retry-covers")
                 }
+            }
+            if let result = covers.searchResult {
+                Text(result)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .transition(.opacity)
+                    .accessibilityIdentifier("avydrix-cover-result")
             }
             HStack(spacing: 9) {
                 Image(systemName: "magnifyingglass").foregroundStyle(AVPalette.muted)
@@ -1368,8 +1387,42 @@ private final class GameCoverLibrary: ObservableObject {
         }
     }
 
+    /// True while FIND COVERS is searching; the button shows a spinner.
+    @Published private(set) var searching = false
+    /// What the last FIND COVERS search found, shown under the button for a few seconds.
+    @Published private(set) var searchResult: String?
+
     func retryMissing(_ games: [Game]) {
-        discover(games, force: true)
+        let missing = games.filter { !$0.isBuiltIn && image(for: $0) == nil }
+        guard !missing.isEmpty, !searching else { return }
+        searching = true
+        searchResult = nil
+        Task {
+            // All games at once; each one runs on the main actor between network waits.
+            var jobs: [Task<Void, Never>] = []
+            for game in missing where !inFlight.contains(game.id) {
+                inFlight.insert(game.id)
+                attempted.insert(game.id)
+                lastAttempt[game.id] = Date()
+                jobs.append(Task {
+                    await retrieve(game)
+                    inFlight.remove(game.id)
+                })
+            }
+            for job in jobs { await job.value }
+            let found = missing.filter { images[$0.id] != nil }.count
+            searching = false
+            if found == missing.count {
+                searchResult = found == 1 ? "Found the cover" : "Found all \(found) covers"
+            } else if found > 0 {
+                searchResult = "Found \(found) of \(missing.count). Press and hold a game to add your own cover."
+            } else {
+                searchResult = "No covers found online. Press and hold a game to add your own."
+            }
+            let shown = searchResult
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            if searchResult == shown { searchResult = nil }
+        }
     }
 
     func reload(_ game: Game) {
@@ -1415,12 +1468,8 @@ private final class GameCoverLibrary: ObservableObject {
 
         // Download covers only, never game data. Fallback cards remain functional offline.
         guard let system = Self.artworkFolder(for: game) else { return }
-        let normalized = game.name
-            .replacingOccurrences(of: ":", with: "_")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "?", with: "_")
-            .replacingOccurrences(of: "*", with: "_")
-            .replacingOccurrences(of: "#", with: "_")
+        // libretro-thumbnails stores &*/:`<>?\|" as "_" in file names.
+        let normalized = String(game.name.map { "&*/:`<>?\\|\"#".contains($0) ? "_" : $0 })
         var names = [normalized]
         let noRevision = normalized.replacingOccurrences(
             of: #"\s+\(Rev [^)]+\)"#, with: "", options: .regularExpression)
