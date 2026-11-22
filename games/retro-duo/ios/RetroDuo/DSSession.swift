@@ -24,6 +24,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     private var bottom = [UInt32](repeating: 0xFF000000, count: Int(MD_SCREEN_WIDTH) * Int(MD_SCREEN_HEIGHT))
     private var lastFrame: UInt64 = 0
     private var ticks = 0
+    private var lastResumeCheckpoint = Date()
     private var toastTask: Task<Void, Never>?
     private let topScreens = NSHashTable<PixelScreenView>.weakObjects()
     private let bottomScreens = NSHashTable<PixelScreenView>.weakObjects()
@@ -78,9 +79,15 @@ final class DSSession: NSObject, ObservableObject, PadInput {
             return
         }
         core = created
-        if loadState(slot: "resume") {
-            show(toast: "Picked up where you left off")
+        if library.restoreProtectedResume(for: game, using: { [weak self] data in
+            guard let core = self?.core else { return false }
+            return data.withUnsafeBytes {
+                MDCoreLoadState(core, $0.bindMemory(to: UInt8.self).baseAddress, $0.count)
+            }
+        }) {
+            show(toast: "Protected session restored")
         }
+        lastResumeCheckpoint = Date()
         MDCoreSetRunning(created, true)
         audio.start(dsCore: created)
         audio.setMuted(isMuted)
@@ -97,7 +104,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         guard let core else { return }
         MDCoreSetRunning(core, false)
         writeSave(force: true)
-        saveState(slot: "resume")
+        saveProtectedResume()
         audio.stop()
         MDCoreDestroy(core)
         self.core = nil
@@ -123,7 +130,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     func persistNow() {
         guard core != nil else { return }
         writeSave(force: true)
-        saveState(slot: "resume")
+        saveProtectedResume()
     }
 
     // MARK: Input
@@ -231,7 +238,8 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         guard let core else { return }
         writeSave(force: true)
         MDCoreReset(core)
-        try? FileManager.default.removeItem(at: library.stateURL(for: game, slot: "resume"))
+        library.clearProtectedResume(for: game)
+        lastResumeCheckpoint = Date()
         show(toast: "Restarted")
     }
 
@@ -266,6 +274,10 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         }
         ticks += 1
         if ticks % 120 == 0 { writeSave(force: false) }
+        if Date().timeIntervalSince(lastResumeCheckpoint) >= 120 {
+            lastResumeCheckpoint = Date()
+            saveProtectedResume()
+        }
     }
 
     // MARK: Saves
@@ -282,6 +294,15 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         }
         guard copied == size else { return }
         try? data.write(to: library.batteryURL(for: game), options: .atomic)
+    }
+
+    private func saveProtectedResume() {
+        guard let core else { return }
+        var length = 0
+        guard let buffer = MDCoreSaveState(core, &length) else { return }
+        defer { MDCoreFreeBuffer(buffer) }
+        guard length >= 32 else { return }
+        _ = library.saveProtectedResume(Data(bytes: buffer, count: length), for: game)
     }
 
     @discardableResult
