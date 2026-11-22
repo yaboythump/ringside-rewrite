@@ -10,6 +10,7 @@ struct LibraryView: View {
     @EnvironmentObject private var library: GameLibrary
     @AppStorage("avydrix.lastPlayedGameID") private var lastPlayedGameID = ""
     @AppStorage("avydrix.bootSoundEnabled") private var bootSoundEnabled = true
+    @AppStorage("avydrix.skin") private var skinName = "obsidian"
     @AppStorage("avydrix.ambientMotionEnabled") private var ambientMotionEnabled = true
     @AppStorage("avydrix.launchAnimationEnabled") private var launchAnimationEnabled = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -29,6 +30,8 @@ struct LibraryView: View {
     @State private var showingFavoritesOnly = false
     @State private var selectedSystem: GameSystem?
     @State private var search = ""
+
+    private var skin: AVConsoleSkin { .selected(skinName) }
 
     private var ownedGames: [Game] { library.games.filter { !$0.isBuiltIn || $0.isBundledGame } }
     private var diagnosticGames: [Game] { library.games.filter { $0.isBuiltIn && !$0.isBundledGame } }
@@ -58,6 +61,7 @@ struct LibraryView: View {
                     VStack(alignment: .leading, spacing: compact ? 25 : 30) {
                         header(compact: compact)
                         featuredCarousel(compact: compact)
+                        consoleShelf(compact: compact)
                         recentlyPlayed(compact: compact)
                         collection(compact: compact)
                         footer
@@ -225,20 +229,20 @@ struct LibraryView: View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .fill(LinearGradient(colors: [AVPalette.blue, AVPalette.purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(LinearGradient(colors: [skin.accent, skin.secondary], startPoint: .topLeading, endPoint: .bottomTrailing))
                 Image(systemName: "a.circle.fill")
                     .font(.system(size: compact ? 23 : 28, weight: .light))
                     .foregroundStyle(.white)
             }
             .frame(width: compact ? 43 : 51, height: compact ? 43 : 51)
-            .shadow(color: AVPalette.blue.opacity(0.32), radius: 13)
+            .shadow(color: skin.accent.opacity(0.32), radius: 13)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("AVYDRIX")
                     .font(.system(size: compact ? 19 : 23, weight: .black, design: .rounded))
                     .tracking(2.4)
                     .foregroundStyle(.white)
-                Text("PLAY  /  RETRO DUO")
+                Text("PLAY 2.0  /  RETRO DUO")
                     .font(.system(size: compact ? 8 : 10, weight: .bold, design: .monospaced))
                     .tracking(1.7)
                     .foregroundStyle(AVPalette.muted)
@@ -335,7 +339,7 @@ struct LibraryView: View {
                             AVFeaturedSpotlight(game: game,
                                                 covers: covers,
                                                 compact: compact,
-                                                isContinue: game.id == lastPlayedGameID)
+                                                isContinue: game.id == lastPlayedGameID && library.hasProtectedResume(for: game))
                         }
                         .buttonStyle(.plain)
                         .tag(index)
@@ -373,6 +377,89 @@ struct LibraryView: View {
                 .tracking(0.8)
                 .padding(.horizontal, 4)
                 .padding(.top, 2)
+            }
+        }
+    }
+
+    /// Swipeable perspective shelf is an additional view of the original library.
+    /// Artwork, launches, favorites and ROM locations are shared with the grid.
+    private func consoleShelf(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .foregroundStyle(skin.accent)
+                Text("CONSOLE SHELF")
+                    .font(.system(size: compact ? 16 : 19, weight: .black, design: .rounded))
+                    .tracking(0.7)
+                    .foregroundStyle(.white)
+                Spacer(minLength: 0)
+                Text("SWIPE TO EXPLORE")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(0.7)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            if !showcasedGames.isEmpty {
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: compact ? 11 : 18) {
+                        ForEach(showcasedGames) { game in
+                            Button {
+                                launch(game)
+                            } label: {
+                                VStack(spacing: 9) {
+                                    AVGameCard(game: game, compact: compact, covers: covers,
+                                               favorite: profile.isFavorite(game))
+                                        .shadow(color: skin.accent.opacity(0.20), radius: 19, y: 9)
+                                    HStack(spacing: 5) {
+                                        Image(systemName: library.hasProtectedResume(for: game)
+                                              ? "checkmark.shield.fill" : "gamecontroller.fill")
+                                        Text(library.hasProtectedResume(for: game)
+                                             ? "RESUME PROTECTED" : "READY TO PLAY")
+                                    }
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(library.hasProtectedResume(for: game)
+                                                     ? skin.accent : .white.opacity(0.52))
+                                }
+                                .frame(width: compact ? 172 : 219)
+                                .padding(.vertical, 12)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Open \(game.name) from console shelf")
+                            .contextMenu {
+                                Button {
+                                    profile.toggleFavorite(game)
+                                } label: {
+                                    Label(profile.isFavorite(game) ? "Remove Favorite" : "Add to Favorites",
+                                          systemImage: profile.isFavorite(game) ? "star.slash" : "star")
+                                }
+                                Button {
+                                    settingCoverFor = game
+                                } label: {
+                                    Label("Change cover", systemImage: "photo")
+                                }
+                            }
+                            .scrollTransition(.interactive, axis: .horizontal) { content, phase in
+                                content
+                                    .rotation3DEffect(.degrees(Double(phase.value) * -26),
+                                                      axis: (x: 0, y: 1, z: 0), perspective: 0.72)
+                                    .scaleEffect(phase.isIdentity ? 1.0 : 0.85)
+                                    .opacity(phase.isIdentity ? 1.0 : 0.68)
+                            }
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, 6)
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .scrollIndicators(.hidden)
+                .background(alignment: .bottom) {
+                    Capsule()
+                        .fill(skin.accent.opacity(0.12))
+                        .blur(radius: 24)
+                        .frame(height: 14)
+                        .padding(.bottom, 27)
+                        .allowsHitTesting(false)
+                }
+                .accessibilityIdentifier("avydrix-3d-console-shelf")
             }
         }
     }
