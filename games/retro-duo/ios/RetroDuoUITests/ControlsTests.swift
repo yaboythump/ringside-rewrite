@@ -201,6 +201,10 @@ final class ControlsTests: XCTestCase {
 
         for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
             XCUIDevice.shared.orientation = orientation
+            // Measure only after the rotation has finished, or buttons already laid out for
+            // landscape are compared against the old portrait window and look off-screen.
+            XCTAssertTrue(waitForWindow(of: app, landscape: orientation.isLandscape), "rotation did not finish")
+            sleep(1)
             let window = app.windows.firstMatch.frame
             let screen = app.descendants(matching: .any)["Game screen"].firstMatch
             for name in ["A button", "B button", "C button", "Direction pad", "START", "MODE"] {
@@ -329,6 +333,14 @@ final class ControlsTests: XCTestCase {
         }
     }
 
+    private func waitForWindow(of app: XCUIApplication, landscape: Bool, timeout: TimeInterval = 10) -> Bool {
+        let window = app.windows.firstMatch
+        let predicate = NSPredicate { _, _ in
+            let frame = window.frame
+            return frame.width > 0 && (frame.width > frame.height) == landscape
+        }
+        return XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: window)], timeout: timeout) == .completed
+    }
     private func counter(_ key: String, _ text: String) -> Int {
         text.split(separator: " ").first(where: { $0.hasPrefix(key + ":") })
             .flatMap { Int($0.split(separator: ":").last ?? "0") } ?? 0
