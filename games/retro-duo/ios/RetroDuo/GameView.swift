@@ -201,8 +201,13 @@ struct GameView: View {
     }
 
     private func landscapeLayout(_ size: CGSize) -> some View {
+        // The controls always keep their columns: a wide picture (Genesis 320x224) on a nearly
+        // square screen (iPhone Duo unfolded) shrinks to fit between them instead of pushing
+        // them off the edges.
+        let minSide = min(200, max(130, size.width * 0.17))
         let screenHeight = max(60, size.height - 34)
-        let side = max(120, (size.width - screenHeight / session.aspect) / 2 - 12)
+        let screenWidth = max(80, min(screenHeight / session.aspect, size.width - 2 * minSide - 24))
+        let side = max(minSide, (size.width - screenWidth) / 2 - 12)
         let button = min(side * 0.36, 72)
         return HStack(spacing: 0) {
             VStack {
@@ -217,7 +222,7 @@ struct GameView: View {
                 }
             }
             .frame(width: side)
-            screen(width: screenHeight / session.aspect)
+            screen(width: screenWidth)
             VStack {
                 Spacer()
                 actionButtons(diameter: button)

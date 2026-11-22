@@ -189,6 +189,34 @@ final class ControlsTests: XCTestCase {
         }
     }
 
+    /// The Genesis picture is wide (320x224); in landscape it must shrink to fit between the
+    /// control columns instead of pushing them off the screen.
+    func testGenesisLandscapeKeepsControlsOnScreen() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemoGenesis", "-RetroDuoUITests",
+                               "-avydrix.duo.mode", "auto"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            let window = app.windows.firstMatch.frame
+            let screen = app.descendants(matching: .any)["Game screen"].firstMatch
+            for name in ["A button", "B button", "C button", "Direction pad", "START", "MODE"] {
+                let button = app.buttons[name]
+                XCTAssertTrue(button.waitForExistence(timeout: 10), "\(name) disappeared")
+                XCTAssertTrue(window.contains(button.frame), "\(name) is off the screen")
+                XCTAssertTrue(button.isHittable, "\(name) must be tappable")
+                if orientation != .portrait, screen.exists {
+                    XCTAssertFalse(screen.frame.insetBy(dx: 8, dy: 8).intersects(button.frame),
+                                   "\(name) must not cover the game")
+                }
+            }
+            attach(app, "genesis-controls-\(orientation.rawValue)")
+        }
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]
