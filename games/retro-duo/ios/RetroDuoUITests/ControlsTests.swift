@@ -16,6 +16,32 @@ final class ControlsTests: XCTestCase {
         XCTAssertTrue(addButton.isHittable)
     }
 
+    func testSystemToolsAreHiddenFromHomeButAccessibleThroughSettings() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoUITests"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate(); XCUIDevice.shared.orientation = .portrait }
+
+        // Diagnostic carts should not clutter the public storefront.
+        XCTAssertFalse(app.staticTexts["SYSTEM TOOLS"].exists)
+        XCTAssertTrue(app.staticTexts["GAME LIBRARY"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["avydrix-diagnostic-builtin.testcart"].exists)
+
+        let settings = app.buttons["AVYDRIX settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        settings.tap()
+
+        let tools = app.buttons["avydrix-system-tools-link"]
+        XCTAssertTrue(tools.waitForExistence(timeout: 8),
+                      "Advanced System Tools must stay available inside Settings")
+        tools.tap()
+        XCTAssertTrue(app.staticTexts["Diagnostic cartridges"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["avydrix-diagnostic-builtin.testcart"].exists,
+                      "Original built-in test cartridge must still be launchable")
+        attach(app, "system-tools-inside-settings")
+    }
+
     func testGBALandscapeRetainsTouchControlsAndGameMenu() {
         let app = XCUIApplication()
         app.launchArguments = [
