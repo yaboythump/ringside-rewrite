@@ -464,6 +464,7 @@ struct AVPlayerProfileView: View {
 struct AVSettingsHome: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("avydrix.bootSoundEnabled") private var bootSound = true
+    @AppStorage("avydrix.taglineVoiceEnabled") private var femaleTagline = true
     @AppStorage("muted") private var muted = false
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
     @AppStorage("avydrix.gba.landscapeControls") private var gbaLandscapeControls = true
@@ -523,6 +524,9 @@ struct AVSettingsHome: View {
                 }
                 Section("Audio") {
                     Toggle("Startup sound", isOn: $bootSound)
+                    Toggle("Female “Play without limits” whisper", isOn: $femaleTagline)
+                        .disabled(!bootSound)
+                        .accessibilityIdentifier("avydrix-female-tagline-toggle")
                     Toggle("Mute game audio", isOn: $muted)
                 }
                 Section("Duo Display") {
