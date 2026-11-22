@@ -2,12 +2,15 @@ import Foundation
 import UniformTypeIdentifiers
 
 enum GameSystem: String, Hashable {
-    case nes, snes, gameBoy, gameBoyColor, gameBoyAdvance, nintendoDS
+    case nes, snes, gameBoy, gameBoyColor, gameBoyAdvance, nintendoDS, genesis, masterSystem, gameGear
 
     var displayName: String {
         switch self {
         case .nes: return "NES"
         case .snes: return "Super Nintendo"
+        case .genesis: return "Sega Genesis"
+        case .masterSystem: return "Master System"
+        case .gameGear: return "Game Gear"
         case .gameBoy: return "Game Boy"
         case .gameBoyColor: return "Game Boy Color"
         case .gameBoyAdvance: return "Game Boy Advance"
@@ -23,6 +26,9 @@ enum GameSystem: String, Hashable {
         case "nes": self = .nes
         case "gba", "agb": self = .gameBoyAdvance
         case "sfc", "smc": self = .snes
+        case "md", "gen", "smd": self = .genesis
+        case "sms": self = .masterSystem
+        case "gg": self = .gameGear
         default: return nil
         }
     }
@@ -33,6 +39,8 @@ enum GameSystem: String, Hashable {
         case .nes: return 16 * 1024 * 1024
         case .gameBoyAdvance: return 32 * 1024 * 1024
         case .snes: return 12 * 1024 * 1024
+        case .genesis: return 16 * 1024 * 1024
+        case .masterSystem, .gameGear: return 4 * 1024 * 1024
         default: return 8 * 1024 * 1024
         }
     }
@@ -60,6 +68,9 @@ extension UTType {
     static let nesROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.nes")
     static let gameBoyAdvanceROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gba")
     static let snesROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.sfc")
+    static let genesisROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.md")
+    static let masterSystemROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.sms")
+    static let gameGearROM = UTType(importedAs: "com.ctnetworkstudios.retroduo.gg")
 }
 
 /// Games live in Documents/Games, which the Files app shows under
@@ -70,7 +81,7 @@ final class GameLibrary: ObservableObject {
     @Published private(set) var games: [Game] = []
     @Published var message: String?
 
-    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "gba", "agb", "nds", "sfc", "smc"]
+    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "gba", "agb", "nds", "sfc", "smc", "md", "gen", "smd", "sms", "gg"]
     static let maximumROMSize = 8 * 1024 * 1024
 
     let documentsFolder: URL
@@ -105,6 +116,15 @@ final class GameLibrary: ObservableObject {
         if let cart = Bundle.main.url(forResource: "RetroDuoSNESTestCart", withExtension: "sfc") {
             list.append(Game(id: "builtin.snestestcart", url: cart, name: "Retro Duo SNES Test Cart",
                              isBuiltIn: true, system: .snes))
+        }
+        for (resource, ext, id, name, system) in [
+            ("RetroDuoGenesisTestCart", "md", "builtin.genesistestcart", "Retro Duo Genesis Test Cart", GameSystem.genesis),
+            ("RetroDuoMasterSystemTestCart", "sms", "builtin.smstestcart", "Retro Duo Master System Test Cart", .masterSystem),
+            ("RetroDuoGameGearTestCart", "gg", "builtin.ggtestcart", "Retro Duo Game Gear Test Cart", .gameGear),
+        ] {
+            if let cart = Bundle.main.url(forResource: resource, withExtension: ext) {
+                list.append(Game(id: id, url: cart, name: name, isBuiltIn: true, system: system))
+            }
         }
         if let cart = Bundle.main.url(forResource: "RetroDuoGBATestCart", withExtension: "gba") {
             list.append(Game(id: "builtin.gbatestcart", url: cart, name: "Retro Duo GBA Test Cart",
@@ -162,7 +182,7 @@ final class GameLibrary: ObservableObject {
         }
         refresh()
         if !skipped.isEmpty {
-            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays NES (.nes), Super Nintendo (.sfc, .smc), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
+            message = "Couldn't add \(skipped.joined(separator: ", ")). Retro Duo plays NES (.nes), Super Nintendo (.sfc, .smc), Sega Genesis (.md, .gen, .smd), Master System (.sms), Game Gear (.gg), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
         } else if added.count == 1 {
             message = "Added \(added[0])."
         } else if added.count > 1 {
@@ -204,6 +224,12 @@ final class GameLibrary: ObservableObject {
         case .nes: return header.count >= 16 && header.prefix(4) == Data([0x4E, 0x45, 0x53, 0x1A])
         case .gameBoyAdvance: return header.count >= 0xC0 && header[header.startIndex + 3] == 0xEA
         case .snes: return size.intValue >= 0x8000  // bsnes works out the layout itself (and strips copier headers)
+        case .genesis:
+            // Plain dumps say SEGA at 0x100; interleaved .smd files have their own layout.
+            return size.intValue >= 0x200 && (url.pathExtension.lowercased() == "smd" ||
+                (header.count >= 0x104 && header[header.startIndex + 0x100 ..< header.startIndex + 0x104].elementsEqual("SEGA".utf8)) ||
+                (header.count >= 0x104 && header[header.startIndex + 0x101 ..< header.startIndex + 0x104].elementsEqual("SEG".utf8)))
+        case .masterSystem, .gameGear: return size.intValue >= 0x2000
         default: return looksLikeROM(header)
         }
     }

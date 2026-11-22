@@ -28,6 +28,21 @@ enum ConsoleBackends {
         case .gameBoyAdvance: return GBABackend.make(rom: rom, battery: battery)
         case .snes: return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SNES), rom: rom, battery: battery,
                                                 fileExtension: game.url.pathExtension.lowercased(), consoleName: "Super Nintendo")
+        case .genesis:
+            // BlastEm picks the console from the file extension.
+            return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SEGA), rom: rom, battery: battery,
+                                        fileExtension: game.url.pathExtension.lowercased(),
+                                        consoleName: game.system.displayName, padMap: LibretroBackend.segaPad)
+        case .masterSystem, .gameGear:
+            let gameGear = game.system == .gameGear
+            return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SEGA), rom: rom, battery: battery,
+                                        fileExtension: game.url.pathExtension.lowercased(),
+                                        consoleName: game.system.displayName, padMap: LibretroBackend.masterSystemPad) { core in
+                // BlastEm draws these inside a Genesis-sized picture: the 192 visible lines start
+                // 16 lines down (24 on PAL), and the Game Gear shows only the middle 160x144.
+                let top: UInt32 = RDLRFrameRate(core) < 55 ? 24 : 16
+                if gameGear { RDLRSetCrop(core, 48, top + 24, 160, 144) } else { RDLRSetCrop(core, 0, top, 256, 192) }
+            }
         default: return GameBoyBackend.make(rom: rom, battery: battery, name: game.name)
         }
     }
@@ -327,7 +342,7 @@ final class GBABackend: ConsoleBackend {
     }
 }
 
-// MARK: - libretro cores (Super Nintendo: bsnes)
+// MARK: - libretro cores (Super Nintendo: bsnes; Genesis, Master System, Game Gear: BlastEm)
 
 @MainActor
 final class LibretroBackend: ConsoleBackend {
@@ -335,13 +350,43 @@ final class LibretroBackend: ConsoleBackend {
     let frameRate: Double
     let rumble = 0.0
 
-    private init(core: OpaquePointer) {
+    private let padMap: [(Int, Int)]
+
+    private init(core: OpaquePointer, padMap: [(Int, Int)]) {
         self.core = core
+        self.padMap = padMap
         frameRate = RDLRFrameRate(core)
     }
 
+    /// PadKey bits to RetroPad bits, SNES layout (also the RetroPad's own).
+    static let snesPad: [(Int, Int)] = [
+        (PadKey.a, Int(RDLR_PAD_A)), (PadKey.b, Int(RDLR_PAD_B)),
+        (PadKey.x, Int(RDLR_PAD_X)), (PadKey.y, Int(RDLR_PAD_Y)),
+        (PadKey.l, Int(RDLR_PAD_L)), (PadKey.r, Int(RDLR_PAD_R)),
+        (PadKey.select, Int(RDLR_PAD_SELECT)), (PadKey.start, Int(RDLR_PAD_START)),
+        (PadKey.right, Int(RDLR_PAD_RIGHT)), (PadKey.left, Int(RDLR_PAD_LEFT)),
+        (PadKey.up, Int(RDLR_PAD_UP)), (PadKey.down, Int(RDLR_PAD_DOWN)),
+    ]
+
+    /// Genesis pads through BlastEm's RetroPad layout: A=B, B=A, C=R, X=Y, Y=X, Z=L, MODE=SELECT.
+    static let segaPad: [(Int, Int)] = [
+        (PadKey.a, Int(RDLR_PAD_B)), (PadKey.b, Int(RDLR_PAD_A)), (PadKey.c, Int(RDLR_PAD_R)),
+        (PadKey.x, Int(RDLR_PAD_Y)), (PadKey.y, Int(RDLR_PAD_X)), (PadKey.z, Int(RDLR_PAD_L)),
+        (PadKey.mode, Int(RDLR_PAD_SELECT)), (PadKey.start, Int(RDLR_PAD_START)),
+        (PadKey.right, Int(RDLR_PAD_RIGHT)), (PadKey.left, Int(RDLR_PAD_LEFT)),
+        (PadKey.up, Int(RDLR_PAD_UP)), (PadKey.down, Int(RDLR_PAD_DOWN)),
+    ]
+
+    /// Master System / Game Gear: button 1 is the Sega pad's B, button 2 its C; START is PAUSE.
+    static let masterSystemPad: [(Int, Int)] = [
+        (PadKey.b, Int(RDLR_PAD_A)), (PadKey.a, Int(RDLR_PAD_R)), (PadKey.start, Int(RDLR_PAD_START)),
+        (PadKey.right, Int(RDLR_PAD_RIGHT)), (PadKey.left, Int(RDLR_PAD_LEFT)),
+        (PadKey.up, Int(RDLR_PAD_UP)), (PadKey.down, Int(RDLR_PAD_DOWN)),
+    ]
+
     static func make(system: Int32, rom: Data, battery: Data?, fileExtension: String,
-                     consoleName: String) -> Result<ConsoleBackend, ConsoleError> {
+                     consoleName: String, padMap: [(Int, Int)] = snesPad,
+                     configure: ((OpaquePointer) -> Void)? = nil) -> Result<ConsoleBackend, ConsoleError> {
         // Some cores read the game from disk, so each session gets a scratch folder.
         let work = FileManager.default.temporaryDirectory.appendingPathComponent("libretro", isDirectory: true)
         try? FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
@@ -361,7 +406,8 @@ final class LibretroBackend: ConsoleBackend {
             RDLRDestroy(created)
             return .failure(ConsoleError(message: "This file isn't a \(consoleName) game Retro Duo can run, or it's damaged."))
         }
-        return .success(LibretroBackend(core: created))
+        configure?(created)
+        return .success(LibretroBackend(core: created, padMap: padMap))
     }
 
     var frameCount: UInt64 { core.map { RDLRFrameCount($0) } ?? 0 }
@@ -369,16 +415,8 @@ final class LibretroBackend: ConsoleBackend {
     /// PadKey bits to RetroPad bits.
     func setKeys(_ keys: UInt32) {
         guard let core else { return }
-        let map: [(Int, Int)] = [
-            (PadKey.a, Int(RDLR_PAD_A)), (PadKey.b, Int(RDLR_PAD_B)),
-            (PadKey.x, Int(RDLR_PAD_X)), (PadKey.y, Int(RDLR_PAD_Y)),
-            (PadKey.l, Int(RDLR_PAD_L)), (PadKey.r, Int(RDLR_PAD_R)),
-            (PadKey.select, Int(RDLR_PAD_SELECT)), (PadKey.start, Int(RDLR_PAD_START)),
-            (PadKey.right, Int(RDLR_PAD_RIGHT)), (PadKey.left, Int(RDLR_PAD_LEFT)),
-            (PadKey.up, Int(RDLR_PAD_UP)), (PadKey.down, Int(RDLR_PAD_DOWN)),
-        ]
         var pad = 0
-        for (key, bit) in map where Int(keys) & key != 0 { pad |= bit }
+        for (key, bit) in padMap where Int(keys) & key != 0 { pad |= bit }
         RDLRSetKeys(core, UInt32(pad))
     }
 

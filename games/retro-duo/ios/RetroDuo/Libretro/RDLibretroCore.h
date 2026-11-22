@@ -29,6 +29,8 @@ typedef struct RDLRCoreTable {
     size_t (*get_memory_size)(unsigned);
     /// Option overrides, "key", "value" pairs, NULL-terminated.
     const char *const *options;
+    /// Optional: checks a save state before the core sees it (for cores that trust their input).
+    bool (*state_ok)(const void *data, size_t length);
 } RDLRCoreTable;
 
 #define RDLR_CORE_TABLE(NAME, OPTIONS) { NAME, retro_set_environment, retro_set_video_refresh, \
