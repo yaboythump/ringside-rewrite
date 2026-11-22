@@ -9,6 +9,7 @@
 #include <string.h>
 
 extern const RDLRCoreTable RDLRSNESCore;
+extern const RDLRCoreTable RDLRSegaCore;
 
 #define MAX_WIDTH 1024
 #define MAX_HEIGHT 1024
@@ -24,6 +25,7 @@ struct RDLRHost {
     enum retro_pixel_format format;
     uint32_t pixels[MAX_WIDTH * MAX_HEIGHT];
     unsigned width, height;
+    unsigned cropX, cropY, cropWidth, cropHeight;
     double aspect;      /* display height / width */
     double fps, sampleRate;
     uint32_t keys;
@@ -42,6 +44,7 @@ static RDLRHost *current;
 static const RDLRCoreTable *tableFor(int system) {
     switch (system) {
     case RDLR_SYSTEM_SNES: return &RDLRSNESCore;
+    case RDLR_SYSTEM_SEGA: return &RDLRSegaCore;
     default: return NULL;
     }
 }
@@ -171,6 +174,13 @@ static inline uint32_t from0RGB1555(uint16_t p) {
 static void videoRefresh(const void *data, unsigned width, unsigned height, size_t pitch) {
     RDLRHost *host = current;
     if (!host || !data || !width || !height) return; /* NULL = repeat the last frame */
+    if (host->cropWidth && host->cropHeight &&
+        width >= host->cropX + host->cropWidth && height >= host->cropY + host->cropHeight) {
+        size_t bytes = host->format == RETRO_PIXEL_FORMAT_XRGB8888 ? 4 : 2;
+        data = (const uint8_t *)data + host->cropY * pitch + host->cropX * bytes;
+        width = host->cropWidth;
+        height = host->cropHeight;
+    }
     if (width > MAX_WIDTH) width = MAX_WIDTH;
     if (height > MAX_HEIGHT) height = MAX_HEIGHT;
     for (unsigned y = 0; y < height; y++) {
@@ -292,6 +302,18 @@ bool RDLRLoadROM(RDLRHost *host, const uint8_t *rom, size_t length,
     return true;
 }
 
+void RDLRSetCrop(RDLRHost *host, unsigned x, unsigned y, unsigned width, unsigned height) {
+    if (!host) return;
+    host->cropX = x;
+    host->cropY = y;
+    host->cropWidth = width;
+    host->cropHeight = height;
+    if (width && height && host->width >= width && host->height >= height) {
+        host->width = width;  /* until the next frame arrives */
+        host->height = height;
+    }
+}
+
 void RDLRReset(RDLRHost *host) {
     if (host && host->loaded) host->core->reset();
 }
@@ -372,6 +394,7 @@ uint8_t *RDLRSaveState(RDLRHost *host, size_t *length) {
 
 bool RDLRLoadState(RDLRHost *host, const uint8_t *data, size_t length) {
     if (!host || !host->loaded || !data || !length) return false;
+    if (host->core->state_ok && !host->core->state_ok(data, length)) return false;
     /* Keep the current state so a bad file can't leave the console half-loaded. */
     size_t size = host->core->serialize_size();
     uint8_t *backup = size ? malloc(size) : NULL;

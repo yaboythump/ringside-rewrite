@@ -90,6 +90,11 @@ struct AboutView: View {
                         file: "bsnes-LICENSE"
                     )
                     licenseSection(
+                        "BlastEm • Genesis, Master System, Game Gear",
+                        credit: "BlastEm was developed by Michael Pavone and contributors, with its libretro port by the libretro team. It is free software under GNU GPL version 3 or later; its source is at github.com/libretro/blastem.",
+                        file: "BlastEm-LICENSE"
+                    )
+                    licenseSection(
                         "mGBA • Game Boy Advance",
                         credit: "mGBA was developed by Vicki Pfau and contributors. It is free software under the Mozilla Public License 2.0; its source is at github.com/mgba-emu/mgba.",
                         file: "mGBA-LICENSE"

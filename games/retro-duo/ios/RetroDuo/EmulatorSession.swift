@@ -254,6 +254,12 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
                 if pad.leftShoulder.isPressed || pad.leftTrigger.isPressed { mask |= PadKey.l }
                 if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= PadKey.r }
             }
+            if game.system == .genesis {
+                // Genesis 6-button pad: shoulders are Z and C, the menu button is MODE.
+                if pad.leftShoulder.isPressed || pad.leftTrigger.isPressed { mask |= PadKey.z }
+                if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= PadKey.c }
+                if pad.buttonOptions?.isPressed == true { mask |= PadKey.mode }
+            }
             if game.system.faceKeys.count > 2 {
                 if AVControllerMapping.pressed("X", pad: pad, system: game.system) { mask |= PadKey.x }
                 if AVControllerMapping.pressed("Y", pad: pad, system: game.system) { mask |= PadKey.y }

@@ -31,13 +31,16 @@ struct FaceKey: Identifiable {
 /// Everything that differs between the single-screen systems in one place:
 /// names, picture shape, buttons and where cover art comes from.
 extension GameSystem: CaseIterable {
-    static var allCases: [GameSystem] { [.nes, .snes, .gameBoy, .gameBoyColor, .gameBoyAdvance, .nintendoDS] }
+    static var allCases: [GameSystem] { [.nes, .snes, .genesis, .masterSystem, .gameGear, .gameBoy, .gameBoyColor, .gameBoyAdvance, .nintendoDS] }
 
     /// Short badge text.
     var shortName: String {
         switch self {
         case .nes: return "NES"
         case .snes: return "SNES"
+        case .genesis: return "GEN"
+        case .masterSystem: return "SMS"
+        case .gameGear: return "GG"
         case .gameBoy: return "GB"
         case .gameBoyColor: return "GBC"
         case .gameBoyAdvance: return "GBA"
@@ -52,6 +55,9 @@ extension GameSystem: CaseIterable {
     var aspect: CGFloat {
         switch self {
         case .nes, .snes: return 224.0 / 256.0
+        case .genesis: return 224.0 / 320.0
+        case .masterSystem: return 192.0 / 256.0
+        case .gameGear: return 144.0 / 160.0
         case .gameBoyAdvance: return 160.0 / 240.0
         case .nintendoDS: return 0.75
         default: return 144.0 / 160.0
@@ -63,6 +69,9 @@ extension GameSystem: CaseIterable {
         switch self {
         case .nes: return "Nintendo - Nintendo Entertainment System"
         case .snes: return "Nintendo - Super Nintendo Entertainment System"
+        case .genesis: return "Sega - Mega Drive - Genesis"
+        case .masterSystem: return "Sega - Master System - Mark III"
+        case .gameGear: return "Sega - Game Gear"
         case .gameBoy: return "Nintendo - Game Boy"
         case .gameBoyColor: return "Nintendo - Game Boy Color"
         case .gameBoyAdvance: return "Nintendo - Game Boy Advance"
@@ -79,6 +88,18 @@ extension GameSystem: CaseIterable {
                     FaceKey(label: "B", key: PadKey.b, color: Theme.buttonB),
                     FaceKey(label: "A", key: PadKey.a, color: Theme.buttonA)]
         }
+        switch self {
+        case .genesis:
+            // Arc of three, A B C like the Genesis pad. X/Y/Z come from a controller.
+            return [FaceKey(label: "A", key: PadKey.a, color: Theme.buttonY),
+                    FaceKey(label: "B", key: PadKey.b, color: Theme.buttonB),
+                    FaceKey(label: "C", key: PadKey.c, color: Theme.buttonA)]
+        case .masterSystem, .gameGear:
+            // 1 on the left, 2 on the right (B/A positions, so controllers match too).
+            return [FaceKey(label: "1", key: PadKey.b, color: Theme.buttonB),
+                    FaceKey(label: "2", key: PadKey.a, color: Theme.buttonA)]
+        default: break
+        }
         return [FaceKey(label: "B", key: PadKey.b, color: Theme.buttonB),
          FaceKey(label: "A", key: PadKey.a, color: Theme.buttonA)]
     }
@@ -87,6 +108,11 @@ extension GameSystem: CaseIterable {
 
     /// The small buttons between the D-pad and the face buttons.
     var menuKeys: [(label: String, key: Int)] {
-        [("SELECT", PadKey.select), ("START", PadKey.start)]
+        switch self {
+        case .genesis: return [("MODE", PadKey.mode), ("START", PadKey.start)]
+        case .masterSystem: return [("PAUSE", PadKey.start)]
+        case .gameGear: return [("START", PadKey.start)]
+        default: return [("SELECT", PadKey.select), ("START", PadKey.start)]
+        }
     }
 }

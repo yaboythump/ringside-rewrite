@@ -543,6 +543,9 @@ struct AVSettingsHome: View {
     @StateObject private var gbc = AVControlTuning(system: .gameBoyColor)
     @StateObject private var gba = AVControlTuning(system: .gameBoyAdvance)
     @StateObject private var snes = AVControlTuning(system: .snes)
+    @StateObject private var genesis = AVControlTuning(system: .genesis)
+    @StateObject private var sms = AVControlTuning(system: .masterSystem)
+    @StateObject private var gameGear = AVControlTuning(system: .gameGear)
 
     private var tuning: AVControlTuning {
         switch system {
@@ -552,6 +555,9 @@ struct AVSettingsHome: View {
         case .gameBoyColor: return gbc
         case .gameBoyAdvance: return gba
         case .snes: return snes
+        case .genesis: return genesis
+        case .masterSystem: return sms
+        case .gameGear: return gameGear
         }
     }
 
@@ -630,6 +636,9 @@ struct AVSettingsHome: View {
                         Text("Nintendo DS").tag(GameSystem.nintendoDS)
                         Text("NES").tag(GameSystem.nes)
                         Text("Super Nintendo").tag(GameSystem.snes)
+                        Text("Sega Genesis").tag(GameSystem.genesis)
+                        Text("Master System").tag(GameSystem.masterSystem)
+                        Text("Game Gear").tag(GameSystem.gameGear)
                         Text("Game Boy Color").tag(GameSystem.gameBoyColor)
                         Text("Game Boy Advance").tag(GameSystem.gameBoyAdvance)
                         Text("Game Boy").tag(GameSystem.gameBoy)
