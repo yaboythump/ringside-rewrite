@@ -28,6 +28,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     private var frameDebt: Double = 0
     private var savedBattery = Data()
     private var framesSinceSaveCheck = 0
+    private var lastResumeCheckpoint = Date()
     private var lastRumble = Date.distantPast
     private let rumble = UIImpactFeedbackGenerator(style: .rigid)
     private var toastTask: Task<Void, Never>?
@@ -70,9 +71,12 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             savedBattery = battery ?? Data()
         }
 
-        if loadState(slot: "resume") {
-            show(toast: "Picked up where you left off")
+        if library.restoreProtectedResume(for: game, using: { [weak self] data in
+            self?.core?.loadState(data) == true
+        }) {
+            show(toast: "Protected session restored")
         }
+        lastResumeCheckpoint = Date()
 
         core?.startAudio(audio)
         audio.setMuted(isMuted)
@@ -95,7 +99,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         displayLink = nil
         guard let core else { return }
         writeBattery(force: true)
-        saveState(slot: "resume")
+        saveProtectedResume()
         audio.stop()
         core.destroy()
         self.core = nil
@@ -140,7 +144,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     func persistNow() {
         guard core != nil else { return }
         writeBattery(force: true)
-        saveState(slot: "resume")
+        saveProtectedResume()
     }
 
     // MARK: Controls
@@ -184,7 +188,8 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         guard let core else { return }
         writeBattery(force: true)
         core.reset()
-        try? FileManager.default.removeItem(at: library.stateURL(for: game, slot: "resume"))
+        library.clearProtectedResume(for: game)
+        lastResumeCheckpoint = Date()
         show(toast: "Restarted")
     }
 
@@ -220,6 +225,11 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             lastRumble = Date()
         }
 
+        // Rolling checkpoint protects play when iOS terminates a suspended session.
+        if Date().timeIntervalSince(lastResumeCheckpoint) >= 120 {
+            lastResumeCheckpoint = Date()
+            saveProtectedResume()
+        }
         framesSinceSaveCheck += 1
         if framesSinceSaveCheck >= 300 {
             framesSinceSaveCheck = 0
@@ -261,6 +271,11 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         if (try? data.write(to: library.batteryURL(for: game), options: .atomic)) != nil {
             savedBattery = data
         }
+    }
+
+    private func saveProtectedResume() {
+        guard let data = core?.saveState() else { return }
+        _ = library.saveProtectedResume(data, for: game)
     }
 
     @discardableResult
