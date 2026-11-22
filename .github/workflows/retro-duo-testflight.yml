@@ -151,7 +151,6 @@ jobs:
                           os.environ["RUNNER_TEMP"] + "/rd-ui-attachments"])
           sys.exit(status)
           PYTEST
-          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/rd-ui.xcresult" --output-path "$RUNNER_TEMP/rd-ui-attachments"
       - name: Keep simulator test evidence
         if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.ui_tests))
         uses: actions/upload-artifact@v4

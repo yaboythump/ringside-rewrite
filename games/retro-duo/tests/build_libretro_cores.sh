@@ -31,6 +31,10 @@ add() { # objdir source [also-depends-on]
   case "$1:$2" in
     snes-obj:*.cpp) echo "$CXX $PREFIX -std=gnu++17 -O2 -w -fno-strict-aliasing -fwrapv $SNES_INC -c $2 -o $o" ;;
     snes-obj:*) echo "$CC $PREFIX -std=gnu11 -O2 -w -D_GNU_SOURCE $SNES_INC -c $2 -o $o" ;;
+    # The generated CPU cores take most of an hour to optimise on CI runners;
+    # the tests don't need their speed (the app builds them optimised).
+    sega-obj:*_generated_m68k.c|sega-obj:*_generated_sh2.c|sega-obj:*_generated_upd78k2.c|sega-obj:*_generated_z80.c)
+      echo "$CC $PREFIX -std=gnu11 -O0 -w -fwrapv $SEGA_INC -c $2 -o $o" ;;
     sega-obj:*) echo "$CC $PREFIX -std=gnu11 -O2 -w -fwrapv $SEGA_INC -c $2 -o $o" ;;
     host-obj:*) echo "$CC $PREFIX -std=gnu11 -O2 -w $SNES_INC -c $2 -o $o" ;;
   esac >> "$list"
