@@ -20,6 +20,7 @@ struct LibraryView: View {
     @State private var pendingLaunch: Game?
     @State private var launchTask: Task<Void, Never>?
     @State private var showingSettings = false
+    @State private var diagnosticAfterSettings: Game?
     @State private var settingCoverFor: Game?
     @State private var featuredIndex = 0
     @StateObject private var covers = GameCoverLibrary()
@@ -59,7 +60,6 @@ struct LibraryView: View {
                         featuredCarousel(compact: compact)
                         recentlyPlayed(compact: compact)
                         collection(compact: compact)
-                        diagnostics(compact: compact)
                         footer
                     }
                     .padding(.horizontal, compact ? 18 : 34)
@@ -115,7 +115,18 @@ struct LibraryView: View {
             )) {
                 Button("OK", role: .cancel) {}
             }
-            .sheet(isPresented: $showingSettings) { AVSettingsHome() }
+            .sheet(isPresented: $showingSettings, onDismiss: {
+                // Dismiss Settings before presenting gameplay, avoiding
+                // competing modal presentations on compact/folded displays.
+                guard let game = diagnosticAfterSettings else { return }
+                diagnosticAfterSettings = nil
+                launch(game)
+            }) {
+                AVSettingsHome(diagnosticGames: diagnosticGames) { game in
+                    diagnosticAfterSettings = game
+                    showingSettings = false
+                }
+            }
             .sheet(isPresented: $showingProfile) {
                 AVPlayerProfileView(player: profile, games: ownedGames)
             }
@@ -553,53 +564,6 @@ struct LibraryView: View {
             .overlay(Capsule().stroke(active ? AVPalette.blue.opacity(0.85) : .white.opacity(0.10), lineWidth: 1))
         }
         .buttonStyle(.plain)
-    }
-
-    private func diagnostics(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack(spacing: 8) {
-                Image(systemName: "wrench.and.screwdriver").foregroundStyle(AVPalette.lightBlue)
-                Text("SYSTEM TOOLS")
-                    .font(.system(size: compact ? 16 : 19, weight: .bold, design: .rounded))
-                    .tracking(1)
-                    .foregroundStyle(.white)
-                Spacer()
-                Text("CONTROLS + AUDIO TESTS")
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    .tracking(0.5)
-                    .foregroundStyle(AVPalette.muted)
-                    .lineLimit(1)
-            }
-            ForEach(diagnosticGames) { game in
-                Button { launch(game) } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: game.system == .nintendoDS ? "rectangle.split.2x1" : "gamecontroller")
-                            .font(.system(size: 21))
-                            .foregroundStyle(AVPalette.lightBlue)
-                            .frame(width: 45, height: 45)
-                            .background(AVPalette.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 11))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(game.name)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white)
-                            Text("BUILT-IN DIAGNOSTIC")
-                                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                                .tracking(1)
-                                .foregroundStyle(AVPalette.muted)
-                        }
-                        Spacer()
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(AVPalette.blue)
-                    }
-                    .padding(13)
-                    .background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 13))
-                    .overlay(RoundedRectangle(cornerRadius: 13).stroke(.white.opacity(0.08), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.top, 4)
     }
 
     private var footer: some View {
