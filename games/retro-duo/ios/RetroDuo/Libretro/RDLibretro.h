@@ -1,5 +1,5 @@
-// A small libretro host: runs one libretro emulator core (SNES today; Sega and PC Engine
-// cores plug in the same way) for Swift. Single-threaded like the Game Boy core:
+// A small libretro host: runs one libretro emulator core (bsnes for SNES, BlastEm for Sega)
+// for Swift. Single-threaded like the Game Boy core:
 // the main thread runs frames, RDLRReadAudio is safe from the audio thread.
 #ifndef RETRO_DUO_LIBRETRO_HOST_H
 #define RETRO_DUO_LIBRETRO_HOST_H
@@ -17,6 +17,8 @@ typedef struct RDLRHost RDLRHost;
 /// Which emulator core to run.
 enum {
     RDLR_SYSTEM_SNES = 1,
+    /// Genesis / Mega Drive, Master System and Game Gear (BlastEm); the file extension picks the console.
+    RDLR_SYSTEM_SEGA = 2,
 };
 
 /// Buttons in RetroPad order (RETRO_DEVICE_ID_JOYPAD_* bit positions).
@@ -45,6 +47,11 @@ void RDLRDestroy(RDLRHost *host);
 bool RDLRLoadROM(RDLRHost *host, const uint8_t *rom, size_t length,
                  const uint8_t *save, size_t saveLength, const char *fileName);
 void RDLRReset(RDLRHost *host);
+
+/// Shows only part of each frame the core draws (for example the Game Gear's 160x144 window
+/// inside the 256x192 picture BlastEm renders). Width or height 0 turns cropping off.
+/// Frames too small for the rectangle are shown whole.
+void RDLRSetCrop(RDLRHost *host, unsigned x, unsigned y, unsigned width, unsigned height);
 
 void RDLRSetKeys(RDLRHost *host, uint32_t pressed);
 void RDLRRunFrame(RDLRHost *host);

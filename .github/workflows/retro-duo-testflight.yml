@@ -42,12 +42,15 @@ jobs:
     runs-on: xcode-27
     env:
       RD_SIMULATOR_NAME: ${{ matrix.device }}
-    timeout-minutes: 50
+    # Two builds (archive + simulator) each compile BlastEm's ~56 MB generated 68000 core.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ env.RD_SOURCE }}
           persist-credentials: false
+      - name: Generate BlastEm's CPU cores (too big to keep in git)
+        run: python3 games/retro-duo/tools/generate_blastem.py
       - name: Archive the iPhone build without signing
         run: |
           set -euo pipefail
@@ -83,6 +86,11 @@ jobs:
           cmp "$app/RetroDuoSNESTestCart.sfc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoSNESTestCart.sfc
           grep -qF "bsnes - Super Nintendo emulator" "$app/bsnes-LICENSE.txt"
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/bsnes-LICENSE.txt"
+          for cart in RetroDuoGenesisTestCart.md RetroDuoMasterSystemTestCart.sms RetroDuoGameGearTestCart.gg; do
+            cmp "$app/$cart" "games/retro-duo/ios/RetroDuo/Resources/$cart"
+          done
+          grep -qF "Michael Pavone" "$app/BlastEm-LICENSE.txt"
+          grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/BlastEm-LICENSE.txt"
           grep -qF "Lior Halphon" "$app/SameBoy-LICENSE.txt"
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rd-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
@@ -143,7 +151,6 @@ jobs:
                           os.environ["RUNNER_TEMP"] + "/rd-ui-attachments"])
           sys.exit(status)
           PYTEST
-          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/rd-ui.xcresult" --output-path "$RUNNER_TEMP/rd-ui-attachments"
       - name: Keep simulator test evidence
         if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.ui_tests))
         uses: actions/upload-artifact@v4
@@ -167,7 +174,7 @@ jobs:
     # Builds the same SameBoy + RDCore C code on Linux and plays the test cart headlessly.
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/retro-duo')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -196,6 +203,18 @@ jobs:
           python3 games/retro-duo/testcart-snes/make_cart.py "$RUNNER_TEMP/snes-check.sfc"
           cmp "$RUNNER_TEMP/snes-check.sfc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoSNESTestCart.sfc
           CC=clang CXX=clang++ games/retro-duo/tests/run_snes_core_test.sh "$RUNNER_TEMP/rd-core"
+      - name: Boot the Sega core (Genesis, Master System, Game Gear) and check picture, buttons, audio and saves
+        run: |
+          set -euo pipefail
+          res=games/retro-duo/ios/RetroDuo/Resources
+          python3 games/retro-duo/testcart-sega/make_genesis.py "$RUNNER_TEMP/check.md"
+          python3 games/retro-duo/testcart-sega/make_sms.py "$RUNNER_TEMP/check.sms"
+          python3 games/retro-duo/testcart-sega/make_sms.py --gg "$RUNNER_TEMP/check.gg"
+          # The Genesis cart is compiled by clang, whose 68000 output differs between versions,
+          # so CI only checks that it still builds; the Z80 carts come from our own assembler.
+          cmp "$RUNNER_TEMP/check.sms" "$res/RetroDuoMasterSystemTestCart.sms"
+          cmp "$RUNNER_TEMP/check.gg" "$res/RetroDuoGameGearTestCart.gg"
+          CC=clang CXX=clang++ games/retro-duo/tests/run_sega_core_test.sh "$RUNNER_TEMP/rd-core"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -210,12 +229,14 @@ jobs:
     needs: [verify, core]
     environment: ringside-testflight
     runs-on: xcode-27
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ env.RD_SOURCE }}
           persist-credentials: false
+      - name: Generate BlastEm's CPU cores (too big to keep in git)
+        run: python3 games/retro-duo/tools/generate_blastem.py
       - name: Sign and upload the private beta build
         env:
           ASC_PRIVATE_KEY: ${{ secrets.RCC_ASC_PRIVATE_KEY }}
