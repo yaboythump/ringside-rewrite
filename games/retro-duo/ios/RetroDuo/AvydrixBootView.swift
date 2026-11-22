@@ -15,6 +15,7 @@ struct AvydrixBootView: View {
     @State private var bootTask: Task<Void, Never>?
     @State private var sound = AvydrixBootSound()
     @AppStorage("avydrix.bootSoundEnabled") private var bootSoundEnabled = true
+    @AppStorage("avydrix.taglineVoiceEnabled") private var taglineVoiceEnabled = true
 
     private let blue = Color(red: 0.09, green: 0.54, blue: 1)
     private let violet = Color(red: 0.43, green: 0.22, blue: 1)
@@ -136,7 +137,10 @@ struct AvydrixBootView: View {
             try? await Task.sleep(for: .milliseconds(550))
             guard !Task.isCancelled else { return }
             withAnimation(.easeIn(duration: 0.65)) { taglineVisible = true }
-            try? await Task.sleep(for: .milliseconds(5_050))
+            // Existing AVYDRIX whisper stays first. The softer female brand
+            // tagline follows the written tagline reveal, never overlaps it.
+            if bootSoundEnabled && taglineVoiceEnabled { sound.playTagline() }
+            try? await Task.sleep(for: .milliseconds(3_050))
             guard !Task.isCancelled else { return }
             finishNow()
         }
@@ -201,6 +205,8 @@ private struct AvydrixMark: View {
 private final class AvydrixBootSound {
     private var player: AVAudioPlayer?
     private var whisperPlayer: AVAudioPlayer?
+    private var taglinePlayer: AVAudioPlayer?
+    private var fallbackSpeech: AVSpeechSynthesizer?
 
     func play() {
         let rate = 44_100
@@ -270,7 +276,51 @@ private final class AvydrixBootSound {
         }
     }
 
+    /// A separate female luxury voice follows the existing console-name whisper.
+    /// The production recording is bundled at build time for offline playback.
+    func playTagline() {
+        guard let url = Bundle.main.url(forResource: "AvydrixFemaleTagline", withExtension: "mp3") else {
+            // Development builds without the bundled recording still speak the
+            // tagline offline instead of silently dropping the feature.
+            playSpeechFallback()
+            return
+        }
+        do {
+            let voice = try AVAudioPlayer(contentsOf: url)
+            voice.volume = 0.82
+            voice.prepareToPlay()
+            if voice.play() {
+                player?.setVolume(0.26, fadeDuration: 0.20)
+                taglinePlayer = voice
+            } else {
+                playSpeechFallback()
+            }
+        } catch {
+            playSpeechFallback()
+        }
+    }
+
+    private func playSpeechFallback() {
+        let speech = AVSpeechSynthesizer()
+        let utterance = AVSpeechUtterance(string: "Play... without limits.")
+        let options = ["Samantha", "Ava", "Allison", "Serena", "Zoe"]
+        let available = AVSpeechSynthesisVoice.speechVoices()
+        utterance.voice = options.compactMap { candidate in
+            available.first { $0.name.localizedCaseInsensitiveContains(candidate) &&
+                              $0.language.hasPrefix("en") }
+        }.first ?? AVSpeechSynthesisVoice(language: "en-US")
+        utterance.rate = 0.41
+        utterance.pitchMultiplier = 0.94
+        utterance.volume = 0.66
+        speech.speak(utterance)
+        fallbackSpeech = speech
+    }
+
     func stop() {
+        fallbackSpeech?.stopSpeaking(at: .immediate)
+        fallbackSpeech = nil
+        taglinePlayer?.stop()
+        taglinePlayer = nil
         whisperPlayer?.stop()
         whisperPlayer = nil
         player?.stop()
