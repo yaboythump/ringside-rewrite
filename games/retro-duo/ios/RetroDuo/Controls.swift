@@ -55,7 +55,21 @@ final class TouchView: UIView {
     }
 }
 
+/// The direction control: the classic D-pad, or the floating thumbstick when it's
+/// turned on in Settings ("Floating thumbstick instead of D-pad").
 struct DPad: View {
+    let session: any PadInput
+    @AppStorage(ThumbStick.settingKey) private var thumbstick = false
+    var body: some View {
+        if thumbstick {
+            ThumbStick(session: session)
+        } else {
+            ClassicDPad(session: session)
+        }
+    }
+}
+
+struct ClassicDPad: View {
     let session: any PadInput
     @State private var mask: UInt8 = 0
     var body: some View {
@@ -97,6 +111,12 @@ struct DPad: View {
     private func direction(at point: CGPoint, size: CGFloat) -> UInt8 {
         let dx = point.x - size / 2, dy = point.y - size / 2
         guard hypot(dx, dy) > size * 0.12 else { return 0 }
+        return directionMask(dx: dx, dy: dy)
+    }
+}
+
+/// Eight directions as RD_KEY_* bits (right 1, left 2, up 4, down 8) from a screen-space offset.
+func directionMask(dx: CGFloat, dy: CGFloat) -> UInt8 {
         switch Int((atan2(dy, dx) / (.pi / 4)).rounded()) {
         case 0: return 1
         case 1: return 9
@@ -107,6 +127,79 @@ struct DPad: View {
         case -2: return 4
         default: return 5
         }
+}
+
+/// A thumbstick that appears wherever your thumb lands in the direction area and follows
+/// it if you slide past the edge, so you never have to find the D-pad by feel. Slide to
+/// move in eight directions; let go and it fades back to a faint ring.
+struct ThumbStick: View {
+    static let settingKey = "avydrix.thumbstick"
+
+    let session: any PadInput
+    @State private var mask: UInt8 = 0
+    /// Where the stick's base sits while a thumb is down; nil when idle.
+    @State private var origin: CGPoint?
+    @State private var knob: CGSize = .zero
+
+    var body: some View {
+        GeometryReader { geo in
+            let size = min(geo.size.width, geo.size.height)
+            let radius = size * 0.34
+            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
+            let base = origin ?? center
+            ZStack {
+                Circle()
+                    .fill(.black.opacity(origin == nil ? 0.18 : 0.32))
+                    .overlay(Circle().stroke(.white.opacity(origin == nil ? 0.14 : 0.10),
+                                             style: StrokeStyle(lineWidth: 1.5, dash: origin == nil ? [5, 6] : [])))
+                    .frame(width: radius * 2, height: radius * 2)
+                    .position(base)
+                Circle()
+                    .fill(Theme.pad.gradient)
+                    .overlay(Circle().stroke(mask != 0 ? Theme.accent : .white.opacity(0.22), lineWidth: 2))
+                    .frame(width: radius * 0.95, height: radius * 0.95)
+                    .shadow(color: mask != 0 ? Theme.accent.opacity(0.55) : .black.opacity(0.5),
+                            radius: mask != 0 ? 9 : 4, y: 3)
+                    .opacity(origin == nil ? 0.55 : 1)
+                    .position(x: base.x + knob.width, y: base.y + knob.height)
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .contentShape(Rectangle())
+            .overlay(TouchSurface(label: "Thumbstick") { point, _ in
+                track(point, radius: radius)
+            })
+            .accessibilityIdentifier("rd-thumbstick")
+        }
+    }
+
+    private func track(_ point: CGPoint?, radius: CGFloat) {
+        guard let point else {
+            origin = nil
+            knob = .zero
+            send(0)
+            return
+        }
+        var base = origin ?? point
+        var dx = point.x - base.x, dy = point.y - base.y
+        let distance = hypot(dx, dy)
+        if distance > radius {
+            // Past the rim: drag the base along so reversing direction is instant.
+            let over = distance - radius
+            base.x += dx / distance * over
+            base.y += dy / distance * over
+            dx = dx / distance * radius
+            dy = dy / distance * radius
+        }
+        origin = base
+        knob = CGSize(width: dx, height: dy)
+        send(hypot(dx, dy) > radius * 0.28 ? directionMask(dx: dx, dy: dy) : 0)
+    }
+
+    private func send(_ next: UInt8) {
+        guard next != mask else { return }
+        if next != 0 { haptics.impactOccurred(intensity: 0.4) }
+        mask = next
+        session.setDirections(next)
     }
 }
 

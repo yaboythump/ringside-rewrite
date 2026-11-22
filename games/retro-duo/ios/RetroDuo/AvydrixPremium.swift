@@ -152,6 +152,7 @@ struct AVGameSettings: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
     @AppStorage("avydrix.gba.landscapeControls") private var gbaLandscapeControls = true
+    @AppStorage(ThumbStick.settingKey) private var thumbstick = false
     @AppStorage("retroDuoOriginalProportions") private var originalAspect = false
     @AppStorage("avydrix.displayFilter") private var displayFilter = "off"
     @AppStorage("avydrix.dsSwapScreens") private var swapDS = false
@@ -173,6 +174,8 @@ struct AVGameSettings: View {
                         Slider(value: $tuning.opacity, in: 0.5...1, step: 0.05)
                         Text("\(Int(tuning.opacity * 100))%").monospacedDigit().font(.caption)
                     }
+                    Toggle("Floating thumbstick instead of D-pad", isOn: $thumbstick)
+                        .accessibilityIdentifier("avydrix-thumbstick-toggle")
                     Toggle("Swap D-pad and action buttons", isOn: $tuning.mirrored)
                     HStack {
                         Text("D-pad position")
@@ -525,6 +528,7 @@ struct AVSettingsHome: View {
     @AppStorage("muted") private var muted = false
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
     @AppStorage("avydrix.gba.landscapeControls") private var gbaLandscapeControls = true
+    @AppStorage(ThumbStick.settingKey) private var thumbstick = false
     @AppStorage("retroDuoOriginalProportions") private var proportions = false
     @AppStorage("avydrix.displayFilter") private var filter = "off"
     @AppStorage("avydrix.ambientMotionEnabled") private var ambientMotionEnabled = true
@@ -605,6 +609,7 @@ struct AVSettingsHome: View {
                         Text("Upper game, lower controls").tag("stacked")
                         Text("Side controls when unfolded").tag("side")
                     }
+                    Toggle("Floating thumbstick instead of D-pad", isOn: $thumbstick)
                     Toggle("Original screen proportions", isOn: $proportions)
                     Toggle("Use GBA console shell in landscape", isOn: $gbaLandscapeControls)
                         .accessibilityIdentifier("avydrix-gba-landscape-controls-toggle")
