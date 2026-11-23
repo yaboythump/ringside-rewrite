@@ -851,6 +851,8 @@ struct AVInGameCommandCenter: View {
     let exit: () -> Void
     /// Closes the menu and lets the player drag and resize the on-screen controls.
     var editControls: (() -> Void)? = nil
+    /// Closes the menu and opens live streaming (Twitch, YouTube, Kick).
+    var goLive: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @AppStorage("avydrix.skin") private var skinName = "obsidian"
@@ -907,6 +909,12 @@ struct AVInGameCommandCenter: View {
                             editControls()
                         }
                         .accessibilityIdentifier("avydrix-move-controls")
+                    }
+                    if let goLive {
+                        command(LiveStreamer.shared.isActive ? "LIVE NOW" : "GO LIVE",
+                                subtitle: "Twitch · YouTube · Kick", icon: "dot.radiowaves.left.and.right") {
+                            goLive()
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 12) {

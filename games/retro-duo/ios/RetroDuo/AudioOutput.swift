@@ -26,12 +26,32 @@ final class AudioOutput {
     /// libretro cores pick their own output rate (bsnes: 48 kHz); the mixer converts it.
     func start(libretroCore: OpaquePointer, rate: Double) { start(.libretro(libretroCore), rate: rate) }
 
+    // Live streaming (LiveStreamer): while on, the game's sound is also handed to the stream,
+    // and the session allows recording so the streamer's voice can be mixed in.
+    private static let sinkLock = NSLock()
+    private static var streamSink: ((AVAudioPCMBuffer) -> Void)?
+    static var recordsMicrophone = false
+
+    static func setStreamSink(_ sink: ((AVAudioPCMBuffer) -> Void)?) {
+        sinkLock.lock(); streamSink = sink; sinkLock.unlock()
+    }
+
+    private static func forward(_ buffer: AVAudioPCMBuffer) {
+        sinkLock.lock(); let sink = streamSink; sinkLock.unlock()
+        sink?(buffer)
+    }
+
     func start(_ sourceCore: Source, rate: Double = AudioOutput.sampleRate) {
         stop()
         let session = AVAudioSession.sharedInstance()
         do {
             // A game should remain audible with the phone's silent switch enabled.
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            if Self.recordsMicrophone {
+                try session.setCategory(.playAndRecord, mode: .default,
+                                        options: [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers])
+            } else {
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            }
             try session.setPreferredSampleRate(Self.sampleRate)
             try session.setPreferredIOBufferDuration(0.01)
             try session.setActive(true)
@@ -44,12 +64,15 @@ final class AudioOutput {
         let node = Self.makeSource(sourceCore, format: format)
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
+        // The stream hears the game before the mute switch, so muting the phone keeps viewers' sound.
+        node.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in AudioOutput.forward(buffer) }
         do {
             engine.prepare()
             try engine.start()
             source = node
             lastError = nil
         } catch {
+            node.removeTap(onBus: 0)
             engine.detach(node)
             lastError = error.localizedDescription
         }
@@ -58,6 +81,7 @@ final class AudioOutput {
     func stop() {
         if engine.isRunning { engine.stop() }
         if let source {
+            source.removeTap(onBus: 0)
             engine.detach(source)
         }
         source = nil

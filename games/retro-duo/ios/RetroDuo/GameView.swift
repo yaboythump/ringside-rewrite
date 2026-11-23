@@ -9,6 +9,7 @@ struct GameView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var hinge = HingeState()
     @State private var showingMenu = false
+    @State private var showingLive = false
     @StateObject private var tuning: AVControlTuning
     @StateObject private var controlLayout: ControlLayout
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
@@ -81,7 +82,10 @@ struct GameView: View {
             if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") { trackerOpen = false }
             session.start()
         }
-        .onDisappear { session.stop() }
+        .onDisappear {
+            LiveStreamer.shared.stop()
+            session.stop()
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
@@ -89,6 +93,7 @@ struct GameView: View {
             case .inactive:
                 session.setPaused(true)
             case .background:
+                LiveStreamer.shared.stopForBackground()
                 session.setPaused(true)
                 session.persistNow()
             @unknown default:
@@ -118,9 +123,17 @@ struct GameView: View {
                     trackerOpen = false
                     controlLayout.editing = true
                     showingMenu = false
+                },
+                goLive: {
+                    showingMenu = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { showingLive = true }
                 }
             )
             .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showingLive) {
+            LiveStreamSheet(screens: 1, restartAudio: { session.restartAudio() })
+                .presentationDetents([.medium, .large])
         }
         .onChange(of: showingMenu) { _, open in
             session.setPaused(open || controlLayout.editing)
@@ -498,6 +511,7 @@ struct GameView: View {
                 .foregroundStyle(.white.opacity(0.6))
                 .lineLimit(1)
             Spacer(minLength: 0)
+            LiveBadge { showingLive = true }
             Button { withAnimation(.easeInOut(duration: 0.2)) { trackerOpen.toggle() } } label: {
                 Image(systemName: trackerOpen ? "gamecontroller.fill" : "chart.bar.xaxis")
                     .font(.system(size: 15, weight: .semibold))
