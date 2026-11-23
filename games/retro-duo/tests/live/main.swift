@@ -161,6 +161,9 @@ do {
     let log = StateLog()
     let core = stream(key: "good-key", seconds: 6, log: log)
     let stats = core.currentStats
+    let ticks = Double(max(1, stats.ticks))
+    print(String(format: "     %d ticks in %.1f s; per tick: picture %.2f ms, encoder %.2f ms, sound %.2f ms",
+                 stats.ticks, stats.seconds, stats.composeMs / ticks, stats.encodeMs / ticks, stats.audioMs / ticks))
     check(log.all.first == .connecting || log.all.first == .live, "connects")
     check(log.all.contains(.live), "goes live after the server says NetStream.Publish.Start")
     check(stats.sentFrames >= 150, "sends about 30 frames a second (\(stats.sentFrames) in 6 s)")

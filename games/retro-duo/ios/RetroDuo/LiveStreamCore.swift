@@ -25,6 +25,11 @@ final class LiveStreamCore {
         var droppedFrames = 0
         /// Measured upload rate over the last few seconds.
         var kilobitsPerSecond = 0
+        /// Time spent per tick (diagnostics): building the picture, handing it to the encoder, sound.
+        var composeMs = 0.0
+        var encodeMs = 0.0
+        var audioMs = 0.0
+        var ticks = 0
     }
 
     enum State: Equatable {
@@ -203,7 +208,10 @@ final class LiveStreamCore {
         guard state == .live, let startTime else { return }
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds - startTime.uptimeNanoseconds) / 1e9
         stats.seconds = elapsed
+        stats.ticks += 1
+        let audioStart = DispatchTime.now().uptimeNanoseconds
         sendAudio(upTo: elapsed - audioDelay)
+        stats.audioMs += Double(DispatchTime.now().uptimeNanoseconds - audioStart) / 1e6
 
         // One video frame per tick, numbered by the clock so the frame rate holds even when a tick is late.
         let due = Int64(elapsed * Double(config.fps))
@@ -214,8 +222,12 @@ final class LiveStreamCore {
             frameIndex = due + 1
             return
         }
+        let composeStart = DispatchTime.now().uptimeNanoseconds
         if let buffer = composeFrame() {
+            let encodeStart = DispatchTime.now().uptimeNanoseconds
+            stats.composeMs += Double(encodeStart - composeStart) / 1e6
             videoEncoder?.encode(buffer, frameIndex: frameIndex, fps: config.fps)
+            stats.encodeMs += Double(DispatchTime.now().uptimeNanoseconds - encodeStart) / 1e6
         }
         frameIndex = due + 1
         updateRate(elapsed)
