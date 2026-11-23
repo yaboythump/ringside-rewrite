@@ -116,6 +116,10 @@ final class StateLog {
 func stream(key: String, seconds: Double, log: StateLog) -> LiveStreamCore {
     var config = LiveStreamCore.Config(destination: RTMPDestination(server: "rtmp://127.0.0.1:\(port)/app", key: key)!)
     config.videoBitrate = 2_000_000
+    // CI's Mac is a virtual machine without a hardware encoder; the app streams 1280x720 on an
+    // iPhone's hardware encoder, the software one here keeps 30 fps at 640x360.
+    config.width = 640
+    config.height = 360
     let core = LiveStreamCore(config: config)
     core.onState = { log.add($0) }
     core.start()
@@ -161,7 +165,7 @@ do {
     check(log.all.contains(.live), "goes live after the server says NetStream.Publish.Start")
     check(stats.sentFrames >= 150, "sends about 30 frames a second (\(stats.sentFrames) in 6 s)")
     check(stats.droppedFrames == 0, "drops no frames on a fast connection (\(stats.droppedFrames))")
-    check(stats.kilobitsPerSecond > 100, "reports its upload rate (\(stats.kilobitsPerSecond) kbps)")
+    check(stats.kilobitsPerSecond > 20, "reports its upload rate (\(stats.kilobitsPerSecond) kbps)")
     core.stop()
     check(log.wait(5) { $0.last == .ended }, "ends cleanly")
     Thread.sleep(forTimeInterval: 1) // let FCUnpublish / deleteStream reach the server

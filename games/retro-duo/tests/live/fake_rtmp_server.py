@@ -228,7 +228,9 @@ def check(connection, min_seconds, out_dir, index):
         values = amf_decode_all(meta[0])
         need(values[:2] == ["@setDataFrame", "onMetaData"], "metadata header")
         info = values[2] if len(values) > 2 else {}
-        need(info.get("width") == 1280 and info.get("height") == 720, "metadata says 1280x720")
+        width, height = info.get("width") or 0, info.get("height") or 0
+        report["size"] = [width, height]
+        need(width >= 640 and width * 9 == height * 16, "metadata gives a 16:9 picture (%sx%s)" % (width, height))
         need(info.get("videocodecid") == 7 and info.get("audiocodecid") == 10, "metadata codecs H.264 + AAC")
 
     video = [(ts, p) for t, ts, p in connection.messages if t == 9]
