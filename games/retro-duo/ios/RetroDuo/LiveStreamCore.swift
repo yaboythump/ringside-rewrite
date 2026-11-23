@@ -189,8 +189,9 @@ final class LiveStreamCore {
                                                 videoKbps: config.videoBitrate / 1000, audioKbps: config.audioBitrate / 1000))
             publisher.sendAudio(FLV.audioSequenceHeader(), timestamp: 0)
             startTime = .now()
-            let timer = DispatchSource.makeTimerSource(queue: queue)
-            timer.schedule(deadline: .now(), repeating: .nanoseconds(1_000_000_000 / config.fps), leeway: .milliseconds(2))
+            // Strict: the system mustn't coalesce these ticks, or the stream's frame rate drops.
+            let timer = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
+            timer.schedule(deadline: .now(), repeating: .nanoseconds(1_000_000_000 / config.fps), leeway: .milliseconds(1))
             timer.setEventHandler { [weak self] in self?.tick() }
             timer.resume()
             self.timer = timer

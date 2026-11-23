@@ -7,6 +7,9 @@ import AVFoundation
 import Foundation
 
 setvbuf(stdout, nil, _IOLBF, 0)
+// A command-line tool is throttled like a background app unless it says otherwise; the app
+// streams while it is on screen.
+let activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .latencyCritical], reason: "live stream test")
 var failures = 0
 func check(_ condition: Bool, _ message: String) {
     print((condition ? "ok   " : "FAIL ") + message)
@@ -185,5 +188,6 @@ do {
     core.stop()
 }
 
+ProcessInfo.processInfo.endActivity(activity)
 print(failures == 0 ? "\nall live streaming checks passed" : "\n\(failures) live streaming check(s) failed")
 exit(failures == 0 ? 0 : 1)
