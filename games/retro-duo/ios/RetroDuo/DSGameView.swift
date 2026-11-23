@@ -129,6 +129,7 @@ struct DSGameView: View {
             upperPanel(width: size.width, height: half)
             VStack(spacing: 0) {
                 topBar
+                    .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
                 Spacer(minLength: 2)
                 HStack(spacing: 0) {
                     if tuning.mirrored {
@@ -206,6 +207,7 @@ struct DSGameView: View {
                     Spacer()
                 }
                 .padding(.leading, 12)
+                .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
                 ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
                 Spacer(minLength: 0)
                 directionPad(size: pad)

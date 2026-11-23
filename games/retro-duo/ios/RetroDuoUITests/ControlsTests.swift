@@ -225,7 +225,14 @@ final class ControlsTests: XCTestCase {
     /// make it bigger, then Reset puts it back.
     func testControlsCanBeMovedResizedAndReset() {
         let app = XCUIApplication()
-        app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]
+        // Start from default controls: other tests (store screenshots) resize them, and the
+        // argument domain overrides what they saved.
+        app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests",
+                               "-avydrix.controls.gameBoyColor.size", "default",
+                               "-avydrix.controls.gameBoyColor.directionOffset", "default",
+                               "-avydrix.controls.gameBoyColor.actionOffset", "default",
+                               "-avydrix.controls.gameBoyColor.mirrored", "NO",
+                               "-avydrix.layout.gameBoyColor", "none"]
         XCUIDevice.shared.orientation = .portrait
         app.launch()
         defer { app.terminate() }

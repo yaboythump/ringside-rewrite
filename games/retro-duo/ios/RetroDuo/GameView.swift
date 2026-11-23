@@ -131,6 +131,7 @@ struct GameView: View {
             gameplayPanel(width: size.width, height: half)
             VStack(spacing: 0) {
                 topBar
+                    .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
                 Spacer(minLength: 4)
                 HStack(alignment: .center) {
                     if tuning.mirrored {
@@ -170,8 +171,10 @@ struct GameView: View {
                     }
                     .padding(.horizontal, 12)
                     .frame(height: 44)
+                    .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
                 } else {
                     topBar
+                        .zIndex(2)
                 }
                 HStack(alignment: .center) {
                     if tuning.mirrored {
@@ -231,6 +234,7 @@ struct GameView: View {
                 menuButton
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 18)
+                    .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
                 Spacer()
                 directionPad(size: min(side * 0.82, 170), in: "landscape", area: size)
                 Spacer()
