@@ -6,6 +6,7 @@ An NES, Game Boy, Game Boy Color and Nintendo DS player for iPhone, built for iP
 
 - **Emulation:** the [SameBoy](https://github.com/LIJI32/SameBoy) core (Expat/MIT license), compiled straight into the app. Every game runs on an emulated Game Boy Color, so original Game Boy games get color palettes.
 - **iPhone Duo:** fold it halfway (laptop style) and the picture sits on the top half with the controls on the bottom half. Flat landscape puts the D-pad and buttons on either side. Portrait works like the original handheld.
+- **Hinge control (iPhone Duo):** Settings › Hinge control turns the fold into a control while the Duo is partly open: *Squeeze for a button* (fold a little shut to press a chosen button) or *Steer* (fold shut for left, open wider for right). The resting angle is learned from how the phone is held once it settles (`HingeGesture.swift`, checked on CI with simulated hinge movements).
 - **Library:** tap **+** to import `.gb` / `.gbc` files, or drop them into Files › On My iPhone › Retro Duo. Swipe to delete.
 - **Saves:** in-game saves are written automatically (Files › Retro Duo › Saves). The game also resumes where you left off, and the ☰ menu has a quick save slot.
 - **Extras:** haptics, rumble carts, sound, and Bluetooth controllers (right face button = A, bottom = B, Menu = START, Options = SELECT).

@@ -108,6 +108,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
 
     func setPaused(_ paused: Bool) {
         isPaused = paused
+        if !paused { HingeControl.shared.recenter() } // learn how the phone is held now
         lastFrameTime = 0
         frameDebt = 0
         if paused {
@@ -271,6 +272,15 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             if game.system.faceKeys.count > 2 {
                 if AVControllerMapping.pressed("X", pad: pad, system: game.system) { mask |= PadKey.x }
                 if AVControllerMapping.pressed("Y", pad: pad, system: game.system) { mask |= PadKey.y }
+            }
+        }
+        mask |= HingeControl.shared.keys(for: game.system, left: Int(RD_KEY_LEFT), right: Int(RD_KEY_RIGHT)) { label in
+            switch label {
+            case "L": return PadKey.l
+            case "R": return PadKey.r
+            default:
+                return game.system.faceKeys.first { $0.label == label }?.key
+                    ?? game.system.menuKeys.first { $0.label == label }?.key ?? 0
             }
         }
         return UInt32(truncatingIfNeeded: mask)

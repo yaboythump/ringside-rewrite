@@ -112,6 +112,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
 
     func setPaused(_ paused: Bool) {
         isPaused = paused
+        if !paused { HingeControl.shared.recenter() } // learn how the phone is held now
         guard let core else { return }
         MDCoreSetRunning(core, !paused)
         if paused {
@@ -201,6 +202,19 @@ final class DSSession: NSObject, ObservableObject, PadInput {
             if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= Int(MD_KEY_R) }
             if pad.buttonMenu.isPressed { mask |= Int(MD_KEY_START) }
             if pad.buttonOptions?.isPressed == true { mask |= Int(MD_KEY_SELECT) }
+        }
+        mask |= HingeControl.shared.keys(for: game.system, left: Int(MD_KEY_LEFT), right: Int(MD_KEY_RIGHT)) { label in
+            switch label {
+            case "A": return Int(MD_KEY_A)
+            case "B": return Int(MD_KEY_B)
+            case "X": return Int(MD_KEY_X)
+            case "Y": return Int(MD_KEY_Y)
+            case "L": return Int(MD_KEY_L)
+            case "R": return Int(MD_KEY_R)
+            case "START": return Int(MD_KEY_START)
+            case "SELECT": return Int(MD_KEY_SELECT)
+            default: return 0
+            }
         }
         return UInt32(truncatingIfNeeded: mask)
     }

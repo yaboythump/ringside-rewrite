@@ -13,6 +13,8 @@ struct HingeReader: ViewModifier {
         if #available(iOS 27.1, *) {
             content.onHingeChange { _, context in
                 let halfOpen = context.hinge?.status == .partiallyOpen
+                // The angle also drives Hinge control (folding as a game button).
+                HingeControl.shared.update(angleDegrees: context.hinge?.angle.degrees, partiallyOpen: halfOpen)
                 if state.isHalfOpen != halfOpen {
                     withAnimation(.spring(duration: 0.35)) { state.isHalfOpen = halfOpen }
                 }
