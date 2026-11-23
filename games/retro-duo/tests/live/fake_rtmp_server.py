@@ -266,7 +266,11 @@ def check(connection, min_seconds, out_dir, index):
     gaps = [b - a for a, b in zip(stamps, stamps[1:])]
     if gaps:
         report["video_gap_ms"] = [min(gaps), max(gaps)]
-        need(min(gaps) >= 30 and max(gaps) <= 400, "frames ~33 ms apart (gaps %s..%s ms)" % (min(gaps), max(gaps)))
+        typical = sorted(gaps)[int(len(gaps) * 0.95)]
+        report["video_gap_p95_ms"] = typical
+        # A shared CI machine can stall once; the clock itself must keep frames ~33 ms apart.
+        need(min(gaps) >= 30 and typical <= 70 and max(gaps) <= 1000,
+             "frames ~33 ms apart (95%% within %s ms, longest %s ms)" % (typical, max(gaps)))
 
     need(audio and audio[0][1][:4] == b"\xaf\x00\x11\x90", "first audio message is the AAC LC 48 kHz stereo config")
     packets = [(ts, p) for ts, p in audio if p[:2] == b"\xaf\x01"]
