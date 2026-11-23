@@ -9,6 +9,7 @@ struct DSGameView: View {
     @State private var hinge = HingeState()
     @State private var showingMenu = false
     @StateObject private var tuning: AVControlTuning
+    @StateObject private var controlLayout: ControlLayout
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
     @AppStorage("avydrix.dsSwapScreens") private var swapScreens = false
     @AppStorage("avydrix.dsTouchScale") private var touchScale = 1.0
@@ -20,6 +21,7 @@ struct DSGameView: View {
         let dsSession = session()
         _session = StateObject(wrappedValue: dsSession)
         _tuning = StateObject(wrappedValue: AVControlTuning(system: dsSession.game.system))
+        _controlLayout = StateObject(wrappedValue: ControlLayout(system: dsSession.game.system))
     }
 
     var body: some View {
@@ -45,6 +47,14 @@ struct DSGameView: View {
         .ignoresSafeArea()
         .background(ConsoleBackdrop())
         .overlay(alignment: .top) { toastView }
+        .overlay(alignment: .top) {
+            if controlLayout.editing {
+                ControlLayoutEditBar(layout: controlLayout) {
+                    controlLayout.editing = false
+                    session.setPaused(false)
+                }
+            }
+        }
         .overlay(alignment: .bottom) {
             if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") &&
                 !ProcessInfo.processInfo.arguments.contains("-AvydrixStoreScreenshots") {
@@ -61,7 +71,7 @@ struct DSGameView: View {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
-                if !showingMenu { session.setPaused(false) }
+                if !showingMenu && !controlLayout.editing { session.setPaused(false) }
             case .inactive:
                 session.setPaused(true)
             case .background:
@@ -89,12 +99,16 @@ struct DSGameView: View {
                     session.persistNow()
                     showingMenu = false
                     dismiss()
+                },
+                editControls: {
+                    controlLayout.editing = true
+                    showingMenu = false
                 }
             )
             .presentationDetents([.medium, .large])
         }
         .onChange(of: showingMenu) { _, open in
-            session.setPaused(open)
+            session.setPaused(open || controlLayout.editing)
         }
     }
 
@@ -115,36 +129,46 @@ struct DSGameView: View {
             upperPanel(width: size.width, height: half)
             VStack(spacing: 0) {
                 topBar
+                    .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
                 Spacer(minLength: 2)
                 HStack(spacing: 0) {
                     if tuning.mirrored {
                         VStack(spacing: 8) {
                             ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
                             actionButtons(diameter: button)
-                        }.frame(width: side)
+                        }
+                        .placed(.buttons, "ds-panels", layout: controlLayout, area: size)
+                        .frame(width: side)
                         Spacer(minLength: 0)
                         touchScreen(width: touchWidth)
                         Spacer(minLength: 0)
                         VStack(spacing: 8) {
                             ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
                             directionPad(size: pad)
-                        }.frame(width: side)
+                        }
+                        .placed(.dpad, "ds-panels", layout: controlLayout, area: size)
+                        .frame(width: side)
                     } else {
                         VStack(spacing: 8) {
                             ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
                             directionPad(size: pad)
-                        }.frame(width: side)
+                        }
+                        .placed(.dpad, "ds-panels", layout: controlLayout, area: size)
+                        .frame(width: side)
                         Spacer(minLength: 0)
                         touchScreen(width: touchWidth)
                         Spacer(minLength: 0)
                         VStack(spacing: 8) {
                             ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
                             actionButtons(diameter: button)
-                        }.frame(width: side)
+                        }
+                        .placed(.buttons, "ds-panels", layout: controlLayout, area: size)
+                        .frame(width: side)
                     }
                 }
                 Spacer(minLength: 2)
                 MenuButtons(session: session, selectKey: Int(MD_KEY_SELECT), startKey: Int(MD_KEY_START))
+                    .placed(.menu, "ds-panels", layout: controlLayout, area: size)
             }
             .padding(.bottom, 10)
             .frame(width: size.width, height: half)
@@ -183,11 +207,14 @@ struct DSGameView: View {
                     Spacer()
                 }
                 .padding(.leading, 12)
+                .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
                 ShoulderButton(label: "L", key: Int(MD_KEY_L), session: session)
                 Spacer(minLength: 0)
                 directionPad(size: pad)
+                    .placed(.dpad, "ds-landscape", layout: controlLayout, area: size)
                 Spacer(minLength: 0)
                 PillButton(label: "SELECT", key: Int(MD_KEY_SELECT), session: session)
+                    .placed(.select, "ds-landscape", layout: controlLayout, area: size)
             }
             .frame(width: side)
             VStack(spacing: 6) {
@@ -203,8 +230,10 @@ struct DSGameView: View {
                 ShoulderButton(label: "R", key: Int(MD_KEY_R), session: session)
                 Spacer(minLength: 0)
                 actionButtons(diameter: button)
+                    .placed(.buttons, "ds-landscape", layout: controlLayout, area: size)
                 Spacer(minLength: 0)
                 PillButton(label: "START", key: Int(MD_KEY_START), session: session)
+                    .placed(.start, "ds-landscape", layout: controlLayout, area: size)
             }
             .frame(width: side)
         }

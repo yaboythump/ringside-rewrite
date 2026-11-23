@@ -221,6 +221,74 @@ final class ControlsTests: XCTestCase {
         }
     }
 
+    /// Move & resize controls: drag the D-pad somewhere new, check it still steers there,
+    /// make it bigger, then Reset puts it back.
+    func testControlsCanBeMovedResizedAndReset() {
+        let app = XCUIApplication()
+        // Start from default controls: other tests (store screenshots) resize them, and the
+        // argument domain overrides what they saved.
+        app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests",
+                               "-avydrix.controls.gameBoyColor.size", "default",
+                               "-avydrix.controls.gameBoyColor.directionOffset", "default",
+                               "-avydrix.controls.gameBoyColor.actionOffset", "default",
+                               "-avydrix.controls.gameBoyColor.mirrored", "NO",
+                               "-avydrix.layout.gameBoyColor", "none"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate() }
+        let diagnostics = app.staticTexts["rd-diagnostics"]
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: 15))
+        XCTAssertTrue(waitForCounter("frames", above: 120, in: diagnostics, timeout: 30))
+        let pad = app.buttons["Direction pad"]
+        XCTAssertTrue(pad.waitForExistence(timeout: 5))
+        let original = pad.frame
+
+        func openEditor() {
+            app.buttons["Game menu"].tap()
+            // The menu's container identifier covers its tiles, so find the tile by its text.
+            let move = app.staticTexts["MOVE CONTROLS"]
+            if !move.waitForExistence(timeout: 8) {
+                // Show CI what the menu holds instead.
+                for line in app.debugDescription.split(separator: "\n") { print("RDDUMP \(line)") }
+            }
+            XCTAssertTrue(move.exists, "Move controls is in the menu")
+            if !move.isHittable { app.swipeUp() }
+            move.tap()
+            XCTAssertTrue(app.buttons["layout-done"].waitForExistence(timeout: 5), "Edit mode opens")
+        }
+
+        openEditor()
+        let handle = app.descendants(matching: .any)["layout-dpad"].firstMatch
+        XCTAssertTrue(handle.waitForExistence(timeout: 5))
+        let start = handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        start.press(forDuration: 0.2, thenDragTo: start.withOffset(CGVector(dx: 70, dy: -90)))
+        attach(app, "layout-editing")
+        app.buttons["layout-done"].tap()
+
+        let moved = pad.frame
+        XCTAssertEqual(moved.midX - original.midX, 70, accuracy: 20, "D-pad moved right")
+        XCTAssertEqual(moved.midY - original.midY, -90, accuracy: 20, "D-pad moved up")
+        let directions = counter("directions", diagnostics.label)
+        pad.coordinate(withNormalizedOffset: CGVector(dx: 0.84, dy: 0.5)).press(forDuration: 0.25)
+        XCTAssertTrue(waitForCounter("directions", above: directions, in: diagnostics),
+                      "The moved D-pad still steers where it is drawn")
+
+        openEditor()
+        app.descendants(matching: .any)["layout-dpad"].firstMatch.tap()
+        let slider = app.sliders["layout-size"]
+        XCTAssertTrue(slider.waitForExistence(timeout: 5), "Selecting a control shows its size slider")
+        slider.adjust(toNormalizedSliderPosition: 0.9)
+        app.buttons["layout-done"].tap()
+        XCTAssertGreaterThan(pad.frame.width, original.width * 1.25, "D-pad got bigger")
+        attach(app, "layout-moved-and-bigger")
+
+        openEditor()
+        app.buttons["layout-reset"].tap()
+        app.buttons["layout-done"].tap()
+        XCTAssertEqual(pad.frame.midX, original.midX, accuracy: 3, "Reset puts the D-pad back")
+        XCTAssertEqual(pad.frame.width, original.width, accuracy: 3, "Reset restores its size")
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]

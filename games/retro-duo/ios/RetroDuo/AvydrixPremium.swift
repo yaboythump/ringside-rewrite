@@ -816,6 +816,8 @@ struct AVInGameCommandCenter: View {
     let toggleMute: () -> Void
     let restart: () -> Void
     let exit: () -> Void
+    /// Closes the menu and lets the player drag and resize the on-screen controls.
+    var editControls: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @AppStorage("avydrix.skin") private var skinName = "obsidian"
@@ -866,6 +868,12 @@ struct AVInGameCommandCenter: View {
                         command("CONTROLS", subtitle: "Layouts & filters", icon: "slider.horizontal.3") {
                             showingSettings = true
                         }
+                    }
+                    if let editControls {
+                        command("MOVE CONTROLS", subtitle: "Drag & resize buttons", icon: "hand.draw.fill") {
+                            editControls()
+                        }
+                        .accessibilityIdentifier("avydrix-move-controls")
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
