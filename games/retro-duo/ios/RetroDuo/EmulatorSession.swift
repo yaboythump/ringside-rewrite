@@ -93,13 +93,14 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     }
 
     /// Saves everything and shuts the console down.
-    func stop() {
+    /// `keepResume`: a console that stopped on an error must not replace the resume point.
+    func stop(keepResume: Bool = false) {
         NotificationCenter.default.removeObserver(self)
         displayLink?.invalidate()
         displayLink = nil
         guard let core else { return }
         writeBattery(force: true)
-        saveProtectedResume()
+        if !keepResume { saveProtectedResume() }
         audio.stop()
         core.destroy()
         self.core = nil
@@ -216,6 +217,13 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             core.runFrame()
             frameDebt -= 1
             frames += 1
+        }
+        if let reason = core.failure {
+            // The emulator hit something it can't continue from. Stop here with a message
+            // (and without saving the broken machine over the resume point).
+            stop(keepResume: true)
+            errorMessage = "\(game.name) stopped: the emulator ran into a problem it can't recover from.\n\n\(reason)\n\nYour last resume point and save slots are untouched."
+            return
         }
         for screen in screens.allObjects { core.show(on: screen) }
 

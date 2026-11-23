@@ -157,6 +157,12 @@ static void testCart(const Cart &cart, const char *resources, const char *out) {
     memset(broken.data(), 0x5A, 16);
     CHECK(!RDLRLoadState(core, broken.data(), broken.size()), "a damaged save state is rejected");
     CHECK(!RDLRLoadState(core, state, 7), "a truncated save state is rejected");
+    // A state whose length adds up but whose contents don't: BlastEm used to exit() here.
+    std::vector<uint8_t> garbage(state, state + length);
+    for (size_t i = sizeof(size_t); i < garbage.size(); i++) garbage[i] = (uint8_t)(i * 37 + 11);
+    RDLRLoadState(core, garbage.data(), garbage.size());
+    CHECK(RDLRFailure(core) == nullptr, "a garbage save state doesn't stop the emulator");
+    CHECK(RDLRLoadState(core, state, length), "a good state still loads afterwards");
     run(core, 2, 0);
     CHECK(find(core, isGold).count > 10, "console still runs after rejected states");
     RDLRFreeBuffer(state);
