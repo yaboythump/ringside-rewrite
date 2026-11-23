@@ -302,6 +302,11 @@ struct RTMPChunkReader {
             let message = RTMPMessage(type: state.type, streamID: state.streamID, timestamp: state.timestamp, payload: state.partial)
             state.partial = Data()
             streams[csid] = state
+            // A new chunk size applies to the very next chunk, which may already be in this buffer.
+            if message.type == 1, message.payload.count >= 4 {
+                var at = message.payload.startIndex
+                if let size: UInt32 = message.payload.readBE(at: &at), size > 0 { chunkSize = Int(size & 0x7FFF_FFFF) }
+            }
             return .some(message)
         }
         streams[csid] = state
@@ -544,7 +549,7 @@ final class RTMPPublisher {
         var index = message.payload.startIndex
         switch message.type {
         case 1:
-            if let size: UInt32 = message.payload.readBE(at: &index) { reader.chunkSize = Int(size & 0x7FFF_FFFF) }
+            break // the reader applies a new chunk size itself
         case 5:
             if let size: UInt32 = message.payload.readBE(at: &index), size > 0 { ackWindow = UInt64(size) }
         case 6:

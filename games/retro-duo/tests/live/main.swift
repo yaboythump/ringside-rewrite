@@ -49,6 +49,19 @@ do {
     }
 }
 
+do {
+    // The server's new chunk size arrives in the same read as the next (large) message.
+    var serverWriter = RTMPChunkWriter()
+    var size = Data(); size.appendBE(UInt32(4096))
+    var wire = serverWriter.encode(RTMPMessage(type: 1, streamID: 0, timestamp: 0, payload: size), chunkStream: 2)
+    serverWriter.chunkSize = 4096
+    let big = AMF0.encode([.string("_result"), .number(1), .null, .object([("padding", .string(String(repeating: "x", count: 5000)))])])
+    wire += serverWriter.encode(RTMPMessage(type: 20, streamID: 0, timestamp: 0, payload: big), chunkStream: 3)
+    var reader = RTMPChunkReader()
+    let messages = (try? reader.feed(wire)) ?? []
+    check(messages.count == 2 && messages[1].payload == big, "a new chunk size applies to the rest of the same read")
+}
+
 // MARK: Server addresses
 
 do {
