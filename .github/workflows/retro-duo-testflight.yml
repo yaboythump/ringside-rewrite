@@ -57,6 +57,12 @@ jobs:
           xcrun swiftc -O games/retro-duo/ios/RetroDuo/CoverMatcher.swift games/retro-duo/tests/cover_matcher/main.swift \
             -o "$RUNNER_TEMP/cover_matcher_test"
           "$RUNNER_TEMP/cover_matcher_test" games/retro-duo/tests/cover_matcher/names.tsv games/retro-duo/tests/cover_matcher/expected.tsv
+      - name: Check the hinge control with simulated hinge movements
+        run: |
+          set -euo pipefail
+          xcrun swiftc -O games/retro-duo/ios/RetroDuo/HingeGesture.swift games/retro-duo/tests/hinge/main.swift \
+            -o "$RUNNER_TEMP/hinge_test"
+          "$RUNNER_TEMP/hinge_test"
       - name: Archive the iPhone build without signing
         run: |
           set -euo pipefail

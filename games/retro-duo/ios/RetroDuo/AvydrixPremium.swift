@@ -159,6 +159,18 @@ struct AVGameSettings: View {
     @AppStorage("avydrix.dsTouchScale") private var dsTouchScale = 1.0
 
     private var logical: [String] { tuning.system == .nintendoDS ? ["A", "B", "X", "Y"] : ["A", "B"] }
+    @State private var hingeRefresh = 0
+
+    private var hingeHelp: String {
+        switch HingeControl.mode(for: tuning.system) {
+        case .off:
+            return "Use the iPhone Duo's hinge as a control while it's partly folded (laptop style)."
+        case .button:
+            return "Hold the Duo partly folded as you like to play. A moment later that angle is remembered; fold it a little shut (about 12°) to press \(HingeControl.button(for: tuning.system)), let it open again to release."
+        case .steer:
+            return "Hold the Duo partly folded as you like to play. A moment later that angle is remembered; fold it a little shut to press left, open it a little wider to press right. Great for racing games."
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -222,6 +234,27 @@ struct AVGameSettings: View {
                     }
                     Text("Filters change only the presentation, never your game data.")
                         .font(.caption).foregroundStyle(.secondary)
+                }
+
+                Section("Hinge control • \(tuning.system.displayName)") {
+                    Picker("Folding the Duo", selection: Binding(
+                        get: { HingeControl.mode(for: tuning.system) },
+                        set: { UserDefaults.standard.set($0.rawValue, forKey: HingeControl.modeKey(tuning.system)); hingeRefresh += 1 }
+                    )) {
+                        ForEach(HingeMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .accessibilityIdentifier("avydrix-hinge-mode")
+                    if HingeControl.mode(for: tuning.system) == .button {
+                        Picker("Squeeze presses", selection: Binding(
+                            get: { HingeControl.button(for: tuning.system) },
+                            set: { UserDefaults.standard.set($0, forKey: HingeControl.buttonKey(tuning.system)); hingeRefresh += 1 }
+                        )) {
+                            ForEach(HingeControl.buttonChoices(for: tuning.system), id: \.self) { Text($0).tag($0) }
+                        }
+                    }
+                    Text(hingeHelp)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .id(hingeRefresh)
                 }
 
                 Section("Bluetooth controller • \(tuning.system.displayName)") {
