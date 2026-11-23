@@ -238,9 +238,10 @@ final class ControlsTests: XCTestCase {
 
         func openEditor() {
             app.buttons["Game menu"].tap()
-            let move = app.buttons["avydrix-move-controls"]
-            if !move.waitForExistence(timeout: 3) { app.swipeUp() }
-            XCTAssertTrue(move.waitForExistence(timeout: 5), "Move controls is in the menu")
+            // The menu's container identifier covers its tiles, so find the tile by its text.
+            let move = app.staticTexts["MOVE CONTROLS"]
+            XCTAssertTrue(move.waitForExistence(timeout: 8), "Move controls is in the menu")
+            if !move.isHittable { app.swipeUp() }
             move.tap()
             XCTAssertTrue(app.buttons["layout-done"].waitForExistence(timeout: 5), "Edit mode opens")
         }
