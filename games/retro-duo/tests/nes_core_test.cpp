@@ -75,9 +75,13 @@ int main(int argc, char **argv) {
 
     int x0, y0, x1, y1;
     CHECK(findStar(core, &x0, &y0), "star sprite is on screen");
+    // The cart keeps the star at $16 (X) and $15 (Y) for the tracker to read.
+    uint8_t ramX = NESCoreReadRAM(core, 0x16), ramY = NESCoreReadRAM(core, 0x15);
     run(core, 20, NES_KEY_RIGHT | NES_KEY_DOWN);
     run(core, 2, 0);
     CHECK(findStar(core, &x1, &y1) && x1 >= x0 + 15 && y1 >= y0 + 15, "D-pad moves the star");
+    CHECK(NESCoreReadRAM(core, 0x16) > ramX && NESCoreReadRAM(core, 0x15) > ramY, "the star's position in RAM follows the D-pad");
+    CHECK(NESCoreReadRAM(core, 0x816) == NESCoreReadRAM(core, 0x16), "RAM mirrors read the same bytes");
     screenshot(core, argv[2], "nes_moved");
 
     double quiet = run(core, 10, 0);

@@ -111,12 +111,23 @@ static void testCart(const Cart &cart, const char *resources, const char *out) {
     Blob white = find(core, [](uint32_t p) { return (p & 0xFFFFFF) == 0xFFFFFF || ((p & 0xFF) > 230 && ((p >> 8) & 0xFF) > 230 && ((p >> 16) & 0xFF) > 230); });
     CHECK(white.count > 150, "title text is drawn");
 
+    // Work RAM for the tracker: Genesis 64KB, Master System / Game Gear 8KB (the cart keeps
+    // the star at $C003/$C004).
+    bool sms = cart.crop != NO_CROP;
+    CHECK(RDLRRAMSize(core) == (sms ? 8192u : 65536u), sms ? "work RAM is exposed (8KB)" : "work RAM is exposed (64KB)");
+    uint8_t ramBefore[2] = {0}, ramAfter[2] = {0};
+    CHECK(RDLRReadRAM(core, 3, ramBefore, 2) == 2, "work RAM can be read");
+
     Blob star = find(core, isGold), moved;
     CHECK(star.count > 10, "star is on screen");
     run(core, 10, RDLR_PAD_RIGHT | RDLR_PAD_DOWN);
     run(core, 2, 0);
     moved = find(core, isGold);
     CHECK(moved.count > 10 && moved.x > star.x + 12 && moved.y > star.y + 12, "D-pad moves the star");
+    if (sms) {
+        RDLRReadRAM(core, 3, ramAfter, 2);
+        CHECK(ramAfter[0] > ramBefore[0] && ramAfter[1] > ramBefore[1], "the star's position in RAM follows the D-pad");
+    }
     screenshot(core, out, std::string(cart.ext) + "_moved");
     run(core, 10, RDLR_PAD_LEFT | RDLR_PAD_UP);
     run(core, 2, 0);

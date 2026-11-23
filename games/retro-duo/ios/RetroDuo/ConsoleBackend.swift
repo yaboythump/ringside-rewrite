@@ -19,10 +19,14 @@ protocol ConsoleBackend: AnyObject {
     func destroy()
     /// Why the console stopped for good, or nil while it runs.
     var failure: String? { get }
+    /// One byte of the game's work RAM at the address its own CPU uses (for example $D163 on
+    /// the Game Boy, $7E0577 on the SNES, $FFFE20 on the Genesis), or nil where it can't be read.
+    func peek(_ address: UInt32) -> UInt8?
 }
 
 extension ConsoleBackend {
     var failure: String? { nil }
+    func peek(_ address: UInt32) -> UInt8? { nil }
 }
 
 enum ConsoleBackends {
@@ -38,12 +42,13 @@ enum ConsoleBackends {
             // BlastEm picks the console from the file extension.
             return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SEGA), rom: rom, battery: battery,
                                         fileExtension: game.url.pathExtension.lowercased(),
-                                        consoleName: game.system.displayName, padMap: LibretroBackend.segaPad)
+                                        consoleName: game.system.displayName, padMap: LibretroBackend.segaPad, ram: .genesis)
         case .masterSystem, .gameGear:
             let gameGear = game.system == .gameGear
             return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SEGA), rom: rom, battery: battery,
                                         fileExtension: game.url.pathExtension.lowercased(),
-                                        consoleName: game.system.displayName, padMap: LibretroBackend.masterSystemPad) { core in
+                                        consoleName: game.system.displayName, padMap: LibretroBackend.masterSystemPad,
+                                        ram: .masterSystem) { core in
                 // BlastEm draws these inside a Genesis-sized picture: the 192 visible lines start
                 // 16 lines down (24 on PAL), and the Game Gear shows only the middle 160x144.
                 let top: UInt32 = RDLRFrameRate(core) < 55 ? 24 : 16
@@ -94,6 +99,11 @@ final class GameBoyBackend: ConsoleBackend {
 
     var frameCount: UInt64 { core.map { RDCoreFrameCount($0) } ?? 0 }
     var rumble: Double { core.map { RDCoreRumble($0) } ?? 0 }
+
+    func peek(_ address: UInt32) -> UInt8? {
+        guard let core, address <= 0xFFFF else { return nil }
+        return RDCoreReadMemory(core, UInt16(address))
+    }
 
     func setKeys(_ keys: UInt32) {
         guard let core else { return }
@@ -184,6 +194,11 @@ final class NESBackend: ConsoleBackend {
     }
 
     var frameCount: UInt64 { core.map { NESCoreFrameCount($0) } ?? 0 }
+
+    func peek(_ address: UInt32) -> UInt8? {
+        guard let core, address < 0x2000 else { return nil }
+        return NESCoreReadRAM(core, UInt16(address))
+    }
 
     /// RD_KEY_* bits (as the shared controls send them) to NES_KEY_* bits.
     func setKeys(_ keys: UInt32) {
@@ -284,6 +299,11 @@ final class GBABackend: ConsoleBackend {
     var frameCount: UInt64 { core.map { RDGBAFrameCount($0) } ?? 0 }
     var rumble: Double { core.map { RDGBARumble($0) } ?? 0 }
 
+    func peek(_ address: UInt32) -> UInt8? {
+        guard let core, (0x0200_0000..<0x0400_0000).contains(address) else { return nil }
+        return RDGBARead8(core, address)
+    }
+
     func setKeys(_ keys: UInt32) {
         guard let core else { return }
         let map: [(Int, Int)] = [
@@ -357,11 +377,19 @@ final class LibretroBackend: ConsoleBackend {
     let rumble = 0.0
 
     private let padMap: [(Int, Int)]
+    private let ram: ConsoleRAM
 
-    private init(core: OpaquePointer, padMap: [(Int, Int)]) {
+    private init(core: OpaquePointer, padMap: [(Int, Int)], ram: ConsoleRAM) {
         self.core = core
         self.padMap = padMap
+        self.ram = ram
         frameRate = RDLRFrameRate(core)
+    }
+
+    func peek(_ address: UInt32) -> UInt8? {
+        guard let core, let offset = ram.offset(of: address) else { return nil }
+        var byte: UInt8 = 0
+        return RDLRReadRAM(core, offset, &byte, 1) == 1 ? byte : nil
     }
 
     /// PadKey bits to RetroPad bits, SNES layout (also the RetroPad's own).
@@ -391,7 +419,7 @@ final class LibretroBackend: ConsoleBackend {
     ]
 
     static func make(system: Int32, rom: Data, battery: Data?, fileExtension: String,
-                     consoleName: String, padMap: [(Int, Int)] = snesPad,
+                     consoleName: String, padMap: [(Int, Int)] = snesPad, ram: ConsoleRAM = .snes,
                      configure: ((OpaquePointer) -> Void)? = nil) -> Result<ConsoleBackend, ConsoleError> {
         // Some cores read the game from disk, so each session gets a scratch folder.
         let work = FileManager.default.temporaryDirectory.appendingPathComponent("libretro", isDirectory: true)
@@ -413,7 +441,7 @@ final class LibretroBackend: ConsoleBackend {
             return .failure(ConsoleError(message: "This file isn't a \(consoleName) game AVYDRIX Play can run, or it's damaged."))
         }
         configure?(created)
-        return .success(LibretroBackend(core: created, padMap: padMap))
+        return .success(LibretroBackend(core: created, padMap: padMap, ram: ram))
     }
 
     var frameCount: UInt64 { core.map { RDLRFrameCount($0) } ?? 0 }

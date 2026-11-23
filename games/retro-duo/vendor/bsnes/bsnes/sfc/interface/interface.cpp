@@ -341,4 +341,11 @@ auto Interface::setRunAhead(bool runAhead) -> void {
   system.runAhead = runAhead;
 }
 
+// Retro Duo: the libretro port's memory interface (target-libretro/libretro.cpp) reaches
+// work RAM and battery RAM through these, so it needn't include the whole core.
+auto retroDuoWorkRAM() -> uint8* { return cpu.wram; }
+auto retroDuoWorkRAMSize() -> uint { return sizeof cpu.wram; }
+auto retroDuoSaveRAM() -> uint8* { return cartridge.ram.size() ? cartridge.ram.data() : nullptr; }
+auto retroDuoSaveRAMSize() -> uint { return cartridge.ram.size(); }
+
 }

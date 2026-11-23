@@ -783,14 +783,28 @@ RETRO_API unsigned retro_get_region()
 	return program->superFamicom.region == "NTSC" ? RETRO_REGION_NTSC : RETRO_REGION_PAL;
 }
 
-// Currently, there is no safe/sensible way to use the memory interface without severe hackery.
-// Rely on higan to load and save SRAM until there is really compelling reason not to.
+// Retro Duo: the host reads these only while a game is loaded, when the buffers are stable.
+// SYSTEM_RAM is the 128KB work RAM ($7E0000 = offset 0); SAVE_RAM is the cartridge's
+// battery RAM, so the app (not a shared file on disk) keeps each game's save.
+namespace SuperFamicom {
+	auto retroDuoWorkRAM() -> uint8*;
+	auto retroDuoWorkRAMSize() -> uint;
+	auto retroDuoSaveRAM() -> uint8*;
+	auto retroDuoSaveRAMSize() -> uint;
+}
+
 RETRO_API void *retro_get_memory_data(unsigned id)
 {
+	if(!emulator || !emulator->loaded()) return nullptr;
+	if(id == RETRO_MEMORY_SYSTEM_RAM) return SuperFamicom::retroDuoWorkRAM();
+	if(id == RETRO_MEMORY_SAVE_RAM) return SuperFamicom::retroDuoSaveRAM();
 	return nullptr;
 }
 
 RETRO_API size_t retro_get_memory_size(unsigned id)
 {
+	if(!emulator || !emulator->loaded()) return 0;
+	if(id == RETRO_MEMORY_SYSTEM_RAM) return SuperFamicom::retroDuoWorkRAMSize();
+	if(id == RETRO_MEMORY_SAVE_RAM) return SuperFamicom::retroDuoSaveRAMSize();
 	return 0;
 }

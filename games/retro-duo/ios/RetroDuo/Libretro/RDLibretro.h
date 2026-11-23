@@ -75,6 +75,11 @@ size_t RDLRBufferedAudioFrames(const RDLRHost *host);
 
 /// Battery save RAM; free with RDLRFreeBuffer. NULL when the game has none.
 uint8_t *RDLRCopySave(RDLRHost *host, size_t *length);
+/// Size of the console's work RAM the core exposes (SNES: 128KB from $7E0000; Genesis: 64KB
+/// from $FF0000 as 16-bit words in host order; Master System / Game Gear: 8KB from $C000), or 0.
+size_t RDLRRAMSize(const RDLRHost *host);
+/// Copies up to `count` bytes of that RAM starting at `offset`; returns how many were copied.
+size_t RDLRReadRAM(const RDLRHost *host, size_t offset, uint8_t *out, size_t count);
 uint8_t *RDLRSaveState(RDLRHost *host, size_t *length);
 bool RDLRLoadState(RDLRHost *host, const uint8_t *data, size_t length);
 void RDLRFreeBuffer(uint8_t *buffer);

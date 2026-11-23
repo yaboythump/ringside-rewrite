@@ -38,6 +38,8 @@ void NESCoreReset(NESCore *core);
 void NESCoreSetKeys(NESCore *core, uint8_t pressed);
 void NESCoreRunFrame(NESCore *core);
 uint64_t NESCoreFrameCount(const NESCore *core);
+/// One byte of the NES's 2KB work RAM ($0000-$07FF, mirrored to $1FFF); 0 elsewhere.
+uint8_t NESCoreReadRAM(NESCore *core, uint16_t address);
 
 /// RGBX pixels (red byte first), NES_SCREEN_WIDTH x NES_SCREEN_HEIGHT, stride = width.
 const uint32_t *NESCorePixels(const NESCore *core);

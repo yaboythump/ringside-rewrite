@@ -1575,7 +1575,8 @@ RETRO_API void *retro_get_memory_data(unsigned id)
 			return (uint8_t *)gen->work_ram;
 		}
 #ifndef NO_Z80
-		case SYSTEM_SMS: {
+		case SYSTEM_SMS:
+		case SYSTEM_GAME_GEAR: { /* Retro Duo: the Game Gear has the same work RAM */
 			sms_context *sms = (sms_context *)current_system;
 			return sms->ram;
 		}
@@ -1607,6 +1608,7 @@ RETRO_API size_t retro_get_memory_size(unsigned id)
 			return RAM_WORDS * sizeof(uint16_t);
 #ifndef NO_Z80
 		case SYSTEM_SMS:
+		case SYSTEM_GAME_GEAR: /* Retro Duo */
 			return SMS_RAM_SIZE;
 #endif
 		}

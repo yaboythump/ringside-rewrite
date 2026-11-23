@@ -84,9 +84,12 @@ int main(int argc, char **argv) {
     int x0, y0, x1, y1;
     CHECK(findStar(core, &x0, &y0), "star sprite is on screen after boot");
 
+    // The cart keeps the star at wStarX/wStarY ($C001/$C002) for the tracker to read.
+    uint8_t ramX = RDCoreReadMemory(core, 0xC001), ramY = RDCoreReadMemory(core, 0xC002);
     run(core, 20, RD_KEY_RIGHT | RD_KEY_DOWN);
     run(core, 2, 0);
     CHECK(findStar(core, &x1, &y1) && x1 >= x0 + 15 && y1 >= y0 + 15, "D-pad moves the star right and down");
+    CHECK(RDCoreReadMemory(core, 0xC001) > ramX && RDCoreReadMemory(core, 0xC002) > ramY, "the star's position in RAM follows the D-pad");
     snprintf(path, sizeof path, "%s/moved.ppm", argv[3]);
     screenshot(core, path);
 
