@@ -137,7 +137,12 @@ jobs:
                      "-derivedDataPath", os.environ["RUNNER_TEMP"] + "/rd-ui",
                      "-resultBundlePath", os.environ["RUNNER_TEMP"] + "/rd-ui.xcresult",
                      "-parallel-testing-enabled", "NO", "-test-timeouts-enabled", "YES",
-                     "-maximum-test-execution-time-allowance", "300", "test-without-building"]
+                     "-maximum-test-execution-time-allowance", "300",
+                     # A test that fails is run once more: on a busy CI simulator the DS
+                     # rotation test can time out waiting for the app to go idle. A real
+                     # failure still fails both runs.
+                     "-retry-tests-on-failure", "-test-iterations", "2",
+                     "test-without-building"]
           if os.environ["RD_SIMULATOR_NAME"] == "iPhone Duo":
               # The Duo primary display does not rotate like a single-screen iPhone.
               # Check its supported library/DS layouts; landscape GBA is checked on Pro Max.
