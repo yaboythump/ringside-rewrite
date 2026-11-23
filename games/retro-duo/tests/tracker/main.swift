@@ -4,6 +4,7 @@
 //   tracker_test ios/RetroDuo/Resources/Trackers.json
 import Foundation
 
+setvbuf(stdout, nil, _IOLBF, 0) // keep every line if a check crashes
 var failures = 0
 func check(_ condition: Bool, _ message: String) {
     print((condition ? "ok   " : "FAIL ") + message)
@@ -74,8 +75,8 @@ func stats(_ snapshot: TrackerSnapshot) -> [String: String] {
 }
 func pokemonText(_ text: String) -> [UInt8] {
     text.map { c -> UInt8 in
-        if let a = c.asciiValue, (65...90).contains(a) { return 0x80 + a - 65 }
-        if let a = c.asciiValue, (97...122).contains(a) { return 0xA0 + a - 97 }
+        if let a = c.asciiValue, (65...90).contains(a) { return 0x80 + (a - 65) }
+        if let a = c.asciiValue, (97...122).contains(a) { return 0xA0 + (a - 97) }
         return 0x7F
     } + [0x50]
 }
