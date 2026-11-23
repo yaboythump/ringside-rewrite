@@ -38,6 +38,8 @@ void RDGBAReset(RDGBA *core);
 void RDGBASetKeys(RDGBA *core, uint16_t pressed);
 void RDGBARunFrame(RDGBA *core);
 uint64_t RDGBAFrameCount(const RDGBA *core);
+/// One byte from the GBA's address space (work RAM is $02000000 and $03000000), without side effects.
+uint8_t RDGBARead8(const RDGBA *core, uint32_t address);
 
 /// RGBX pixels (red byte first), 240x160, stride = width.
 const uint32_t *RDGBAPixels(const RDGBA *core);

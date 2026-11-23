@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "core/api/NstApiCheats.hpp"
 #include "core/api/NstApiEmulator.hpp"
 #include "core/api/NstApiInput.hpp"
 #include "core/api/NstApiMachine.hpp"
@@ -180,6 +181,11 @@ void NESCoreRunFrame(NESCore *core) {
 }
 
 uint64_t NESCoreFrameCount(const NESCore *core) { return core ? core->frames : 0; }
+
+uint8_t NESCoreReadRAM(NESCore *core, uint16_t address) {
+    if (!core || !core->loaded || address >= 0x2000) return 0;
+    return Api::Cheats(core->emulator).GetRam()[address & 0x7FF];
+}
 
 const uint32_t *NESCorePixels(const NESCore *core) {
     return core ? core->frame.data() + kOverscan * Api::Video::Output::WIDTH : nullptr;

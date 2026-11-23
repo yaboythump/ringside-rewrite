@@ -51,6 +51,12 @@ jobs:
           persist-credentials: false
       - name: Generate BlastEm's CPU cores (too big to keep in git)
         run: python3 games/retro-duo/tools/generate_blastem.py
+      - name: Check the tracker's game definitions against game memory
+        run: |
+          set -euo pipefail
+          xcrun swiftc -O games/retro-duo/ios/RetroDuo/Tracker.swift games/retro-duo/ios/RetroDuo/CoverMatcher.swift \
+            games/retro-duo/tests/tracker/main.swift -o "$RUNNER_TEMP/tracker_test"
+          "$RUNNER_TEMP/tracker_test" games/retro-duo/ios/RetroDuo/Resources/Trackers.json
       - name: Check box art matching against real libretro-thumbnails names
         run: |
           set -euo pipefail
@@ -90,6 +96,7 @@ jobs:
           cmp "$app/GraveMistakesPremiumCover.jpg" games/retro-duo/ios/RetroDuo/Resources/GraveMistakesPremiumCover.jpg
           cmp "$app/AvydrixWhisper.mp3" games/retro-duo/ios/RetroDuo/Resources/AvydrixWhisper.mp3
           cmp "$app/AvydrixFemaleTagline.mp3" games/retro-duo/ios/RetroDuo/Resources/AvydrixFemaleTagline.mp3
+          cmp "$app/Trackers.json" games/retro-duo/ios/RetroDuo/Resources/Trackers.json
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/melonDS-LICENSE.txt"
           cmp "$app/RetroDuoNESTestCart.nes" games/retro-duo/ios/RetroDuo/Resources/RetroDuoNESTestCart.nes
           grep -qF "GNU GENERAL PUBLIC LICENSE" "$app/Nestopia-LICENSE.txt"

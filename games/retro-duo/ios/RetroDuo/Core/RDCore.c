@@ -134,6 +134,9 @@ void RDCoreRunFrame(RDCore *core) {
 }
 
 uint64_t RDCoreFrameCount(const RDCore *core) { return core ? core->frames : 0; }
+uint8_t RDCoreReadMemory(const RDCore *core, uint16_t address) {
+    return core && core->gb ? GB_safe_read_memory(core->gb, address) : 0;
+}
 const uint32_t *RDCorePixels(const RDCore *core) { return core ? core->pixels : NULL; }
 unsigned RDCoreScreenWidth(const RDCore *core) { return core ? GB_get_screen_width(core->gb) : 160; }
 unsigned RDCoreScreenHeight(const RDCore *core) { return core ? GB_get_screen_height(core->gb) : 144; }

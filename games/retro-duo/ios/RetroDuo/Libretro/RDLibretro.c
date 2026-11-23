@@ -267,7 +267,20 @@ RDLRHost *RDLRCreate(int system, const char *workDirectory) {
 
 void RDLRDestroy(RDLRHost *host) {
     if (!host) return;
+    /* A core that hands its battery RAM to the app (which keeps a save per game) may still
+       write it beside the game file when it unloads (bsnes does). Every game uses the same
+       file name, so remove that copy: the next game must not pick it up. */
+    bool appKeepsSave = host->loaded && host->core->get_memory_size(RETRO_MEMORY_SAVE_RAM) > 0;
     if (host->loaded) host->core->unload_game();
+    if (appKeepsSave && host->romPath[0]) {
+        char saveFile[sizeof host->romPath + 8];
+        snprintf(saveFile, sizeof saveFile, "%s", host->romPath);
+        char *dot = strrchr(saveFile, '.');
+        char *slash = strrchr(saveFile, '/');
+        if (dot && (!slash || dot > slash)) *dot = 0;
+        strcat(saveFile, ".srm");
+        remove(saveFile);
+    }
     host->core->deinit();
     if (host->romPath[0]) remove(host->romPath);
     for (int i = 0; i < host->variableCount; i++) {
@@ -391,6 +404,21 @@ uint8_t *RDLRCopySave(RDLRHost *host, size_t *length) {
     memcpy(out, battery, size);
     if (length) *length = size;
     return out;
+}
+
+size_t RDLRRAMSize(const RDLRHost *host) {
+    if (!host || !host->loaded) return 0;
+    return host->core->get_memory_data(RETRO_MEMORY_SYSTEM_RAM) ? host->core->get_memory_size(RETRO_MEMORY_SYSTEM_RAM) : 0;
+}
+
+size_t RDLRReadRAM(const RDLRHost *host, size_t offset, uint8_t *out, size_t count) {
+    if (!host || !host->loaded || !out) return 0;
+    const uint8_t *ram = host->core->get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
+    size_t size = host->core->get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
+    if (!ram || offset >= size) return 0;
+    if (count > size - offset) count = size - offset;
+    memcpy(out, ram + offset, count);
+    return count;
 }
 
 uint8_t *RDLRSaveState(RDLRHost *host, size_t *length) {

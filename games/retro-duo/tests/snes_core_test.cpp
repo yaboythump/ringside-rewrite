@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 
 static int failures = 0;
@@ -93,9 +94,18 @@ int main(int argc, char **argv) {
 
     int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
     CHECK(findStar(core, &x0, &y0) && std::abs(x0 - 124) <= 4 && std::abs(y0 - 108) <= 4, "star is in the middle");
+    // Work RAM for the tracker: the cart keeps its frame counter at $10 and the star's
+    // scroll at $15/$16 (direct page = $7E0000 in emulation mode).
+    CHECK(RDLRRAMSize(core) == 128 * 1024, "work RAM is exposed (128KB)");
+    uint8_t ramBefore[8] = {0}, ramAfter[8] = {0};
+    CHECK(RDLRReadRAM(core, 0x10, ramBefore, 8) == 8, "work RAM can be read");
     run(core, 10, RDLR_PAD_RIGHT | RDLR_PAD_DOWN);
     run(core, 1, 0);
     CHECK(findStar(core, &x1, &y1) && x1 >= x0 + 15 && y1 >= y0 + 15, "D-pad moves the star");
+    RDLRReadRAM(core, 0x10, ramAfter, 8);
+    CHECK(ramAfter[0] != ramBefore[0], "the frame counter in RAM advances");
+    CHECK(ramAfter[5] != ramBefore[5] && ramAfter[6] != ramBefore[6], "the star's position in RAM follows the D-pad");
+    { uint8_t end[4]; CHECK(RDLRReadRAM(core, 128 * 1024 - 2, end, 4) == 2, "reads stop at the end of RAM"); }
     screenshot(core, argv[2], "snes_moved");
     run(core, 2, RDLR_PAD_SELECT);
     run(core, 2, 0);
@@ -161,6 +171,33 @@ int main(int argc, char **argv) {
     run(again, 40, 0);
     CHECK(findStar(again, &x1, &y1), "second session draws");
     RDLRDestroy(again);
+
+    // Battery saves: the same cart, its header changed to ROM + 2KB battery RAM.
+    {
+        auto battery = rom;
+        battery[0x7FD6] = 0x02;
+        battery[0x7FD8] = 0x01;
+        std::vector<uint8_t> pattern(2048);
+        for (size_t i = 0; i < pattern.size(); i++) pattern[i] = (uint8_t)(i * 7 + 3);
+        RDLRHost *saving = RDLRCreate(RDLR_SYSTEM_SNES, argv[2]);
+        CHECK(saving && RDLRLoadROM(saving, battery.data(), battery.size(), pattern.data(), pattern.size(), "game.sfc"),
+              "battery cart loads with its save");
+        size_t n = 0;
+        uint8_t *save = RDLRCopySave(saving, &n);
+        CHECK(save && n == pattern.size() && memcmp(save, pattern.data(), n) == 0, "the app's battery save reaches the game and comes back");
+        RDLRFreeBuffer(save);
+        run(saving, 5, 0);
+        RDLRDestroy(saving);
+        std::string leftover = std::string(argv[2]) + "/game.srm";
+        CHECK(fopen(leftover.c_str(), "rb") == nullptr, "no shared save file is left behind for the next game");
+
+        RDLRHost *fresh = RDLRCreate(RDLR_SYSTEM_SNES, argv[2]);
+        CHECK(fresh && RDLRLoadROM(fresh, battery.data(), battery.size(), nullptr, 0, "game.sfc"), "battery cart loads without a save");
+        save = RDLRCopySave(fresh, &n);
+        CHECK(save && n == pattern.size() && memcmp(save, pattern.data(), n) != 0, "a game without a save doesn't inherit another's");
+        RDLRFreeBuffer(save);
+        RDLRDestroy(fresh);
+    }
     printf(failures ? "\n%d check(s) failed\n" : "\nall SNES core checks passed\n", failures);
     return failures ? 1 : 0;
 }

@@ -289,6 +289,52 @@ final class ControlsTests: XCTestCase {
         XCTAssertEqual(pad.frame.width, original.width, accuracy: 3, "Reset restores its size")
     }
 
+    func testTrackerReadsTheGameOnTheLowerScreen() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests",
+                               "-avydrix.controls.gameBoyColor.size", "default",
+                               "-avydrix.controls.gameBoyColor.directionOffset", "default",
+                               "-avydrix.controls.gameBoyColor.mirrored", "NO",
+                               "-avydrix.layout.gameBoyColor", "none"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate() }
+        let diagnostics = app.staticTexts["rd-diagnostics"]
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: 15))
+        XCTAssertTrue(waitForCounter("frames", above: 120, in: diagnostics, timeout: 30))
+        let pad = app.buttons["Direction pad"]
+        XCTAssertTrue(pad.waitForExistence(timeout: 5))
+        let toggle = app.buttons["avydrix-tracker-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "The tracker button is in the top bar")
+
+        // The built-in test cart has a definition: the star's position comes from its RAM.
+        let starX = app.descendants(matching: .any)["tracker-stat-Star X"].firstMatch
+        func readStarX() -> Int? {
+            toggle.tap()
+            guard starX.waitForExistence(timeout: 5) else {
+                for line in app.debugDescription.split(separator: "\n") { print("RDDUMP \(line)") }
+                return nil
+            }
+            Thread.sleep(forTimeInterval: 0.6) // let the panel refresh
+            return (starX.value as? String).flatMap { Int($0) }
+        }
+        let before = readStarX()
+        XCTAssertNotNil(before, "The tracker shows the star's X position")
+        XCTAssertFalse(pad.exists, "The tracker takes the controls' place")
+        attach(app, "tracker-open")
+
+        toggle.tap()
+        XCTAssertTrue(pad.waitForExistence(timeout: 5), "The controls come back")
+        pad.coordinate(withNormalizedOffset: CGVector(dx: 0.84, dy: 0.5)).press(forDuration: 0.8)
+        let after = readStarX()
+        XCTAssertNotNil(after)
+        if let before, let after {
+            XCTAssertGreaterThan(after, before, "Moving the star right raises the tracked X position")
+        }
+        toggle.tap()
+        XCTAssertTrue(pad.waitForExistence(timeout: 5))
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]

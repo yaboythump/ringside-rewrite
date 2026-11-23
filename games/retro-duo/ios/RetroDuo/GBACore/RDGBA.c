@@ -153,6 +153,10 @@ void RDGBARunFrame(RDGBA *bridge) {
 }
 
 uint64_t RDGBAFrameCount(const RDGBA *bridge) { return bridge ? bridge->frames : 0; }
+uint8_t RDGBARead8(const RDGBA *bridge, uint32_t address) {
+    if (!bridge || !bridge->core) return 0;
+    return (uint8_t)bridge->core->rawRead8(bridge->core, address, -1);
+}
 const uint32_t *RDGBAPixels(const RDGBA *bridge) { return bridge ? bridge->pixels : NULL; }
 double RDGBARumble(const RDGBA *bridge) { return bridge ? bridge->rumbleLevel : 0; }
 

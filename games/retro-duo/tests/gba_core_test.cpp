@@ -88,6 +88,7 @@ int main(int argc, char **argv) {
     run(core, 2, 0);
     CHECK(findStar(core, &x1, &y1) && x1 >= x0 + 15 && y1 >= y0 + 15, "D-pad moves the star");
     screenshot(core, argv[2], "gba_moved");
+    CHECK(RDGBARead8(core, 0x080000A0) == rom[0xA0] && RDGBARead8(core, 0x080000A1) == rom[0xA1], "memory reads see the console's address space");
 
     double quiet = run(core, 10, 0);
     double loud = run(core, 1, GBA_PAD_A) ;

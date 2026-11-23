@@ -35,6 +35,8 @@ void RDCoreReset(RDCore *core);
 void RDCoreSetKeys(RDCore *core, uint8_t mask);
 void RDCoreRunFrame(RDCore *core);
 uint64_t RDCoreFrameCount(const RDCore *core);
+/// One byte as the Game Boy's CPU sees it at `address`, without side effects (for the tracker).
+uint8_t RDCoreReadMemory(const RDCore *core, uint16_t address);
 
 /// 160x144 pixels, RGBX byte order (red first), row stride = width * 4.
 const uint32_t *RDCorePixels(const RDCore *core);

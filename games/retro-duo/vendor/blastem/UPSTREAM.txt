@@ -5,3 +5,4 @@ Local change: sms.c makes one PAUSE press one NMI (search for "Retro Duo").
 Local change: z80.cpu adds the ED 45/55/65/75 encodings of RETN, which decoded as NOPs (search for "Retro Duo").
 Local change: libblastem.c stops the machine and reports RETRO_ENVIRONMENT_SHUTDOWN on a fatal error while running, and refuses a save state that is a fatal error, instead of exit() (search for "Retro Duo").
 Local change: genesis.c ignores a 68K write to an unused part of the Z80 window instead of a fatal error.
+Local change: libblastem.c exposes the Game Gear's work RAM as RETRO_MEMORY_SYSTEM_RAM like the Master System's (search for "Retro Duo").

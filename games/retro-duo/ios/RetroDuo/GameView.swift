@@ -15,6 +15,8 @@ struct GameView: View {
     @AppStorage("avydrix.gba.landscapeControls") private var gbaLandscapeControls = true
     @AppStorage("retroDuoTwoPanels") private var useTwoPanels = true
     @AppStorage("retroDuoOriginalProportions") private var originalProportions = false
+    /// The lower screen shows the live tracker instead of the touch controls.
+    @AppStorage("avydrix.tracker.open") private var trackerOpen = false
     @State private var diagnostics = ""
 
     init(session: @autoclosure @escaping () -> EmulatorSession) {
@@ -74,7 +76,11 @@ struct GameView: View {
         .modifier(HingeReader(state: $hinge))
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
-        .onAppear { session.start() }
+        .onAppear {
+            // UI tests start with the touch controls showing; the tracker test opens it itself.
+            if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") { trackerOpen = false }
+            session.start()
+        }
         .onDisappear { session.stop() }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -109,6 +115,7 @@ struct GameView: View {
                     dismiss()
                 },
                 editControls: {
+                    trackerOpen = false
                     controlLayout.editing = true
                     showingMenu = false
                 }
@@ -132,23 +139,27 @@ struct GameView: View {
             VStack(spacing: 0) {
                 topBar
                     .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
-                Spacer(minLength: 4)
-                HStack(alignment: .center) {
-                    if tuning.mirrored {
-                        actionButtons(diameter: button, in: "portrait", area: size)
-                        Spacer(minLength: 8)
-                        directionPad(size: pad, in: "portrait", area: size)
-                    } else {
-                        directionPad(size: pad, in: "portrait", area: size)
-                        Spacer(minLength: 8)
-                        actionButtons(diameter: button, in: "portrait", area: size)
+                if trackerOpen {
+                    TrackerPanel(session: session)
+                } else {
+                    Spacer(minLength: 4)
+                    HStack(alignment: .center) {
+                        if tuning.mirrored {
+                            actionButtons(diameter: button, in: "portrait", area: size)
+                            Spacer(minLength: 8)
+                            directionPad(size: pad, in: "portrait", area: size)
+                        } else {
+                            directionPad(size: pad, in: "portrait", area: size)
+                            Spacer(minLength: 8)
+                            actionButtons(diameter: button, in: "portrait", area: size)
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    Spacer(minLength: 4)
+                    MenuButtons(session: session, keys: system.menuKeys)
+                        .placed(.menu, "portrait", layout: controlLayout, area: size)
+                    Spacer(minLength: 4)
                 }
-                .padding(.horizontal, 16)
-                Spacer(minLength: 4)
-                MenuButtons(session: session, keys: system.menuKeys)
-                    .placed(.menu, "portrait", layout: controlLayout, area: size)
-                Spacer(minLength: 4)
             }
             .frame(width: size.width, height: half)
         }
@@ -176,25 +187,29 @@ struct GameView: View {
                     topBar
                         .zIndex(2)
                 }
-                HStack(alignment: .center) {
-                    if tuning.mirrored {
-                        actionButtons(diameter: button, showShoulder: system != .snes, in: "tabletop", area: size)
-                        Spacer(minLength: 4)
-                        MenuButtons(session: session, keys: system.menuKeys)
-                            .placed(.menu, "tabletop", layout: controlLayout, area: size)
-                        Spacer(minLength: 4)
-                        directionPad(size: pad, showShoulder: system != .snes, in: "tabletop", area: size)
-                    } else {
-                        directionPad(size: pad, showShoulder: system != .snes, in: "tabletop", area: size)
-                        Spacer(minLength: 4)
-                        MenuButtons(session: session, keys: system.menuKeys)
-                            .placed(.menu, "tabletop", layout: controlLayout, area: size)
-                        Spacer(minLength: 4)
-                        actionButtons(diameter: button, showShoulder: system != .snes, in: "tabletop", area: size)
+                if trackerOpen {
+                    TrackerPanel(session: session)
+                } else {
+                    HStack(alignment: .center) {
+                        if tuning.mirrored {
+                            actionButtons(diameter: button, showShoulder: system != .snes, in: "tabletop", area: size)
+                            Spacer(minLength: 4)
+                            MenuButtons(session: session, keys: system.menuKeys)
+                                .placed(.menu, "tabletop", layout: controlLayout, area: size)
+                            Spacer(minLength: 4)
+                            directionPad(size: pad, showShoulder: system != .snes, in: "tabletop", area: size)
+                        } else {
+                            directionPad(size: pad, showShoulder: system != .snes, in: "tabletop", area: size)
+                            Spacer(minLength: 4)
+                            MenuButtons(session: session, keys: system.menuKeys)
+                                .placed(.menu, "tabletop", layout: controlLayout, area: size)
+                            Spacer(minLength: 4)
+                            actionButtons(diameter: button, showShoulder: system != .snes, in: "tabletop", area: size)
+                        }
                     }
+                    .padding(.horizontal, system == .snes ? 12 : 24)
+                    .frame(maxHeight: .infinity)
                 }
-                .padding(.horizontal, system == .snes ? 12 : 24)
-                .frame(maxHeight: .infinity)
             }
             .padding(.bottom, system == .snes ? 0 : 10)
             .frame(width: size.width, height: half)
@@ -483,6 +498,14 @@ struct GameView: View {
                 .foregroundStyle(.white.opacity(0.6))
                 .lineLimit(1)
             Spacer(minLength: 0)
+            Button { withAnimation(.easeInOut(duration: 0.2)) { trackerOpen.toggle() } } label: {
+                Image(systemName: trackerOpen ? "gamecontroller.fill" : "chart.bar.xaxis")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(trackerOpen ? Theme.accent : .white.opacity(0.7))
+                    .frame(width: 40, height: 40)
+            }
+            .accessibilityLabel(trackerOpen ? "Show controls" : "Show tracker")
+            .accessibilityIdentifier("avydrix-tracker-toggle")
             Button { session.toggleMute() } label: {
                 Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .font(.system(size: 15, weight: .semibold))

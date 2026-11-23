@@ -44,6 +44,12 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     /// Picture height / width: 10:9 for Game Boy, 8:7 for the NES.
     var aspect: CGFloat { game.system.aspect }
 
+    /// When this game was opened (the tracker shows the session's length).
+    let openedAt = Date()
+
+    /// One byte of the running game's work RAM, for the tracker (nil while nothing runs).
+    func peek(_ address: UInt32) -> UInt8? { core?.peek(address) }
+
     init(game: Game, library: GameLibrary) {
         self.game = game
         self.library = library
