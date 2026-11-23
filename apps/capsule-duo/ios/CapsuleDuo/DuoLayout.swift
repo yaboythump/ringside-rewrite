@@ -24,7 +24,9 @@ struct DuoSplit<Primary: View, Secondary: View>: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let frames = DuoGeometry.panes(size: proxy.size, fold: DuoGeometry.fold(in: proxy))
+            let fold = DuoGeometry.fold(in: proxy)
+            let frames = DuoGeometry.panes(size: proxy.size, fold: fold)
+            let _ = DuoGeometry.logIfAsked(size: proxy.size, fold: fold, split: frames != nil)
             if let frames {
                 ZStack(alignment: .topLeading) {
                     pane { primary }
@@ -65,7 +67,8 @@ enum DuoGeometry {
     static func panes(size: CGSize, fold: CGRect?) -> (CGRect, CGRect)? {
         guard size.width > 200, size.height > 200 else { return nil }
         let full = CGRect(origin: .zero, size: size)
-        if let fold, full.intersects(fold), fold.width < size.width, fold.height < size.height {
+        // The fold can run the full height (or width) of the view, so only require that it crosses it.
+        if let fold, full.intersects(fold) {
             if fold.height >= fold.width {
                 let left = CGRect(x: 0, y: 0, width: fold.minX, height: size.height)
                 let right = CGRect(x: fold.maxX, y: 0, width: size.width - fold.maxX, height: size.height)
@@ -83,6 +86,20 @@ enum DuoGeometry {
                     CGRect(x: width + gutter, y: 0, width: width, height: size.height))
         }
         return nil
+    }
+
+    /// `-CapsuleSnapshot` writes the measured layout to tmp/layout.txt for simulator checks.
+    static func logIfAsked(size: CGSize, fold: CGRect?, split: Bool) {
+        guard ProcessInfo.processInfo.arguments.contains("-CapsuleSnapshot") else { return }
+        let line = "size=\(Int(size.width))x\(Int(size.height)) fold=\(fold.map { "\($0.integral)" } ?? "none") split=\(split)\n"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("layout.txt")
+        if let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(Data(line.utf8))
+            try? handle.close()
+        } else {
+            try? Data(line.utf8).write(to: url)
+        }
     }
 
     /// The fold reported by iPhone Duo (iOS 27.1 and later), if this view crosses it.

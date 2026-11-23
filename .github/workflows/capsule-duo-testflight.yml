@@ -85,7 +85,7 @@ jobs:
             data="$(xcrun simctl get_app_container "$dev" $bundle data)"
             rm -f "$data"/tmp/snapshot-*.png "$data/tmp/layout.txt"
             xcrun simctl launch "$dev" $bundle -CapsuleSnapshot "$@"
-            sleep 12
+            sleep 18
             cat "$data/tmp/layout.txt" 2>/dev/null || true
             for f in "$data"/tmp/snapshot-*.png; do
               [ -s "$f" ] || continue
