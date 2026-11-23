@@ -8,7 +8,7 @@ require 'uri'
 
 key = OpenSSL::PKey.read(File.binread(ARGV.fetch(0)))
 encode = ->(value) { Base64.urlsafe_encode64(value, padding: false) }
-request = lambda do |method, path, params = {}, data = nil|
+request = lambda do |method, path, params = {}, data = nil, may_fail = false|
   now = Time.now.to_i
   header = encode.call(JSON.generate(alg: 'ES256', kid: ENV.fetch('ASC_KEY_ID'), typ: 'JWT'))
   claims = encode.call(JSON.generate(iss: ENV.fetch('ASC_ISSUER_ID'), iat: now, exp: now + 300, aud: 'appstoreconnect-v1'))
@@ -23,7 +23,11 @@ request = lambda do |method, path, params = {}, data = nil|
     message.body = JSON.generate(data)
   end
   response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, open_timeout: 20, read_timeout: 30) { |http| http.request(message) }
-  abort("App Store Connect #{method.upcase} #{path} failed: HTTP #{response.code}") unless response.is_a?(Net::HTTPSuccess)
+  unless response.is_a?(Net::HTTPSuccess)
+    abort("App Store Connect #{method.upcase} #{path} failed: HTTP #{response.code}") unless may_fail
+    puts "App Store Connect #{method.upcase} #{path} answered HTTP #{response.code}; checking access again."
+    return nil
+  end
   response.code == '204' ? {} : JSON.parse(response.body)
 end
 
@@ -52,9 +56,12 @@ assigned = false
       members = request.call(:get, "betaGroups/#{group_id}/relationships/builds", {'limit'=>'200'})
       accessible = members.fetch('data').any? { |item| item.fetch('id') == build.fetch('id') }
       unless accessible || assigned
-        request.call(:post, "betaGroups/#{group_id}/relationships/builds", {}, {'data'=>[{'type'=>'builds', 'id'=>build.fetch('id')}]})
+        # Apple can add a new build to the internal group on its own between the check above
+        # and this request, and then answers 404; the checks below decide either way.
+        if request.call(:post, "betaGroups/#{group_id}/relationships/builds", {}, {'data'=>[{'type'=>'builds', 'id'=>build.fetch('id')}]}, true)
+          puts "Assigned build #{version} to the existing Retro Duo Internal group."
+        end
         assigned = true
-        puts "Assigned build #{version} to the existing Retro Duo Internal group."
         members = request.call(:get, "betaGroups/#{group_id}/relationships/builds", {'limit'=>'200'})
         accessible = members.fetch('data').any? { |item| item.fetch('id') == build.fetch('id') }
       end
