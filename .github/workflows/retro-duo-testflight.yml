@@ -66,7 +66,8 @@ jobs:
           python3 $d/tests/live/fake_rtmp_server.py --port 19350 --out "$RUNNER_TEMP/live" --streams 2 \
             > "$RUNNER_TEMP/live-server.log" 2>&1 &
           server=$!
-          sleep 1
+          # Start streaming only once the server is listening (Python can take a while to start).
+          for i in $(seq 1 60); do grep -q listening "$RUNNER_TEMP/live-server.log" 2>/dev/null && break; sleep 0.5; done
           status=0
           "$RUNNER_TEMP/live_test" 19350 || status=$?
           wait $server || status=$?
