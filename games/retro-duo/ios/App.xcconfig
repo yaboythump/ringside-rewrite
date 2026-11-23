@@ -1,6 +1,10 @@
 ALWAYS_SEARCH_USER_PATHS = NO
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 CODE_SIGN_STYLE = Automatic
+// Shares the recently played list with the home screen widget (a Keychain group).
+CODE_SIGN_ENTITLEMENTS = RetroDuo/RetroDuo.entitlements
+// CI's upload signs manually and names each target's App Store profile.
+PROVISIONING_PROFILE_SPECIFIER = $(RD_APP_PROFILE)
 CURRENT_PROJECT_VERSION = 1
 DEVELOPMENT_TEAM = J4Y8FY6JNZ
 ENABLE_USER_SCRIPT_SANDBOXING = YES

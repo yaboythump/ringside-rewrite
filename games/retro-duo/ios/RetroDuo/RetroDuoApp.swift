@@ -21,7 +21,19 @@ struct RetroDuoApp: App {
                 .environmentObject(library)
                 .preferredColorScheme(.dark)
                 .tint(AVConsoleSkin.selected(skinName).accent)
-                .onOpenURL { url in library.importFiles([url]) }
+                .onOpenURL { url in
+                    if url.scheme == "avydrix" {
+                        // From the widget: skip the boot sequence and open the game.
+                        showingBoot = false
+                        if url.host == "play",
+                           let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                               .queryItems?.first(where: { $0.name == "id" })?.value {
+                            library.requestedGameID = id
+                        }
+                    } else {
+                        library.importFiles([url])
+                    }
+                }
         }
     }
 }

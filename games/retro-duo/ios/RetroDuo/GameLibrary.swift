@@ -80,6 +80,8 @@ extension UTType {
 final class GameLibrary: ObservableObject {
     @Published private(set) var games: [Game] = []
     @Published var message: String?
+    /// A game the home screen widget asked to open (avydrix://play?id=…).
+    @Published var requestedGameID: String?
 
     static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "gba", "agb", "nds", "sfc", "smc", "md", "gen", "smd", "sms", "gg"]
     static let maximumROMSize = 8 * 1024 * 1024
