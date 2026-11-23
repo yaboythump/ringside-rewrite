@@ -30,6 +30,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     private let bottomScreens = NSHashTable<PixelScreenView>.weakObjects()
 
     func attachScreen(_ view: PixelScreenView, top isTop: Bool) {
+        view.streamSlot = isTop ? 0 : 1
         (isTop ? topScreens : bottomScreens).add(view)
         // Repaint even while paused or when the DS has not produced a new frame.
         let pixels = isTop ? top : bottom
@@ -126,6 +127,14 @@ final class DSSession: NSObject, ObservableObject, PadInput {
             if !audio.isRunning { audio.start(dsCore: core) }
             audio.setMuted(isMuted)
         }
+    }
+
+    /// Starts the sound again with the current audio session settings (live streaming
+    /// switches the microphone on and off).
+    func restartAudio() {
+        guard let core else { return }
+        audio.start(dsCore: core)
+        audio.setMuted(isPaused || isMuted)
     }
 
     func persistNow() {

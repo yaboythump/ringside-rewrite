@@ -57,6 +57,21 @@ jobs:
           xcrun swiftc -O games/retro-duo/ios/RetroDuo/Tracker.swift games/retro-duo/ios/RetroDuo/CoverMatcher.swift \
             games/retro-duo/tests/tracker/main.swift -o "$RUNNER_TEMP/tracker_test"
           "$RUNNER_TEMP/tracker_test" games/retro-duo/ios/RetroDuo/Resources/Trackers.json
+      - name: Stream a test picture to a stand-in RTMP server (live streaming)
+        run: |
+          set -euo pipefail
+          d=games/retro-duo
+          xcrun swiftc -O $d/ios/RetroDuo/LiveRTMP.swift $d/ios/RetroDuo/LiveEncoders.swift \
+            $d/ios/RetroDuo/LiveStreamCore.swift $d/tests/live/main.swift -o "$RUNNER_TEMP/live_test"
+          python3 $d/tests/live/fake_rtmp_server.py --port 19350 --out "$RUNNER_TEMP/live" --streams 2 \
+            > "$RUNNER_TEMP/live-server.log" 2>&1 &
+          server=$!
+          sleep 1
+          status=0
+          "$RUNNER_TEMP/live_test" 19350 || status=$?
+          wait $server || status=$?
+          cat "$RUNNER_TEMP/live-server.log"
+          exit $status
       - name: Check box art matching against real libretro-thumbnails names
         run: |
           set -euo pipefail

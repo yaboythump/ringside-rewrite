@@ -8,6 +8,7 @@ struct DSGameView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var hinge = HingeState()
     @State private var showingMenu = false
+    @State private var showingLive = false
     @StateObject private var tuning: AVControlTuning
     @StateObject private var controlLayout: ControlLayout
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
@@ -67,7 +68,10 @@ struct DSGameView: View {
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .onAppear { session.start() }
-        .onDisappear { session.stop() }
+        .onDisappear {
+            LiveStreamer.shared.stop()
+            session.stop()
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
@@ -75,6 +79,7 @@ struct DSGameView: View {
             case .inactive:
                 session.setPaused(true)
             case .background:
+                LiveStreamer.shared.stopForBackground()
                 session.setPaused(true)
                 session.persistNow()
             @unknown default:
@@ -103,9 +108,17 @@ struct DSGameView: View {
                 editControls: {
                     controlLayout.editing = true
                     showingMenu = false
+                },
+                goLive: {
+                    showingMenu = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { showingLive = true }
                 }
             )
             .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showingLive) {
+            LiveStreamSheet(screens: 2, restartAudio: { session.restartAudio() })
+                .presentationDetents([.medium, .large])
         }
         .onChange(of: showingMenu) { _, open in
             session.setPaused(open || controlLayout.editing)
@@ -306,6 +319,7 @@ struct DSGameView: View {
                 .foregroundStyle(.white.opacity(0.6))
                 .lineLimit(1)
             Spacer(minLength: 0)
+            LiveBadge { showingLive = true }
             muteButton
         }
         .padding(.horizontal, 8)

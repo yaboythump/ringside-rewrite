@@ -18,6 +18,8 @@ final class PixelScreenView: UIView {
     // Keep the game picture in a dedicated child layer throughout rotation.
     private let pictureLayer = CALayer()
     private var lastImage: CGImage?
+    /// Which picture of a live stream this view shows (0, or 1 for the DS's lower screen).
+    var streamSlot: Int?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -54,6 +56,9 @@ final class PixelScreenView: UIView {
 
     /// Shows RGBX pixels (red byte first).
     func show(pixels: UnsafePointer<UInt32>, width: Int, height: Int) {
+        if let streamSlot, LiveStreamer.shared.isActive {
+            LiveStreamer.shared.frame(pixels: pixels, width: width, height: height, slot: streamSlot)
+        }
         let filter = UserDefaults.standard.string(forKey: Self.filterKey) ?? "off"
         if filter != currentFilter {
             currentFilter = filter

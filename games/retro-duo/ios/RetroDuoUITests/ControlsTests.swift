@@ -335,6 +335,41 @@ final class ControlsTests: XCTestCase {
         XCTAssertTrue(pad.waitForExistence(timeout: 5))
     }
 
+    func testGoLiveExplainsAConnectionProblem() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests", "-avydrix.live.service", "custom",
+                               "-avydrix.live.server.custom", ""]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate() }
+        let diagnostics = app.staticTexts["rd-diagnostics"]
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: 15))
+        app.buttons["Game menu"].tap()
+        let goLive = app.staticTexts["GO LIVE"]
+        if !goLive.waitForExistence(timeout: 8) {
+            for line in app.debugDescription.split(separator: "\n") { print("RDDUMP \(line)") }
+        }
+        XCTAssertTrue(goLive.exists, "Go live is in the game menu")
+        if !goLive.isHittable { app.swipeUp() }
+        goLive.tap()
+
+        let server = app.textFields["live-server"]
+        XCTAssertTrue(server.waitForExistence(timeout: 8), "The live stream setup opens")
+        server.tap()
+        server.typeText("rtmp://127.0.0.1:9/app")
+        let key = app.secureTextFields["live-key"]
+        XCTAssertTrue(key.exists)
+        key.tap()
+        key.typeText("ui-test-key")
+        attach(app, "live-setup")
+        app.buttons["live-go"].tap()
+        // Nothing listens on port 9: the sheet must say so instead of hanging.
+        let error = app.descendants(matching: .any)["live-error"].firstMatch
+        XCTAssertTrue(error.waitForExistence(timeout: 25), "A failed connection is explained")
+        XCTAssertTrue(error.label.contains("127.0.0.1"), "The message names the server: \(error.label)")
+        attach(app, "live-error")
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]

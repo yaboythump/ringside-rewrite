@@ -37,6 +37,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     private let screens = NSHashTable<PixelScreenView>.weakObjects()
 
     func attachScreen(_ view: PixelScreenView) {
+        view.streamSlot = 0
         screens.add(view)
         if let core { core.show(on: view) }
     }
@@ -146,6 +147,14 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
               !isPaused, let core else { return }
         core.startAudio(audio)
         audio.setMuted(isMuted)
+    }
+
+    /// Starts the sound again with the current audio session settings (live streaming
+    /// switches the microphone on and off).
+    func restartAudio() {
+        guard let core else { return }
+        core.startAudio(audio)
+        audio.setMuted(isPaused || isMuted)
     }
 
     /// Called when the app goes to the background, so nothing is lost if iOS closes it.
