@@ -240,7 +240,11 @@ final class ControlsTests: XCTestCase {
             app.buttons["Game menu"].tap()
             // The menu's container identifier covers its tiles, so find the tile by its text.
             let move = app.staticTexts["MOVE CONTROLS"]
-            XCTAssertTrue(move.waitForExistence(timeout: 8), "Move controls is in the menu")
+            if !move.waitForExistence(timeout: 8) {
+                // Show CI what the menu holds instead.
+                for line in app.debugDescription.split(separator: "\n") { print("RDDUMP \(line)") }
+            }
+            XCTAssertTrue(move.exists, "Move controls is in the menu")
             if !move.isHittable { app.swipeUp() }
             move.tap()
             XCTAssertTrue(app.buttons["layout-done"].waitForExistence(timeout: 5), "Edit mode opens")

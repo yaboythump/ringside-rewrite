@@ -157,7 +157,7 @@ jobs:
                   print("Simulator test service timed out after 20 minutes.")
                   status = 1
           # Every failed check with its message (the tail below often misses them).
-          subprocess.run(["grep", "-nE", r"error: -\[|: error:|XCTAssert|\] failed \(",
+          subprocess.run(["grep", "-nE", r"error: -\[|: error:|XCTAssert|\] failed \(|RDDUMP",
                           os.environ["RUNNER_TEMP"] + "/rd-ui.log"])
           subprocess.run(["tail", "-100", os.environ["RUNNER_TEMP"] + "/rd-ui.log"])
           subprocess.run(["xcrun", "xcresulttool", "export", "attachments", "--path",
