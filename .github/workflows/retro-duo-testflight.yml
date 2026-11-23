@@ -66,7 +66,8 @@ jobs:
           python3 $d/tests/live/fake_rtmp_server.py --port 19350 --out "$RUNNER_TEMP/live" --streams 2 \
             > "$RUNNER_TEMP/live-server.log" 2>&1 &
           server=$!
-          sleep 1
+          # Start streaming only once the server is listening (Python can take a while to start).
+          for i in $(seq 1 60); do grep -q listening "$RUNNER_TEMP/live-server.log" 2>/dev/null && break; sleep 0.5; done
           status=0
           "$RUNNER_TEMP/live_test" 19350 || status=$?
           wait $server || status=$?
@@ -138,6 +139,16 @@ jobs:
           xcodebuild -help 2>&1 | grep -E 'app-store-connect|authenticationKeyPath' > "$RUNNER_TEMP/rd-xcode-help.txt"
           grep -F 'app-store-connect' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
           grep -F 'authenticationKeyPath' "$RUNNER_TEMP/rd-xcode-help.txt" >/dev/null
+      - name: Check the upload can leave the widget out if Apple won't sign it
+        run: |
+          set -euo pipefail
+          copy="$RUNNER_TEMP/rd-no-widget"
+          rm -rf "$copy" && mkdir -p "$copy"
+          cp -R games/retro-duo/ios/RetroDuo.xcodeproj "$copy/"
+          python3 games/retro-duo/tools/drop_widget.py "$copy/RetroDuo.xcodeproj/project.pbxproj"
+          xcodebuild -list -project "$copy/RetroDuo.xcodeproj" | tee "$copy/targets.txt"
+          grep -q "RetroDuo$" "$copy/targets.txt"
+          ! grep -q "RetroDuoWidget" "$copy/targets.txt"
       - name: Verify public branding and production icon
         run: python3 games/retro-duo/tests/verify_store_branding.py
       - name: Test TestFlight processing and tester assignment verification
@@ -389,6 +400,10 @@ jobs:
                      "Content-Type": "application/json"}
 
 
+          class AppleRefused(Exception):
+              pass
+
+
           def apple(path, *, filters=None, data=None):
               url = "https://api.appstoreconnect.apple.com/v1/" + path
               if filters:
@@ -405,14 +420,14 @@ jobs:
                       errors = []
                   for issue in errors:
                       print("Apple authorization detail:", issue.get("code", ""), issue.get("title", ""), issue.get("detail", ""), flush=True)
-                  sys.exit(f"::error::Apple rejected {method} {path} (HTTP {error.code}).")
+                  raise AppleRefused(f"Apple rejected {method} {path} (HTTP {error.code}).")
 
 
           # The app and its home screen widget each need an app ID and an App Store profile.
           targets = [(os.environ["RD_BUNDLE"], "Retro Duo", "Retro Duo App Store", "ringside.mobileprovision"),
                      (os.environ["RD_BUNDLE"] + ".widget", "Retro Duo Widget", "Retro Duo Widget App Store",
                       "widget.mobileprovision")]
-          for identifier, app_name, profile_name, file_name in targets:
+          def prepare(identifier, app_name, profile_name, file_name):
               bundle_ids = apple("bundleIds", filters={"filter[identifier]": identifier})
               bundle_ids = [b for b in bundle_ids if b["attributes"]["identifier"] == identifier]
               if bundle_ids:
@@ -452,8 +467,26 @@ jobs:
                   base64.b64decode(profile["attributes"]["profileContent"], validate=True)
               )
               print(f"{profile_name} provisioning profile is ready.", flush=True)
+
+
+          try:
+              prepare(*targets[0])
+          except AppleRefused as error:
+              sys.exit(f"::error::{error}")
+          try:
+              prepare(*targets[1])
+          except AppleRefused as error:
+              # Shipping the app matters more than the widget: build without it until Apple
+              # allows this key to register the widget's app ID (or someone does it by hand).
+              print(f"::warning::The home screen widget is left out of this build. {error} "
+                    "Register the App ID com.ctnetworkstudios.retroduo.widget and an App Store profile "
+                    "named 'Retro Duo Widget App Store' at developer.apple.com, or use an Admin API key.", flush=True)
           identifier = os.environ["RD_BUNDLE"]
-          if not apple("apps", filters={"filter[bundleId]": identifier, "fields[apps]": "bundleId"}):
+          try:
+              has_app = apple("apps", filters={"filter[bundleId]": identifier, "fields[apps]": "bundleId"})
+          except AppleRefused as error:
+              sys.exit(f"::error::{error}")
+          if not has_app:
               sys.exit("::error::Apple requires a Retro Duo app record in App Store Connect before uploading. Ask the Account Holder or App Manager to create one.")
           PY
           unset token
@@ -466,14 +499,20 @@ jobs:
           mkdir -p "$profile_dir"
           installed_profile="$profile_dir/$profile_id.mobileprovision"
           cp "$signing/ringside.mobileprovision" "$installed_profile"
-          # The home screen widget's own profile.
-          security cms -D -i "$signing/widget.mobileprovision" > "$signing/widget-profile.plist"
-          widget_profile_id="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$signing/widget-profile.plist")"
-          widget_profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$signing/widget-profile.plist")"
-          widget_app_id="$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' "$signing/widget-profile.plist")"
-          [[ "$widget_profile_id" =~ ^[0-9A-Fa-f-]{36}$ && "$widget_app_id" == "$RD_TEAM.$RD_BUNDLE.widget" ]]
-          installed_widget_profile="$profile_dir/$widget_profile_id.mobileprovision"
-          cp "$signing/widget.mobileprovision" "$installed_widget_profile"
+          # The home screen widget's own profile, when Apple let CI set it up.
+          widget_profile_id=""
+          widget_profile_name=""
+          if [[ -f "$signing/widget.mobileprovision" ]]; then
+            security cms -D -i "$signing/widget.mobileprovision" > "$signing/widget-profile.plist"
+            widget_profile_id="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$signing/widget-profile.plist")"
+            widget_profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$signing/widget-profile.plist")"
+            widget_app_id="$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' "$signing/widget-profile.plist")"
+            [[ "$widget_profile_id" =~ ^[0-9A-Fa-f-]{36}$ && "$widget_app_id" == "$RD_TEAM.$RD_BUNDLE.widget" ]]
+            installed_widget_profile="$profile_dir/$widget_profile_id.mobileprovision"
+            cp "$signing/widget.mobileprovision" "$installed_widget_profile"
+          else
+            python3 games/retro-duo/tools/drop_widget.py games/retro-duo/ios/RetroDuo.xcodeproj/project.pbxproj
+          fi
 
           keychain_password="$(openssl rand -hex 32)"
           security create-keychain -p "$keychain_password" "$keychain"
@@ -503,7 +542,11 @@ jobs:
           test -s "$app/cgb_boot.bin"
           test -s "$app/RetroDuoTestCart.gbc"
           codesign --verify --strict "$app"
-          codesign --verify --strict "$app/PlugIns/RetroDuoWidget.appex"
+          if [[ -n "$widget_profile_id" ]]; then
+            codesign --verify --strict "$app/PlugIns/RetroDuoWidget.appex"
+          else
+            test ! -e "$app/PlugIns/RetroDuoWidget.appex"
+          fi
           export_options="$signing/ExportOptions.plist"
           plutil -create xml1 "$export_options"
           plutil -insert method -string app-store-connect "$export_options"
@@ -512,7 +555,9 @@ jobs:
           plutil -insert signingCertificate -string "Apple Distribution" "$export_options"
           plutil -insert provisioningProfiles -xml '<dict/>' "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$RD_BUNDLE string $profile_id" "$export_options"
-          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$RD_BUNDLE.widget string $widget_profile_id" "$export_options"
+          if [[ -n "$widget_profile_id" ]]; then
+            /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$RD_BUNDLE.widget string $widget_profile_id" "$export_options"
+          fi
           plutil -insert teamID -string "$RD_TEAM" "$export_options"
           plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
           xcodebuild -exportArchive -archivePath "$archive" \

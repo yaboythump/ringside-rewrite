@@ -167,7 +167,7 @@ do {
     let ticks = Double(max(1, stats.ticks))
     print(String(format: "     %d ticks in %.1f s; per tick: picture %.2f ms, encoder %.2f ms, sound %.2f ms",
                  stats.ticks, stats.seconds, stats.composeMs / ticks, stats.encodeMs / ticks, stats.audioMs / ticks))
-    check(log.all.first == .connecting || log.all.first == .live, "connects")
+    check(log.all.first == .connecting || log.all.first == .live, "connects (states: \(log.all))")
     check(log.all.contains(.live), "goes live after the server says NetStream.Publish.Start")
     check(stats.sentFrames >= 150, "sends about 30 frames a second (\(stats.sentFrames) in 6 s)")
     check(stats.droppedFrames == 0, "drops no frames on a fast connection (\(stats.droppedFrames))")
