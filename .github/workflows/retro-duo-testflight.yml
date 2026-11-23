@@ -105,6 +105,8 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "AVYDRIX Play"
           # The home screen widget ships inside the app, versioned with it.
           widget="$app/PlugIns/RetroDuoWidget.appex"
+          ls "$app/PlugIns"
+          /usr/libexec/PlistBuddy -c 'Print' "$widget/Info.plist" | grep -E 'CFBundle(Identifier|Version|ShortVersionString)|NSExtensionPointIdentifier'
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$widget/Info.plist")" = "$RD_BUNDLE.widget"
           test "$(/usr/libexec/PlistBuddy -c 'Print NSExtension:NSExtensionPointIdentifier' "$widget/Info.plist")" = com.apple.widgetkit-extension
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$widget/Info.plist")" = "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Info.plist")"
