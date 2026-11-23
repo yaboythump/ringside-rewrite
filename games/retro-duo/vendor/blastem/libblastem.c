@@ -863,7 +863,32 @@ static void sram_view_export(void);
 static void bram_setup(void);
 static void bram_save_if_changed(uint8_t now);
 static void bram_close(void);
+static void retro_run_frame(void);
+
+//Retro Duo: a fatal_error() while the machine runs (an instruction the core does not
+//handle, say) used to exit() - closing the whole app. Instead it unwinds to here, the
+//machine stops for good and the frontend is told with RETRO_ENVIRONMENT_SHUTDOWN; the
+//error itself went to the log just before. Declared here, defined with lib_fatal_error.
+static jmp_buf fatal_recover;
+static uint8_t fatal_recover_valid;
+static uint8_t run_failed;
+
 RETRO_API void retro_run(void)
+{
+	if (run_failed) {
+		return;
+	}
+	if (setjmp(fatal_recover)) {
+		run_failed = 1;
+		retro_environment(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+		return;
+	}
+	fatal_recover_valid = 1;
+	retro_run_frame();
+	fatal_recover_valid = 0;
+}
+
+static void retro_run_frame(void)
 {
 	bool options_updated = false;
 	if (retro_environment(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated) && options_updated) {
@@ -944,7 +969,14 @@ RETRO_API bool retro_serialize(void *data, size_t size)
 RETRO_API bool retro_unserialize(const void *data, size_t size)
 {
 	const size_t *buffer = data;
+	//Retro Duo: a state the machine can't take (wrong RAM size, say) is a fatal_error();
+	//refuse it instead of exiting, and let the frontend put the previous state back.
+	if (setjmp(fatal_recover)) {
+		return 0;
+	}
+	fatal_recover_valid = 1;
 	current_system->deserialize(current_system, (uint8_t *)(buffer + 1), *buffer);
+	fatal_recover_valid = 0;
 	return 1;
 }
 
@@ -1079,6 +1111,7 @@ static bool load_game(const struct retro_game_info *game);
 RETRO_API bool retro_load_game(const struct retro_game_info *game)
 {
 	last_warning[0] = 0;
+	run_failed = 0;
 	if (load_game(game)) {
 		return 1;
 	}
@@ -1189,6 +1222,7 @@ RETRO_API bool retro_load_game_special(unsigned game_type, const struct retro_ga
 /* Unloads a currently loaded game. */
 RETRO_API void retro_unload_game(void)
 {
+	run_failed = 0;
 	dc_primed = 0;
 	free(media.dir);
 	free(media.name);

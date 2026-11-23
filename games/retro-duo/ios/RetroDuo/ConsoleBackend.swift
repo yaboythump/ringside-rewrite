@@ -17,6 +17,12 @@ protocol ConsoleBackend: AnyObject {
     func reset()
     func startAudio(_ audio: AudioOutput)
     func destroy()
+    /// Why the console stopped for good, or nil while it runs.
+    var failure: String? { get }
+}
+
+extension ConsoleBackend {
+    var failure: String? { nil }
 }
 
 enum ConsoleBackends {
@@ -423,6 +429,11 @@ final class LibretroBackend: ConsoleBackend {
     func runFrame() {
         guard let core else { return }
         RDLRRunFrame(core)
+    }
+
+    var failure: String? {
+        guard let core, let reason = RDLRFailure(core) else { return nil }
+        return String(cString: reason)
     }
 
     func show(on view: PixelScreenView) {

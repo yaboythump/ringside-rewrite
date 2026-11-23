@@ -48,6 +48,10 @@ bool RDLRLoadROM(RDLRHost *host, const uint8_t *rom, size_t length,
                  const uint8_t *save, size_t saveLength, const char *fileName);
 void RDLRReset(RDLRHost *host);
 
+/// NULL while the game runs. After the core stops on an error it can't recover from, the
+/// reason (its last error message, or a general one); frames then do nothing.
+const char *RDLRFailure(const RDLRHost *host);
+
 /// Shows only part of each frame the core draws (for example the Game Gear's 160x144 window
 /// inside the 256x192 picture BlastEm renders). Width or height 0 turns cropping off.
 /// Frames too small for the rectangle are shown whole.

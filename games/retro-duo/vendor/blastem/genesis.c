@@ -1334,7 +1334,9 @@ static m68k_context * io_write(uint32_t location, m68k_context * context, uint8_
 					gen->z80->mem_pointers[1] = NULL;
 				}
 			} else {
-				fatal_error("68K write to unhandled Z80 address %X\n", location);
+				//Retro Duo: real hardware ignores a 68K write to an unused part of the Z80
+				//window; stopping the whole emulator here closed the app mid-game.
+				warning("68K write to unhandled Z80 address %X\n", location);
 			}
 		}
 	} else {

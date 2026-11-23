@@ -30,6 +30,8 @@ struct RDLRHost {
     double fps, sampleRate;
     uint32_t keys;
     uint64_t frames;
+    bool failed;
+    char lastError[256];
     char *variableKeys[MAX_VARIABLES];
     char *variableValues[MAX_VARIABLES];
     int variableCount;
@@ -50,14 +52,20 @@ static const RDLRCoreTable *tableFor(int system) {
 }
 
 static void hostLog(enum retro_log_level level, const char *fmt, ...) {
-#ifdef RETRO_DUO_VERBOSE
     va_list args;
+#ifdef RETRO_DUO_VERBOSE
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
-#else
-    (void)level; (void)fmt;
 #endif
+    /* Keep the last error: it explains a stop (RDLRFailure). */
+    if (level >= RETRO_LOG_ERROR && current) {
+        va_start(args, fmt);
+        vsnprintf(current->lastError, sizeof current->lastError, fmt, args);
+        va_end(args);
+        size_t n = strlen(current->lastError);
+        while (n && (current->lastError[n - 1] == '\n' || current->lastError[n - 1] == ' ')) current->lastError[--n] = 0;
+    }
 }
 
 static const char *override(const RDLRHost *host, const char *key) {
@@ -109,6 +117,9 @@ static bool environment(unsigned cmd, void *data) {
             if (strcmp(host->variableKeys[i], var->key) == 0) { var->value = host->variableValues[i]; return true; }
         return false;
     }
+    case RETRO_ENVIRONMENT_SHUTDOWN:
+        host->failed = true;
+        return true;
     case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
         *(bool *)data = false;
         return true;
@@ -312,6 +323,11 @@ void RDLRSetCrop(RDLRHost *host, unsigned x, unsigned y, unsigned width, unsigne
         host->width = width;  /* until the next frame arrives */
         host->height = height;
     }
+}
+
+const char *RDLRFailure(const RDLRHost *host) {
+    if (!host || !host->failed) return NULL;
+    return host->lastError[0] ? host->lastError : "The emulator stopped unexpectedly.";
 }
 
 void RDLRReset(RDLRHost *host) {
