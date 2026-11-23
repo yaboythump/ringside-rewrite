@@ -10,6 +10,7 @@ struct GameView: View {
     @State private var hinge = HingeState()
     @State private var showingMenu = false
     @StateObject private var tuning: AVControlTuning
+    @StateObject private var controlLayout: ControlLayout
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
     @AppStorage("avydrix.gba.landscapeControls") private var gbaLandscapeControls = true
     @AppStorage("retroDuoTwoPanels") private var useTwoPanels = true
@@ -20,6 +21,7 @@ struct GameView: View {
         let gameSession = session()
         _session = StateObject(wrappedValue: gameSession)
         _tuning = StateObject(wrappedValue: AVControlTuning(system: gameSession.game.system))
+        _controlLayout = StateObject(wrappedValue: ControlLayout(system: gameSession.game.system))
     }
 
     var body: some View {
@@ -53,6 +55,14 @@ struct GameView: View {
         .ignoresSafeArea()
         .background(ConsoleBackdrop())
         .overlay(alignment: .top) { toastView }
+        .overlay(alignment: .top) {
+            if controlLayout.editing {
+                ControlLayoutEditBar(layout: controlLayout) {
+                    controlLayout.editing = false
+                    session.setPaused(false)
+                }
+            }
+        }
         .overlay(alignment: .bottom) {
             if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") &&
                 !ProcessInfo.processInfo.arguments.contains("-AvydrixStoreScreenshots") {
@@ -69,7 +79,7 @@ struct GameView: View {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
-                if !showingMenu { session.setPaused(false) }
+                if !showingMenu && !controlLayout.editing { session.setPaused(false) }
             case .inactive:
                 session.setPaused(true)
             case .background:
@@ -97,12 +107,16 @@ struct GameView: View {
                     session.persistNow()
                     showingMenu = false
                     dismiss()
+                },
+                editControls: {
+                    controlLayout.editing = true
+                    showingMenu = false
                 }
             )
             .presentationDetents([.medium, .large])
         }
         .onChange(of: showingMenu) { _, open in
-            session.setPaused(open)
+            session.setPaused(open || controlLayout.editing)
         }
     }
 
@@ -120,18 +134,19 @@ struct GameView: View {
                 Spacer(minLength: 4)
                 HStack(alignment: .center) {
                     if tuning.mirrored {
-                        actionButtons(diameter: button)
+                        actionButtons(diameter: button, in: "portrait", area: size)
                         Spacer(minLength: 8)
-                        directionPad(size: pad)
+                        directionPad(size: pad, in: "portrait", area: size)
                     } else {
-                        directionPad(size: pad)
+                        directionPad(size: pad, in: "portrait", area: size)
                         Spacer(minLength: 8)
-                        actionButtons(diameter: button)
+                        actionButtons(diameter: button, in: "portrait", area: size)
                     }
                 }
                 .padding(.horizontal, 16)
                 Spacer(minLength: 4)
                 MenuButtons(session: session, keys: system.menuKeys)
+                    .placed(.menu, "portrait", layout: controlLayout, area: size)
                 Spacer(minLength: 4)
             }
             .frame(width: size.width, height: half)
@@ -160,17 +175,19 @@ struct GameView: View {
                 }
                 HStack(alignment: .center) {
                     if tuning.mirrored {
-                        actionButtons(diameter: button, showShoulder: system != .snes)
+                        actionButtons(diameter: button, showShoulder: system != .snes, in: "tabletop", area: size)
                         Spacer(minLength: 4)
                         MenuButtons(session: session, keys: system.menuKeys)
+                            .placed(.menu, "tabletop", layout: controlLayout, area: size)
                         Spacer(minLength: 4)
-                        directionPad(size: pad, showShoulder: system != .snes)
+                        directionPad(size: pad, showShoulder: system != .snes, in: "tabletop", area: size)
                     } else {
-                        directionPad(size: pad, showShoulder: system != .snes)
+                        directionPad(size: pad, showShoulder: system != .snes, in: "tabletop", area: size)
                         Spacer(minLength: 4)
                         MenuButtons(session: session, keys: system.menuKeys)
+                            .placed(.menu, "tabletop", layout: controlLayout, area: size)
                         Spacer(minLength: 4)
-                        actionButtons(diameter: button, showShoulder: system != .snes)
+                        actionButtons(diameter: button, showShoulder: system != .snes, in: "tabletop", area: size)
                     }
                 }
                 .padding(.horizontal, system == .snes ? 12 : 24)
@@ -215,20 +232,22 @@ struct GameView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 18)
                 Spacer()
-                directionPad(size: min(side * 0.82, 170))
+                directionPad(size: min(side * 0.82, 170), in: "landscape", area: size)
                 Spacer()
                 if let first = system.menuKeys.first, system.menuKeys.count > 1 {
                     PillButton(label: first.label, key: first.key, session: session)
+                        .placed(.select, "landscape", layout: controlLayout, area: size)
                 }
             }
             .frame(width: side)
             screen(width: screenWidth)
             VStack {
                 Spacer()
-                actionButtons(diameter: button)
+                actionButtons(diameter: button, in: "landscape", area: size)
                 Spacer()
                 if let last = system.menuKeys.last {
                     PillButton(label: last.label, key: last.key, session: session)
+                        .placed(.start, "landscape", layout: controlLayout, area: size)
                 }
             }
             .frame(width: side)
@@ -305,7 +324,8 @@ struct GameView: View {
                         shoulderKey: PadKey.l,
                         isDirection: !tuning.mirrored,
                         padSize: padSize,
-                        faceSize: faceSize
+                        faceSize: faceSize,
+                        area: size
                     )
 
                     VStack(spacing: 7) {
@@ -316,6 +336,7 @@ struct GameView: View {
                         MenuButtons(session: session, keys: system.menuKeys)
                             .scaleEffect(0.86)
                             .frame(height: 45)
+                            .placed(.menu, "gba-shell", layout: controlLayout, area: size)
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .contain)
@@ -327,7 +348,8 @@ struct GameView: View {
                         shoulderKey: PadKey.r,
                         isDirection: tuning.mirrored,
                         padSize: padSize,
-                        faceSize: faceSize
+                        faceSize: faceSize,
+                        area: size
                     )
                 }
                 .frame(maxHeight: .infinity)
@@ -358,16 +380,17 @@ struct GameView: View {
         shoulderKey: Int,
         isDirection: Bool,
         padSize: CGFloat,
-        faceSize: CGFloat
+        faceSize: CGFloat,
+        area: CGSize
     ) -> some View {
         VStack(spacing: 8) {
             ShoulderButton(label: shoulder, key: shoulderKey, session: session)
                 .padding(.top, 9)
             Spacer(minLength: 6)
             if isDirection {
-                directionPad(size: padSize, showShoulder: false)
+                directionPad(size: padSize, showShoulder: false, in: "gba-shell", area: area)
             } else {
-                actionButtons(diameter: faceSize, showShoulder: false)
+                actionButtons(diameter: faceSize, showShoulder: false, in: "gba-shell", area: area)
             }
             Spacer(minLength: 6)
             Text(label)
@@ -391,7 +414,8 @@ struct GameView: View {
     private var system: GameSystem { session.game.system }
 
     /// The D-pad, with the L shoulder button above it on systems that have one.
-    private func directionPad(size: CGFloat, showShoulder: Bool = true) -> some View {
+    private func directionPad(size: CGFloat, showShoulder: Bool = true,
+                              in arrangement: String, area: CGSize) -> some View {
         let withShoulder = system.hasShoulders && showShoulder
         return VStack(spacing: 6) {
             if withShoulder {
@@ -403,10 +427,12 @@ struct GameView: View {
         .scaleEffect(tuning.size)
         .opacity(tuning.opacity)
         .offset(y: tuning.directionOffset)
+        .placed(.dpad, arrangement, layout: controlLayout, area: area)
     }
 
     /// The face buttons, with the R shoulder button above them on systems that have one.
-    private func actionButtons(diameter: CGFloat, showShoulder: Bool = true) -> some View {
+    private func actionButtons(diameter: CGFloat, showShoulder: Bool = true,
+                               in arrangement: String, area: CGSize) -> some View {
         let faces = system.faceKeys
         let withShoulder = system.hasShoulders && showShoulder
         // Before: SNES four-button diamond was reduced to 62%, then again to
@@ -424,6 +450,7 @@ struct GameView: View {
         .scaleEffect(tuning.size)
         .opacity(tuning.opacity)
         .offset(y: tuning.actionOffset)
+        .placed(.buttons, arrangement, layout: controlLayout, area: area)
     }
 
     // MARK: Pieces
