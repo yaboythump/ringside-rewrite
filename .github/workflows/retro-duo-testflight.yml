@@ -103,6 +103,15 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
           test "$(/usr/libexec/PlistBuddy -c 'Print UIFileSharingEnabled' "$app/Info.plist")" = true
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "AVYDRIX Play"
+          # The home screen widget ships inside the app, versioned with it.
+          widget="$app/PlugIns/RetroDuoWidget.appex"
+          ls "$app/PlugIns"
+          /usr/libexec/PlistBuddy -c 'Print' "$widget/Info.plist" | grep -E 'CFBundle(Identifier|Version|ShortVersionString)|NSExtensionPointIdentifier'
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$widget/Info.plist")" = "$RD_BUNDLE.widget"
+          test "$(/usr/libexec/PlistBuddy -c 'Print NSExtension:NSExtensionPointIdentifier' "$widget/Info.plist")" = com.apple.widgetkit-extension
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$widget/Info.plist")" = "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Info.plist")"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$widget/Info.plist")" = "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Info.plist")"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleURLTypes:0:CFBundleURLSchemes:0' "$app/Info.plist")" = avydrix
           cmp "$app/PrivacyInfo.xcprivacy" games/retro-duo/ios/RetroDuo/PrivacyInfo.xcprivacy
           cmp "$app/cgb_boot.bin" games/retro-duo/ios/RetroDuo/Resources/cgb_boot.bin
           cmp "$app/RetroDuoTestCart.gbc" games/retro-duo/ios/RetroDuo/Resources/RetroDuoTestCart.gbc
@@ -305,6 +314,7 @@ jobs:
           cleanup() {
             security delete-keychain "$keychain" 2>/dev/null || true
             if [[ -n "$installed_profile" ]]; then rm -f -- "$installed_profile"; fi
+            if [[ -n "${installed_widget_profile:-}" ]]; then rm -f -- "$installed_widget_profile"; fi
             rm -rf -- "$signing"
           }
           trap cleanup EXIT
@@ -375,8 +385,6 @@ jobs:
           from urllib.request import Request, urlopen
 
           directory = Path(sys.argv[1])
-          identifier = os.environ["RD_BUNDLE"]
-          profile_name = "Retro Duo App Store"
           headers = {"Authorization": f"Bearer {os.environ['RD_ASC_TOKEN']}",
                      "Content-Type": "application/json"}
 
@@ -400,44 +408,51 @@ jobs:
                   sys.exit(f"::error::Apple rejected {method} {path} (HTTP {error.code}).")
 
 
-          bundle_ids = apple("bundleIds", filters={"filter[identifier]": identifier})
-          if bundle_ids:
-              bundle = bundle_ids[0]
-          else:
-              bundle = apple("bundleIds", data={
-                  "type": "bundleIds",
-                  "attributes": {"identifier": identifier, "name": "Retro Duo", "platform": "IOS"},
-              })
-          print(f"Registered app ID is available for {identifier}.", flush=True)
+          # The app and its home screen widget each need an app ID and an App Store profile.
+          targets = [(os.environ["RD_BUNDLE"], "Retro Duo", "Retro Duo App Store", "ringside.mobileprovision"),
+                     (os.environ["RD_BUNDLE"] + ".widget", "Retro Duo Widget", "Retro Duo Widget App Store",
+                      "widget.mobileprovision")]
+          for identifier, app_name, profile_name, file_name in targets:
+              bundle_ids = apple("bundleIds", filters={"filter[identifier]": identifier})
+              bundle_ids = [b for b in bundle_ids if b["attributes"]["identifier"] == identifier]
+              if bundle_ids:
+                  bundle = bundle_ids[0]
+              else:
+                  bundle = apple("bundleIds", data={
+                      "type": "bundleIds",
+                      "attributes": {"identifier": identifier, "name": app_name, "platform": "IOS"},
+                  })
+              print(f"Registered app ID is available for {identifier}.", flush=True)
 
-          profiles = apple(f"bundleIds/{bundle['id']}/profiles", filters={"limit": 200})
-          matching = [p for p in profiles
-                      if p["attributes"]["name"] == profile_name
-                      and p["attributes"]["profileState"] == "ACTIVE"
-                      and p["attributes"]["profileType"] == "IOS_APP_STORE"]
-          if len(matching) > 1:
-              sys.exit("::error::Multiple active Retro Duo App Store profiles have the same name.")
-          if matching:
-              profile = matching[0]
-          else:
-              local_certificate = (directory / "distribution.der").read_bytes()
-              certificates = apple("certificates", filters={"limit": 200})
-              matches = [c for c in certificates
-                         if base64.b64decode(c["attributes"].get("certificateContent") or "") == local_certificate]
-              if len(matches) != 1:
-                  sys.exit("::error::Apple could not match the configured distribution certificate.")
-              profile = apple("profiles", data={
-                  "type": "profiles",
-                  "attributes": {"name": profile_name, "profileType": "IOS_APP_STORE"},
-                  "relationships": {
-                      "bundleId": {"data": {"type": "bundleIds", "id": bundle["id"]}},
-                      "certificates": {"data": [{"type": "certificates", "id": matches[0]["id"]}]},
-                  },
-              })
-          (directory / "ringside.mobileprovision").write_bytes(
-              base64.b64decode(profile["attributes"]["profileContent"], validate=True)
-          )
-          print("Retro Duo App Store provisioning profile is ready.", flush=True)
+              profiles = apple(f"bundleIds/{bundle['id']}/profiles", filters={"limit": 200})
+              matching = [p for p in profiles
+                          if p["attributes"]["name"] == profile_name
+                          and p["attributes"]["profileState"] == "ACTIVE"
+                          and p["attributes"]["profileType"] == "IOS_APP_STORE"]
+              if len(matching) > 1:
+                  sys.exit(f"::error::Multiple active {profile_name} profiles have the same name.")
+              if matching:
+                  profile = matching[0]
+              else:
+                  local_certificate = (directory / "distribution.der").read_bytes()
+                  certificates = apple("certificates", filters={"limit": 200})
+                  matches = [c for c in certificates
+                             if base64.b64decode(c["attributes"].get("certificateContent") or "") == local_certificate]
+                  if len(matches) != 1:
+                      sys.exit("::error::Apple could not match the configured distribution certificate.")
+                  profile = apple("profiles", data={
+                      "type": "profiles",
+                      "attributes": {"name": profile_name, "profileType": "IOS_APP_STORE"},
+                      "relationships": {
+                          "bundleId": {"data": {"type": "bundleIds", "id": bundle["id"]}},
+                          "certificates": {"data": [{"type": "certificates", "id": matches[0]["id"]}]},
+                      },
+                  })
+              (directory / file_name).write_bytes(
+                  base64.b64decode(profile["attributes"]["profileContent"], validate=True)
+              )
+              print(f"{profile_name} provisioning profile is ready.", flush=True)
+          identifier = os.environ["RD_BUNDLE"]
           if not apple("apps", filters={"filter[bundleId]": identifier, "fields[apps]": "bundleId"}):
               sys.exit("::error::Apple requires a Retro Duo app record in App Store Connect before uploading. Ask the Account Holder or App Manager to create one.")
           PY
@@ -451,6 +466,14 @@ jobs:
           mkdir -p "$profile_dir"
           installed_profile="$profile_dir/$profile_id.mobileprovision"
           cp "$signing/ringside.mobileprovision" "$installed_profile"
+          # The home screen widget's own profile.
+          security cms -D -i "$signing/widget.mobileprovision" > "$signing/widget-profile.plist"
+          widget_profile_id="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$signing/widget-profile.plist")"
+          widget_profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$signing/widget-profile.plist")"
+          widget_app_id="$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' "$signing/widget-profile.plist")"
+          [[ "$widget_profile_id" =~ ^[0-9A-Fa-f-]{36}$ && "$widget_app_id" == "$RD_TEAM.$RD_BUNDLE.widget" ]]
+          installed_widget_profile="$profile_dir/$widget_profile_id.mobileprovision"
+          cp "$signing/widget.mobileprovision" "$installed_widget_profile"
 
           keychain_password="$(openssl rand -hex 32)"
           security create-keychain -p "$keychain_password" "$keychain"
@@ -472,13 +495,15 @@ jobs:
             -configuration Release -destination 'generic/platform=iOS' \
             -archivePath "$archive" -derivedDataPath "$RUNNER_TEMP/rd-upload" \
             DEVELOPMENT_TEAM="$RD_TEAM" CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$profile_name" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            RD_APP_PROFILE="$profile_name" RD_WIDGET_PROFILE="$widget_profile_name" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT" archive
           app="$archive/Products/Applications/RetroDuo.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$RD_BUNDLE"
           test -s "$app/cgb_boot.bin"
           test -s "$app/RetroDuoTestCart.gbc"
           codesign --verify --strict "$app"
+          codesign --verify --strict "$app/PlugIns/RetroDuoWidget.appex"
           export_options="$signing/ExportOptions.plist"
           plutil -create xml1 "$export_options"
           plutil -insert method -string app-store-connect "$export_options"
@@ -487,6 +512,7 @@ jobs:
           plutil -insert signingCertificate -string "Apple Distribution" "$export_options"
           plutil -insert provisioningProfiles -xml '<dict/>' "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$RD_BUNDLE string $profile_id" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$RD_BUNDLE.widget string $widget_profile_id" "$export_options"
           plutil -insert teamID -string "$RD_TEAM" "$export_options"
           plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
           xcodebuild -exportArchive -archivePath "$archive" \

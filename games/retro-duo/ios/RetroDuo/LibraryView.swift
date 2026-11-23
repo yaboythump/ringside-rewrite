@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 import UIKit
 import UniformTypeIdentifiers
 import PhotosUI
@@ -181,6 +182,9 @@ struct LibraryView: View {
             launchTask?.cancel()
             launchTask = nil
         }
+        .onChange(of: library.requestedGameID) { _, _ in openRequestedGame() }
+        .onChange(of: library.games.count) { _, _ in openRequestedGame() }
+        .onAppear { openRequestedGame() }
         .task {
             // UI test launch arguments must continue to jump directly into gameplay.
             let arguments = ProcessInfo.processInfo.arguments
@@ -201,6 +205,22 @@ struct LibraryView: View {
             } else if arguments.contains("-RetroDuoDemo") {
                 playing = library.games.first
             }
+        }
+    }
+
+    /// Opens the game the widget asked for, closing another one first.
+    private func openRequestedGame() {
+        guard let id = library.requestedGameID,
+              let game = library.games.first(where: { $0.id == id }) else { return }
+        library.requestedGameID = nil
+        guard playing?.id != id else { return }
+        if playing != nil {
+            playing = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { openGame(game) }
+        } else {
+            pendingLaunch = nil
+            launchTask?.cancel()
+            openGame(game)
         }
     }
 
@@ -227,6 +247,8 @@ struct LibraryView: View {
 
     private func openGame(_ game: Game) {
         if !game.isBuiltIn || game.isBundledGame { lastPlayedGameID = game.id }
+        WidgetShelf.record(id: game.id, name: game.name, system: game.systemName, cover: covers.image(for: game))
+        WidgetCenter.shared.reloadAllTimelines()
         profile.start(game)
         playing = game
     }

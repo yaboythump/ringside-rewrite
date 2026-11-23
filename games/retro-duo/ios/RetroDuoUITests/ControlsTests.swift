@@ -370,6 +370,20 @@ final class ControlsTests: XCTestCase {
         attach(app, "live-error")
     }
 
+    func testWidgetLinkOpensTheGame() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoUITests"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate() }
+        // What the home screen widget does when tapped: open avydrix://play?id=<game>.
+        app.open(URL(string: "avydrix://play?id=builtin.nestestcart")!)
+        let diagnostics = app.staticTexts["rd-diagnostics"]
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: 20), "The widget's link opens the game")
+        XCTAssertTrue(waitForCounter("frames", above: 60, in: diagnostics, timeout: 30), "and it runs")
+        attach(app, "widget-link")
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]
