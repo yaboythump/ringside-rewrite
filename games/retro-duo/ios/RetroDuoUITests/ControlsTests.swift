@@ -384,6 +384,64 @@ final class ControlsTests: XCTestCase {
         attach(app, "widget-link")
     }
 
+    func testRewindAndFastForward() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests",
+                               "-avydrix.controls.gameBoyColor.size", "default",
+                               "-avydrix.controls.gameBoyColor.directionOffset", "default",
+                               "-avydrix.controls.gameBoyColor.mirrored", "NO",
+                               "-avydrix.layout.gameBoyColor", "none",
+                               "-avydrix.rewind.enabled", "YES", "-avydrix.fastForward.speed", "3"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate() }
+        let diagnostics = app.staticTexts["rd-diagnostics"]
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: 15))
+        XCTAssertTrue(waitForCounter("frames", above: 120, in: diagnostics, timeout: 30))
+        func frames() -> Int { counter("frames", diagnostics.label) }
+
+        // Fast-forward: noticeably more frames in the same time.
+        var start = frames()
+        Thread.sleep(forTimeInterval: 2)
+        let normal = frames() - start
+        let fastForward = app.buttons["avydrix-fast-forward"]
+        XCTAssertTrue(fastForward.exists, "Fast-forward is in the top bar")
+        fastForward.tap()
+        start = frames()
+        Thread.sleep(forTimeInterval: 2)
+        let fast = frames() - start
+        attach(app, "fast-forward")
+        fastForward.tap()
+        XCTAssertGreaterThan(Double(fast), Double(normal) * 1.5, "Fast-forward runs faster (\(normal) vs \(fast) frames in 2 s)")
+
+        // Rewind: move the star right, then hold rewind; its position (read by the tracker) goes back.
+        let pad = app.buttons["Direction pad"]
+        XCTAssertTrue(pad.waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 1)
+        pad.coordinate(withNormalizedOffset: CGVector(dx: 0.84, dy: 0.5)).press(forDuration: 1.0)
+        let toggle = app.buttons["avydrix-tracker-toggle"]
+        let starX = app.descendants(matching: .any)["tracker-stat-Star X"].firstMatch
+        func readStarX() -> Int? {
+            toggle.tap()
+            defer { toggle.tap() }
+            guard starX.waitForExistence(timeout: 5) else { return nil }
+            Thread.sleep(forTimeInterval: 0.6)
+            return (starX.value as? String).flatMap { Int($0) }
+        }
+        let moved = readStarX()
+        let rewind = app.descendants(matching: .any)["avydrix-rewind"].firstMatch
+        XCTAssertTrue(rewind.exists, "Rewind is in the top bar")
+        rewind.press(forDuration: 1.5)
+        attach(app, "rewound")
+        let rewound = readStarX()
+        XCTAssertNotNil(moved)
+        XCTAssertNotNil(rewound)
+        if let moved, let rewound {
+            XCTAssertLessThan(rewound, moved, "Rewinding takes the star back left (\(moved) -> \(rewound))")
+        }
+        XCTAssertTrue(waitForCounter("frames", above: frames() + 30, in: diagnostics, timeout: 10), "Play carries on after rewinding")
+    }
+
     func testNativeControlsAudioAndLayouts() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests"]

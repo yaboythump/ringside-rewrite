@@ -1,4 +1,5 @@
 import AVFoundation
+import os
 
 /// Plays the console's sound. Deliberately not tied to the main actor: the render
 /// block runs on Core Audio's real-time thread and only reads the core's lock-free buffer.
@@ -61,7 +62,7 @@ final class AudioOutput {
         }
 
         guard let format = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 2) else { return }
-        let node = Self.makeSource(sourceCore, format: format)
+        let node = Self.makeSource(sourceCore, format: format, flush: flushRequest)
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
         // The stream hears the game before the mute switch, so muting the phone keeps viewers' sound.
@@ -91,7 +92,16 @@ final class AudioOutput {
         engine.mainMixerNode.outputVolume = muted ? 0 : 1
     }
 
-    private static func makeSource(_ sourceCore: Source, format: AVAudioFormat) -> AVAudioSourceNode {
+    /// Throws away the sound already queued (after rewinding or fast-forwarding, so play
+    /// picks up in sync instead of a fraction of a second behind).
+    func dropQueuedSound() {
+        flushRequest.withLock { $0 = true }
+    }
+
+    private let flushRequest = OSAllocatedUnfairLock(initialState: false)
+
+    private static func makeSource(_ sourceCore: Source, format: AVAudioFormat,
+                                   flush: OSAllocatedUnfairLock<Bool>) -> AVAudioSourceNode {
         AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
             let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
             guard buffers.count >= 2,
@@ -99,13 +109,21 @@ final class AudioOutput {
                   let right = buffers[1].mData?.assumingMemoryBound(to: Float.self) else {
                 return noErr
             }
-            switch sourceCore {
-            case .gameBoy(let core): _ = RDCoreReadAudio(core, left, right, Int(frameCount))
-            case .nintendoDS(let core): _ = MDCoreReadAudio(core, left, right, Int(frameCount))
-            case .nes(let core): _ = NESCoreReadAudio(core, left, right, Int(frameCount))
-            case .gameBoyAdvance(let core): _ = RDGBAReadAudio(core, left, right, Int(frameCount))
-            case .libretro(let core): _ = RDLRReadAudio(core, left, right, Int(frameCount))
+            func read() -> Int {
+                switch sourceCore {
+                case .gameBoy(let core): return RDCoreReadAudio(core, left, right, Int(frameCount))
+                case .nintendoDS(let core): return MDCoreReadAudio(core, left, right, Int(frameCount))
+                case .nes(let core): return NESCoreReadAudio(core, left, right, Int(frameCount))
+                case .gameBoyAdvance(let core): return RDGBAReadAudio(core, left, right, Int(frameCount))
+                case .libretro(let core): return RDLRReadAudio(core, left, right, Int(frameCount))
+                }
             }
+            // Only this thread reads the queue, so emptying it here is safe.
+            if flush.withLock({ let asked = $0; $0 = false; return asked }) {
+                var rounds = 0
+                while read() == Int(frameCount) && rounds < 64 { rounds += 1 }
+            }
+            _ = read()
             return noErr
         }
     }

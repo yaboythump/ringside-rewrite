@@ -12,6 +12,10 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     @Published private(set) var isMuted = UserDefaults.standard.bool(forKey: "muted")
     @Published private(set) var errorMessage: String?
     @Published var toast: String?
+    /// Running at the fast-forward speed (Game settings › Rewind & fast-forward).
+    @Published private(set) var fastForward = false
+    /// Held rewind: stepping back through the last few seconds.
+    @Published private(set) var rewinding = false
 
     let game: Game
     private let library: GameLibrary
@@ -24,6 +28,10 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     var diagnostics: String {
         "frames:\(core?.frameCount ?? 0) audio:\(audio.isRunning) actions:\(deliveredActions) directions:\(deliveredDirections)"
     }
+    // Rewind: a snapshot every 6 frames (10 a second), the last ~10 seconds of play.
+    private let history = RewindBuffer(maxEntries: 100)
+    private var framesSinceSnapshot = 0
+    private var rewindTick = 0
     private var lastFrameTime: CFTimeInterval = 0
     private var frameDebt: Double = 0
     private var savedBattery = Data()
@@ -111,9 +119,60 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         audio.stop()
         core.destroy()
         self.core = nil
+        history.clear()
+    }
+
+    // MARK: Rewind & fast-forward
+
+    func toggleFastForward() {
+        guard core != nil else { return }
+        fastForward.toggle()
+        if !fastForward { audio.dropQueuedSound() }
+        applyMute()
+        lastFrameTime = 0
+        frameDebt = 0
+    }
+
+    /// Holding the rewind button: `true` while held.
+    func setRewinding(_ on: Bool) {
+        guard on != rewinding, core != nil, !isPaused else { return }
+        if on {
+            guard TimeControls.rewindEnabled else { show(toast: "Rewind is off in Game settings"); return }
+            guard !history.isEmpty else { show(toast: "Nothing to rewind yet"); return }
+            rewindTick = 0
+        } else {
+            audio.dropQueuedSound()
+            framesSinceSnapshot = 0
+        }
+        rewinding = on
+        input.clear()
+        applyMute()
+        lastFrameTime = 0
+        frameDebt = 0
+    }
+
+    /// Silent while paused, muted, rewinding or fast-forwarding.
+    private func applyMute() {
+        audio.setMuted(isMuted || isPaused || fastForward || rewinding)
+    }
+
+    /// One step back: the newest snapshot, shown by running a single frame from it.
+    private func rewindStep(_ core: ConsoleBackend) {
+        rewindTick += 1
+        guard rewindTick % 2 == 1 else { return } // 30 steps a second: about 3x real time
+        guard let state = history.pop() else {
+            show(toast: "That's as far back as rewind goes")
+            setRewinding(false)
+            return
+        }
+        guard core.loadState(state) else { return }
+        core.setKeys(0)
+        core.runFrame()
+        for screen in screens.allObjects { core.show(on: screen) }
     }
 
     func setPaused(_ paused: Bool) {
+        if paused && rewinding { rewinding = false; audio.dropQueuedSound() }
         isPaused = paused
         if !paused { HingeControl.shared.recenter() } // learn how the phone is held now
         lastFrameTime = 0
@@ -124,7 +183,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             audio.setMuted(true)
         } else {
             if let core, !audio.isRunning { core.startAudio(audio) }
-            audio.setMuted(isMuted)
+            applyMute()
         }
     }
 
@@ -135,7 +194,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             audio.stop()
         } else if !isPaused, let core {
             core.startAudio(audio)
-            audio.setMuted(isMuted)
+            applyMute()
         }
     }
 
@@ -146,7 +205,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
               reason == .newDeviceAvailable || reason == .oldDeviceUnavailable,
               !isPaused, let core else { return }
         core.startAudio(audio)
-        audio.setMuted(isMuted)
+        applyMute()
     }
 
     /// Starts the sound again with the current audio session settings (live streaming
@@ -154,7 +213,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     func restartAudio() {
         guard let core else { return }
         core.startAudio(audio)
-        audio.setMuted(isPaused || isMuted)
+        applyMute()
     }
 
     /// Called when the app goes to the background, so nothing is lost if iOS closes it.
@@ -213,19 +272,25 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
     func toggleMute() {
         isMuted.toggle()
         UserDefaults.standard.set(isMuted, forKey: "muted")
-        if !isPaused { audio.setMuted(isMuted) }
+        if !isPaused { applyMute() }
     }
 
     // MARK: Frame loop
 
     @objc private func step(_ link: CADisplayLink) {
         guard let core, !isPaused else { return }
+        if rewinding {
+            rewindStep(core)
+            return
+        }
         // The console clock must never stop when audio is interrupted or its queue fills.
         let elapsed = lastFrameTime == 0 ? 1.0 / 60 : min(0.1, link.timestamp - lastFrameTime)
         lastFrameTime = link.timestamp
-        frameDebt += elapsed * core.frameRate
+        let speed = fastForward ? Double(TimeControls.fastForwardSpeed) : 1
+        frameDebt += elapsed * core.frameRate * speed
         var frames = 0
-        while frameDebt >= 1 && frames < 6 {
+        let rewindOn = TimeControls.rewindEnabled
+        while frameDebt >= 1 && frames < 6 * Int(speed) {
             let keys = input.nextFrame() | controllerKeys()
             if keys & ~0x0F != 0 { deliveredActions += 1 }
             if keys & 0x0F != 0 { deliveredDirections += 1 }
@@ -233,6 +298,11 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             core.runFrame()
             frameDebt -= 1
             frames += 1
+            framesSinceSnapshot += 1
+            if rewindOn && framesSinceSnapshot >= 6, let state = core.saveState() {
+                framesSinceSnapshot = 0
+                history.push(state)
+            }
         }
         if let reason = core.failure {
             // The emulator hit something it can't continue from. Stop here with a message

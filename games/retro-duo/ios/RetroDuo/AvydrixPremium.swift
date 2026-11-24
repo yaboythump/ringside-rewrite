@@ -236,6 +236,23 @@ struct AVGameSettings: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
+                Section("Rewind & fast-forward") {
+                    Toggle("Rewind", isOn: Binding(
+                        get: { TimeControls.rewindEnabled },
+                        set: { UserDefaults.standard.set($0, forKey: TimeControls.rewindKey); hingeRefresh += 1 }
+                    ))
+                    .accessibilityIdentifier("avydrix-rewind-enabled")
+                    Picker("Fast-forward speed", selection: Binding(
+                        get: { TimeControls.fastForwardSpeed },
+                        set: { UserDefaults.standard.set($0, forKey: TimeControls.speedKey); hingeRefresh += 1 }
+                    )) {
+                        ForEach(TimeControls.speeds, id: \.self) { Text("\($0)×").tag($0) }
+                    }
+                    Text("Hold ⏪ in the top bar to go back up to about 10 seconds; tap ⏩ to speed up. Sound is muted while rewinding or fast-forwarding.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .id(hingeRefresh)
+                }
+
                 Section("Hinge control • \(tuning.system.displayName)") {
                     Picker("Folding the Duo", selection: Binding(
                         get: { HingeControl.mode(for: tuning.system) },

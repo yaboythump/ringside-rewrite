@@ -215,8 +215,9 @@ struct DSGameView: View {
         let button = max(38, min(pad * 0.36, 58))
         return HStack(spacing: 0) {
             VStack(spacing: 8) {
-                HStack {
+                HStack(spacing: 6) {
                     menuButton
+                    TimeControlButtons(session: session)
                     Spacer()
                 }
                 .padding(.leading, 12)
@@ -313,6 +314,7 @@ struct DSGameView: View {
     private var topBar: some View {
         HStack(spacing: 8) {
             menuButton
+            TimeControlButtons(session: session)
             Spacer(minLength: 0)
             Text(session.game.name)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))

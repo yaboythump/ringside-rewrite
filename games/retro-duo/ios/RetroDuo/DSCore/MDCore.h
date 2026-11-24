@@ -65,6 +65,10 @@ void MDCoreFreeBuffer(uint8_t *buffer);
 void MDCoreTitle(MDCore *core, char title[13]);
 /// Frames emulated per second over the last second (for diagnostics).
 double MDCoreSpeed(MDCore *core);
+/// Fast-forward: run up to `multiplier` times real speed (1 = normal).
+void MDCoreSetSpeedMultiplier(MDCore *core, double multiplier);
+/// Runs a single frame while the console is stopped (rewind shows each step back).
+void MDCoreStepFrame(MDCore *core);
 
 #ifdef __cplusplus
 }

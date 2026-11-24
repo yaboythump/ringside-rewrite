@@ -57,6 +57,12 @@ jobs:
           xcrun swiftc -O games/retro-duo/ios/RetroDuo/Tracker.swift games/retro-duo/ios/RetroDuo/CoverMatcher.swift \
             games/retro-duo/tests/tracker/main.swift -o "$RUNNER_TEMP/tracker_test"
           "$RUNNER_TEMP/tracker_test" games/retro-duo/ios/RetroDuo/Resources/Trackers.json
+      - name: Check the rewind history
+        run: |
+          set -euo pipefail
+          xcrun swiftc -O games/retro-duo/ios/RetroDuo/Rewind.swift games/retro-duo/tests/rewind/main.swift \
+            -o "$RUNNER_TEMP/rewind_test"
+          "$RUNNER_TEMP/rewind_test"
       - name: Stream a test picture to a stand-in RTMP server (live streaming)
         run: |
           set -euo pipefail

@@ -11,6 +11,10 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     @Published private(set) var isMuted = UserDefaults.standard.bool(forKey: "muted")
     @Published private(set) var errorMessage: String?
     @Published var toast: String?
+    /// Running at the fast-forward speed (as fast as the phone manages, up to the setting).
+    @Published private(set) var fastForward = false
+    /// Held rewind: stepping back through the last few seconds.
+    @Published private(set) var rewinding = false
 
     let game: Game
     private let library: GameLibrary
@@ -24,6 +28,11 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     private var bottom = [UInt32](repeating: 0xFF000000, count: Int(MD_SCREEN_WIDTH) * Int(MD_SCREEN_HEIGHT))
     private var lastFrame: UInt64 = 0
     private var ticks = 0
+    // Rewind: a DS snapshot is several MB, so one every half second (compressed in the
+    // background), the last ~10 seconds.
+    private let history = RewindBuffer(maxEntries: 20, maxBytes: 64 << 20)
+    private let snapshotQueue = DispatchQueue(label: "avydrix.ds.rewind", qos: .utility)
+    private var rewindTick = 0
     private var lastResumeCheckpoint = Date()
     private var toastTask: Task<Void, Never>?
     private let topScreens = NSHashTable<PixelScreenView>.weakObjects()
@@ -109,9 +118,66 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         audio.stop()
         MDCoreDestroy(core)
         self.core = nil
+        history.clear()
+    }
+
+    // MARK: Rewind & fast-forward
+
+    func toggleFastForward() {
+        guard let core else { return }
+        fastForward.toggle()
+        MDCoreSetSpeedMultiplier(core, fastForward ? Double(TimeControls.fastForwardSpeed) : 1)
+        if !fastForward { audio.dropQueuedSound() }
+        applyMute()
+    }
+
+    /// Holding the rewind button: `true` while held.
+    func setRewinding(_ on: Bool) {
+        guard on != rewinding, let core, !isPaused else { return }
+        if on {
+            guard TimeControls.rewindEnabled else { show(toast: "Rewind is off in Game settings"); return }
+            guard !history.isEmpty else { show(toast: "Nothing to rewind yet"); return }
+            rewindTick = 0
+            MDCoreSetRunning(core, false)
+            MDCoreSetKeys(core, 0)
+            MDCoreSetTouch(core, false, 0, 0)
+        } else {
+            audio.dropQueuedSound()
+            MDCoreSetRunning(core, true)
+        }
+        rewinding = on
+        applyMute()
+    }
+
+    private func applyMute() {
+        audio.setMuted(isMuted || isPaused || fastForward || rewinding)
+    }
+
+    private func rewindStep(_ core: OpaquePointer) {
+        rewindTick += 1
+        guard rewindTick % 6 == 1 else { return } // 10 steps a second over half-second snapshots
+        guard let state = history.pop() else {
+            show(toast: "That's as far back as rewind goes")
+            setRewinding(false)
+            return
+        }
+        let loaded = state.withUnsafeBytes {
+            MDCoreLoadState(core, $0.bindMemory(to: UInt8.self).baseAddress, $0.count)
+        }
+        if loaded { MDCoreStepFrame(core) }
+    }
+
+    private func takeSnapshot(_ core: OpaquePointer) {
+        var length = 0
+        guard let buffer = MDCoreSaveState(core, &length) else { return }
+        let state = Data(bytes: buffer, count: length)
+        MDCoreFreeBuffer(buffer)
+        let history = self.history
+        snapshotQueue.async { history.push(state) }
     }
 
     func setPaused(_ paused: Bool) {
+        if paused && rewinding { rewinding = false; audio.dropQueuedSound() }
         isPaused = paused
         if !paused { HingeControl.shared.recenter() } // learn how the phone is held now
         guard let core else { return }
@@ -125,7 +191,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
             audio.setMuted(true)
         } else {
             if !audio.isRunning { audio.start(dsCore: core) }
-            audio.setMuted(isMuted)
+            applyMute()
         }
     }
 
@@ -134,7 +200,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     func restartAudio() {
         guard let core else { return }
         audio.start(dsCore: core)
-        audio.setMuted(isPaused || isMuted)
+        applyMute()
     }
 
     func persistNow() {
@@ -269,14 +335,19 @@ final class DSSession: NSObject, ObservableObject, PadInput {
     func toggleMute() {
         isMuted.toggle()
         UserDefaults.standard.set(isMuted, forKey: "muted")
-        if !isPaused { audio.setMuted(isMuted) }
+        if !isPaused { applyMute() }
     }
 
     // MARK: Frame loop
 
     @objc private func step(_ link: CADisplayLink) {
         guard let core, !isPaused else { return }
-        pushKeys() // picks up game controllers
+        if rewinding {
+            rewindStep(core)
+        } else {
+            pushKeys() // picks up game controllers
+            if ticks % 30 == 15 && TimeControls.rewindEnabled { takeSnapshot(core) }
+        }
         let frame = top.withUnsafeMutableBufferPointer { topBuffer in
             bottom.withUnsafeMutableBufferPointer { bottomBuffer in
                 MDCoreCopyScreens(core, topBuffer.baseAddress, bottomBuffer.baseAddress)
