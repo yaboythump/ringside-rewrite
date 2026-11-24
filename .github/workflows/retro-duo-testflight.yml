@@ -69,6 +69,12 @@ jobs:
           xcrun swiftc -O games/retro-duo/ios/RetroDuo/CheatCodes.swift games/retro-duo/tests/cheats/main.swift \
             -o "$RUNNER_TEMP/cheats_test"
           "$RUNNER_TEMP/cheats_test"
+      - name: Check iCloud save sync with a stand-in iCloud folder
+        run: |
+          set -euo pipefail
+          xcrun swiftc -O games/retro-duo/ios/RetroDuo/SaveSync.swift games/retro-duo/tests/savesync/main.swift \
+            -o "$RUNNER_TEMP/savesync_test"
+          "$RUNNER_TEMP/savesync_test"
       - name: Stream a test picture to a stand-in RTMP server (live streaming)
         run: |
           set -euo pipefail
@@ -525,6 +531,17 @@ jobs:
           else
             python3 games/retro-duo/tools/drop_widget.py games/retro-duo/ios/RetroDuo.xcodeproj/project.pbxproj
           fi
+          # iCloud save sync needs the app's profile to allow the iCloud container (set up at
+          # developer.apple.com). Until then the build ships without iCloud.
+          icloud=""
+          if /usr/libexec/PlistBuddy -c 'Print Entitlements:com.apple.developer.icloud-container-identifiers' \
+               "$signing/profile.plist" 2>/dev/null | grep -q "iCloud.com.ctnetworkstudios.retroduo"; then
+            icloud=yes
+            echo "iCloud save sync is included in this build."
+          else
+            echo "::warning::iCloud save sync is left out of this build: the Retro Duo App Store profile doesn't allow the iCloud container iCloud.com.ctnetworkstudios.retroduo yet."
+            python3 games/retro-duo/tools/strip_icloud.py games/retro-duo/ios/RetroDuo/RetroDuo.entitlements
+          fi
 
           keychain_password="$(openssl rand -hex 32)"
           security create-keychain -p "$keychain_password" "$keychain"
@@ -569,6 +586,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$RD_BUNDLE string $profile_id" "$export_options"
           if [[ -n "$widget_profile_id" ]]; then
             /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$RD_BUNDLE.widget string $widget_profile_id" "$export_options"
+          fi
+          if [[ -n "$icloud" ]]; then
+            plutil -insert iCloudContainerEnvironment -string Production "$export_options"
           fi
           plutil -insert teamID -string "$RD_TEAM" "$export_options"
           plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
