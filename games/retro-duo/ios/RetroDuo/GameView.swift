@@ -259,7 +259,10 @@ struct GameView: View {
         let button = min(side * 0.36, 72)
         return HStack(spacing: 0) {
             VStack {
-                menuButton
+                HStack(spacing: 6) {
+                    menuButton
+                    TimeControlButtons(session: session)
+                }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading, 18)
                     .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
@@ -323,6 +326,7 @@ struct GameView: View {
                 HStack(spacing: 10) {
                     menuButton
                         .background(.black.opacity(0.27), in: RoundedRectangle(cornerRadius: 11))
+                    TimeControlButtons(session: session)
                     Spacer(minLength: 4)
                     HStack(spacing: 7) {
                         Circle().fill(Color.cyan).frame(width: 6, height: 6)
@@ -505,6 +509,7 @@ struct GameView: View {
     private var topBar: some View {
         HStack(spacing: 8) {
             menuButton
+            TimeControlButtons(session: session)
             Spacer(minLength: 0)
             Text(session.game.name)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))

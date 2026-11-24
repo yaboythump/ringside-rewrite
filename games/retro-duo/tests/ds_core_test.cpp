@@ -153,7 +153,28 @@ int main(int argc, char **argv) {
     uint64_t paused = MDCoreCopyScreens(core, nullptr, nullptr);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     CHECK(MDCoreCopyScreens(core, nullptr, nullptr) == paused, "pausing stops the console");
+    // Rewind shows each step back by running one frame while stopped.
+    MDCoreStepFrame(core);
+    CHECK(MDCoreCopyScreens(core, nullptr, nullptr) == paused + 1, "a stopped console can step one frame (rewind)");
     MDCoreSetRunning(core, true);
+
+    // Fast-forward: more frames in the same time.
+    auto countFrames = [&](double seconds) {
+        uint64_t start = MDCoreCopyScreens(core, nullptr, nullptr);
+        auto end = std::chrono::steady_clock::now() + std::chrono::duration<double>(seconds);
+        float l[1024], r[1024];
+        while (std::chrono::steady_clock::now() < end) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            MDCoreReadAudio(core, l, r, 240);
+        }
+        return MDCoreCopyScreens(core, nullptr, nullptr) - start;
+    };
+    uint64_t normal = countFrames(1.5);
+    MDCoreSetSpeedMultiplier(core, 3);
+    uint64_t fast = countFrames(1.5);
+    MDCoreSetSpeedMultiplier(core, 1);
+    printf("     normal %llu frames, fast-forward %llu frames in 1.5 s\n", (unsigned long long)normal, (unsigned long long)fast);
+    CHECK(fast > normal * 3 / 2, "fast-forward runs faster than normal speed");
     MDCoreReset(core);
     s = waitFrames(core, 20);
     CHECK(findStar(s, &x1, &y1) && std::abs(x1 - 128) <= 4, "reset restarts the game");

@@ -36,6 +36,7 @@ struct MDCore {
     std::atomic<bool> saveChanged{false};
     std::atomic<uint64_t> frames{0};
     std::atomic<double> speed{0};
+    std::atomic<double> speedMultiplier{1}; // Retro Duo fast-forward
 
     std::mutex frameLock;
     std::vector<uint32_t> top = std::vector<uint32_t>(kPixels, 0xFF000000u);
@@ -90,8 +91,10 @@ void MDCore::run() {
             next = clock::now();
             continue;
         }
-        // If the speaker has plenty queued, give it time instead of running ahead.
-        if (nds && nds->SPU.GetOutputSize() > kMaxQueuedAudio) {
+        const double multiplier = speedMultiplier.load();
+        // If the speaker has plenty queued, give it time instead of running ahead (not while
+        // fast-forwarding: the app mutes the sound and drops the excess afterwards).
+        if (multiplier <= 1 && nds && nds->SPU.GetOutputSize() > kMaxQueuedAudio) {
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
             continue;
         }
@@ -103,7 +106,7 @@ void MDCore::run() {
             windowStart = now;
             windowFrames = 0;
         }
-        next += frameTime;
+        next += multiplier > 1 ? std::chrono::duration_cast<clock::duration>(frameTime / multiplier) : frameTime;
         if (next > now) {
             std::this_thread::sleep_until(next);
         } else if (now - next > frameTime * 4) {
@@ -284,5 +287,13 @@ void MDCoreTitle(MDCore *core, char title[13]) {
 }
 
 double MDCoreSpeed(MDCore *core) { return core ? core->speed.load() : 0; }
+
+void MDCoreSetSpeedMultiplier(MDCore *core, double multiplier) {
+    if (core) core->speedMultiplier = multiplier < 1 ? 1 : multiplier;
+}
+
+void MDCoreStepFrame(MDCore *core) {
+    if (core && !core->running) core->runFrame();
+}
 
 } // extern "C"
