@@ -82,6 +82,12 @@ uint8_t *RDLRCopySave(RDLRHost *host, size_t *length);
 size_t RDLRRAMSize(const RDLRHost *host);
 /// Copies up to `count` bytes of that RAM starting at `offset`; returns how many were copied.
 size_t RDLRReadRAM(const RDLRHost *host, size_t offset, uint8_t *out, size_t count);
+/// Writes bytes into that RAM (cheat codes for cores without a cheat engine); returns how many.
+size_t RDLRWriteRAM(RDLRHost *host, size_t offset, const uint8_t *bytes, size_t count);
+/// Whether the core has its own cheat engine (RDLRSetCheats works).
+bool RDLRHasCheatEngine(const RDLRHost *host);
+/// Replaces the core's cheats: one string per cheat (several codes joined with '+').
+void RDLRSetCheats(RDLRHost *host, const char *const *codes, size_t count);
 uint8_t *RDLRSaveState(RDLRHost *host, size_t *length);
 bool RDLRLoadState(RDLRHost *host, const uint8_t *data, size_t length);
 void RDLRFreeBuffer(uint8_t *buffer);

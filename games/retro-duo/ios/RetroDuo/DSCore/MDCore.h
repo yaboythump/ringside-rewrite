@@ -69,6 +69,9 @@ double MDCoreSpeed(MDCore *core);
 void MDCoreSetSpeedMultiplier(MDCore *core, double multiplier);
 /// Runs a single frame while the console is stopped (rewind shows each step back).
 void MDCoreStepFrame(MDCore *core);
+/// Replaces the Action Replay DS cheats: each entry one cheat, lines of two 8-digit hex words.
+/// `accepted[i]`: whether entry i was well-formed.
+void MDCoreSetCheats(MDCore *core, const char *const *entries, size_t count, bool *accepted);
 
 #ifdef __cplusplus
 }

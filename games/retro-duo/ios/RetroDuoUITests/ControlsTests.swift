@@ -384,6 +384,69 @@ final class ControlsTests: XCTestCase {
         attach(app, "widget-link")
     }
 
+    func testCheatCodeHoldsTheStar() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests",
+                               "-avydrix.controls.gameBoyColor.size", "default",
+                               "-avydrix.controls.gameBoyColor.directionOffset", "default",
+                               "-avydrix.controls.gameBoyColor.mirrored", "NO",
+                               "-avydrix.layout.gameBoyColor", "none"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate() }
+        let diagnostics = app.staticTexts["rd-diagnostics"]
+        XCTAssertTrue(diagnostics.waitForExistence(timeout: 15))
+        XCTAssertTrue(waitForCounter("frames", above: 120, in: diagnostics, timeout: 30))
+
+        app.buttons["Game menu"].tap()
+        let tile = app.staticTexts["CHEATS"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 8), "Cheats is in the game menu")
+        if !tile.isHittable { app.swipeUp() }
+        tile.tap()
+        let add = app.buttons["cheat-new"]
+        XCTAssertTrue(add.waitForExistence(timeout: 8), "The cheats screen opens")
+        add.tap()
+        let name = app.textFields["cheat-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Pin star")
+        let code = app.textFields["cheat-code"].exists ? app.textFields["cheat-code"] : app.textViews["cheat-code"]
+        code.tap()
+        code.typeText("015001C0") // GameShark: wStarX ($C001) reads $50
+        app.buttons["cheat-add"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["cheat-Pin star"].firstMatch.waitForExistence(timeout: 5), "The cheat is listed")
+        XCTAssertFalse(app.descendants(matching: .any)["cheat-rejected"].firstMatch.exists, "The Game Boy understood the code")
+        attach(app, "cheats")
+        app.buttons["Done"].tap()
+
+        // Hold right: with the cheat on, the star's position stays pinned at $50/$51.
+        let pad = app.buttons["Direction pad"]
+        XCTAssertTrue(pad.waitForExistence(timeout: 8))
+        pad.coordinate(withNormalizedOffset: CGVector(dx: 0.84, dy: 0.5)).press(forDuration: 1.0)
+        let toggle = app.buttons["avydrix-tracker-toggle"]
+        toggle.tap()
+        let starX = app.descendants(matching: .any)["tracker-stat-Star X"].firstMatch
+        XCTAssertTrue(starX.waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 0.6)
+        let x = (starX.value as? String).flatMap { Int($0) }
+        toggle.tap()
+        XCTAssertTrue(x == 80 || x == 81, "The cheat pins the star (Star X \(x.map(String.init) ?? "?"))")
+
+        // Clean up so other tests start without cheats.
+        app.buttons["Game menu"].tap()
+        if tile.waitForExistence(timeout: 8) {
+            if !tile.isHittable { app.swipeUp() }
+            tile.tap()
+            let row = app.descendants(matching: .any)["cheat-Pin star"].firstMatch
+            if row.waitForExistence(timeout: 5) {
+                row.swipeLeft()
+                app.buttons["Delete"].firstMatch.tap()
+            }
+            app.buttons["Done"].tap()
+        }
+    }
+
+
     func testRewindAndFastForward() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemo", "-RetroDuoUITests",

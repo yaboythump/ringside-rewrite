@@ -128,6 +128,24 @@ static void testCart(const Cart &cart, const char *resources, const char *out) {
         RDLRReadRAM(core, 3, ramAfter, 2);
         CHECK(ramAfter[0] > ramBefore[0] && ramAfter[1] > ramBefore[1], "the star's position in RAM follows the D-pad");
     }
+    if (sms) {
+        // Cheats for this core are RAM writes the app makes every frame (Action Replay codes).
+        CHECK(!RDLRHasCheatEngine(core), "BlastEm has no cheat engine of its own");
+        // Pin the star where it is while holding right: it mustn't move.
+        uint8_t pinned = 0;
+        RDLRReadRAM(core, 3, &pinned, 1);
+        Blob before = find(core, isGold);
+        for (int i = 0; i < 20; i++) {
+            RDLRWriteRAM(core, 3, &pinned, 1);
+            run(core, 1, RDLR_PAD_RIGHT);
+        }
+        RDLRWriteRAM(core, 3, &pinned, 1);
+        run(core, 1, 0);
+        RDLRWriteRAM(core, 3, &pinned, 1);
+        run(core, 1, 0);
+        Blob held = find(core, isGold);
+        CHECK(held.count > 10 && std::fabs(held.x - before.x) <= 2, "writing RAM each frame holds the star (a RAM cheat)");
+    }
     screenshot(core, out, std::string(cart.ext) + "_moved");
     run(core, 10, RDLR_PAD_LEFT | RDLR_PAD_UP);
     run(core, 2, 0);

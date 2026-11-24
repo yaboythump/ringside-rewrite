@@ -90,6 +90,19 @@ int main(int argc, char **argv) {
     screenshot(core, argv[2], "gba_moved");
     CHECK(RDGBARead8(core, 0x080000A0) == rom[0xA0] && RDGBARead8(core, 0x080000A1) == rom[0xA1], "memory reads see the console's address space");
 
+    // Cheats (mGBA's engine): a CodeBreaker RAM write is understood and applied; gibberish isn't.
+    {
+        const char *codes[] = { "33000100 0042", "hello" };
+        bool ok[2] = { false, true };
+        RDGBASetCheats(core, codes, 2, ok);
+        CHECK(ok[0] && !ok[1], "a CodeBreaker code is accepted and gibberish isn't");
+        run(core, 3, 0);
+        CHECK(RDGBARead8(core, 0x03000100) == 0x42, "the cheat writes the game's RAM");
+        RDGBASetCheats(core, nullptr, 0, nullptr);
+        run(core, 3, 0);
+        CHECK(true, "cheats can be cleared");
+    }
+
     double quiet = run(core, 10, 0);
     double loud = run(core, 1, GBA_PAD_A) ;
     loud = std::fmax(loud, run(core, 6, 0));

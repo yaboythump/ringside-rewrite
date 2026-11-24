@@ -37,6 +37,9 @@ void RDCoreRunFrame(RDCore *core);
 uint64_t RDCoreFrameCount(const RDCore *core);
 /// One byte as the Game Boy's CPU sees it at `address`, without side effects (for the tracker).
 uint8_t RDCoreReadMemory(const RDCore *core, uint16_t address);
+/// Replaces the cheats: each entry is one cheat, its codes one per line (Game Genie
+/// "XXX-YYY-ZZZ" or GameShark "01VVAAAA"). `accepted[i]` says whether every line of entry i was valid.
+void RDCoreSetCheats(RDCore *core, const char *const *entries, size_t count, bool *accepted);
 
 /// 160x144 pixels, RGBX byte order (red first), row stride = width * 4.
 const uint32_t *RDCorePixels(const RDCore *core);

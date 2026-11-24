@@ -26,6 +26,8 @@ protocol ConsoleBackend: AnyObject {
     var supportsTwoPlayers: Bool { get }
     /// Buttons for player 2, in the same bits as `setKeys`.
     func setPlayer2Keys(_ keys: UInt32)
+    /// Replaces the cheats with these (the enabled ones); returns which were understood.
+    func setCheats(_ cheats: [Cheat]) -> [Bool]
 }
 
 extension ConsoleBackend {
@@ -33,6 +35,7 @@ extension ConsoleBackend {
     func peek(_ address: UInt32) -> UInt8? { nil }
     var supportsTwoPlayers: Bool { false }
     func setPlayer2Keys(_ keys: UInt32) {}
+    func setCheats(_ cheats: [Cheat]) -> [Bool] { cheats.map { _ in false } }
 }
 
 enum ConsoleBackends {
@@ -109,6 +112,13 @@ final class GameBoyBackend: ConsoleBackend {
     func peek(_ address: UInt32) -> UInt8? {
         guard let core, address <= 0xFFFF else { return nil }
         return RDCoreReadMemory(core, UInt16(address))
+    }
+
+    func setCheats(_ cheats: [Cheat]) -> [Bool] {
+        guard let core else { return cheats.map { _ in false } }
+        var accepted = [Bool](repeating: false, count: cheats.count)
+        withCStrings(cheats.map(CheatCodes.entry)) { RDCoreSetCheats(core, $0, $0.count, &accepted) }
+        return accepted
     }
 
     func setKeys(_ keys: UInt32) {
@@ -207,6 +217,12 @@ final class NESBackend: ConsoleBackend {
     }
 
     var supportsTwoPlayers: Bool { true }
+    func setCheats(_ cheats: [Cheat]) -> [Bool] {
+        guard let core else { return cheats.map { _ in false } }
+        var accepted = [Bool](repeating: false, count: cheats.count)
+        withCStrings(cheats.map(CheatCodes.entry)) { NESCoreSetCheats(core, $0, $0.count, &accepted) }
+        return accepted
+    }
 
     /// RD_KEY_* bits (as the shared controls send them) to NES_KEY_* bits.
     func setKeys(_ keys: UInt32) { set(keys, player: 0) }
@@ -315,6 +331,13 @@ final class GBABackend: ConsoleBackend {
         return RDGBARead8(core, address)
     }
 
+    func setCheats(_ cheats: [Cheat]) -> [Bool] {
+        guard let core else { return cheats.map { _ in false } }
+        var accepted = [Bool](repeating: false, count: cheats.count)
+        withCStrings(cheats.map(CheatCodes.entry)) { RDGBASetCheats(core, $0, $0.count, &accepted) }
+        return accepted
+    }
+
     func setKeys(_ keys: UInt32) {
         guard let core else { return }
         let map: [(Int, Int)] = [
@@ -405,6 +428,31 @@ final class LibretroBackend: ConsoleBackend {
         return RDLRReadRAM(core, offset, &byte, 1) == 1 ? byte : nil
     }
 
+    /// RAM writes made before every frame, for a core without its own cheat engine (BlastEm).
+    private var ramCheats: [CheatCodes.RAMWrite] = []
+
+    func setCheats(_ cheats: [Cheat]) -> [Bool] {
+        guard let core else { return cheats.map { _ in false } }
+        if RDLRHasCheatEngine(core) {
+            let decoded = cheats.map(CheatCodes.snesCodes)
+            withCStrings(decoded.compactMap { $0 }.flatMap { $0 }) { RDLRSetCheats(core, $0, $0.count) }
+            return decoded.map { $0 != nil }
+        }
+        let writes = cheats.map { CheatCodes.segaRAMWrites($0, genesis: ram == .genesis) }
+        ramCheats = writes.compactMap { $0 }.flatMap { $0 }
+        return writes.map { $0 != nil }
+    }
+
+    private func applyRAMCheats(_ core: OpaquePointer) {
+        for write in ramCheats {
+            for (i, byte) in write.bytes.enumerated() {
+                guard let offset = ram.offset(of: write.address + UInt32(i)) else { continue }
+                var value = byte
+                RDLRWriteRAM(core, offset, &value, 1)
+            }
+        }
+    }
+
     /// PadKey bits to RetroPad bits, SNES layout (also the RetroPad's own).
     static let snesPad: [(Int, Int)] = [
         (PadKey.a, Int(RDLR_PAD_A)), (PadKey.b, Int(RDLR_PAD_B)),
@@ -472,6 +520,7 @@ final class LibretroBackend: ConsoleBackend {
 
     func runFrame() {
         guard let core else { return }
+        if !ramCheats.isEmpty { applyRAMCheats(core) }
         RDLRRunFrame(core)
     }
 

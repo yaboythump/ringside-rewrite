@@ -106,6 +106,25 @@ int main(int argc, char **argv) {
     CHECK(ramAfter[0] != ramBefore[0], "the frame counter in RAM advances");
     CHECK(ramAfter[5] != ramBefore[5] && ramAfter[6] != ramBefore[6], "the star's position in RAM follows the D-pad");
     { uint8_t end[4]; CHECK(RDLRReadRAM(core, 128 * 1024 - 2, end, 4) == 2, "reads stop at the end of RAM"); }
+
+    // Cheats (bsnes's own engine): a Pro Action Replay code pins the star's scroll ($7E0015).
+    {
+        CHECK(RDLRHasCheatEngine(core), "the SNES core has a cheat engine");
+        const char *codes[] = { "7e001540" };
+        RDLRSetCheats(core, codes, 1);
+        int cx0, cy0, cx1, cy1;
+        run(core, 3, 0);
+        findStar(core, &cx0, &cy0);
+        run(core, 20, RDLR_PAD_RIGHT);
+        run(core, 2, 0);
+        CHECK(findStar(core, &cx1, &cy1) && std::abs(cx1 - cx0) <= 1, "a Pro Action Replay code holds the star in place");
+        RDLRSetCheats(core, nullptr, 0);
+        run(core, 20, RDLR_PAD_LEFT);
+        run(core, 2, 0);
+        bool seen = findStar(core, &cx1, &cy1);
+        // The star moves by scrolling the background, so which way it goes depends on the cart.
+        CHECK(seen && std::abs(cx1 - cx0) >= 10, "turning cheats off frees the star");
+    }
     screenshot(core, argv[2], "snes_moved");
     run(core, 2, RDLR_PAD_SELECT);
     run(core, 2, 0);

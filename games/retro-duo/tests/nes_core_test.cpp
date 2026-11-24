@@ -84,6 +84,24 @@ int main(int argc, char **argv) {
     CHECK(NESCoreReadRAM(core, 0x816) == NESCoreReadRAM(core, 0x16), "RAM mirrors read the same bytes");
     screenshot(core, argv[2], "nes_moved");
 
+    // Cheats: a RAM code pins STAR_X ($16) at $40; a Game Genie code is understood too.
+    {
+        const char *codes[] = { "0016:40", "SXIOPO", "ZZZZ" };
+        bool ok[3] = { false, false, true };
+        NESCoreSetCheats(core, codes, 3, ok);
+        CHECK(ok[0] && ok[1] && !ok[2], "RAM and Game Genie codes are accepted, gibberish isn't");
+        int cx0, cy0, cx1, cy1;
+        run(core, 3, 0);
+        findStar(core, &cx0, &cy0);
+        run(core, 20, NES_KEY_RIGHT);
+        run(core, 2, 0);
+        CHECK(findStar(core, &cx1, &cy1) && std::abs(cx1 - cx0) <= 1, "the cheat holds the star in place");
+        NESCoreSetCheats(core, nullptr, 0, nullptr);
+        run(core, 20, NES_KEY_LEFT);
+        run(core, 2, 0);
+        CHECK(findStar(core, &cx1, &cy1) && cx1 <= cx0 - 10, "turning cheats off frees the star");
+    }
+
     double quiet = run(core, 10, 0);
     double loud = run(core, 1, NES_KEY_A) ;
     loud = std::fmax(loud, run(core, 6, 0));

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
@@ -185,6 +186,45 @@ void NESCoreRunFrame(NESCore *core) {
 }
 
 uint64_t NESCoreFrameCount(const NESCore *core) { return core ? core->frames : 0; }
+
+static bool decodeNESCheat(const std::string &line, Api::Cheats::Code &code) {
+    if (NES_SUCCEEDED(Api::Cheats::GameGenieDecode(line.c_str(), code))) return true;
+    if (NES_SUCCEEDED(Api::Cheats::ProActionRockyDecode(line.c_str(), code))) return true;
+    // Raw RAM code: AAAA:VV (or AAAA:VV:CC with a compare value).
+    unsigned address = 0, value = 0, compare = 0;
+    char extra = 0;
+    if (std::sscanf(line.c_str(), "%4x:%2x:%2x%c", &address, &value, &compare, &extra) == 3) {
+        code = Api::Cheats::Code((ushort)address, (uchar)value, (uchar)compare, true);
+        return true;
+    }
+    if (std::sscanf(line.c_str(), "%4x:%2x%c", &address, &value, &extra) == 2) {
+        code = Api::Cheats::Code((ushort)address, (uchar)value);
+        return true;
+    }
+    return false;
+}
+
+void NESCoreSetCheats(NESCore *core, const char *const *entries, size_t count, bool *accepted) {
+    if (!core || !core->loaded) return;
+    Api::Cheats cheats(core->emulator);
+    cheats.ClearCodes();
+    for (size_t i = 0; i < count; i++) {
+        bool ok = entries[i] && entries[i][0];
+        std::string text = entries[i] ? entries[i] : "";
+        size_t start = 0;
+        while (start <= text.size()) {
+            size_t end = text.find('\n', start);
+            if (end == std::string::npos) end = text.size();
+            std::string line = text.substr(start, end - start);
+            if (!line.empty()) {
+                Api::Cheats::Code code;
+                if (decodeNESCheat(line, code)) cheats.SetCode(code); else ok = false;
+            }
+            start = end + 1;
+        }
+        if (accepted) accepted[i] = ok;
+    }
+}
 
 uint8_t NESCoreReadRAM(NESCore *core, uint16_t address) {
     if (!core || !core->loaded || address >= 0x2000) return 0;
