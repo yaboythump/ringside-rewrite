@@ -36,6 +36,8 @@ bool NESCoreLoadROM(NESCore *core, const uint8_t *rom, size_t length, const uint
 void NESCoreReset(NESCore *core);
 
 void NESCoreSetKeys(NESCore *core, uint8_t pressed);
+/// Buttons for controller 1 (player 0) or 2 (player 1).
+void NESCoreSetPlayerKeys(NESCore *core, unsigned player, uint8_t pressed);
 void NESCoreRunFrame(NESCore *core);
 uint64_t NESCoreFrameCount(const NESCore *core);
 /// One byte of the NES's 2KB work RAM ($0000-$07FF, mirrored to $1FFF); 0 elsewhere.
