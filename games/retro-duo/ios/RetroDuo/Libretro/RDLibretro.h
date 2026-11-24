@@ -58,6 +58,8 @@ const char *RDLRFailure(const RDLRHost *host);
 void RDLRSetCrop(RDLRHost *host, unsigned x, unsigned y, unsigned width, unsigned height);
 
 void RDLRSetKeys(RDLRHost *host, uint32_t pressed);
+/// Player 1 (0) or player 2 (1, the second controller port).
+void RDLRSetPlayerKeys(RDLRHost *host, unsigned player, uint32_t pressed);
 void RDLRRunFrame(RDLRHost *host);
 uint64_t RDLRFrameCount(const RDLRHost *host);
 

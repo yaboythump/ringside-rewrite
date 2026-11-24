@@ -134,7 +134,7 @@ bool NESCoreLoadROM(NESCore *core, const uint8_t *rom, size_t length, const uint
 
     Api::Input input(core->emulator);
     input.ConnectController(0, Api::Input::PAD1);
-    input.ConnectController(1, Api::Input::UNCONNECTED);
+    input.ConnectController(1, Api::Input::PAD2); // a second Bluetooth controller plays as player 2
 
     if (NES_FAILED(machine.Power(true))) return false;
     core->loaded = true;
@@ -148,7 +148,11 @@ void NESCoreReset(NESCore *core) {
 }
 
 void NESCoreSetKeys(NESCore *core, uint8_t pressed) {
-    if (!core) return;
+    NESCoreSetPlayerKeys(core, 0, pressed);
+}
+
+void NESCoreSetPlayerKeys(NESCore *core, unsigned player, uint8_t pressed) {
+    if (!core || player > 1) return;
     unsigned buttons = 0;
     if (pressed & NES_KEY_A) buttons |= Api::Input::Controllers::Pad::A;
     if (pressed & NES_KEY_B) buttons |= Api::Input::Controllers::Pad::B;
@@ -163,7 +167,7 @@ void NESCoreSetKeys(NESCore *core, uint8_t pressed) {
         buttons &= ~(Api::Input::Controllers::Pad::LEFT | Api::Input::Controllers::Pad::RIGHT);
     if ((buttons & Api::Input::Controllers::Pad::UP) && (buttons & Api::Input::Controllers::Pad::DOWN))
         buttons &= ~(Api::Input::Controllers::Pad::UP | Api::Input::Controllers::Pad::DOWN);
-    core->controllers.pad[0].buttons = buttons;
+    core->controllers.pad[player].buttons = buttons;
 }
 
 void NESCoreRunFrame(NESCore *core) {

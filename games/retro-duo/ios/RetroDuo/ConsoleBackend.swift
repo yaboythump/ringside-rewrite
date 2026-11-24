@@ -22,11 +22,17 @@ protocol ConsoleBackend: AnyObject {
     /// One byte of the game's work RAM at the address its own CPU uses (for example $D163 on
     /// the Game Boy, $7E0577 on the SNES, $FFFE20 on the Genesis), or nil where it can't be read.
     func peek(_ address: UInt32) -> UInt8?
+    /// Consoles with a second controller port (NES, SNES, Genesis, Master System).
+    var supportsTwoPlayers: Bool { get }
+    /// Buttons for player 2, in the same bits as `setKeys`.
+    func setPlayer2Keys(_ keys: UInt32)
 }
 
 extension ConsoleBackend {
     var failure: String? { nil }
     func peek(_ address: UInt32) -> UInt8? { nil }
+    var supportsTwoPlayers: Bool { false }
+    func setPlayer2Keys(_ keys: UInt32) {}
 }
 
 enum ConsoleBackends {
@@ -48,7 +54,7 @@ enum ConsoleBackends {
             return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SEGA), rom: rom, battery: battery,
                                         fileExtension: game.url.pathExtension.lowercased(),
                                         consoleName: game.system.displayName, padMap: LibretroBackend.masterSystemPad,
-                                        ram: .masterSystem) { core in
+                                        ram: .masterSystem, twoPlayers: !gameGear) { core in
                 // BlastEm draws these inside a Genesis-sized picture: the 192 visible lines start
                 // 16 lines down (24 on PAL), and the Game Gear shows only the middle 160x144.
                 let top: UInt32 = RDLRFrameRate(core) < 55 ? 24 : 16
@@ -200,8 +206,13 @@ final class NESBackend: ConsoleBackend {
         return NESCoreReadRAM(core, UInt16(address))
     }
 
+    var supportsTwoPlayers: Bool { true }
+
     /// RD_KEY_* bits (as the shared controls send them) to NES_KEY_* bits.
-    func setKeys(_ keys: UInt32) {
+    func setKeys(_ keys: UInt32) { set(keys, player: 0) }
+    func setPlayer2Keys(_ keys: UInt32) { set(keys, player: 1) }
+
+    private func set(_ keys: UInt32, player: UInt32) {
         guard let core else { return }
         var nes = 0
         if keys & UInt32(RD_KEY_RIGHT) != 0 { nes |= Int(NES_KEY_RIGHT) }
@@ -212,7 +223,7 @@ final class NESBackend: ConsoleBackend {
         if keys & UInt32(RD_KEY_B) != 0 { nes |= Int(NES_KEY_B) }
         if keys & UInt32(RD_KEY_SELECT) != 0 { nes |= Int(NES_KEY_SELECT) }
         if keys & UInt32(RD_KEY_START) != 0 { nes |= Int(NES_KEY_START) }
-        NESCoreSetKeys(core, UInt8(truncatingIfNeeded: nes))
+        NESCoreSetPlayerKeys(core, player, UInt8(truncatingIfNeeded: nes))
     }
 
     func runFrame() {
@@ -378,11 +389,13 @@ final class LibretroBackend: ConsoleBackend {
 
     private let padMap: [(Int, Int)]
     private let ram: ConsoleRAM
+    let supportsTwoPlayers: Bool
 
-    private init(core: OpaquePointer, padMap: [(Int, Int)], ram: ConsoleRAM) {
+    private init(core: OpaquePointer, padMap: [(Int, Int)], ram: ConsoleRAM, twoPlayers: Bool) {
         self.core = core
         self.padMap = padMap
         self.ram = ram
+        supportsTwoPlayers = twoPlayers
         frameRate = RDLRFrameRate(core)
     }
 
@@ -420,7 +433,7 @@ final class LibretroBackend: ConsoleBackend {
 
     static func make(system: Int32, rom: Data, battery: Data?, fileExtension: String,
                      consoleName: String, padMap: [(Int, Int)] = snesPad, ram: ConsoleRAM = .snes,
-                     configure: ((OpaquePointer) -> Void)? = nil) -> Result<ConsoleBackend, ConsoleError> {
+                     twoPlayers: Bool = true, configure: ((OpaquePointer) -> Void)? = nil) -> Result<ConsoleBackend, ConsoleError> {
         // Some cores read the game from disk, so each session gets a scratch folder.
         let work = FileManager.default.temporaryDirectory.appendingPathComponent("libretro", isDirectory: true)
         try? FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
@@ -441,17 +454,20 @@ final class LibretroBackend: ConsoleBackend {
             return .failure(ConsoleError(message: "This file isn't a \(consoleName) game AVYDRIX Play can run, or it's damaged."))
         }
         configure?(created)
-        return .success(LibretroBackend(core: created, padMap: padMap, ram: ram))
+        return .success(LibretroBackend(core: created, padMap: padMap, ram: ram, twoPlayers: twoPlayers))
     }
 
     var frameCount: UInt64 { core.map { RDLRFrameCount($0) } ?? 0 }
 
     /// PadKey bits to RetroPad bits.
-    func setKeys(_ keys: UInt32) {
+    func setKeys(_ keys: UInt32) { set(keys, player: 0) }
+    func setPlayer2Keys(_ keys: UInt32) { if supportsTwoPlayers { set(keys, player: 1) } }
+
+    private func set(_ keys: UInt32, player: UInt32) {
         guard let core else { return }
         var pad = 0
         for (key, bit) in padMap where Int(keys) & key != 0 { pad |= bit }
-        RDLRSetKeys(core, UInt32(pad))
+        RDLRSetPlayerKeys(core, player, UInt32(pad))
     }
 
     func runFrame() {

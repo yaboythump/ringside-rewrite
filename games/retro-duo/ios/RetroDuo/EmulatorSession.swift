@@ -98,6 +98,10 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         rumble.prepare()
         NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)),
                                                name: AVAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(controllersChanged),
+                                               name: .GCControllerDidConnect, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(controllersChanged),
+                                               name: .GCControllerDidDisconnect, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(audioRouteChanged(_:)),
                                                name: AVAudioSession.routeChangeNotification, object: nil)
 
@@ -186,6 +190,14 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             applyMute()
         }
     }
+
+    @objc private func controllersChanged() {
+        let pads = GCController.controllers().filter { $0.extendedGamepad != nil }.count
+        guard core?.supportsTwoPlayers == true else { return }
+        if pads >= 2 && !twoControllers { show(toast: "Player 2 joined: the second controller plays as player 2") }
+        twoControllers = pads >= 2
+    }
+    private var twoControllers = false
 
     @objc private func audioInterrupted(_ notification: Notification) {
         guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
@@ -331,33 +343,23 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         }
     }
 
+    /// Player 1's controller buttons. With two controllers on a two-player console, the second
+    /// plays as player 2 (its buttons are handed to the console here, for the same frame).
     private func controllerKeys() -> UInt32 {
+        let controllers = GCController.controllers().filter { $0.extendedGamepad != nil }
+        let twoPlayers = controllers.count >= 2 && (core?.supportsTwoPlayers ?? false)
+        for (index, controller) in controllers.enumerated() {
+            let wanted: GCControllerPlayerIndex = twoPlayers ? (index == 0 ? .index1 : index == 1 ? .index2 : .indexUnset) : .index1
+            if controller.playerIndex != wanted { controller.playerIndex = wanted }
+        }
+        if twoPlayers, let pad = controllers[1].extendedGamepad {
+            core?.setPlayer2Keys(UInt32(truncatingIfNeeded: buttons(of: pad)))
+        } else {
+            core?.setPlayer2Keys(0)
+        }
         var mask = 0
-        for controller in GCController.controllers() {
-            guard let pad = controller.extendedGamepad else { continue }
-            if pad.dpad.right.isPressed || pad.leftThumbstick.right.isPressed { mask |= Int(RD_KEY_RIGHT) }
-            if pad.dpad.left.isPressed || pad.leftThumbstick.left.isPressed { mask |= Int(RD_KEY_LEFT) }
-            if pad.dpad.up.isPressed || pad.leftThumbstick.up.isPressed { mask |= Int(RD_KEY_UP) }
-            if pad.dpad.down.isPressed || pad.leftThumbstick.down.isPressed { mask |= Int(RD_KEY_DOWN) }
-            // Match the handheld's layout: the right face button is A, the bottom one is B.
-            if AVControllerMapping.pressed("A", pad: pad, system: game.system) { mask |= Int(RD_KEY_A) }
-            if AVControllerMapping.pressed("B", pad: pad, system: game.system) { mask |= Int(RD_KEY_B) }
-            if pad.buttonMenu.isPressed { mask |= Int(RD_KEY_START) }
-            if pad.buttonOptions?.isPressed == true { mask |= Int(RD_KEY_SELECT) }
-            if game.system.hasShoulders {
-                if pad.leftShoulder.isPressed || pad.leftTrigger.isPressed { mask |= PadKey.l }
-                if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= PadKey.r }
-            }
-            if game.system == .genesis {
-                // Genesis 6-button pad: shoulders are Z and C, the menu button is MODE.
-                if pad.leftShoulder.isPressed || pad.leftTrigger.isPressed { mask |= PadKey.z }
-                if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= PadKey.c }
-                if pad.buttonOptions?.isPressed == true { mask |= PadKey.mode }
-            }
-            if game.system.faceKeys.count > 2 {
-                if AVControllerMapping.pressed("X", pad: pad, system: game.system) { mask |= PadKey.x }
-                if AVControllerMapping.pressed("Y", pad: pad, system: game.system) { mask |= PadKey.y }
-            }
+        for controller in (twoPlayers ? [controllers[0]] : controllers) {
+            if let pad = controller.extendedGamepad { mask |= buttons(of: pad) }
         }
         mask |= HingeControl.shared.keys(for: game.system, left: Int(RD_KEY_LEFT), right: Int(RD_KEY_RIGHT)) { label in
             switch label {
@@ -369,6 +371,34 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             }
         }
         return UInt32(truncatingIfNeeded: mask)
+    }
+
+    private func buttons(of pad: GCExtendedGamepad) -> Int {
+        var mask = 0
+        if pad.dpad.right.isPressed || pad.leftThumbstick.right.isPressed { mask |= Int(RD_KEY_RIGHT) }
+        if pad.dpad.left.isPressed || pad.leftThumbstick.left.isPressed { mask |= Int(RD_KEY_LEFT) }
+        if pad.dpad.up.isPressed || pad.leftThumbstick.up.isPressed { mask |= Int(RD_KEY_UP) }
+        if pad.dpad.down.isPressed || pad.leftThumbstick.down.isPressed { mask |= Int(RD_KEY_DOWN) }
+        // Match the handheld's layout: the right face button is A, the bottom one is B.
+        if AVControllerMapping.pressed("A", pad: pad, system: game.system) { mask |= Int(RD_KEY_A) }
+        if AVControllerMapping.pressed("B", pad: pad, system: game.system) { mask |= Int(RD_KEY_B) }
+        if pad.buttonMenu.isPressed { mask |= Int(RD_KEY_START) }
+        if pad.buttonOptions?.isPressed == true { mask |= Int(RD_KEY_SELECT) }
+        if game.system.hasShoulders {
+            if pad.leftShoulder.isPressed || pad.leftTrigger.isPressed { mask |= PadKey.l }
+            if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= PadKey.r }
+        }
+        if game.system == .genesis {
+            // Genesis 6-button pad: shoulders are Z and C, the menu button is MODE.
+            if pad.leftShoulder.isPressed || pad.leftTrigger.isPressed { mask |= PadKey.z }
+            if pad.rightShoulder.isPressed || pad.rightTrigger.isPressed { mask |= PadKey.c }
+            if pad.buttonOptions?.isPressed == true { mask |= PadKey.mode }
+        }
+        if game.system.faceKeys.count > 2 {
+            if AVControllerMapping.pressed("X", pad: pad, system: game.system) { mask |= PadKey.x }
+            if AVControllerMapping.pressed("Y", pad: pad, system: game.system) { mask |= PadKey.y }
+        }
+        return mask
     }
 
     // MARK: Saves

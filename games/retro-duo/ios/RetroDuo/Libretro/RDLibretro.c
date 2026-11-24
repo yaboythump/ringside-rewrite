@@ -29,6 +29,7 @@ struct RDLRHost {
     double aspect;      /* display height / width */
     double fps, sampleRate;
     uint32_t keys;
+    uint32_t keys2; /* player 2 (controller port 2) */
     uint64_t frames;
     bool failed;
     char lastError[256];
@@ -238,9 +239,10 @@ static void inputPoll(void) {}
 static int16_t inputState(unsigned port, unsigned device, unsigned index, unsigned id) {
     (void)index;
     RDLRHost *host = current;
-    if (!host || port != 0 || (device & RETRO_DEVICE_MASK) != RETRO_DEVICE_JOYPAD) return 0;
-    if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return (int16_t)(host->keys & 0xFFFF);
-    return id < 16 ? (int16_t)((host->keys >> id) & 1) : 0;
+    if (!host || port > 1 || (device & RETRO_DEVICE_MASK) != RETRO_DEVICE_JOYPAD) return 0;
+    uint32_t keys = port == 0 ? host->keys : host->keys2;
+    if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return (int16_t)(keys & 0xFFFF);
+    return id < 16 ? (int16_t)((keys >> id) & 1) : 0;
 }
 
 RDLRHost *RDLRCreate(int system, const char *workDirectory) {
@@ -348,11 +350,15 @@ void RDLRReset(RDLRHost *host) {
 }
 
 void RDLRSetKeys(RDLRHost *host, uint32_t pressed) {
-    if (!host) return;
+    RDLRSetPlayerKeys(host, 0, pressed);
+}
+
+void RDLRSetPlayerKeys(RDLRHost *host, unsigned player, uint32_t pressed) {
+    if (!host || player > 1) return;
     /* A real D-pad can't press opposite directions. */
     if ((pressed & RDLR_PAD_LEFT) && (pressed & RDLR_PAD_RIGHT)) pressed &= ~(uint32_t)(RDLR_PAD_LEFT | RDLR_PAD_RIGHT);
     if ((pressed & RDLR_PAD_UP) && (pressed & RDLR_PAD_DOWN)) pressed &= ~(uint32_t)(RDLR_PAD_UP | RDLR_PAD_DOWN);
-    host->keys = pressed;
+    if (player == 0) host->keys = pressed; else host->keys2 = pressed;
 }
 
 void RDLRRunFrame(RDLRHost *host) {
