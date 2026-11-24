@@ -481,7 +481,9 @@ final class ControlsTests: XCTestCase {
         let pad = app.buttons["Direction pad"]
         XCTAssertTrue(pad.waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 1)
-        pad.coordinate(withNormalizedOffset: CGVector(dx: 0.84, dy: 0.5)).press(forDuration: 1.0)
+        // A short press keeps the star well short of the right edge (x 144), where it would stay
+        // put and a rewound position could match.
+        pad.coordinate(withNormalizedOffset: CGVector(dx: 0.84, dy: 0.5)).press(forDuration: 0.35)
         let toggle = app.buttons["avydrix-tracker-toggle"]
         let starX = app.descendants(matching: .any)["tracker-stat-Star X"].firstMatch
         func readStarX() -> Int? {
@@ -494,7 +496,7 @@ final class ControlsTests: XCTestCase {
         let moved = readStarX()
         let rewind = app.descendants(matching: .any)["avydrix-rewind"].firstMatch
         XCTAssertTrue(rewind.exists, "Rewind is in the top bar")
-        rewind.press(forDuration: 1.5)
+        rewind.press(forDuration: 3)
         attach(app, "rewound")
         let rewound = readStarX()
         XCTAssertNotNil(moved)
