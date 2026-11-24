@@ -295,6 +295,8 @@ jobs:
           cmp "$RUNNER_TEMP/check.sms" "$res/RetroDuoMasterSystemTestCart.sms"
           cmp "$RUNNER_TEMP/check.gg" "$res/RetroDuoGameGearTestCart.gg"
           CC=clang CXX=clang++ games/retro-duo/tests/run_sega_core_test.sh "$RUNNER_TEMP/rd-core"
+      - name: Check RetroAchievements (sign-in, game lookup, unlocks) with a stand-in server
+        run: CC=clang games/retro-duo/tests/run_achievements_test.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

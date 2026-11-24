@@ -30,7 +30,7 @@ GCC_PRECOMPILE_PREFIX_HEADER = NO
 GCC_C_LANGUAGE_STANDARD = gnu11
 GCC_OPTIMIZATION_LEVEL = 3
 GCC_WARN_INHIBIT_ALL_WARNINGS = YES
-HEADER_SEARCH_PATHS = $(SRCROOT)/../vendor/SameBoy $(SRCROOT)/RetroDuo/Core $(SRCROOT)/../vendor/melonDS/src $(SRCROOT)/../vendor/melonDS/src/teakra/include $(SRCROOT)/RetroDuo/DSCore $(SRCROOT)/../vendor/nestopia/source $(SRCROOT)/RetroDuo/NESCore $(SRCROOT)/RetroDuo/GBACore $(SRCROOT)/RetroDuo/Libretro
+HEADER_SEARCH_PATHS = $(SRCROOT)/../vendor/SameBoy $(SRCROOT)/RetroDuo/Core $(SRCROOT)/../vendor/melonDS/src $(SRCROOT)/../vendor/melonDS/src/teakra/include $(SRCROOT)/RetroDuo/DSCore $(SRCROOT)/../vendor/nestopia/source $(SRCROOT)/RetroDuo/NESCore $(SRCROOT)/RetroDuo/GBACore $(SRCROOT)/RetroDuo/Libretro $(SRCROOT)/RetroDuo/Achievements $(SRCROOT)/../vendor/rcheevos/include
 
 // melonDS core (C++17). -fwrapv matches how melonDS is normally built.
 CLANG_CXX_LANGUAGE_STANDARD = gnu++17

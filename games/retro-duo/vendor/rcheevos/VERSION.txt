@@ -1,0 +1,3 @@
+rcheevos v12.5.0 (https://github.com/RetroAchievements/rcheevos, tag v12.5.0, commit 1433173), MIT license.
+Copied: LICENSE, include/ (without the RAIntegration header and module map), and src/ without rc_libretro, rc_client_external.c and the RAIntegration bridge (Windows only).
+SOURCES.txt lists the files compiled (tools/make_units.py).

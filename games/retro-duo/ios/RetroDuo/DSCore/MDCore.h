@@ -72,6 +72,9 @@ void MDCoreStepFrame(MDCore *core);
 /// Replaces the Action Replay DS cheats: each entry one cheat, lines of two 8-digit hex words.
 /// `accepted[i]`: whether entry i was well-formed.
 void MDCoreSetCheats(MDCore *core, const char *const *entries, size_t count, bool *accepted);
+/// Reads main RAM (offset from $02000000), for RetroAchievements. Doesn't wait for the console
+/// thread: a byte may be mid-frame, as on real hardware. Returns how many bytes were copied.
+size_t MDCoreReadMainRAM(MDCore *core, uint32_t offset, uint8_t *buffer, size_t length);
 
 #ifdef __cplusplus
 }

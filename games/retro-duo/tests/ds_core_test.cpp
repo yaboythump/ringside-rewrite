@@ -117,6 +117,17 @@ int main(int argc, char **argv) {
     for (int j = 0; j < 192; j++) for (int i = 0; i < 256; i++) if (isGold(s.bottom[j * 256 + i])) { lineY += j; lineN++; }
     CHECK(lineN && std::abs(lineY / lineN - 150) <= 3, "touch lands where it was pressed");
 
+    // RetroAchievements reads main RAM: the game's ARM9 code sits there where its header says.
+    {
+        auto word = [&](size_t at) { return uint32_t(rom[at]) | uint32_t(rom[at + 1]) << 8 | uint32_t(rom[at + 2]) << 16 | uint32_t(rom[at + 3]) << 24; };
+        uint32_t romOffset = word(0x20), ramAddress = word(0x28);
+        uint8_t ram[256] = {};
+        size_t copied = MDCoreReadMainRAM(core, ramAddress - 0x02000000, ram, sizeof ram);
+        CHECK(copied == sizeof ram && ramAddress >= 0x02000000 && romOffset + sizeof ram <= rom.size()
+              && memcmp(ram, rom.data() + romOffset, sizeof ram) == 0,
+              "main RAM reads back the game's code (RetroAchievements)");
+    }
+
     // Sound: A beeps.
     waitFrames(core, 10);
     double quiet = 0, loud = 0;

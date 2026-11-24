@@ -643,6 +643,7 @@ struct AVSettingsHome: View {
                     }
                     .padding(.vertical, 7)
                 }
+                AchievementsAccountSection()
                 Section("Console Skins") {
                     AVConsoleSkinPicker(selectedSkin: $selectedSkin)
                     Text("Your finish changes the dashboard accents and console shell without modifying games, covers or audio.")
@@ -899,8 +900,15 @@ struct AVInGameCommandCenter: View {
     @State private var showingSettings = false
     @State private var showingSaves = false
     @State private var confirmRestart = false
+    @State private var showingAchievements = false
+    @ObservedObject private var achievements = RetroAchievements.shared
 
     private var skin: AVConsoleSkin { .selected(skinName) }
+
+    private var achievementsSubtitle: String {
+        if let progress = achievements.progress { return "\(progress.earned) of \(progress.total) earned" }
+        return achievements.player == nil ? "RetroAchievements" : "Not for this game"
+    }
 
     var body: some View {
         NavigationStack {
@@ -961,6 +969,10 @@ struct AVInGameCommandCenter: View {
                             goLive()
                         }
                     }
+                    command("ACHIEVEMENTS", subtitle: achievementsSubtitle, icon: "trophy.fill") {
+                        showingAchievements = true
+                    }
+                    .accessibilityIdentifier("avydrix-achievements")
 
                     VStack(alignment: .leading, spacing: 12) {
                         Text("CONSOLE OPTIONS")
@@ -1019,6 +1031,9 @@ struct AVInGameCommandCenter: View {
             }
             .sheet(isPresented: $showingSaves) {
                 AVSaveManager(game: game, save: save, load: load)
+            }
+            .sheet(isPresented: $showingAchievements) {
+                AchievementsSheet()
             }
             .confirmationDialog("Restart \(game.name)?", isPresented: $confirmRestart,
                                 titleVisibility: .visible) {
