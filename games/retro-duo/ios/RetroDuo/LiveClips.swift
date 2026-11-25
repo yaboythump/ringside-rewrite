@@ -152,6 +152,9 @@ final class ClipRecorder {
         guard status == noErr, let videoFormat else { throw Failure.writer("video format \(status)") }
 
         var asbd = clip.audioDescription
+        // The encoder's format leaves the packet size open (0); without it every packet would
+        // last no time at all and the writer refuses the second one. AAC LC: 1024 frames.
+        if asbd.mFramesPerPacket == 0 { asbd.mFramesPerPacket = UInt32(AACEncoder.framesPerPacket) }
         var audioFormat: CMAudioFormatDescription?
         let cookieData = cookie ?? Data()
         let audioStatus = cookieData.withUnsafeBytes { bytes in
