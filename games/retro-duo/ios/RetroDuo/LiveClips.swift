@@ -94,11 +94,43 @@ final class ClipRecorder {
                     fps: fps, video: frames, audio: sound)
     }
 
-    /// Writes a clip to an MP4 file (blocking: call it off the main thread).
+    /// Writes a clip to an MP4 file (blocking: call it off the main thread). If the sound can't be
+    /// written with the encoder's decoder setup, it tries the plain AAC config, then picture only.
     static func write(_ clip: Clip, to url: URL) throws {
+        var attempts: [(cookie: Data?, sound: Bool)] = []
+        if let cookie = clip.audioCookie, !cookie.isEmpty { attempts.append((cookie, true)) }
+        attempts.append((Data([0x11, 0x90]), true)) // AAC LC, 48 kHz, stereo
+        attempts.append((nil, false))
+        var problems: [String] = []
+        for attempt in attempts {
+            do {
+                try write(clip, to: url, cookie: attempt.cookie, sound: attempt.sound)
+                lastProblems = problems
+                return
+            } catch {
+                problems.append("\(error)")
+            }
+        }
+        lastProblems = problems
+        throw Failure.writer(problems.joined(separator: " | "))
+    }
+
+    /// What went wrong in the attempts before the one that worked (diagnostics for tests).
+    static var lastProblems: [String] = []
+
+    private static func describe(_ stage: String, _ error: Error?) -> Failure {
+        guard let error = error as NSError? else { return .writer(stage) }
+        var text = "\(stage): \(error.domain) \(error.code)"
+        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+            text += " (\(underlying.domain) \(underlying.code))"
+        }
+        return .writer(text)
+    }
+
+    private static func write(_ clip: Clip, to url: URL, cookie: Data?, sound: Bool) throws {
         try? FileManager.default.removeItem(at: url)
         let writer: AVAssetWriter
-        do { writer = try AVAssetWriter(outputURL: url, fileType: .mp4) } catch { throw Failure.writer(error.localizedDescription) }
+        do { writer = try AVAssetWriter(outputURL: url, fileType: .mp4) } catch { throw describe("create", error) }
 
         var videoFormat: CMFormatDescription?
         let status = clip.sps.withUnsafeBytes { sps in
@@ -114,10 +146,10 @@ final class ClipRecorder {
 
         var asbd = clip.audioDescription
         var audioFormat: CMAudioFormatDescription?
-        let cookie = clip.audioCookie ?? Data()
-        let audioStatus = cookie.withUnsafeBytes { bytes in
+        let cookieData = cookie ?? Data()
+        let audioStatus = cookieData.withUnsafeBytes { bytes in
             CMAudioFormatDescriptionCreate(allocator: nil, asbd: &asbd, layoutSize: 0, layout: nil,
-                                           magicCookieSize: cookie.count, magicCookie: cookie.isEmpty ? nil : bytes.baseAddress,
+                                           magicCookieSize: cookieData.count, magicCookie: cookieData.isEmpty ? nil : bytes.baseAddress,
                                            extensions: nil, formatDescriptionOut: &audioFormat)
         }
         guard audioStatus == noErr, let audioFormat else { throw Failure.writer("audio format \(audioStatus)") }
@@ -126,10 +158,10 @@ final class ClipRecorder {
         let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: nil, sourceFormatHint: audioFormat)
         videoInput.expectsMediaDataInRealTime = false
         audioInput.expectsMediaDataInRealTime = false
-        guard writer.canAdd(videoInput), writer.canAdd(audioInput) else { throw Failure.writer("inputs") }
+        guard writer.canAdd(videoInput), !sound || writer.canAdd(audioInput) else { throw Failure.writer("inputs") }
         writer.add(videoInput)
-        writer.add(audioInput)
-        guard writer.startWriting() else { throw Failure.writer(writer.error?.localizedDescription ?? "start") }
+        if sound { writer.add(audioInput) }
+        guard writer.startWriting() else { throw describe("start", writer.error) }
         let origin = clip.video[0].time
         writer.startSession(atSourceTime: .zero)
 
@@ -146,31 +178,32 @@ final class ClipRecorder {
 
         // Interleaved by time, so neither input waits for the other.
         var v = 0, a = 0
+        let audio = sound ? clip.audio : []
         let frameDuration = CMTime(value: 1, timescale: CMTimeScale(clip.fps))
-        while v < clip.video.count || a < clip.audio.count {
-            let takeVideo = a >= clip.audio.count || (v < clip.video.count && clip.video[v].time <= clip.audio[a].time)
+        while v < clip.video.count || a < audio.count {
+            let takeVideo = a >= audio.count || (v < clip.video.count && clip.video[v].time <= audio[a].time)
             if takeVideo {
                 let sample = clip.video[v]
                 v += 1
                 guard let buffer = sampleBuffer(sample.data, format: videoFormat, time: cmTime(sample.time),
                                                 duration: frameDuration, sync: sample.keyframe),
-                      wait(videoInput) else { continue }
-                videoInput.append(buffer)
+                      wait(videoInput) else { throw describe("video \(v)", writer.error) }
+                guard videoInput.append(buffer) else { throw describe("append video \(v)", writer.error) }
             } else {
-                let sample = clip.audio[a]
+                let sample = audio[a]
                 a += 1
                 guard let buffer = audioBuffer(sample.data, format: audioFormat, time: cmTime(sample.time)),
-                      wait(audioInput) else { continue }
-                audioInput.append(buffer)
+                      wait(audioInput) else { throw describe("audio \(a)", writer.error) }
+                guard audioInput.append(buffer) else { throw describe("append audio \(a)", writer.error) }
             }
         }
         videoInput.markAsFinished()
-        audioInput.markAsFinished()
+        if sound { audioInput.markAsFinished() }
         writer.endSession(atSourceTime: cmTime(clip.video.last!.time) + frameDuration)
         let done = DispatchSemaphore(value: 0)
         writer.finishWriting { done.signal() }
         done.wait()
-        guard writer.status == .completed else { throw Failure.writer(writer.error?.localizedDescription ?? "finish") }
+        guard writer.status == .completed else { throw describe("finish", writer.error) }
     }
 
     private static func blockBuffer(_ data: Data) -> CMBlockBuffer? {

@@ -251,6 +251,7 @@ do {
     var clipSeconds = 0.0
     if case .success(let seconds)? = clipResult { clipSeconds = seconds }
     check(clipSeconds >= 3.9 && clipSeconds <= 6.2, "saves a clip of the last 4 s, from a keyframe (\(clipSeconds) s; \(String(describing: clipResult)))")
+    if !ClipRecorder.lastProblems.isEmpty { print("     clip attempts that failed first: \(ClipRecorder.lastProblems)") }
     let asset = AVURLAsset(url: clipURL)
     let checked = DispatchSemaphore(value: 0)
     var videoTracks = 0, audioTracks = 0, duration = 0.0, size = CGSize.zero
