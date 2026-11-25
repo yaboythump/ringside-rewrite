@@ -40,6 +40,9 @@ void RDGBARunFrame(RDGBA *core);
 uint64_t RDGBAFrameCount(const RDGBA *core);
 /// One byte from the GBA's address space (work RAM is $02000000 and $03000000), without side effects.
 uint8_t RDGBARead8(const RDGBA *core, uint32_t address);
+/// Replaces the cheats: each entry one cheat, codes one per line (GameShark, Action Replay,
+/// CodeBreaker; the type is detected). `accepted[i]`: whether entry i was understood.
+void RDGBASetCheats(RDGBA *core, const char *const *entries, size_t count, bool *accepted);
 
 /// RGBX pixels (red byte first), 240x160, stride = width.
 const uint32_t *RDGBAPixels(const RDGBA *core);

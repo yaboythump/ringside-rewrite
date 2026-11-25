@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -13,6 +14,7 @@
 #include <vector>
 
 #include "NDS.h"
+#include "AREngine.h"
 #include "NDSCart.h"
 #include "Savestate.h"
 #include "SPU.h"
@@ -294,6 +296,38 @@ void MDCoreSetSpeedMultiplier(MDCore *core, double multiplier) {
 
 void MDCoreStepFrame(MDCore *core) {
     if (core && !core->running) core->runFrame();
+}
+
+void MDCoreSetCheats(MDCore *core, const char *const *entries, size_t count, bool *accepted) {
+    if (!core || !core->nds) return;
+    std::vector<ARCode> codes;
+    for (size_t i = 0; i < count; i++) {
+        ARCode code {};
+        code.Parent = nullptr;
+        code.Name = "AVYDRIX";
+        code.Enabled = true;
+        bool ok = entries[i] && entries[i][0];
+        std::string text = entries[i] ? entries[i] : "";
+        size_t start = 0;
+        while (ok && start <= text.size()) {
+            size_t end = text.find('\n', start);
+            if (end == std::string::npos) end = text.size();
+            std::string line = text.substr(start, end - start);
+            if (!line.empty()) {
+                unsigned a = 0, b = 0;
+                char extra = 0;
+                int fields = std::sscanf(line.c_str(), "%8x %8x%c", &a, &b, &extra);
+                if (fields == 2 && line.size() == 17) { code.Code.push_back(a); code.Code.push_back(b); }
+                else ok = false;
+            }
+            start = end + 1;
+        }
+        if (ok && code.Code.empty()) ok = false;
+        if (ok) codes.push_back(std::move(code));
+        if (accepted) accepted[i] = ok;
+    }
+    std::lock_guard<std::mutex> lock(core->consoleLock);
+    core->nds->AREngine.Cheats = std::move(codes);
 }
 
 } // extern "C"

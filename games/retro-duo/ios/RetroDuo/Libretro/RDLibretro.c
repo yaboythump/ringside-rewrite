@@ -427,6 +427,28 @@ size_t RDLRReadRAM(const RDLRHost *host, size_t offset, uint8_t *out, size_t cou
     return count;
 }
 
+size_t RDLRWriteRAM(RDLRHost *host, size_t offset, const uint8_t *bytes, size_t count) {
+    if (!host || !host->loaded || !bytes) return 0;
+    uint8_t *ram = host->core->get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
+    size_t size = host->core->get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
+    if (!ram || offset >= size) return 0;
+    if (count > size - offset) count = size - offset;
+    memcpy(ram + offset, bytes, count);
+    return count;
+}
+
+bool RDLRHasCheatEngine(const RDLRHost *host) {
+    return host && host->core->cheat_reset && host->core->cheat_set;
+}
+
+void RDLRSetCheats(RDLRHost *host, const char *const *codes, size_t count) {
+    if (!host || !host->loaded || !RDLRHasCheatEngine(host) || current != host) return;
+    host->core->cheat_reset();
+    for (size_t i = 0; i < count; i++) {
+        if (codes[i] && codes[i][0]) host->core->cheat_set((unsigned)i, true, codes[i]);
+    }
+}
+
 uint8_t *RDLRSaveState(RDLRHost *host, size_t *length) {
     if (length) *length = 0;
     if (!host || !host->loaded) return NULL;

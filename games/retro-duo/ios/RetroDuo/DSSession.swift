@@ -89,6 +89,10 @@ final class DSSession: NSObject, ObservableObject, PadInput {
             return
         }
         core = created
+        // UI tests start every game without cheats; the cheat test adds its own.
+        if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") { CheatStore.save([], for: game.id) }
+        cheats = CheatStore.load(game.id)
+        if !cheats.isEmpty { applyCheats() }
         if library.restoreProtectedResume(for: game, using: { [weak self] data in
             guard let core = self?.core else { return false }
             return data.withUnsafeBytes {
@@ -336,6 +340,31 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         isMuted.toggle()
         UserDefaults.standard.set(isMuted, forKey: "muted")
         if !isPaused { applyMute() }
+    }
+
+    // MARK: Cheats
+
+    /// This game's cheats (Game menu › Cheats), and the ones the console didn't understand.
+    @Published private(set) var cheats: [Cheat] = []
+    @Published private(set) var rejectedCheats: Set<UUID> = []
+
+    func updateCheats(_ new: [Cheat]) {
+        cheats = new
+        CheatStore.save(new, for: game.id)
+        applyCheats()
+    }
+
+    private func applyCheats() {
+        let active = cheats.filter(\.enabled)
+        let accepted = sendCheats(active)
+        rejectedCheats = Set(zip(active, accepted).filter { !$0.1 }.map(\.0.id))
+    }
+
+    private func sendCheats(_ active: [Cheat]) -> [Bool] {
+        guard let core else { return active.map { _ in false } }
+        var accepted = [Bool](repeating: false, count: active.count)
+        withCStrings(active.map(CheatCodes.entry)) { MDCoreSetCheats(core, $0, $0.count, &accepted) }
+        return accepted
     }
 
     // MARK: Frame loop

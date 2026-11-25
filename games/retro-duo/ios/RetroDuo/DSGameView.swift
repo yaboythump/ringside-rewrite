@@ -9,6 +9,7 @@ struct DSGameView: View {
     @State private var hinge = HingeState()
     @State private var showingMenu = false
     @State private var showingLive = false
+    @State private var showingCheats = false
     @StateObject private var tuning: AVControlTuning
     @StateObject private var controlLayout: ControlLayout
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
@@ -112,9 +113,18 @@ struct DSGameView: View {
                 goLive: {
                     showingMenu = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { showingLive = true }
+                },
+                openCheats: {
+                    showingMenu = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { showingCheats = true }
                 }
             )
             .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showingCheats) {
+            CheatsSheet(host: session)
+                .onAppear { session.setPaused(true) }
+                .onDisappear { session.setPaused(false) }
         }
         .sheet(isPresented: $showingLive) {
             LiveStreamSheet(screens: 2, restartAudio: { session.restartAudio() })

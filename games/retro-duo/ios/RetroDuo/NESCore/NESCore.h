@@ -42,6 +42,9 @@ void NESCoreRunFrame(NESCore *core);
 uint64_t NESCoreFrameCount(const NESCore *core);
 /// One byte of the NES's 2KB work RAM ($0000-$07FF, mirrored to $1FFF); 0 elsewhere.
 uint8_t NESCoreReadRAM(NESCore *core, uint16_t address);
+/// Replaces the cheats: each entry one cheat, codes one per line (Game Genie, Pro Action
+/// Rocky, or "AAAA:VV" RAM). `accepted[i]`: whether every line of entry i was valid.
+void NESCoreSetCheats(NESCore *core, const char *const *entries, size_t count, bool *accepted);
 
 /// RGBX pixels (red byte first), NES_SCREEN_WIDTH x NES_SCREEN_HEIGHT, stride = width.
 const uint32_t *NESCorePixels(const NESCore *core);

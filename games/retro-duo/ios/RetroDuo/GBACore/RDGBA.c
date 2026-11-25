@@ -11,6 +11,8 @@
 #include <mgba/core/config.h>
 #include <mgba/core/interface.h>
 #include <mgba/core/serialize.h>
+#include <mgba/core/cheats.h>
+#include <mgba/internal/gba/cheats.h>
 #include <mgba-util/vfs.h>
 #include <mgba/core/blip_buf.h>
 #include <mgba/internal/gba/gba.h>
@@ -153,6 +155,43 @@ void RDGBARunFrame(RDGBA *bridge) {
 }
 
 uint64_t RDGBAFrameCount(const RDGBA *bridge) { return bridge ? bridge->frames : 0; }
+void RDGBASetCheats(RDGBA *bridge, const char *const *entries, size_t count, bool *accepted) {
+    if (!bridge || !bridge->core) return;
+    struct mCheatDevice *device = bridge->core->cheatDevice(bridge->core);
+    if (!device) {
+        for (size_t i = 0; accepted && i < count; i++) accepted[i] = false;
+        return;
+    }
+    while (mCheatSetsSize(&device->cheats)) {
+        struct mCheatSet *set = *mCheatSetsGetPointer(&device->cheats, 0);
+        mCheatRemoveSet(device, set); // undoes any ROM patches
+        mCheatSetDeinit(set);
+    }
+    for (size_t i = 0; i < count; i++) {
+        struct mCheatSet *set = device->createSet(device, "AVYDRIX");
+        bool ok = set && entries[i] && entries[i][0];
+        const char *p = entries[i] ? entries[i] : "";
+        char line[96];
+        while (ok && *p) {
+            size_t n = strcspn(p, "\n");
+            if (n >= sizeof line) { ok = false; break; }
+            if (n > 0) {
+                memcpy(line, p, n);
+                line[n] = 0;
+                if (!mCheatAddLine(set, line, GBA_CHEAT_AUTODETECT)) ok = false;
+            }
+            p += n;
+            if (*p == '\n') p++;
+        }
+        if (set && ok) {
+            mCheatAddSet(device, set);
+        } else if (set) {
+            mCheatSetDeinit(set);
+        }
+        if (accepted) accepted[i] = ok;
+    }
+}
+
 uint8_t RDGBARead8(const RDGBA *bridge, uint32_t address) {
     if (!bridge || !bridge->core) return 0;
     return (uint8_t)bridge->core->rawRead8(bridge->core, address, -1);

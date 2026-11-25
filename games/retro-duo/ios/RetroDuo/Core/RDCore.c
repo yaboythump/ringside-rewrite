@@ -134,6 +134,30 @@ void RDCoreRunFrame(RDCore *core) {
 }
 
 uint64_t RDCoreFrameCount(const RDCore *core) { return core ? core->frames : 0; }
+void RDCoreSetCheats(RDCore *core, const char *const *entries, size_t count, bool *accepted) {
+    if (!core || !core->gb) return;
+    GB_remove_all_cheats(core->gb);
+    for (size_t i = 0; i < count; i++) {
+        bool ok = entries[i] && entries[i][0];
+        char line[64];
+        const char *p = entries[i] ? entries[i] : "";
+        while (*p) {
+            size_t n = strcspn(p, "\n");
+            if (n > 0 && n < sizeof line) {
+                memcpy(line, p, n);
+                line[n] = 0;
+                if (!GB_import_cheat(core->gb, line, "", true)) ok = false;
+            } else if (n >= sizeof line) {
+                ok = false;
+            }
+            p += n;
+            if (*p == '\n') p++;
+        }
+        if (accepted) accepted[i] = ok;
+    }
+    GB_set_cheats_enabled(core->gb, true);
+}
+
 uint8_t RDCoreReadMemory(const RDCore *core, uint16_t address) {
     return core && core->gb ? GB_safe_read_memory(core->gb, address) : 0;
 }

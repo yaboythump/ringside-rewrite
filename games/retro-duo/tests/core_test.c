@@ -93,6 +93,24 @@ int main(int argc, char **argv) {
     snprintf(path, sizeof path, "%s/moved.ppm", argv[3]);
     screenshot(core, path);
 
+    // Cheats: a GameShark code pins wStarX ($C001) at $50, so the D-pad can't move the star across.
+    {
+        const char *codes[] = { "015001C0", "not a code" };
+        bool ok[2] = { false, true };
+        RDCoreSetCheats(core, codes, 2, ok);
+        CHECK(ok[0] && !ok[1], "a GameShark code is accepted and gibberish isn't");
+        int cx0, cy0, cx1, cy1;
+        run(core, 3, 0);
+        findStar(core, &cx0, &cy0);
+        run(core, 20, RD_KEY_RIGHT);
+        run(core, 2, 0);
+        CHECK(findStar(core, &cx1, &cy1) && abs(cx1 - cx0) <= 1, "the cheat holds the star in place");
+        RDCoreSetCheats(core, NULL, 0, NULL);
+        run(core, 20, RD_KEY_LEFT);
+        run(core, 2, 0);
+        CHECK(findStar(core, &cx1, &cy1) && cx1 <= cx0 - 10, "turning cheats off frees the star");
+    }
+
     // Audio: press A and measure the beep.
     float l[2048], r[2048];
     while (RDCoreReadAudio(core, l, r, 2048)) {}

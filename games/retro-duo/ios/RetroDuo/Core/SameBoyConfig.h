@@ -7,7 +7,6 @@
 #ifndef __OBJC__
 #define GB_INTERNAL 1
 #define GB_DISABLE_DEBUGGER 1
-#define GB_DISABLE_CHEATS 1
 #define GB_DISABLE_CHEAT_SEARCH 1
 #define GB_DISABLE_REWIND 1
 #define GB_VERSION "1.0.5"

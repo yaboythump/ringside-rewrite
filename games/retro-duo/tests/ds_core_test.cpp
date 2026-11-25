@@ -147,6 +147,17 @@ int main(int argc, char **argv) {
     CHECK(findStar(s, &x1, &y1), "console still runs after a rejected state");
     MDCoreFreeBuffer(state);
 
+    // Cheats (melonDS's Action Replay engine).
+    {
+        const char *codes[] = { "02000100 00000042\n12000104 00000001", "02000100", "" };
+        bool ok[3] = { false, true, true };
+        MDCoreSetCheats(core, codes, 3, ok);
+        CHECK(ok[0] && !ok[1] && !ok[2], "Action Replay lines are accepted, broken ones aren't");
+        s = waitFrames(core, 10);
+        CHECK(findStar(s, &x1, &y1), "the game keeps running with a cheat on");
+        MDCoreSetCheats(core, nullptr, 0, nullptr);
+    }
+
     // Pause and reset.
     MDCoreSetRunning(core, false);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));

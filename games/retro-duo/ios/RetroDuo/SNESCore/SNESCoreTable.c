@@ -15,4 +15,4 @@ static const char *const SNESOptions[] = {
     0,
 };
 
-const RDLRCoreTable RDLRSNESCore = RDLR_CORE_TABLE("bsnes", SNESOptions);
+const RDLRCoreTable RDLRSNESCore = RDLR_CORE_TABLE_WITH_CHEATS("bsnes", SNESOptions);

@@ -870,6 +870,8 @@ struct AVInGameCommandCenter: View {
     var editControls: (() -> Void)? = nil
     /// Closes the menu and opens live streaming (Twitch, YouTube, Kick).
     var goLive: (() -> Void)? = nil
+    /// Closes the menu and opens the game's cheat codes.
+    var openCheats: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @AppStorage("avydrix.skin") private var skinName = "obsidian"
@@ -926,6 +928,11 @@ struct AVInGameCommandCenter: View {
                             editControls()
                         }
                         .accessibilityIdentifier("avydrix-move-controls")
+                    }
+                    if let openCheats {
+                        command("CHEATS", subtitle: "Game Genie · GameShark · Action Replay", icon: "wand.and.stars") {
+                            openCheats()
+                        }
                     }
                     if let goLive {
                         command(LiveStreamer.shared.isActive ? "LIVE NOW" : "GO LIVE",

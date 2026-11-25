@@ -31,6 +31,9 @@ typedef struct RDLRCoreTable {
     const char *const *options;
     /// Optional: checks a save state before the core sees it (for cores that trust their input).
     bool (*state_ok)(const void *data, size_t length);
+    /// Optional: the core's own cheat engine (bsnes: Game Genie and Pro Action Replay).
+    void (*cheat_reset)(void);
+    void (*cheat_set)(unsigned index, bool enabled, const char *code);
 } RDLRCoreTable;
 
 #define RDLR_CORE_TABLE(NAME, OPTIONS) { NAME, retro_set_environment, retro_set_video_refresh, \
@@ -38,5 +41,13 @@ typedef struct RDLRCoreTable {
     retro_init, retro_deinit, retro_get_system_info, retro_get_system_av_info, \
     retro_set_controller_port_device, retro_reset, retro_run, retro_serialize_size, retro_serialize, \
     retro_unserialize, retro_load_game, retro_unload_game, retro_get_memory_data, retro_get_memory_size, OPTIONS }
+
+/* The same, for a core whose retro_cheat_set works. */
+#define RDLR_CORE_TABLE_WITH_CHEATS(NAME, OPTIONS) { NAME, retro_set_environment, retro_set_video_refresh, \
+    retro_set_audio_sample, retro_set_audio_sample_batch, retro_set_input_poll, retro_set_input_state, \
+    retro_init, retro_deinit, retro_get_system_info, retro_get_system_av_info, \
+    retro_set_controller_port_device, retro_reset, retro_run, retro_serialize_size, retro_serialize, \
+    retro_unserialize, retro_load_game, retro_unload_game, retro_get_memory_data, retro_get_memory_size, OPTIONS, \
+    0, retro_cheat_reset, retro_cheat_set }
 
 #endif

@@ -63,6 +63,12 @@ jobs:
           xcrun swiftc -O games/retro-duo/ios/RetroDuo/Rewind.swift games/retro-duo/tests/rewind/main.swift \
             -o "$RUNNER_TEMP/rewind_test"
           "$RUNNER_TEMP/rewind_test"
+      - name: Check cheat-code parsing
+        run: |
+          set -euo pipefail
+          xcrun swiftc -O games/retro-duo/ios/RetroDuo/CheatCodes.swift games/retro-duo/tests/cheats/main.swift \
+            -o "$RUNNER_TEMP/cheats_test"
+          "$RUNNER_TEMP/cheats_test"
       - name: Stream a test picture to a stand-in RTMP server (live streaming)
         run: |
           set -euo pipefail
