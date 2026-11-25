@@ -321,7 +321,7 @@ final class LiveStreamCore {
         for packet in audioEncoder.encode(mix) {
             let ms = UInt32(truncatingIfNeeded: audioPackets * Int64(AACEncoder.framesPerPacket) * 1000 / 48_000)
             publisher.sendAudio(FLV.audioFrame(packet), timestamp: ms)
-            clips.add(audio: packet, time: Double(audioPackets) * Double(AACEncoder.framesPerPacket) / 48_000)
+            clips.add(audio: packet, index: audioPackets)
             audioPackets += 1
         }
     }

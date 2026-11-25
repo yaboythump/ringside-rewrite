@@ -10,11 +10,15 @@ final class ClipRecorder {
         var data: Data
         var keyframe: Bool
         var time: Double
+        /// Exactly (frame number / fps): rounded seconds would let samples overlap by a tick,
+        /// which the MP4 writer refuses.
+        var stamp: CMTime
     }
 
     struct AudioSample {
         var data: Data
         var time: Double
+        var stamp: CMTime
     }
 
     /// Everything needed to write one clip.
@@ -59,12 +63,15 @@ final class ClipRecorder {
             self.pps = pps
         }
         guard sps != nil, frame.keyframe || !video.isEmpty else { return }
-        video.append(VideoSample(data: frame.data, keyframe: frame.keyframe, time: Double(frame.frameIndex) / Double(fps)))
+        video.append(VideoSample(data: frame.data, keyframe: frame.keyframe, time: Double(frame.frameIndex) / Double(fps),
+                                 stamp: CMTime(value: frame.frameIndex, timescale: CMTimeScale(fps))))
         prune()
     }
 
-    func add(audio packet: Data, time: Double) {
-        audio.append(AudioSample(data: packet, time: time))
+    /// The `index`th AAC packet of the stream (1024 frames at 48 kHz each).
+    func add(audio packet: Data, index: Int64) {
+        let stamp = CMTime(value: index * Int64(AACEncoder.framesPerPacket), timescale: 48_000)
+        audio.append(AudioSample(data: packet, time: stamp.seconds, stamp: stamp))
         prune()
     }
 
@@ -162,10 +169,10 @@ final class ClipRecorder {
         writer.add(videoInput)
         if sound { writer.add(audioInput) }
         guard writer.startWriting() else { throw describe("start", writer.error) }
-        let origin = clip.video[0].time
+        let origin = clip.video[0].stamp
         writer.startSession(atSourceTime: .zero)
 
-        func cmTime(_ seconds: Double) -> CMTime { CMTime(seconds: max(0, seconds - origin), preferredTimescale: 48_000) }
+        func cmTime(_ stamp: CMTime) -> CMTime { CMTimeSubtract(stamp, origin) }
         func wait(_ input: AVAssetWriterInput) -> Bool {
             var tries = 0
             while !input.isReadyForMoreMediaData {
@@ -185,21 +192,21 @@ final class ClipRecorder {
             if takeVideo {
                 let sample = clip.video[v]
                 v += 1
-                guard let buffer = sampleBuffer(sample.data, format: videoFormat, time: cmTime(sample.time),
+                guard let buffer = sampleBuffer(sample.data, format: videoFormat, time: cmTime(sample.stamp),
                                                 duration: frameDuration, sync: sample.keyframe),
                       wait(videoInput) else { throw describe("video \(v)", writer.error) }
                 guard videoInput.append(buffer) else { throw describe("append video \(v)", writer.error) }
             } else {
                 let sample = audio[a]
                 a += 1
-                guard let buffer = audioBuffer(sample.data, format: audioFormat, time: cmTime(sample.time)),
+                guard let buffer = audioBuffer(sample.data, format: audioFormat, time: cmTime(sample.stamp)),
                       wait(audioInput) else { throw describe("audio \(a)", writer.error) }
                 guard audioInput.append(buffer) else { throw describe("append audio \(a)", writer.error) }
             }
         }
         videoInput.markAsFinished()
         if sound { audioInput.markAsFinished() }
-        writer.endSession(atSourceTime: cmTime(clip.video.last!.time) + frameDuration)
+        writer.endSession(atSourceTime: cmTime(clip.video.last!.stamp) + frameDuration)
         let done = DispatchSemaphore(value: 0)
         writer.finishWriting { done.signal() }
         done.wait()
