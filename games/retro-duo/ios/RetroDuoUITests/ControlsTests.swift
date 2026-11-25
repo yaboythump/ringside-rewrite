@@ -77,6 +77,27 @@ final class ControlsTests: XCTestCase {
         XCTAssertTrue(app.buttons["Game menu"].isHittable)
     }
 
+    func testAchievementsOpenFromCommandCenter() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemoGBA", "-RetroDuoUITests"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate() }
+        let menu = app.buttons["Game menu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 15))
+        menu.tap()
+        let tile = app.buttons["avydrix-achievements"]
+        if !tile.waitForExistence(timeout: 8) || !tile.isHittable { app.swipeUp() }
+        XCTAssertTrue(tile.exists, "The command center has an ACHIEVEMENTS tile")
+        tile.tap()
+        XCTAssertTrue(app.navigationBars["Achievements"].waitForExistence(timeout: 5), "It opens the achievements list")
+        XCTAssertTrue(app.textFields["avydrix-ra-username"].waitForExistence(timeout: 3), "Signed out, it offers to sign in")
+        attach(app, "achievements")
+        app.navigationBars["Achievements"].buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["avydrix-resume-game"].waitForExistence(timeout: 5))
+        app.buttons["avydrix-resume-game"].tap()
+    }
+
     func testFoldedLibraryHasPersistentAddGamesButton() {
         let app = XCUIApplication()
         // The library launch flag skips the boot screen without auto-opening a ROM.

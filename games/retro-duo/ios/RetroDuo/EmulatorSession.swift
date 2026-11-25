@@ -100,6 +100,8 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         core?.startAudio(audio)
         audio.setMuted(isMuted)
         rumble.prepare()
+        RetroAchievements.shared.announce = { [weak self] text in self?.show(toast: text) }
+        RetroAchievements.shared.start(game: game) { [weak self] address in self?.core?.peek(address) }
         NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)),
                                                name: AVAudioSession.interruptionNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(controllersChanged),
@@ -122,6 +124,8 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         displayLink?.invalidate()
         displayLink = nil
         guard let core else { return }
+        RetroAchievements.shared.stop()
+        RetroAchievements.shared.announce = nil
         writeBattery(force: true)
         if !keepResume { saveProtectedResume() }
         audio.stop()
@@ -334,6 +338,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
             if keys & 0x0F != 0 { deliveredDirections += 1 }
             core.setKeys(keys)
             core.runFrame()
+            RetroAchievements.shared.frame()
             frameDebt -= 1
             frames += 1
             framesSinceSnapshot += 1
@@ -453,6 +458,7 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         guard let core, let data = try? Data(contentsOf: library.stateURL(for: game, slot: slot)) else { return false }
         let loaded = core.loadState(data)
         if loaded {
+            RetroAchievements.shared.stateLoaded()
             for screen in screens.allObjects { core.show(on: screen) }
         }
         return loaded

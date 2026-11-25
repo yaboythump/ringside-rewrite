@@ -330,4 +330,11 @@ void MDCoreSetCheats(MDCore *core, const char *const *entries, size_t count, boo
     core->nds->AREngine.Cheats = std::move(codes);
 }
 
+size_t MDCoreReadMainRAM(MDCore *core, uint32_t offset, uint8_t *buffer, size_t length) {
+    if (!core || !core->nds || !core->nds->MainRAM) return 0;
+    NDS *nds = core->nds.get();
+    for (size_t i = 0; i < length; i++) buffer[i] = nds->MainRAM[(offset + i) & nds->MainRAMMask];
+    return length;
+}
+
 } // extern "C"

@@ -4,3 +4,4 @@
 #include "NESCore.h"
 #include "RDGBA.h"
 #include "RDLibretro.h"
+#include "RDAchievements.h"

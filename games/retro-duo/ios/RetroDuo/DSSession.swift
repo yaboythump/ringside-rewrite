@@ -105,6 +105,13 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         MDCoreSetRunning(created, true)
         audio.start(dsCore: created)
         audio.setMuted(isMuted)
+        RetroAchievements.shared.announce = { [weak self] text in self?.show(toast: text) }
+        RetroAchievements.shared.start(game: game) { [weak self] address in
+            // Main RAM only (RetroAchievements' DS addresses stay inside it).
+            guard let core = self?.core, (0x0200_0000..<0x0240_0000).contains(address) else { return nil }
+            var byte: UInt8 = 0
+            return MDCoreReadMainRAM(core, address - 0x0200_0000, &byte, 1) == 1 ? byte : nil
+        }
 
         let link = CADisplayLink(target: self, selector: #selector(step(_:)))
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 60)
@@ -116,6 +123,8 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         displayLink?.invalidate()
         displayLink = nil
         guard let core else { return }
+        RetroAchievements.shared.stop()
+        RetroAchievements.shared.announce = nil
         MDCoreSetRunning(core, false)
         writeSave(force: true)
         saveProtectedResume()
@@ -383,6 +392,10 @@ final class DSSession: NSObject, ObservableObject, PadInput {
             }
         }
         if frame != lastFrame {
+            // The console runs on its own thread: check achievements once per new frame.
+            if !rewinding {
+                for _ in 0..<min(frame &- lastFrame, 8) { RetroAchievements.shared.frame() }
+            }
             lastFrame = frame
             top.withUnsafeBufferPointer { buffer in
                 for screen in topScreens.allObjects {
@@ -440,9 +453,11 @@ final class DSSession: NSObject, ObservableObject, PadInput {
 
     private func loadState(slot: String) -> Bool {
         guard let core, let data = try? Data(contentsOf: library.stateURL(for: game, slot: slot)) else { return false }
-        return data.withUnsafeBytes {
+        let loaded = data.withUnsafeBytes {
             MDCoreLoadState(core, $0.bindMemory(to: UInt8.self).baseAddress, $0.count)
         }
+        if loaded { RetroAchievements.shared.stateLoaded() }
+        return loaded
     }
 
     private func show(toast text: String) {

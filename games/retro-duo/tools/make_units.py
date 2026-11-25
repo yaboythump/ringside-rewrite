@@ -13,6 +13,7 @@ CORES = {
     "mgba": ("vendor/mgba/SOURCES.txt", "vendor/mgba", "ios/RetroDuo/GBACore/units", "GBAConfig.h"),
     "bsnes": ("vendor/bsnes/SOURCES.txt", "vendor/bsnes", "ios/RetroDuo/SNESCore/units", "SNESConfig.h"),
     "blastem": ("vendor/blastem/SOURCES.txt", "vendor/blastem", "ios/RetroDuo/SegaCore/units", "SegaConfig.h"),
+    "rcheevos": ("vendor/rcheevos/SOURCES.txt", "vendor/rcheevos/src", "ios/RetroDuo/Achievements/units", "AchievementsConfig.h"),
 }
 # Entries starting with "generated/" are made at build time (tools/generate_blastem.py) next to
 # the units folder rather than taken from the vendor folder.

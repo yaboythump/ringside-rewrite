@@ -100,6 +100,11 @@ struct AboutView: View {
                         file: "mGBA-LICENSE"
                     )
                     licenseSection(
+                        "rcheevos • RetroAchievements",
+                        credit: "rcheevos is RetroAchievements' achievement library, by the RetroAchievements team and contributors. It is free software under the MIT license; its source is at github.com/RetroAchievements/rcheevos.",
+                        file: "rcheevos-LICENSE"
+                    )
+                    licenseSection(
                         "melonDS • Nintendo DS",
                         credit: "melonDS was developed by the melonDS team. Its emulator and this distribution include software covered by GNU GPL version 3 or later.",
                         file: "melonDS-LICENSE"
