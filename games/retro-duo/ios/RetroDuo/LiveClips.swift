@@ -201,7 +201,13 @@ final class ClipRecorder {
                 a += 1
                 guard let buffer = audioBuffer(sample.data, format: audioFormat, time: cmTime(sample.stamp)),
                       wait(audioInput) else { throw describe("audio \(a)", writer.error) }
-                guard audioInput.append(buffer) else { throw describe("append audio \(a)", writer.error) }
+                guard audioInput.append(buffer) else {
+                    let previous = a >= 2 ? cmTime(audio[a - 2].stamp).value : -1
+                    let duration = CMSampleBufferGetDuration(buffer)
+                    throw describe("append audio \(a) at \(cmTime(sample.stamp).value)/48000 after \(previous), lasting "
+                                   + "\(duration.value)/\(duration.timescale), \(sample.data.count) bytes; format "
+                                   + "\(asbd.mSampleRate) Hz \(asbd.mFramesPerPacket) frames/packet \(asbd.mChannelsPerFrame) ch", writer.error)
+                }
             }
         }
         videoInput.markAsFinished()
