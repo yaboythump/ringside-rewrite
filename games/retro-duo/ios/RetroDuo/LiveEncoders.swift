@@ -123,6 +123,10 @@ final class AACEncoder {
         outputFormat = aac
     }
 
+    /// The packets' format and the decoder setup (an ES descriptor), for writing clips.
+    var streamDescription: AudioStreamBasicDescription { outputFormat.streamDescription.pointee }
+    var magicCookie: Data? { converter.magicCookie }
+
     /// Interleaved stereo samples (L R L R ...); returns finished AAC packets in order.
     func encode(_ samples: [Float]) -> [Data] {
         pendingSamples.append(contentsOf: samples)

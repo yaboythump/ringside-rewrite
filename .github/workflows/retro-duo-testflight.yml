@@ -80,7 +80,8 @@ jobs:
           set -euo pipefail
           d=games/retro-duo
           xcrun swiftc -O $d/ios/RetroDuo/LiveRTMP.swift $d/ios/RetroDuo/LiveEncoders.swift \
-            $d/ios/RetroDuo/LiveStreamCore.swift $d/tests/live/main.swift -o "$RUNNER_TEMP/live_test"
+            $d/ios/RetroDuo/LiveStreamCore.swift $d/ios/RetroDuo/LiveClips.swift $d/ios/RetroDuo/LiveOverlay.swift \
+            $d/ios/RetroDuo/LiveChatLinks.swift $d/tests/live/main.swift -o "$RUNNER_TEMP/live_test"
           python3 $d/tests/live/fake_rtmp_server.py --port 19350 --out "$RUNNER_TEMP/live" --streams 2 \
             > "$RUNNER_TEMP/live-server.log" 2>&1 &
           server=$!

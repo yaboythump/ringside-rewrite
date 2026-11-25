@@ -166,3 +166,24 @@ struct TrackerPanel: View {
         return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, secs) : String(format: "%d:%02d", minutes, secs)
     }
 }
+
+extension StreamOverlay {
+    /// The tracker as a card for the live stream: the game's stats and party, or the session's
+    /// basics for a game without a tracker definition.
+    @MainActor
+    static func tracker(game: Game, openedAt: Date, peek: @escaping (UInt32) -> UInt8?) -> StreamOverlay {
+        let played = TrackerPanel.duration(Date().timeIntervalSince(openedAt))
+        guard let definition = TrackerCatalog.definition(for: game), let library = TrackerCatalog.library else {
+            return StreamOverlay(title: game.name, subtitle: game.system.displayName + " · AVYDRIX Play",
+                                 rows: [Row(label: "This session", value: played)])
+        }
+        let snapshot = library.snapshot(of: definition, memory: peek)
+        var overlay = StreamOverlay(title: definition.title, subtitle: "Live tracker · \(played)")
+        overlay.rows = snapshot.stats.map { Row(label: $0.label, value: $0.value) }
+        overlay.party = snapshot.party.map { member in
+            let name = member.name.isEmpty ? member.species : member.name
+            return "\(name)  Lv \(member.level)  HP \(member.hp)/\(member.maxHP)"
+        }
+        return overlay
+    }
+}
