@@ -166,8 +166,10 @@ final class ClipRecorder {
 
         let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: nil, sourceFormatHint: videoFormat)
         let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: nil, sourceFormatHint: audioFormat)
-        videoInput.expectsMediaDataInRealTime = false
-        audioInput.expectsMediaDataInRealTime = false
+        // "Real time" keeps both inputs taking samples instead of holding one back to interleave:
+        // a 30-second clip is small, and it's already in time order.
+        videoInput.expectsMediaDataInRealTime = true
+        audioInput.expectsMediaDataInRealTime = true
         guard writer.canAdd(videoInput), !sound || writer.canAdd(audioInput) else { throw Failure.writer("inputs") }
         writer.add(videoInput)
         if sound { writer.add(audioInput) }
@@ -179,7 +181,7 @@ final class ClipRecorder {
         func wait(_ input: AVAssetWriterInput) -> Bool {
             var tries = 0
             while !input.isReadyForMoreMediaData {
-                if writer.status != .writing || tries > 5_000 { return false }
+                if writer.status != .writing || tries > 2_000 { return false }
                 Thread.sleep(forTimeInterval: 0.001)
                 tries += 1
             }

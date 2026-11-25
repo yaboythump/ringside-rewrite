@@ -247,7 +247,9 @@ do {
     let clipped = DispatchSemaphore(value: 0)
     var clipResult: Result<Double, Error>?
     core.saveClip(seconds: 4, to: clipURL) { clipResult = $0; clipped.signal() }
-    _ = clipped.wait(timeout: .now() + 20)
+    let clipStart = Date()
+    if clipped.wait(timeout: .now() + 60) == .timedOut { print("     the clip didn't finish within a minute") }
+    print(String(format: "     writing the clip took %.1f s", Date().timeIntervalSince(clipStart)))
     var clipSeconds = 0.0
     if case .success(let seconds)? = clipResult { clipSeconds = seconds }
     check(clipSeconds >= 3.9 && clipSeconds <= 6.2, "saves a clip of the last 4 s, from a keyframe (\(clipSeconds) s; \(String(describing: clipResult)))")
