@@ -149,7 +149,10 @@ struct LibraryView: View {
             }
         }
         .animation(.easeInOut(duration: 0.18), value: pendingLaunch?.id)
-        .fullScreenCover(item: $playing, onDismiss: { profile.finish() }) { game in
+        .fullScreenCover(item: $playing, onDismiss: {
+            profile.finish()
+            SaveSync.shared.sync() // the game just saved: send it up
+        }) { game in
             if game.system == .nintendoDS {
                 DSGameView(session: DSSession(game: game, library: library))
             } else {
@@ -171,6 +174,8 @@ struct LibraryView: View {
             if featuredIndex >= showcasedGames.count { featuredIndex = 0 }
         }
         .onChange(of: scenePhase) { _, newPhase in
+            // Saves come down when the app opens and go up when it's put away (not mid-game).
+            if playing == nil && (newPhase == .active || newPhase == .background) { SaveSync.shared.sync() }
             // An interrupted insert animation should never unexpectedly open a game.
             if newPhase != .active, pendingLaunch != nil {
                 launchTask?.cancel()
@@ -184,7 +189,11 @@ struct LibraryView: View {
         }
         .onChange(of: library.requestedGameID) { _, _ in openRequestedGame() }
         .onChange(of: library.games.count) { _, _ in openRequestedGame() }
-        .onAppear { openRequestedGame() }
+        .onAppear {
+            SaveSync.shared.configure(saves: library.savesFolder, states: library.statesFolder)
+            if playing == nil { SaveSync.shared.sync() }
+            openRequestedGame()
+        }
         .task {
             // UI test launch arguments must continue to jump directly into gameplay.
             let arguments = ProcessInfo.processInfo.arguments

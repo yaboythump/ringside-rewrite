@@ -571,6 +571,7 @@ private struct AVSystemToolsView: View {
 }
 
 struct AVSettingsHome: View {
+    @ObservedObject private var saveSync = SaveSync.shared
     let diagnosticGames: [Game]
     let launchDiagnostic: (Game) -> Void
 
@@ -647,6 +648,26 @@ struct AVSettingsHome: View {
                     Text("Your finish changes the dashboard accents and console shell without modifying games, covers or audio.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                Section {
+                    Toggle("Sync saves with iCloud", isOn: Binding(get: { saveSync.enabled }, set: { saveSync.enabled = $0 }))
+                        .accessibilityIdentifier("avydrix-icloud-sync")
+                    HStack {
+                        Text(saveSync.status)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if saveSync.syncing {
+                            ProgressView()
+                        } else if saveSync.enabled {
+                            Button("Sync now") { saveSync.sync() }
+                                .font(.caption.weight(.semibold))
+                        }
+                    }
+                } header: {
+                    Text("iCloud")
+                } footer: {
+                    Text("In-game saves and save states follow you to your other iPhones and come back after a reinstall. Your games themselves aren't uploaded. The newer copy of a save wins; nothing is ever deleted from iCloud.")
                 }
                 Section("Audio") {
                     Toggle("Startup sound", isOn: $bootSound)
