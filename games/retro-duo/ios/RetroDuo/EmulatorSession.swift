@@ -101,6 +101,11 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         audio.setMuted(isMuted)
         rumble.prepare()
         RetroAchievements.shared.announce = { [weak self] text in self?.show(toast: text) }
+        LiveStreamer.shared.announce = { [weak self] text in self?.show(toast: text) }
+        LiveStreamer.shared.overlaySource = { [weak self] in
+            guard let self else { return nil }
+            return .tracker(game: self.game, openedAt: self.openedAt) { [weak self] in self?.peek($0) }
+        }
         RetroAchievements.shared.start(game: game) { [weak self] address in self?.core?.peek(address) }
         NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)),
                                                name: AVAudioSession.interruptionNotification, object: nil)
@@ -126,6 +131,8 @@ final class EmulatorSession: NSObject, ObservableObject, PadInput {
         guard let core else { return }
         RetroAchievements.shared.stop()
         RetroAchievements.shared.announce = nil
+        LiveStreamer.shared.announce = nil
+        LiveStreamer.shared.overlaySource = nil
         writeBattery(force: true)
         if !keepResume { saveProtectedResume() }
         audio.stop()

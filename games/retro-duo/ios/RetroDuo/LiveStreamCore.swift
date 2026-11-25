@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreGraphics
 import CoreVideo
 import Foundation
 
@@ -62,6 +63,13 @@ final class LiveStreamCore {
     private let frameLock = NSLock()
     private var screens: [(pixels: [UInt32], width: Int, height: Int)?]
     private var screenChanged = true
+    /// The tracker card (StreamOverlay), redrawn when it or its place changes.
+    private var overlay: StreamOverlay?
+    private var overlayImage: CGImage?
+    private var overlayDrawn: (StreamOverlay, CGRect)?
+
+    /// The last half-minute or so as sent, for clips (used on `queue` only).
+    private let clips: ClipRecorder
 
     // Sound: 48 kHz, game interleaved stereo and mic mono.
     private let audioLock = NSLock()
@@ -80,6 +88,7 @@ final class LiveStreamCore {
     init(config: Config) {
         self.config = config
         publisher = RTMPPublisher(destination: config.destination)
+        clips = ClipRecorder(fps: config.fps)
         screens = Array(repeating: nil, count: max(1, config.screens))
     }
 
@@ -103,6 +112,33 @@ final class LiveStreamCore {
     }
 
     var currentStats: Stats { queue.sync { stats } }
+
+    /// Shows a tracker card on the stream (nil hides it). Any thread.
+    func setOverlay(_ overlay: StreamOverlay?) {
+        frameLock.lock()
+        self.overlay = overlay
+        frameLock.unlock()
+    }
+
+    /// Saves about the last `seconds` of the stream (as viewers saw and heard it) to an MP4.
+    /// `completion` runs on a background queue with the clip's length in seconds.
+    func saveClip(seconds: Double = 30, to url: URL, completion: @escaping (Result<Double, Error>) -> Void) {
+        queue.async { [self] in
+            clips.audioCookie = audioEncoder?.magicCookie
+            guard let clip = clips.clip(seconds: seconds) else {
+                completion(.failure(ClipRecorder.Failure.nothingYet))
+                return
+            }
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    try ClipRecorder.write(clip, to: url)
+                    completion(.success(clip.duration))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
 
     // MARK: Input (any thread)
 
@@ -174,6 +210,7 @@ final class LiveStreamCore {
                 self?.queue.async { self?.sendVideo(frame) }
             }
             audioEncoder = AACEncoder(bitrate: config.audioBitrate)
+            clips.audioDescription = audioEncoder?.streamDescription
             guard videoEncoder != nil, audioEncoder != nil else {
                 set(.failed("This device's video encoder couldn't start."))
                 publisher.close()
@@ -250,6 +287,7 @@ final class LiveStreamCore {
         }
         guard sentSequenceHeader else { return }
         publisher.sendVideo(FLV.videoFrame(frame.data, keyframe: frame.keyframe), timestamp: timestamp(frame.frameIndex))
+        clips.add(video: frame)
         stats.sentFrames += 1
     }
 
@@ -283,6 +321,7 @@ final class LiveStreamCore {
         for packet in audioEncoder.encode(mix) {
             let ms = UInt32(truncatingIfNeeded: audioPackets * Int64(AACEncoder.framesPerPacket) * 1000 / 48_000)
             publisher.sendAudio(FLV.audioFrame(packet), timestamp: ms)
+            clips.add(audio: packet, time: Double(audioPackets) * Double(AACEncoder.framesPerPacket) / 48_000)
             audioPackets += 1
         }
     }
@@ -298,6 +337,7 @@ final class LiveStreamCore {
         frameLock.lock()
         let pictures = screens
         screenChanged = false
+        let card = overlay
         frameLock.unlock()
         CVPixelBufferLockBaseAddress(buffer, [])
         defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
@@ -307,12 +347,46 @@ final class LiveStreamCore {
         let width = config.width, height = config.height
         for y in 0..<height { (out + y * stride).update(repeating: 0xFF00_0000, count: width) }
         let slotWidth = width / pictures.count
+        var side = width / 2, below = height
         for (slot, picture) in pictures.enumerated() {
             guard let picture else { continue }
             Self.draw(picture.pixels, width: picture.width, height: picture.height,
                       into: out, stride: stride, x: slot * slotWidth, y: 0, boxWidth: slotWidth, boxHeight: height)
+            let fitted = Self.fit(width: picture.width, height: picture.height, boxWidth: slotWidth, boxHeight: height)
+            side = min(side, pictures.count == 1 ? (slotWidth - fitted.width) / 2 : 0)
+            below = min(below, (height - fitted.height) / 2)
+        }
+        if let card {
+            drawOverlay(card, side: side, below: below, base: base, bytesPerRow: stride * 4)
+        } else {
+            overlayImage = nil
+            overlayDrawn = nil
         }
         return buffer
+    }
+
+    /// The tracker card, beside or under the game (rendered again only when it changes).
+    private func drawOverlay(_ card: StreamOverlay, side: Int, below: Int, base: UnsafeMutableRawPointer, bytesPerRow: Int) {
+        let width = config.width, height = config.height
+        let rect = StreamOverlay.placement(width: width, height: height, side: side, below: below)
+        if overlayDrawn == nil || overlayDrawn!.0 != card || overlayDrawn!.1 != rect {
+            overlayImage = card.render(width: Int(rect.width), height: Int(rect.height))
+            overlayDrawn = (card, rect)
+        }
+        guard let image = overlayImage,
+              let context = CGContext(data: base, width: width, height: height, bitsPerComponent: 8, bytesPerRow: bytesPerRow,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        else { return }
+        // CoreGraphics counts y from the bottom.
+        let y = CGFloat(height) - rect.minY - CGFloat(image.height)
+        context.draw(image, in: CGRect(x: rect.minX, y: y, width: CGFloat(image.width), height: CGFloat(image.height)))
+    }
+
+    /// The size a picture is drawn at to fit a box.
+    static func fit(width: Int, height: Int, boxWidth: Int, boxHeight: Int) -> (width: Int, height: Int) {
+        let scale = min(Double(boxWidth) / Double(width), Double(boxHeight) / Double(height))
+        return (max(1, Int(Double(width) * scale)), max(1, Int(Double(height) * scale)))
     }
 
     /// Nearest-neighbour scale to fit the box, RGBX in, BGRA out.

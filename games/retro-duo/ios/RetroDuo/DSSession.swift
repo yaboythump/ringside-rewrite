@@ -106,6 +106,12 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         audio.start(dsCore: created)
         audio.setMuted(isMuted)
         RetroAchievements.shared.announce = { [weak self] text in self?.show(toast: text) }
+        LiveStreamer.shared.announce = { [weak self] text in self?.show(toast: text) }
+        let opened = Date()
+        LiveStreamer.shared.overlaySource = { [weak self] in
+            guard let self else { return nil }
+            return .tracker(game: self.game, openedAt: opened) { _ in nil }
+        }
         RetroAchievements.shared.start(game: game) { [weak self] address in
             // Main RAM only (RetroAchievements' DS addresses stay inside it).
             guard let core = self?.core, (0x0200_0000..<0x0240_0000).contains(address) else { return nil }
@@ -125,6 +131,8 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         guard let core else { return }
         RetroAchievements.shared.stop()
         RetroAchievements.shared.announce = nil
+        LiveStreamer.shared.announce = nil
+        LiveStreamer.shared.overlaySource = nil
         MDCoreSetRunning(core, false)
         writeSave(force: true)
         saveProtectedResume()

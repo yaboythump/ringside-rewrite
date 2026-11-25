@@ -376,6 +376,7 @@ final class ControlsTests: XCTestCase {
 
         let server = app.textFields["live-server"]
         XCTAssertTrue(server.waitForExistence(timeout: 8), "The live stream setup opens")
+        XCTAssertTrue(app.switches["live-overlay"].exists, "The tracker can be shown on stream")
         server.tap()
         server.typeText("rtmp://127.0.0.1:9/app")
         let key = app.secureTextFields["live-key"]

@@ -19,6 +19,9 @@ struct GameView: View {
     @AppStorage("retroDuoOriginalProportions") private var originalProportions = false
     /// The lower screen shows the live tracker instead of the touch controls.
     @AppStorage("avydrix.tracker.open") private var trackerOpen = false
+    /// While live: the lower screen shows the stream's chat.
+    @State private var chatOpen = false
+    @ObservedObject private var streamer = LiveStreamer.shared
     @State private var diagnostics = ""
 
     init(session: @autoclosure @escaping () -> EmulatorSession) {
@@ -162,7 +165,9 @@ struct GameView: View {
             VStack(spacing: 0) {
                 topBar
                     .zIndex(2) // Keep the menu above the controls: a big or moved D-pad must never cover it.
-                if trackerOpen {
+                if chatOpen && streamer.isLive {
+                    LiveChatPanel()
+                } else if trackerOpen {
                     TrackerPanel(session: session)
                 } else {
                     Spacer(minLength: 4)
@@ -210,7 +215,9 @@ struct GameView: View {
                     topBar
                         .zIndex(2)
                 }
-                if trackerOpen {
+                if chatOpen && streamer.isLive {
+                    LiveChatPanel()
+                } else if trackerOpen {
                     TrackerPanel(session: session)
                 } else {
                     HStack(alignment: .center) {
@@ -526,8 +533,12 @@ struct GameView: View {
                 .foregroundStyle(.white.opacity(0.6))
                 .lineLimit(1)
             Spacer(minLength: 0)
-            LiveBadge { showingLive = true }
-            Button { withAnimation(.easeInOut(duration: 0.2)) { trackerOpen.toggle() } } label: {
+            LiveBadge(chatOpen: $chatOpen) { showingLive = true }
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if chatOpen && streamer.isLive { chatOpen = false; trackerOpen = true } else { trackerOpen.toggle() }
+                }
+            } label: {
                 Image(systemName: trackerOpen ? "gamecontroller.fill" : "chart.bar.xaxis")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(trackerOpen ? Theme.accent : .white.opacity(0.7))

@@ -1,7 +1,9 @@
 // Checks the live-streaming code (LiveRTMP, LiveEncoders, LiveStreamCore) on a Mac: the RTMP
 // pieces on their own, then a real 6-second stream of a moving test picture and a tone to
 // tests/live/fake_rtmp_server.py, which checks what arrives, then a refused stream key.
-//   swiftc LiveRTMP.swift LiveEncoders.swift LiveStreamCore.swift tests/live/main.swift -o live_test
+// Also: the tracker card drawn onto the stream, clips of the last seconds, and chat links.
+//   swiftc LiveRTMP.swift LiveEncoders.swift LiveStreamCore.swift LiveClips.swift LiveOverlay.swift
+//          LiveChatLinks.swift tests/live/main.swift -o live_test
 //   python3 tests/live/fake_rtmp_server.py --port 19350 --out OUT &  live_test 19350
 import AVFoundation
 import Foundation
@@ -94,6 +96,70 @@ do {
           "the picture is scaled with sharp pixels and converted to BGRA")
 }
 
+// MARK: Tracker card
+
+do {
+    // A Game Boy picture in 1280x720 is 800 wide: 240 free on each side, so the card goes beside it.
+    let side = StreamOverlay.placement(width: 1280, height: 720, side: 240, below: 0)
+    check(side.minX >= 1040 && side.maxX <= 1280 && side.width > 150, "beside a Game Boy picture: in the right margin (\(side))")
+    // The DS's two screens leave a strip underneath instead.
+    let under = StreamOverlay.placement(width: 1280, height: 720, side: 0, below: 120)
+    check(under.minY >= 600 && under.width > 1000, "under the DS's screens: a strip along the bottom (\(under))")
+    // A GBA picture fills nearly the whole width: over its corner.
+    let corner = StreamOverlay.placement(width: 1280, height: 720, side: 100, below: 0)
+    check(corner.minX > 800 && corner.minY >= 360, "beside a GBA picture there's no room: over the corner (\(corner))")
+
+    let card = StreamOverlay(title: "Pokémon Red", subtitle: "Live tracker · 12m",
+                             rows: [.init(label: "Badges", value: "3"), .init(label: "Money", value: "₽12,345")],
+                             party: ["PIKACHU  Lv 25  HP 52/60", "CHARMELEON  Lv 24  HP 70/70"])
+    let image = card.render(width: Int(side.width), height: Int(side.height))
+    check(image != nil && image!.width == Int(side.width), "the card renders at the margin's width")
+    check((image?.height ?? 0) > 100 && (image?.height ?? 9999) < Int(side.height), "and only as tall as its content (\(image?.height ?? 0)px)")
+    // Text was drawn: some pixels are bright.
+    var bright = 0
+    if let image, let data = image.dataProvider?.data, let bytes = CFDataGetBytePtr(data) {
+        for i in Swift.stride(from: 0, to: CFDataGetLength(data), by: 4) where bytes[i] > 200 && bytes[i + 1] > 200 { bright += 1 }
+    }
+    check(bright > 200, "with readable text on it (\(bright) bright pixels)")
+    check(StreamOverlay(title: "Tetris").render(width: 300, height: 80) != nil, "a card with only a title renders")
+}
+
+// MARK: Chat links
+
+do {
+    check(LiveChatLinks.twitch("@SomeStreamer")?.absoluteString == "https://www.twitch.tv/popout/somestreamer/chat?darkpopout",
+          "Twitch chat from a channel name")
+    check(LiveChatLinks.twitch("https://www.twitch.tv/somestreamer")?.absoluteString == "https://www.twitch.tv/popout/somestreamer/chat?darkpopout",
+          "Twitch chat from a pasted channel link")
+    check(LiveChatLinks.kick("kick.com/some_streamer")?.absoluteString == "https://kick.com/popout/some_streamer/chat",
+          "Kick chat from a link without https")
+    check(LiveChatLinks.twitch("two words") == nil, "a name with spaces isn't a channel")
+    check(LiveChatLinks.youTubeVideoID("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1") == "dQw4w9WgXcQ"
+          && LiveChatLinks.youTubeVideoID("https://youtu.be/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
+          && LiveChatLinks.youTubeVideoID("https://www.youtube.com/live/dQw4w9WgXcQ?si=x") == "dQw4w9WgXcQ"
+          && LiveChatLinks.youTubeVideoID("@handle") == nil, "YouTube video IDs from watch, youtu.be and live links")
+    check(LiveChatLinks.youTubeLivePage("@MyChannel")?.absoluteString == "https://www.youtube.com/@MyChannel/live",
+          "a YouTube handle's live page")
+    let page = #"<html><link rel="canonical" href="https://www.youtube.com/watch?v=abcDEF12345"></html>"#
+    check(LiveChatLinks.youTubeVideoID(inLivePage: page) == "abcDEF12345", "finds the live video in that page")
+    check(LiveChatLinks.youTube(videoID: "abcDEF12345")?.absoluteString.contains("live_chat?is_popout=1") == true, "YouTube pop-out chat")
+}
+
+// MARK: Clips (on their own)
+
+do {
+    let recorder = ClipRecorder(keep: 10, fps: 30)
+    for i in 0..<(30 * 25) {
+        recorder.add(video: EncodedVideoFrame(data: Data([0, 0, 0, 1, 0x65]), keyframe: i % 60 == 0,
+                                              sps: i == 0 ? Data([0x67]) : nil, pps: i == 0 ? Data([0x68]) : nil,
+                                              frameIndex: Int64(i)))
+    }
+    check(recorder.video.first?.keyframe == true, "the kept video always starts on a keyframe")
+    let kept = (recorder.video.last!.time - recorder.video.first!.time)
+    check(kept >= 10 && kept < 12.1, "keeps about the last 10 s (\(String(format: "%.1f", kept)) s)")
+    check(recorder.clip(seconds: 5) == nil, "no clip before the sound's format is known")
+}
+
 // MARK: A real stream
 
 guard CommandLine.arguments.count > 1, let port = Int(CommandLine.arguments[1]) else {
@@ -116,7 +182,7 @@ final class StateLog {
     }
 }
 
-func stream(key: String, seconds: Double, log: StateLog) -> LiveStreamCore {
+func stream(key: String, seconds: Double, log: StateLog, overlay: StreamOverlay? = nil) -> LiveStreamCore {
     var config = LiveStreamCore.Config(destination: RTMPDestination(server: "rtmp://127.0.0.1:\(port)/app", key: key)!)
     config.videoBitrate = 2_000_000
     // CI's Mac is a virtual machine without a hardware encoder; the app streams 1280x720 on an
@@ -125,6 +191,7 @@ func stream(key: String, seconds: Double, log: StateLog) -> LiveStreamCore {
     config.height = 360
     let core = LiveStreamCore(config: config)
     core.onState = { log.add($0) }
+    core.setOverlay(overlay)
     core.start()
     guard seconds > 0 else { return core }
     _ = log.wait(10) { $0.contains(.live) }
@@ -162,7 +229,8 @@ func stream(key: String, seconds: Double, log: StateLog) -> LiveStreamCore {
 
 do {
     let log = StateLog()
-    let core = stream(key: "good-key", seconds: 6, log: log)
+    let core = stream(key: "good-key", seconds: 6, log: log, overlay: StreamOverlay(
+        title: "Test Cart", subtitle: "Live tracker · 0:06", rows: [.init(label: "Star X", value: "80")]))
     let stats = core.currentStats
     let ticks = Double(max(1, stats.ticks))
     print(String(format: "     %d ticks in %.1f s; per tick: picture %.2f ms, encoder %.2f ms, sound %.2f ms",
@@ -172,6 +240,40 @@ do {
     check(stats.sentFrames >= 150, "sends about 30 frames a second (\(stats.sentFrames) in 6 s)")
     check(stats.droppedFrames == 0, "drops no frames on a fast connection (\(stats.droppedFrames))")
     check(stats.kilobitsPerSecond > 20, "reports its upload rate (\(stats.kilobitsPerSecond) kbps)")
+    check(stats.composeMs / ticks < 20, String(format: "the tracker card keeps the picture quick (%.2f ms a frame)", stats.composeMs / ticks))
+
+    // A clip of the last 4 seconds, as viewers saw and heard them.
+    let clipURL = FileManager.default.temporaryDirectory.appendingPathComponent("live-test-clip.mp4")
+    let clipped = DispatchSemaphore(value: 0)
+    var clipResult: Result<Double, Error>?
+    core.saveClip(seconds: 4, to: clipURL) { clipResult = $0; clipped.signal() }
+    _ = clipped.wait(timeout: .now() + 20)
+    var clipSeconds = 0.0
+    if case .success(let seconds)? = clipResult { clipSeconds = seconds }
+    check(clipSeconds >= 3.9 && clipSeconds <= 6.2, "saves a clip of the last 4 s, from a keyframe (\(clipSeconds) s; \(String(describing: clipResult)))")
+    let asset = AVURLAsset(url: clipURL)
+    let checked = DispatchSemaphore(value: 0)
+    var videoTracks = 0, audioTracks = 0, duration = 0.0, size = CGSize.zero
+    Task {
+        videoTracks = (try? await asset.loadTracks(withMediaType: .video).count) ?? 0
+        audioTracks = (try? await asset.loadTracks(withMediaType: .audio).count) ?? 0
+        duration = (try? await asset.load(.duration).seconds) ?? 0
+        if let track = try? await asset.loadTracks(withMediaType: .video).first {
+            size = (try? await track.load(.naturalSize)) ?? .zero
+        }
+        checked.signal()
+    }
+    _ = checked.wait(timeout: .now() + 20)
+    check(videoTracks == 1 && audioTracks == 1, "the clip is an MP4 with picture and sound (\(videoTracks) video, \(audioTracks) audio)")
+    check(abs(duration - clipSeconds) < 0.6, "playing for as long as it should (\(String(format: "%.2f", duration)) s)")
+    check(size == CGSize(width: 640, height: 360), "at the stream's size (\(size))")
+    // A frame decodes.
+    let generator = AVAssetImageGenerator(asset: asset)
+    let frame = try? generator.copyCGImage(at: CMTime(seconds: 1, preferredTimescale: 600), actualTime: nil)
+    check(frame != nil, "and its pictures decode")
+    if let out = ProcessInfo.processInfo.environment["LIVE_TEST_OUT"] {
+        try? FileManager.default.copyItem(at: clipURL, to: URL(fileURLWithPath: out).appendingPathComponent("clip.mp4"))
+    }
     core.stop()
     check(log.wait(5) { $0.last == .ended }, "ends cleanly")
     Thread.sleep(forTimeInterval: 1) // let FCUnpublish / deleteStream reach the server
