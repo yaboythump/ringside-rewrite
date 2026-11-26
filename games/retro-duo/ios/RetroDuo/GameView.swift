@@ -22,7 +22,15 @@ struct GameView: View {
     /// While live: the lower screen shows the stream's chat.
     @State private var chatOpen = false
     @ObservedObject private var streamer = LiveStreamer.shared
+    @ObservedObject private var controllers = ControllerWatcher.shared
+    @AppStorage(ControllerMode.key) private var controllerMode = ControllerMode.auto.rawValue
     @State private var diagnostics = ""
+
+    /// A controller plays: no touch controls, the game fills the screen.
+    private var controllerModeOn: Bool {
+        !controlLayout.editing
+            && (ControllerMode(rawValue: controllerMode) ?? .auto).isActive(controllerConnected: controllers.connected)
+    }
 
     init(session: @autoclosure @escaping () -> EmulatorSession) {
         let gameSession = session()
@@ -37,6 +45,8 @@ struct GameView: View {
             Group {
                 if let error = session.errorMessage {
                     errorView(error)
+                } else if controllerModeOn {
+                    controllerLayout(size)
                 } else if system == .gameBoyAdvance &&
                             size.width > size.height * 1.15 &&
                             !hinge.isHalfOpen &&
@@ -83,7 +93,11 @@ struct GameView: View {
         .persistentSystemOverlays(.hidden)
         .onAppear {
             // UI tests start with the touch controls showing; the tracker test opens it itself.
-            if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") { trackerOpen = false }
+            if ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") {
+                trackerOpen = false
+                // Each test starts from the default (touch controls unless a controller is connected).
+                if !ProcessInfo.processInfo.arguments.contains("-AvydrixSimulateController") { controllerMode = ControllerMode.auto.rawValue }
+            }
             session.start()
         }
         .onDisappear {
@@ -151,9 +165,82 @@ struct GameView: View {
         .onChange(of: showingMenu) { _, open in
             session.setPaused(open || controlLayout.editing)
         }
+        .onChange(of: controllers.connected) { _, connected in
+            if connected && ControllerMode(rawValue: controllerMode) == .auto {
+                session.show(toast: "🎮 Controller mode: press Home for the menu")
+            }
+        }
+        .onReceive(controllers.menuPressed) { _ in
+            guard !showingLive, !showingCheats, !controlLayout.editing else { return }
+            showingMenu.toggle()
+        }
     }
 
     // MARK: Layouts
+
+    /// Controller mode: the game as big as it fits, with the tracker or chat beside or under it
+    /// when they're open and there's room. Folded like a laptop, the game keeps the upper screen
+    /// and the lower one shows the tracker, chat or a reminder of the menu button.
+    @ViewBuilder
+    private func controllerLayout(_ size: CGSize) -> some View {
+        let panelOpen = trackerOpen || (chatOpen && streamer.isLive)
+        if hinge.isHalfOpen && size.width > size.height {
+            VStack(spacing: 0) {
+                gameplayPanel(width: size.width, height: size.height / 2)
+                VStack(spacing: 0) {
+                    topBar.zIndex(2)
+                    if panelOpen { sidePanel } else { ControllerModeHint() }
+                }
+                .frame(width: size.width, height: size.height / 2)
+            }
+            .accessibilityIdentifier("controller-mode")
+        } else {
+            let aspect = max(0.1, session.aspect) // height / width
+            let portrait = size.height >= size.width
+            let fitted = CGSize(width: min(size.width, size.height / aspect), height: min(size.height, size.width * aspect))
+            let room = portrait ? size.height - fitted.height - 44 : size.width - fitted.width
+            ZStack {
+                Color.black
+                if panelOpen && room >= (portrait ? 220 : 260) {
+                    if portrait {
+                        VStack(spacing: 0) {
+                            Color.clear.frame(height: 44)
+                            fullScreenGame(fitted)
+                            sidePanel
+                        }
+                    } else {
+                        HStack(spacing: 0) {
+                            fullScreenGame(fitted)
+                            sidePanel.padding(.top, 44)
+                        }
+                    }
+                } else {
+                    fullScreenGame(fitted)
+                }
+            }
+            .frame(width: size.width, height: size.height)
+            .modifier(ControllerChrome { topBar })
+            .accessibilityIdentifier("controller-mode")
+        }
+    }
+
+    private func fullScreenGame(_ fitted: CGSize) -> some View {
+        PixelScreen(session: session)
+            .overlay(AVDisplayFilter())
+            .frame(width: fitted.width, height: fitted.height)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("upperGamePanel")
+            .accessibilityLabel("Game screen")
+    }
+
+    @ViewBuilder
+    private var sidePanel: some View {
+        if chatOpen && streamer.isLive {
+            LiveChatPanel()
+        } else {
+            TrackerPanel(session: session)
+        }
+    }
 
     // Fill the upper half by default, with optional original picture proportions.
     private func portraitLayout(_ size: CGSize) -> some View {

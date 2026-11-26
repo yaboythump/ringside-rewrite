@@ -77,6 +77,38 @@ final class ControlsTests: XCTestCase {
         XCTAssertTrue(app.buttons["Game menu"].isHittable)
     }
 
+    func testControllerModeFillsTheScreen() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RetroDuoDemoGBA", "-RetroDuoUITests", "-AvydrixSimulateController"]
+        XCUIDevice.shared.orientation = .portrait
+        app.launch()
+        defer { app.terminate() }
+        let screen = app.otherElements["upperGamePanel"]
+        XCTAssertTrue(screen.waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["START"].exists, "A controller hides the touch controls")
+        let window = app.windows.firstMatch.frame
+        XCTAssertGreaterThan(screen.frame.width, window.width * 0.95, "The game spans the screen's width")
+        attach(app, "controller-mode")
+        // The top bar fades away, and a tap brings it back.
+        sleep(5)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let menu = app.buttons["Game menu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 3) && menu.isHittable, "A tap shows the menu button")
+        menu.tap()
+        let tile = app.buttons["avydrix-controller-mode-tile"]
+        if !tile.waitForExistence(timeout: 8) || !tile.isHittable { app.swipeUp() }
+        XCTAssertTrue(tile.exists, "The menu can turn controller mode off")
+        tile.tap() // Always
+        tile.tap() // Off
+        app.buttons["avydrix-resume-game"].tap()
+        XCTAssertTrue(app.buttons["START"].waitForExistence(timeout: 5), "Off brings the touch controls back")
+        // Leave the setting as it was for other tests.
+        app.buttons["Game menu"].tap()
+        if !tile.waitForExistence(timeout: 8) || !tile.isHittable { app.swipeUp() }
+        tile.tap() // Auto
+        app.buttons["avydrix-resume-game"].tap()
+    }
+
     func testAchievementsOpenFromCommandCenter() {
         let app = XCUIApplication()
         app.launchArguments = ["-RetroDuoDemoGBA", "-RetroDuoUITests"]

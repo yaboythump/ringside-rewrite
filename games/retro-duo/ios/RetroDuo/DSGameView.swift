@@ -17,7 +17,16 @@ struct DSGameView: View {
     @AppStorage("avydrix.dsTouchScale") private var touchScale = 1.0
     @AppStorage("retroDuoTwoPanels") private var useTwoPanels = true
     @AppStorage("retroDuoOriginalProportions") private var originalProportions = false
+    @ObservedObject private var controllers = ControllerWatcher.shared
+    @AppStorage(ControllerMode.key) private var controllerMode = ControllerMode.auto.rawValue
     @State private var diagnostics = ""
+
+    /// A controller plays: no touch buttons, both screens as big as they fit (the touch screen
+    /// still takes touches).
+    private var controllerModeOn: Bool {
+        !controlLayout.editing
+            && (ControllerMode(rawValue: controllerMode) ?? .auto).isActive(controllerConnected: controllers.connected)
+    }
 
     init(session: @autoclosure @escaping () -> DSSession) {
         let dsSession = session()
@@ -32,6 +41,8 @@ struct DSGameView: View {
             Group {
                 if let error = session.errorMessage {
                     errorView(error)
+                } else if controllerModeOn {
+                    controllerLayout(size)
                 } else if hinge.isHalfOpen || duoMode == "stacked" || (duoMode == "auto" && useTwoPanels) {
                     if size.width > size.height {
                         tabletopLayout(size)
@@ -133,9 +144,49 @@ struct DSGameView: View {
         .onChange(of: showingMenu) { _, open in
             session.setPaused(open || controlLayout.editing)
         }
+        .onChange(of: controllers.connected) { _, connected in
+            if connected && ControllerMode(rawValue: controllerMode) == .auto {
+                session.show(toast: "🎮 Controller mode: press Home for the menu")
+            }
+        }
+        .onReceive(controllers.menuPressed) { _ in
+            guard !showingLive, !showingCheats, !controlLayout.editing else { return }
+            showingMenu.toggle()
+        }
     }
 
     // MARK: Layouts
+
+    /// Controller mode: the two screens stacked (portrait, or folded like a laptop, one per
+    /// half) or side by side (landscape), as big as they fit.
+    private func controllerLayout(_ size: CGSize) -> some View {
+        let bezel: CGFloat = 8
+        let stacked = size.height >= size.width || hinge.isHalfOpen
+        let width = stacked
+            ? min(size.width - 16, (size.height - 44 - 24) / 2 / 0.75) - bezel
+            : min(size.width / 2 - 16, (size.height - 44 - 16) / 0.75) - bezel
+        let topScreen = screen(swapScreens ? .bottom : .top, width: width)
+        return ZStack {
+            Color.black
+            Group {
+                if stacked {
+                    VStack(spacing: 16) {
+                        topScreen
+                        touchScreen(width: width)
+                    }
+                } else {
+                    HStack(spacing: 16) {
+                        topScreen
+                        touchScreen(width: width)
+                    }
+                }
+            }
+            .padding(.top, 44)
+        }
+        .frame(width: size.width, height: size.height)
+        .modifier(ControllerChrome { topBar })
+        .accessibilityIdentifier("controller-mode")
+    }
 
     private func portraitLayout(_ size: CGSize) -> some View { twoPanelLayout(size) }
     private func tabletopLayout(_ size: CGSize) -> some View { twoPanelLayout(size) }
