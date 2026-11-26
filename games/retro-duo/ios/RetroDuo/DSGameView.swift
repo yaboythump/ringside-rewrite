@@ -185,7 +185,6 @@ struct DSGameView: View {
         }
         .frame(width: size.width, height: size.height)
         .modifier(ControllerChrome { topBar })
-        .accessibilityIdentifier("controller-mode")
     }
 
     private func portraitLayout(_ size: CGSize) -> some View { twoPanelLayout(size) }

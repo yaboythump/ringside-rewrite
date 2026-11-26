@@ -48,6 +48,7 @@ final class ControllerWatcher: ObservableObject {
 
     /// UI tests stand in a controller with this launch argument.
     private let simulated = ProcessInfo.processInfo.arguments.contains("-AvydrixSimulateController")
+    private let uiTests = ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests")
 
     private init() {
         for name in [Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect] {
@@ -61,7 +62,8 @@ final class ControllerWatcher: ObservableObject {
     func refresh() {
         let pads = GCController.controllers().filter { $0.extendedGamepad != nil }
         pads.forEach(configure)
-        connected = simulated || !pads.isEmpty
+        // UI tests only see the stand-in (a simulator can report a controller of its own).
+        connected = simulated || (!uiTests && !pads.isEmpty)
         name = simulated ? "Test controller" : pads.first?.vendorName
     }
 

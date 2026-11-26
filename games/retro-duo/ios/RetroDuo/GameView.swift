@@ -193,7 +193,6 @@ struct GameView: View {
                 }
                 .frame(width: size.width, height: size.height / 2)
             }
-            .accessibilityIdentifier("controller-mode")
         } else {
             let aspect = max(0.1, session.aspect) // height / width
             let portrait = size.height >= size.width
@@ -220,7 +219,6 @@ struct GameView: View {
             }
             .frame(width: size.width, height: size.height)
             .modifier(ControllerChrome { topBar })
-            .accessibilityIdentifier("controller-mode")
         }
     }
 
