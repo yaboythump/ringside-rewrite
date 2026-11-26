@@ -43,7 +43,8 @@ jobs:
     env:
       RD_SIMULATOR_NAME: ${{ matrix.device }}
     # Two builds (archive + simulator) each compile BlastEm's ~56 MB generated 68000 core.
-    timeout-minutes: 60
+    # The full UI test suite on the Pro Max alone now runs about 45 minutes.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
