@@ -46,16 +46,16 @@ enum ConsoleBackends {
         case .nes: return NESBackend.make(rom: rom, battery: battery)
         case .gameBoyAdvance: return GBABackend.make(rom: rom, battery: battery)
         case .snes: return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SNES), rom: rom, battery: battery,
-                                                fileExtension: game.url.pathExtension.lowercased(), consoleName: "Super Nintendo")
+                                                fileExtension: game.coreExtension, consoleName: "Super Nintendo")
         case .genesis:
-            // BlastEm picks the console from the file extension.
+            // BlastEm picks the console from the header, then the extension (.bin files get their console's).
             return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SEGA), rom: rom, battery: battery,
-                                        fileExtension: game.url.pathExtension.lowercased(),
+                                        fileExtension: game.coreExtension,
                                         consoleName: game.system.displayName, padMap: LibretroBackend.segaPad, ram: .genesis)
         case .masterSystem, .gameGear:
             let gameGear = game.system == .gameGear
             return LibretroBackend.make(system: Int32(RDLR_SYSTEM_SEGA), rom: rom, battery: battery,
-                                        fileExtension: game.url.pathExtension.lowercased(),
+                                        fileExtension: game.coreExtension,
                                         consoleName: game.system.displayName, padMap: LibretroBackend.masterSystemPad,
                                         ram: .masterSystem, twoPlayers: !gameGear) { core in
                 // BlastEm draws these inside a Genesis-sized picture: the 192 visible lines start
