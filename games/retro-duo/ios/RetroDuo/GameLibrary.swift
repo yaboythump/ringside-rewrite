@@ -39,14 +39,16 @@ enum GameSystem: String, Hashable {
         guard url.pathExtension.lowercased() == "bin" else { return GameSystem(fileExtension: url.pathExtension) }
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        guard let header = try? handle.read(upToCount: 0x8000) else { return nil }
-        return sega(binHeader: header)
+        guard let header = try? handle.read(upToCount: 0x8000),
+              let size = try? handle.seekToEnd() else { return nil }
+        return sega(binHeader: header, fileSize: Int(size))
     }
 
     /// Genesis (and 32X) cartridges say SEGA at 0x100; Master System and Game Gear ones carry
     /// "TMR SEGA" near the end of their first 8, 16 or 32 KB, whose last byte's high nibble is
-    /// the region: 5–7 are Game Gear.
-    static func sega(binHeader data: Data) -> GameSystem? {
+    /// the region: 5–7 are Game Gear. Unlicensed Genesis carts often leave the SEGA text out,
+    /// so, like BlastEm, a plausible 68000 start address inside the file counts as Genesis too.
+    static func sega(binHeader data: Data, fileSize: Int) -> GameSystem? {
         let bytes = [UInt8](data)
         func has(_ text: String, at offset: Int) -> Bool {
             let wanted = Array(text.utf8)
@@ -55,6 +57,10 @@ enum GameSystem: String, Hashable {
         if has("SEGA", at: 0x100) || has("SEG", at: 0x101) { return .genesis }
         for offset in [0x7FF0, 0x3FF0, 0x1FF0] where has("TMR SEGA", at: offset) && bytes.count > offset + 0xF {
             return (5...7).contains(bytes[offset + 0xF] >> 4) ? .gameGear : .masterSystem
+        }
+        if bytes.count >= 0x200, fileSize >= 0x8000, bytes[4] == 0 {
+            let reset = Int(bytes[5]) << 16 | Int(bytes[6]) << 8 | Int(bytes[7])
+            if reset & 1 == 0, reset >= 0x200, reset < fileSize { return .genesis }
         }
         return nil
     }
@@ -329,10 +335,10 @@ final class GameLibrary: ObservableObject {
         case .gameBoyAdvance: return header.count >= 0xC0 && header[header.startIndex + 3] == 0xEA
         case .snes: return size.intValue >= 0x8000  // bsnes works out the layout itself (and strips copier headers)
         case .genesis:
-            // Plain dumps say SEGA at 0x100; interleaved .smd files have their own layout.
+            // Plain dumps say SEGA at 0x100 (unlicensed ones at least start at a sensible address);
+            // interleaved .smd files have their own layout.
             return size.intValue >= 0x200 && (url.pathExtension.lowercased() == "smd" ||
-                (header.count >= 0x104 && header[header.startIndex + 0x100 ..< header.startIndex + 0x104].elementsEqual("SEGA".utf8)) ||
-                (header.count >= 0x104 && header[header.startIndex + 0x101 ..< header.startIndex + 0x104].elementsEqual("SEG".utf8)))
+                GameSystem.sega(binHeader: header, fileSize: size.intValue) == .genesis)
         case .masterSystem, .gameGear: return size.intValue >= 0x2000
         default: return looksLikeROM(header)
         }
