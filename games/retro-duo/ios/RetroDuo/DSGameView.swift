@@ -81,6 +81,7 @@ struct DSGameView: View {
         .persistentSystemOverlays(.hidden)
         .onAppear { session.start() }
         .onDisappear {
+            ControllerMode.holdLandscape(false)
             LiveStreamer.shared.stop()
             session.stop()
         }
@@ -144,9 +145,14 @@ struct DSGameView: View {
         .onChange(of: showingMenu) { _, open in
             session.setPaused(open || controlLayout.editing)
         }
+        // Controller mode turns the game sideways so it fills the screen (not when folded
+        // like a laptop, where the upper screen is the game's).
+        .onChange(of: controllerModeOn && ControllerMode.turnsSideways && !hinge.isHalfOpen, initial: true) { _, sideways in
+            ControllerMode.holdLandscape(sideways)
+        }
         .onChange(of: controllers.connected) { _, connected in
             if connected && ControllerMode(rawValue: controllerMode) == .auto {
-                session.show(toast: "🎮 Controller mode: press Home for the menu")
+                session.show(toast: "🎮 Controller mode: Select + Start opens the menu")
             }
         }
         .onReceive(controllers.menuPressed) { _ in

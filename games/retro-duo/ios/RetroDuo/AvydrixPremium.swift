@@ -148,6 +148,7 @@ enum AVControllerMapping {
 }
 
 struct AVGameSettings: View {
+    @AppStorage(ControllerMode.landscapeKey) private var controllerSideways = true
     @AppStorage(ControllerMode.key) private var controllerMode = ControllerMode.auto.rawValue
     @ObservedObject var tuning: AVControlTuning
     @Environment(\.dismiss) private var dismiss
@@ -259,10 +260,12 @@ struct AVGameSettings: View {
                         ForEach(ControllerMode.allCases) { Text($0.title).tag($0.rawValue) }
                     }
                     .accessibilityIdentifier("avydrix-controller-mode")
+                    Toggle("Turn the game sideways", isOn: $controllerSideways)
+                        .accessibilityIdentifier("avydrix-controller-sideways")
                 } header: {
                     Text("Controller")
                 } footer: {
-                    Text("With a Bluetooth controller (SCUF, Xbox, PlayStation, Backbone…) the touch controls go away and the game fills the screen. Press Home on the controller, or click both sticks, for the game menu; tap the screen to show the top bar.")
+                    Text("With a Bluetooth controller (SCUF, Xbox, PlayStation, Backbone…) the touch controls go away and the game fills the screen, turned sideways (even with rotation lock on). Press Select + Start together (or Home, or click both sticks) for the game menu; tap the screen to show the top bar.")
                 }
 
                 Section("Hinge control • \(tuning.system.displayName)") {
