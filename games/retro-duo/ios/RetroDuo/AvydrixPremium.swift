@@ -148,6 +148,7 @@ enum AVControllerMapping {
 }
 
 struct AVGameSettings: View {
+    @AppStorage(ControllerMode.key) private var controllerMode = ControllerMode.auto.rawValue
     @ObservedObject var tuning: AVControlTuning
     @Environment(\.dismiss) private var dismiss
     @AppStorage("avydrix.duo.mode") private var duoMode = "auto"
@@ -251,6 +252,17 @@ struct AVGameSettings: View {
                     Text("Hold ⏪ in the top bar to go back up to about 10 seconds; tap ⏩ to speed up. Sound is muted while rewinding or fast-forwarding.")
                         .font(.caption).foregroundStyle(.secondary)
                         .id(hingeRefresh)
+                }
+
+                Section {
+                    Picker("Controller mode", selection: $controllerMode) {
+                        ForEach(ControllerMode.allCases) { Text($0.title).tag($0.rawValue) }
+                    }
+                    .accessibilityIdentifier("avydrix-controller-mode")
+                } header: {
+                    Text("Controller")
+                } footer: {
+                    Text("With a Bluetooth controller (SCUF, Xbox, PlayStation, Backbone…) the touch controls go away and the game fills the screen. Press Home on the controller, or click both sticks, for the game menu; tap the screen to show the top bar.")
                 }
 
                 Section("Hinge control • \(tuning.system.displayName)") {
@@ -901,6 +913,16 @@ struct AVInGameCommandCenter: View {
     @State private var showingSaves = false
     @State private var confirmRestart = false
     @State private var showingAchievements = false
+    @AppStorage(ControllerMode.key) private var controllerMode = ControllerMode.auto.rawValue
+    @ObservedObject private var controllers = ControllerWatcher.shared
+
+    private var controllerModeSubtitle: String {
+        switch ControllerMode(rawValue: controllerMode) ?? .auto {
+        case .auto: return controllers.connected ? "Auto · on (controller connected)" : "Auto · when a controller connects"
+        case .on: return "Always on"
+        case .off: return "Off: touch controls"
+        }
+    }
     @ObservedObject private var achievements = RetroAchievements.shared
 
     private var skin: AVConsoleSkin { .selected(skinName) }
@@ -973,6 +995,12 @@ struct AVInGameCommandCenter: View {
                         showingAchievements = true
                     }
                     .accessibilityIdentifier("avydrix-achievements")
+                    command("CONTROLLER MODE", subtitle: controllerModeSubtitle, icon: "gamecontroller.fill") {
+                        let all = ControllerMode.allCases
+                        let current = ControllerMode(rawValue: controllerMode) ?? .auto
+                        controllerMode = all[(all.firstIndex(of: current)! + 1) % all.count].rawValue
+                    }
+                    .accessibilityIdentifier("avydrix-controller-mode-tile")
 
                     VStack(alignment: .leading, spacing: 12) {
                         Text("CONSOLE OPTIONS")

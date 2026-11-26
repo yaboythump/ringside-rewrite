@@ -468,7 +468,7 @@ final class DSSession: NSObject, ObservableObject, PadInput {
         return loaded
     }
 
-    private func show(toast text: String) {
+    func show(toast text: String) {
         toastTask?.cancel()
         withAnimation(.easeOut(duration: 0.2)) { toast = text }
         toastTask = Task { [weak self] in
