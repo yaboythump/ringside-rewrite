@@ -1010,7 +1010,7 @@ struct AVInGameCommandCenter: View {
                             .font(.system(size: 10, weight: .black, design: .monospaced))
                             .tracking(1.6)
                             .foregroundStyle(skin.accent)
-                        Toggle("Fill upper screen", isOn: Binding(
+                        Toggle("Fill the screen", isOn: Binding(
                             get: { !originalProportions },
                             set: { originalProportions = !$0 }
                         ))

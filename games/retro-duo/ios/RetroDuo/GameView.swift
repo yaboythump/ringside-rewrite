@@ -184,7 +184,7 @@ struct GameView: View {
 
     // MARK: Layouts
 
-    /// Controller mode: the game as big as it fits, with the tracker or chat beside or under it
+    /// Controller mode: the game filling the screen (or as big as it fits at its own proportions), with the tracker or chat beside or under it
     /// when they're open and there's room. Folded like a laptop, the game keeps the upper screen
     /// and the lower one shows the tracker, chat or a reminder of the menu button.
     @ViewBuilder
@@ -220,7 +220,9 @@ struct GameView: View {
                         }
                     }
                 } else {
-                    fullScreenGame(fitted)
+                    // Fill the whole screen, like the touch layouts, unless the player chose the
+                    // original picture proportions ("Fill the screen" off).
+                    fullScreenGame(originalProportions ? fitted : size)
                 }
             }
             .frame(width: size.width, height: size.height)
