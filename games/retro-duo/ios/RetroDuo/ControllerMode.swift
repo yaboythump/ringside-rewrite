@@ -12,6 +12,24 @@ enum ControllerMode: String, CaseIterable, Identifiable {
     case off
 
     static let key = "avydrix.controllerMode"
+    /// Turn the game sideways in controller mode, so it fills the screen.
+    static let landscapeKey = "avydrix.controllerMode.landscape"
+
+    static var turnsSideways: Bool { UserDefaults.standard.object(forKey: landscapeKey) as? Bool ?? true }
+
+    /// Holds the screen in landscape (or lets it turn freely again).
+    @MainActor
+    static func holdLandscape(_ hold: Bool) {
+        // UI tests check the layouts in the orientation they set themselves.
+        if hold && ProcessInfo.processInfo.arguments.contains("-RetroDuoUITests") { return }
+        let mask: UIInterfaceOrientationMask = hold ? .landscape : .allButUpsideDown
+        guard AppDelegate.orientations != mask else { return }
+        AppDelegate.orientations = mask
+        for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+            scene.windows.first?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: hold ? .landscape : .portrait)) { _ in }
+        }
+    }
 
     var id: String { rawValue }
 
@@ -43,7 +61,7 @@ final class ControllerWatcher: ObservableObject {
 
     @Published private(set) var connected = false
     @Published private(set) var name: String?
-    /// Home, or both sticks clicked together.
+    /// Home, both sticks clicked together, or Select + Start (View + Menu, Share + Options).
     let menuPressed = PassthroughSubject<Void, Never>()
 
     /// UI tests stand in a controller with this launch argument.
@@ -78,12 +96,26 @@ final class ControllerWatcher: ObservableObject {
                 MainActor.assumeIsolated { ControllerWatcher.shared.menuPressed.send() }
             }
         }
-        let sticks: GCControllerButtonValueChangedHandler = { [weak pad] _, _, _ in
-            guard let pad, pad.leftThumbstickButton?.isPressed == true, pad.rightThumbstickButton?.isPressed == true else { return }
+        // Some controllers' Home stays with iOS: the extended profile's and the physical
+        // profile's Home are watched, plus two button pairs that always reach the app.
+        if let home = controller.physicalInputProfile.buttons[GCInputButtonHome], home !== pad.buttonHome {
+            home.preferredSystemGestureState = .disabled
+            home.pressedChangedHandler = { _, _, pressed in
+                guard pressed else { return }
+                MainActor.assumeIsolated { ControllerWatcher.shared.menuPressed.send() }
+            }
+        }
+        let pairs: GCControllerButtonValueChangedHandler = { [weak pad] _, _, pressed in
+            guard pressed, let pad else { return }
+            let sticks = pad.leftThumbstickButton?.isPressed == true && pad.rightThumbstickButton?.isPressed == true
+            let selectStart = pad.buttonOptions?.isPressed == true && pad.buttonMenu.isPressed
+            guard sticks || selectStart else { return }
             MainActor.assumeIsolated { ControllerWatcher.shared.menuPressed.send() }
         }
-        pad.leftThumbstickButton?.pressedChangedHandler = sticks
-        pad.rightThumbstickButton?.pressedChangedHandler = sticks
+        pad.leftThumbstickButton?.pressedChangedHandler = pairs
+        pad.rightThumbstickButton?.pressedChangedHandler = pairs
+        pad.buttonOptions?.pressedChangedHandler = pairs
+        pad.buttonMenu.pressedChangedHandler = pairs
     }
 }
 
@@ -132,7 +164,7 @@ struct ControllerModeHint: View {
             Text(controllers.name.map { "\($0) connected" } ?? "Controller mode")
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
-            Text("Press Home on the controller, or click both sticks, for the game menu.")
+            Text("Press Select + Start together (or Home, or both sticks) for the game menu.")
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.6))
                 .multilineTextAlignment(.center)

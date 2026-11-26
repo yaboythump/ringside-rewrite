@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct RetroDuoApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var library = GameLibrary()
     @AppStorage("avydrix.skin") private var skinName = "obsidian"
     /// Shows the AVYDRIX console boot sequence on a normal app launch.
@@ -70,5 +71,15 @@ struct ConsoleBackdrop: View {
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
+    }
+}
+
+/// Lets controller mode turn the game sideways (ControllerMode.swift).
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    static var orientations: UIInterfaceOrientationMask = .allButUpsideDown
+
+    func application(_ application: UIApplication,
+                     supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        Self.orientations
     }
 }
