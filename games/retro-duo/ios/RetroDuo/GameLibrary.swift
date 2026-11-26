@@ -33,6 +33,47 @@ enum GameSystem: String, Hashable {
         }
     }
 
+    /// Works out a file's console. `.bin` is used by several Sega consoles, so for those the
+    /// cartridge header decides; every other extension names its console.
+    static func detect(_ url: URL) -> GameSystem? {
+        guard url.pathExtension.lowercased() == "bin" else { return GameSystem(fileExtension: url.pathExtension) }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let header = try? handle.read(upToCount: 0x8000) else { return nil }
+        return sega(binHeader: header)
+    }
+
+    /// Genesis (and 32X) cartridges say SEGA at 0x100; Master System and Game Gear ones carry
+    /// "TMR SEGA" near the end of their first 8, 16 or 32 KB, whose last byte's high nibble is
+    /// the region: 5–7 are Game Gear.
+    static func sega(binHeader data: Data) -> GameSystem? {
+        let bytes = [UInt8](data)
+        func has(_ text: String, at offset: Int) -> Bool {
+            let wanted = Array(text.utf8)
+            return bytes.count >= offset + wanted.count && Array(bytes[offset ..< offset + wanted.count]) == wanted
+        }
+        if has("SEGA", at: 0x100) || has("SEG", at: 0x101) { return .genesis }
+        for offset in [0x7FF0, 0x3FF0, 0x1FF0] where has("TMR SEGA", at: offset) && bytes.count > offset + 0xF {
+            return (5...7).contains(bytes[offset + 0xF] >> 4) ? .gameGear : .masterSystem
+        }
+        return nil
+    }
+
+    /// The extension the emulator cores and RetroAchievements know this console by.
+    var canonicalExtension: String {
+        switch self {
+        case .nes: return "nes"
+        case .snes: return "sfc"
+        case .genesis: return "md"
+        case .masterSystem: return "sms"
+        case .gameGear: return "gg"
+        case .gameBoy: return "gb"
+        case .gameBoyColor: return "gbc"
+        case .gameBoyAdvance: return "gba"
+        case .nintendoDS: return "nds"
+        }
+    }
+
     var maximumROMSize: Int {
         switch self {
         case .nintendoDS: return 512 * 1024 * 1024
@@ -58,6 +99,11 @@ struct Game: Identifiable, Hashable {
     var coverResource: String? = nil
 
     var isColor: Bool { system == .gameBoyColor }
+    /// The file's extension, or for a `.bin` (which doesn't say) the one its console goes by.
+    var coreExtension: String {
+        let ext = url.pathExtension.lowercased()
+        return ext == "bin" ? system.canonicalExtension : ext
+    }
     var systemName: String { system.displayName }
 }
 
@@ -83,7 +129,7 @@ final class GameLibrary: ObservableObject {
     /// A game the home screen widget asked to open (avydrix://play?id=…).
     @Published var requestedGameID: String?
 
-    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "gba", "agb", "nds", "sfc", "smc", "md", "gen", "smd", "sms", "gg"]
+    static let romExtensions: Set<String> = ["nes", "gb", "gbc", "cgb", "gba", "agb", "nds", "sfc", "smc", "md", "gen", "smd", "bin", "sms", "gg"]
     static let maximumROMSize = 8 * 1024 * 1024
 
     let documentsFolder: URL
@@ -147,7 +193,7 @@ final class GameLibrary: ObservableObject {
         list += urls
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
             .compactMap { url in
-                guard let system = GameSystem(fileExtension: url.pathExtension) else { return nil }
+                guard let system = GameSystem.detect(url) else { return nil }
                 return Game(id: url.lastPathComponent, url: url,
                             name: url.deletingPathExtension().lastPathComponent,
                             isBuiltIn: false, system: system)
@@ -164,7 +210,7 @@ final class GameLibrary: ObservableObject {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             let name = url.lastPathComponent
-            guard let system = GameSystem(fileExtension: url.pathExtension),
+            guard let system = GameSystem.detect(url),
                   Self.isPlayable(url, system: system) else {
                 skipped.append(name)
                 continue
@@ -184,7 +230,7 @@ final class GameLibrary: ObservableObject {
         }
         refresh()
         if !skipped.isEmpty {
-            message = "Couldn't add \(skipped.joined(separator: ", ")). AVYDRIX Play plays NES (.nes), Super Nintendo (.sfc, .smc), Sega Genesis (.md, .gen, .smd), Master System (.sms), Game Gear (.gg), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
+            message = "Couldn't add \(skipped.joined(separator: ", ")). AVYDRIX Play plays NES (.nes), Super Nintendo (.sfc, .smc), Sega Genesis (.md, .gen, .smd, .bin), Master System (.sms, .bin), Game Gear (.gg, .bin), Game Boy (.gb, .gbc), Game Boy Advance (.gba) and Nintendo DS (.nds) files."
         } else if added.count == 1 {
             message = "Added \(added[0])."
         } else if added.count > 1 {
@@ -323,6 +369,8 @@ final class GameLibrary: ObservableObject {
         let loose = (try? files.contentsOfDirectory(at: documentsFolder, includingPropertiesForKeys: nil,
                                                      options: [.skipsHiddenFiles])) ?? []
         for url in loose where Self.romExtensions.contains(url.pathExtension.lowercased()) {
+            // .bin is a common extension, so only Sega games are moved.
+            if url.pathExtension.lowercased() == "bin", GameSystem.detect(url) == nil { continue }
             let destination = gamesFolder.appendingPathComponent(url.lastPathComponent)
             try? files.removeItem(at: destination)
             try? files.moveItem(at: url, to: destination)

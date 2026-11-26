@@ -129,7 +129,7 @@ final class RetroAchievements: ObservableObject {
         stop()
         self.memory = memory
         guard !game.isBuiltIn, !game.isBundledGame else { return }
-        let console = RDAchConsoleID(game.url.pathExtension)
+        let console = RDAchConsoleID(game.coreExtension)
         guard console != 0 else { return }
         guard player != nil || signingIn else {
             gameStatus = "Sign in to RetroAchievements in Settings to earn achievements."
