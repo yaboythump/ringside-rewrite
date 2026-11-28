@@ -19,6 +19,12 @@ struct Capsule: Codable, Identifiable, Hashable {
     var openedAt: Date?
     var duration: TimeInterval
     var photoCount: Int
+    /// The question you were answering, if you used a prompt.
+    var prompt: String? = nil
+    /// What you said, written out on this iPhone. Only shown once the capsule is open.
+    var transcript: String? = nil
+    /// The earlier capsule this one answers ("reply to your past self").
+    var replyToID: UUID? = nil
 
     var isOpened: Bool { openedAt != nil }
 
@@ -121,10 +127,12 @@ final class CapsuleStore: ObservableObject {
     /// Moves the draft recording and photos into a new capsule folder and seals it.
     @discardableResult
     func seal(title: String, note: String, lock: Capsule.Lock,
-              recording: URL?, duration: TimeInterval, photos: [Data]) throws -> Capsule {
+              recording: URL?, duration: TimeInterval, photos: [Data],
+              prompt: String? = nil, replyTo: UUID? = nil) throws -> Capsule {
         let fm = FileManager.default
         var capsule = Capsule(id: UUID(), title: title, note: note, createdAt: Date(), lock: lock,
-                              openedAt: nil, duration: duration, photoCount: photos.count)
+                              openedAt: nil, duration: duration, photoCount: photos.count,
+                              prompt: prompt, replyToID: replyTo)
         try fm.createDirectory(at: folder(for: capsule.id), withIntermediateDirectories: true)
         if let recording {
             guard fm.fileExists(atPath: recording.path) else { throw CapsuleError.noRecording }
@@ -137,7 +145,42 @@ final class CapsuleStore: ObservableObject {
         capsule.photoCount = photos.count
         try write(capsule)
         scheduleReminder(for: capsule)
+        let sealed = capsule
+        // Write it out now if speech recognition is already allowed; otherwise it can be made after opening.
+        Task { await self.transcribe(sealed, askPermission: false) }
         return capsule
+    }
+
+    /// Writes out the voice message on this iPhone and saves it with the capsule.
+    @discardableResult
+    func transcribe(_ capsule: Capsule, askPermission: Bool) async -> Bool {
+        let url = audioURL(for: capsule)
+        guard FileManager.default.fileExists(atPath: url.path),
+              let text = await Transcriber.transcribe(url, askPermission: askPermission),
+              var current = capsules.first(where: { $0.id == capsule.id }) else { return false }
+        current.transcript = text
+        try? write(current)
+        return true
+    }
+
+    /// Every capsule in the same conversation (the original and all replies), oldest first.
+    func thread(for capsule: Capsule) -> [Capsule] {
+        var root = capsule
+        var seen: Set<UUID> = [root.id]
+        while let parentID = root.replyToID, let parent = self.capsule(id: parentID), !seen.contains(parent.id) {
+            seen.insert(parent.id)
+            root = parent
+        }
+        var result: [Capsule] = []
+        var queue = [root]
+        var visited: Set<UUID> = []
+        while !queue.isEmpty {
+            let next = queue.removeFirst()
+            guard visited.insert(next.id).inserted else { continue }
+            result.append(next)
+            queue += capsules.filter { $0.replyToID == next.id }
+        }
+        return result.sorted { $0.createdAt < $1.createdAt }
     }
 
     func open(_ capsule: Capsule) {
@@ -184,6 +227,11 @@ final class CapsuleStore: ObservableObject {
         guard capsules.isEmpty else { return }
         let day: TimeInterval = 86_400
         let now = Date()
+        let launch = Capsule(id: UUID(), title: "Before the channel launch", note: "Whatever the numbers say, you shipped it. That was the hard part.\n\nGo get a good dinner.",
+                             createdAt: now.addingTimeInterval(-200 * day), lock: .date(now.addingTimeInterval(-20 * day)),
+                             openedAt: now.addingTimeInterval(-19 * day), duration: 48, photoCount: 0,
+                             prompt: "What are you nervous about right now?",
+                             transcript: "Hey. It's the night before the first video goes up. I keep refreshing the upload page like that'll help. I'm nervous nobody watches it. But I made the thing. If you're hearing this, I hope you kept going.")
         let examples: [Capsule] = [
             Capsule(id: UUID(), title: "First week at the new place", note: "The boxes are still everywhere. Remember how scared you were? Look how far you've come.",
                     createdAt: now.addingTimeInterval(-380 * day), lock: .date(now.addingTimeInterval(-2 * day)),
@@ -194,9 +242,11 @@ final class CapsuleStore: ObservableObject {
             Capsule(id: UUID(), title: "Birthday, one year out", note: "",
                     createdAt: now.addingTimeInterval(-5 * day), lock: .date(now.addingTimeInterval(212 * day)),
                     openedAt: nil, duration: 133, photoCount: 0),
-            Capsule(id: UUID(), title: "Before the channel launch", note: "Whatever the numbers say, you shipped it. That was the hard part.\n\nGo get a good dinner.",
-                    createdAt: now.addingTimeInterval(-200 * day), lock: .date(now.addingTimeInterval(-20 * day)),
-                    openedAt: now.addingTimeInterval(-19 * day), duration: 48, photoCount: 0),
+            launch,
+            Capsule(id: UUID(), title: "Reply: Before the channel launch", note: "",
+                    createdAt: now.addingTimeInterval(-18 * day), lock: .date(now.addingTimeInterval(347 * day)),
+                    openedAt: nil, duration: 75, photoCount: 0, prompt: "What would you tell the person who recorded this?",
+                    replyToID: launch.id),
         ]
         for capsule in examples { try? write(capsule) }
         capsules.sort { $0.createdAt > $1.createdAt }

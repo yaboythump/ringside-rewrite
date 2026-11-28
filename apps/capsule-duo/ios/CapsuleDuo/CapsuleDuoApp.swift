@@ -25,6 +25,7 @@ struct CapsuleDuoApp: App {
             ShelfView()
                 .environmentObject(store)
                 .preferredColorScheme(.dark)
+                .modifier(AppLockGate())
                 .task { await DebugSnapshot.runIfAsked() }
         }
     }
@@ -41,6 +42,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound])
+    }
+
+    /// Tapping the yearly ritual reminder opens a new capsule.
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.notification.request.content.userInfo["ritual"] as? Bool == true {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                NotificationCenter.default.post(name: .dearTomorrowRitual, object: nil)
+            }
+        }
+        completionHandler()
     }
 }
 

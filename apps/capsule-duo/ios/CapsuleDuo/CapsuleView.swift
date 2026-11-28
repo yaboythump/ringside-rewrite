@@ -12,6 +12,11 @@ struct CapsuleView: View {
     @State private var confirmingDelete = false
     @State private var confirmingOpenWhen = false
     @State private var breaking = false
+    @State private var replying = false
+    @State private var transcribing = false
+    @State private var transcriptFailed = false
+    @State private var fold = FoldGesture()
+    @State private var onDuo = false
 
     var body: some View {
         Group {
@@ -54,6 +59,19 @@ struct CapsuleView: View {
             }
         }
         .onDisappear { player.stop() }
+        .fullScreenCover(isPresented: $replying) {
+            ComposeView(replyTo: capsuleID, initialPrompt: Prompts.reply)
+        }
+        .onHinge { degrees in
+            onDuo = true
+            var gesture = fold
+            let event = gesture.update(degrees)
+            fold = gesture
+            // Unfolding the phone opens a capsule that's ready.
+            guard event == .unfolded, !breaking, let capsule = store.capsule(id: capsuleID),
+                  !capsule.isOpened, capsule.canOpen(at: Date()) else { return }
+            if capsule.openWhenText != nil { confirmingOpenWhen = true } else { breakSeal(capsule) }
+        }
     }
 
     @ViewBuilder
@@ -123,6 +141,11 @@ struct CapsuleView: View {
                 }
                 .buttonStyle(GlowButtonStyle(colors: [Palette.gold, Color(red: 1.0, green: 0.55, blue: 0.3), Palette.nebula]))
                 .disabled(breaking)
+                if onDuo {
+                    Text("Or fold your iPhone Duo closed, then open it.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.muted)
+                }
             } else {
                 Label("In orbit. No listening early.", systemImage: "lock.fill")
                     .font(.system(size: 14, weight: .medium))
@@ -137,6 +160,9 @@ struct CapsuleView: View {
             SectionTitle(text: "Inside")
             VStack(alignment: .leading, spacing: 12) {
                 Label("A \(CapsuleFormat.duration(capsule.duration)) voice message", systemImage: "waveform")
+                if capsule.replyToID != nil {
+                    Label("A reply to your past self", systemImage: "arrowshape.turn.up.left")
+                }
                 if !capsule.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Label("A written note", systemImage: "text.alignleft")
                 }
@@ -182,6 +208,13 @@ struct CapsuleView: View {
                     .font(.system(size: 14))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Palette.muted)
+                if let prompt = capsule.prompt {
+                    Text("You were answering: \(prompt)")
+                        .font(.system(size: 15, design: .serif).italic())
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Palette.gold)
+                        .padding(.top, 4)
+                }
             }
             .padding(.top, 16)
 
@@ -216,6 +249,14 @@ struct CapsuleView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Palette.muted)
             }
+
+            Button {
+                player.stop()
+                replying = true
+            } label: {
+                Label("Reply to your past self", systemImage: "arrowshape.turn.up.left.fill")
+            }
+            .buttonStyle(GlowButtonStyle(colors: [Palette.gold, Palette.wax, Palette.nebula]))
         }
         .frame(maxWidth: .infinity)
         .onAppear { player.load(store.audioURL(for: capsule)) }
@@ -224,7 +265,10 @@ struct CapsuleView: View {
     private func notePane(_ capsule: Capsule) -> some View {
         let note = capsule.note.trimmingCharacters(in: .whitespacesAndNewlines)
         let photos = store.photoURLs(for: capsule).compactMap { UIImage(contentsOfFile: $0.path) }
+        let thread = store.thread(for: capsule)
         return VStack(alignment: .leading, spacing: 16) {
+            transcriptSection(capsule)
+
             if !note.isEmpty {
                 SectionTitle(text: "Your note")
                 Text(note)
@@ -248,16 +292,69 @@ struct CapsuleView: View {
                     }
                 }
             }
-            if note.isEmpty && photos.isEmpty {
+            if thread.count > 1 {
+                SectionTitle(text: "Conversation with yourself")
                 VStack(spacing: 10) {
-                    CapsuleOrb(opened: true, size: 60)
-                    Text("No note with this one. Just your voice.")
-                        .font(.system(size: 15, design: .rounded))
-                        .foregroundStyle(Palette.muted)
+                    ForEach(thread) { item in
+                        if item.id == capsule.id {
+                            Label("This message · \(item.createdAt.formatted(date: .abbreviated, time: .omitted))", systemImage: "circle.fill")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Palette.gold)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 6)
+                        } else {
+                            NavigationLink(value: item.id) {
+                                CapsuleRow(capsule: item, now: Date())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 30)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func transcriptSection(_ capsule: Capsule) -> some View {
+        if let transcript = capsule.transcript {
+            SectionTitle(text: "What you said")
+            Text(transcript)
+                .font(.system(size: 17, design: .serif))
+                .lineSpacing(5)
+                .foregroundStyle(Palette.ink)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .card()
+        } else if !player.missing {
+            Button {
+                transcribing = true
+                transcriptFailed = false
+                Task {
+                    let ok = await store.transcribe(capsule, askPermission: true)
+                    transcribing = false
+                    transcriptFailed = !ok
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    if transcribing { ProgressView().tint(Palette.gold) } else { Image(systemName: "text.quote") }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(transcribing ? "Writing it out…" : "Read it as text")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(transcriptFailed
+                             ? "Couldn't write this one out. Speech recognition may be off in Settings, or your language isn't supported on this iPhone."
+                             : "Turns your voice message into text, right on this iPhone.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Palette.muted)
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(Palette.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .card()
+            }
+            .buttonStyle(.plain)
+            .disabled(transcribing)
         }
     }
 

@@ -34,6 +34,7 @@ struct ShelfView: View {
     @EnvironmentObject private var store: CapsuleStore
     @State private var composing = false
     @State private var composeFocus = "Record"
+    @State private var composePrompt: String?
     @State private var destination = "Home"
     @AppStorage("dearTomorrowName") private var displayName = ""
     @State private var profile = false
@@ -64,10 +65,18 @@ struct ShelfView: View {
             .navigationDestination(item: $selected) { id in
                 CapsuleView(capsuleID: id)
             }
+            .navigationDestination(for: UUID.self) { id in
+                CapsuleView(capsuleID: id)
+            }
         }
         .tint(Palette.wax)
         .fullScreenCover(isPresented: $composing) {
-            ComposeView(initialFocus: composeFocus)
+            ComposeView(initialFocus: composeFocus, initialPrompt: composePrompt)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .dearTomorrowRitual)) { _ in
+            composePrompt = Prompts.ritual
+            composeFocus = "Record"
+            composing = true
         }
         .sheet(isPresented: $showingAbout) { AboutView() }
         .task { startDemoIfAsked() }
@@ -175,6 +184,7 @@ struct ShelfView: View {
     }
 
     private func openComposer(_ focus: String) {
+        composePrompt = nil
         composeFocus = focus
         composing = true
     }
@@ -346,13 +356,19 @@ struct AboutView: View {
                     }
                     .padding(.vertical, 6)
                 }
+                RitualSettings()
+                LockSettings()
                 Section("How it works") {
                     Label("Seal a capsule until a date, and you'll get a notification when it unlocks", systemImage: "calendar")
                     Label("Or seal it as “Open when…” and open it when that moment comes", systemImage: "envelope")
                     Label("Sealed means sealed: there's no listening early", systemImage: "lock.fill")
+                    Label("Stuck? Tap “Give me a question” for a prompt to answer", systemImage: "sparkles")
+                    Label("After opening one, reply to your past self and start a conversation across the years", systemImage: "arrowshape.turn.up.left")
+                    Label("Read any opened message as text, written out on this iPhone", systemImage: "text.quote")
+                    Label("On iPhone Duo, fold the phone closed to seal a capsule, and unfold it to open one that's ready", systemImage: "iphone")
                     Label("Add a written note and photos that appear when you open it", systemImage: "photo.on.rectangle")
                 }
-                Section("Privacy") {
+                Section("Your data") {
                     Text("Everything stays on this iPhone. There's no account, no server and no upload. Deleting the app deletes your capsules, so keep it installed.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
