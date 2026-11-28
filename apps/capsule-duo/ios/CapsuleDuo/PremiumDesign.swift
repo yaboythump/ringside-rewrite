@@ -126,6 +126,7 @@ struct PremiumIconShape: Shape {
 }
 
 struct QuoteBanner: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         GeometryReader { g in
             ZStack(alignment: .topTrailing) {
@@ -138,7 +139,7 @@ struct QuoteBanner: View {
                 }.frame(width:g.size.width*0.64).padding(.top,18).padding(.trailing,9)
             }
         }
-        .frame(height: 94)
+        .frame(height: typeSize.isAccessibilitySize ? 190 : 94)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius:20).stroke(Palette.lavender.opacity(0.2)))
         .accessibilityElement(children:.combine)

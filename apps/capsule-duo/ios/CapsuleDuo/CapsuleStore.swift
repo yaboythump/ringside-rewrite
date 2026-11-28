@@ -276,6 +276,22 @@ enum PhotoPrep {
 #if DEBUG
 /// Runs only in an isolated simulator directory; never touches the user's store.
 enum CapsuleVerification {
+    private static func sameManifest(_ actual:Capsule?,_ expected:Capsule) -> Bool {
+        guard let actual, actual.id == expected.id, actual.title == expected.title,
+              actual.note == expected.note, actual.duration == expected.duration,
+              actual.photoCount == expected.photoCount,
+              abs(actual.createdAt.timeIntervalSince(expected.createdAt)) < 1 else {return false}
+        switch (actual.lock,expected.lock) {
+        case let (.date(a),.date(b)): guard abs(a.timeIntervalSince(b)) < 1 else {return false}
+        case let (.openWhen(a),.openWhen(b)): guard a == b else {return false}
+        default: return false
+        }
+        switch (actual.openedAt,expected.openedAt) {
+        case (nil,nil): return true
+        case let (a?,b?): return abs(a.timeIntervalSince(b)) < 1
+        default: return false
+        }
+    }
     @MainActor static func runIfAsked() {
         guard ProcessInfo.processInfo.arguments.contains("-CapsuleVerify") else {return}
         let fm=FileManager.default
@@ -294,7 +310,8 @@ enum CapsuleVerification {
             try bytes.write(to:audio)
             let voice=try store.seal(title:"Legacy voice",note:"Original note",lock:.date(Date().addingTimeInterval(-2)),recording:audio,duration:12,photos:[bytes])
             let reloaded=CapsuleStore(root:root)
-            results["legacy_manifest_round_trip"]=reloaded.capsule(id:voice.id) == voice && reloaded.capsule(id:letter.id) == letter
+            // Existing ISO-8601 manifests have whole-second date precision.
+            results["legacy_manifest_round_trip"]=sameManifest(reloaded.capsule(id:voice.id),voice) && sameManifest(reloaded.capsule(id:letter.id),letter)
             results["audio_bytes_preserved"]=(try Data(contentsOf:reloaded.audioURL(for:voice))) == bytes
             results["photo_bytes_preserved"]=(try Data(contentsOf:reloaded.photoURLs(for:voice)[0])) == bytes
             reloaded.open(voice)
