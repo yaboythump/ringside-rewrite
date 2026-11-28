@@ -2,89 +2,33 @@ import SwiftUI
 import UIKit
 
 enum Palette {
-    /// Deep space behind everything.
-    static let paper = Color(red: 0.035, green: 0.031, blue: 0.098)
-    static let card = Color.white.opacity(0.06)
-    static let ink = Color(red: 0.95, green: 0.94, blue: 1.0)
-    static let muted = Color(red: 0.80, green: 0.78, blue: 0.95).opacity(0.62)
-    /// The main glow: nebula violet-pink.
-    static let wax = Color(red: 0.66, green: 0.42, blue: 1.0)
-    static let nebula = Color(red: 0.98, green: 0.36, blue: 0.75)
-    static let cyan = Color(red: 0.36, green: 0.86, blue: 1.0)
-    /// Ready to open: starlight gold.
-    static let gold = Color(red: 1.0, green: 0.80, blue: 0.40)
-    static let line = Color.white.opacity(0.12)
-    static let glow = LinearGradient(colors: [cyan, wax, nebula], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let paper = Color(red: 0.09, green: 0.06, blue: 0.16)
+    static let card = Color(red: 0.17, green: 0.12, blue: 0.29).opacity(0.88)
+    static let ink = Color(red: 0.97, green: 0.95, blue: 0.91)
+    static let muted = Color(red: 0.83, green: 0.79, blue: 0.85)
+    static let wax = Color(red: 0.84, green: 0.73, blue: 0.54)
+    static let nebula = Color(red: 0.65, green: 0.49, blue: 0.29)
+    static let cyan = Color(red: 0.56, green: 0.43, blue: 0.70)
+    static let gold = Color(red: 0.90, green: 0.79, blue: 0.59)
+    static let line = gold.opacity(0.25)
+    static let glow = LinearGradient(colors: [gold, wax, nebula], startPoint: .topLeading, endPoint: .bottomTrailing)
 }
 
-/// Deep space: a slow nebula, two layers of twinkling stars and the odd shooting star.
+/// A quiet, warm horizon behind the midnight-purple interface.
 struct CosmicBackground: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private struct Star { let x, y, size, phase, speed: Double; let tint: Int }
-    private static let stars: [Star] = {
-        var seed: UInt64 = 0x9E3779B97F4A7C15
-        func next() -> Double {
-            seed = seed &* 6364136223846793005 &+ 1442695040888963407
-            return Double(seed >> 11) / Double(1 << 53)
-        }
-        return (0..<170).map { _ in
-            Star(x: next(), y: next(), size: 0.4 + pow(next(), 3) * 2.4, phase: next() * .pi * 2,
-                 speed: 0.6 + next() * 1.8, tint: Int(next() * 10))
-        }
-    }()
-
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            Canvas { ctx, size in
-                let rect = CGRect(origin: .zero, size: size)
-                ctx.fill(Path(rect), with: .linearGradient(
-                    Gradient(colors: [Color(red: 0.02, green: 0.02, blue: 0.07),
-                                      Color(red: 0.07, green: 0.04, blue: 0.17),
-                                      Color(red: 0.03, green: 0.03, blue: 0.10)]),
-                    startPoint: .zero, endPoint: CGPoint(x: size.width, y: size.height)))
-
-                // Nebula clouds drifting very slowly.
-                let clouds: [(Color, Double, Double, Double)] = [
-                    (Palette.wax, 0.18, 0.22, 0.55), (Palette.nebula, 0.85, 0.35, 0.45),
-                    (Palette.cyan, 0.65, 0.88, 0.40), (Palette.wax, 0.10, 0.80, 0.35),
-                ]
-                for (i, cloud) in clouds.enumerated() {
-                    let drift = sin(t / 18 + Double(i) * 1.7) * 0.04
-                    let center = CGPoint(x: size.width * (cloud.1 + drift), y: size.height * (cloud.2 - drift))
-                    let radius = max(size.width, size.height) * cloud.3
-                    ctx.fill(Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)),
-                             with: .radialGradient(Gradient(colors: [cloud.0.opacity(0.20), cloud.0.opacity(0)]),
-                                                   center: center, startRadius: 0, endRadius: radius))
-                }
-
-                for star in Self.stars {
-                    let twinkle = 0.35 + 0.65 * (0.5 + 0.5 * sin(t * star.speed + star.phase))
-                    let point = CGPoint(x: star.x * size.width, y: star.y * size.height)
-                    let r = star.size
-                    let color: Color = star.tint == 0 ? Palette.cyan : star.tint == 1 ? Palette.gold : .white
-                    if r > 1.6 {
-                        ctx.fill(Path(ellipseIn: CGRect(x: point.x - r * 3, y: point.y - r * 3, width: r * 6, height: r * 6)),
-                                 with: .radialGradient(Gradient(colors: [color.opacity(0.35 * twinkle), .clear]),
-                                                       center: point, startRadius: 0, endRadius: r * 3))
-                    }
-                    ctx.fill(Path(ellipseIn: CGRect(x: point.x - r / 2, y: point.y - r / 2, width: r, height: r)),
-                             with: .color(color.opacity(twinkle)))
-                }
-
-                // A shooting star every 9 seconds.
-                let cycle = t.truncatingRemainder(dividingBy: 9) / 9
-                if !reduceMotion, cycle < 0.09 {
-                    let p = cycle / 0.09
-                    let lane = (floor(t / 9) * 0.37).truncatingRemainder(dividingBy: 1)
-                    let start = CGPoint(x: size.width * (0.2 + lane * 0.6), y: size.height * 0.08)
-                    let head = CGPoint(x: start.x + size.width * 0.35 * p, y: start.y + size.height * 0.18 * p)
-                    let tail = CGPoint(x: head.x - size.width * 0.12, y: head.y - size.height * 0.06)
-                    var path = Path(); path.move(to: tail); path.addLine(to: head)
-                    ctx.stroke(path, with: .linearGradient(Gradient(colors: [.clear, .white.opacity(0.9 * (1 - p))]),
-                                                           startPoint: tail, endPoint: head), lineWidth: 1.6)
-                }
+        GeometryReader { proxy in
+            ZStack {
+                LinearGradient(colors: [Palette.paper, Color(red: 0.16, green: 0.11, blue: 0.29), Palette.paper],
+                               startPoint: .top, endPoint: .bottom)
+                RadialGradient(colors: [Palette.gold.opacity(0.32), Palette.nebula.opacity(0.14), .clear],
+                               center: UnitPoint(x: 0.5, y: 0.27), startRadius: 0,
+                               endRadius: max(proxy.size.width, proxy.size.height) * 0.48)
+                Ellipse()
+                    .fill(Palette.gold.opacity(0.18))
+                    .frame(width: proxy.size.width * 0.72, height: 3)
+                    .blur(radius: 8)
+                    .position(x: proxy.size.width / 2, y: proxy.size.height * 0.29)
             }
         }
         .ignoresSafeArea()
@@ -301,12 +245,12 @@ struct CardBackground: ViewModifier {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(Palette.paper)
                     .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Palette.card))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(LinearGradient(colors: [.white.opacity(0.28), .white.opacity(0.04), (glow ?? Palette.wax).opacity(0.35)],
+                    .stroke(LinearGradient(colors: [Palette.gold.opacity(0.45), Palette.gold.opacity(0.10), (glow ?? Palette.wax).opacity(0.25)],
                                            startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
             )
             .shadow(color: (glow ?? .clear).opacity(0.35), radius: 16)
