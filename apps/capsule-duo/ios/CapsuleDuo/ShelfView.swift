@@ -53,7 +53,7 @@ struct ShelfView: View {
             }
             .background(CosmicBackground())
             .toolbar(.hidden, for: .navigationBar)
-            .safeAreaInset(edge: .bottom) { navigationBar }
+            .safeAreaInset(edge: .bottom, spacing: 0) { navigationBar.background(Palette.paper) }
             .sheet(isPresented: $profile) {
                 NavigationStack {
                     Form { TextField("Your first name", text: $displayName) }
@@ -77,7 +77,7 @@ struct ShelfView: View {
 
     @ViewBuilder
     private func primary(now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 12) {
             VStack(spacing: 12) {
                 HStack {
                     Button { profile = true } label: { Image(systemName: "person.crop.circle").font(.title) }
@@ -86,14 +86,14 @@ struct ShelfView: View {
                     Button { showingAbout = true } label: { Image(systemName: "gearshape").font(.title2) }
                 }.foregroundStyle(Palette.gold)
                 ZStack(alignment: .bottom) {
-                    Image(systemName: "envelope").font(.system(size: 76, weight: .ultraLight))
+                    Image(systemName: "envelope").font(.system(size: 58, weight: .ultraLight))
                     Image(systemName: "clock.fill").font(.system(size: 25)).padding(5)
                         .background(Circle().fill(Palette.paper)).offset(y: 6)
                 }
                     .foregroundStyle(Palette.gold)
                     .shadow(color: Palette.gold.opacity(0.65), radius: 18)
                 Text("Dear Tomorrow")
-                    .font(.system(size: 40, weight: .medium, design: .serif).italic())
+                    .font(.system(size: 34, weight: .medium, design: .serif).italic())
                     .foregroundStyle(Palette.gold)
                     .lineLimit(1).minimumScaleFactor(0.5)
                 Text("MESSAGES TO YOUR FUTURE SELF")
@@ -101,10 +101,10 @@ struct ShelfView: View {
                     .foregroundStyle(Palette.ink)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
+            .padding(.vertical, 4)
             VStack(alignment: .leading, spacing: 8) {
                 Text(greeting(now))
-                    .font(.system(size: 28, weight: .semibold, design: .serif))
+                    .font(.system(size: 24, weight: .semibold, design: .serif))
                     .foregroundStyle(Palette.ink)
                 Text("Leave a thought, a plan, a promise or a reminder for the person you’ll become.")
                     .foregroundStyle(Palette.muted)
@@ -141,28 +141,30 @@ struct ShelfView: View {
                 .filter(\.isOpened)
                 .sorted { ($0.openedAt ?? .distantPast) > ($1.openedAt ?? .distantPast) }
 
-            HStack(spacing: 8) {
-                statistic("envelope", "Total", store.capsules.count)
-                statistic("lock", "Sealed", store.capsules.filter { !$0.isOpened }.count)
-                statistic("envelope.open", "Opened", opened.count)
+            HStack {
+                Text("Upcoming Deliveries").font(.headline).foregroundStyle(Palette.ink)
+                Spacer()
+                Button("See All ›") { destination = "Scheduled" }.font(.subheadline).foregroundStyle(Palette.gold)
             }
-            if store.capsules.isEmpty {
-                emptyState
+            if sealed.isEmpty {
+                Text("No upcoming deliveries").font(.subheadline).foregroundStyle(Palette.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading).card()
             } else {
-                if !sealed.isEmpty {
-                    SectionTitle(text: "Upcoming deliveries")
-                    rows(sealed, now: now)
-                }
-                if !opened.isEmpty {
-                    SectionTitle(text: "Memory vault")
-                    rows(opened, now: now)
-                }
-                if sealed.isEmpty && opened.isEmpty {
-                    Text("Capsules you seal for a date show up here with a countdown.")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Palette.muted)
-                }
+                rows(Array(sealed.prefix(1)), now: now)
             }
+            HStack(spacing: 8) {
+                statistic("envelope", "Total Capsules", store.capsules.count)
+                statistic("lock", "Sealed", store.capsules.filter { !$0.isOpened }.count)
+                statistic("envelope.open", "Delivered", opened.count)
+            }
+            Text("“One day, your past will call.”")
+                .font(.system(size: 20, design: .serif).italic())
+                .foregroundStyle(Palette.ink)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 22)
+                .background(LinearGradient(colors: [Palette.nebula.opacity(0.6), Palette.paper], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+
         }
     }
 
@@ -187,7 +189,7 @@ struct ShelfView: View {
                 Text(subtitle).font(.system(size: 10)).foregroundStyle(Palette.muted)
                     .lineLimit(1).minimumScaleFactor(0.65)
             }
-            .frame(maxWidth: .infinity).frame(height: 100)
+            .frame(maxWidth: .infinity).frame(height: 82)
             .background(RoundedRectangle(cornerRadius: 17).fill(Palette.card))
             .overlay(RoundedRectangle(cornerRadius: 17).stroke(highlighted ? Color.purple : Palette.line, lineWidth: highlighted ? 2 : 1))
             .shadow(color: highlighted ? .purple.opacity(0.65) : .clear, radius: 8)
@@ -227,10 +229,12 @@ struct ShelfView: View {
     }
 
     private func statistic(_ symbol: String, _ label: String, _ count: Int) -> some View {
-        VStack(spacing: 6) {
+        HStack(spacing: 5) {
             Image(systemName: symbol).foregroundStyle(Palette.gold)
-            Text(count.formatted()).font(.title2.bold()).foregroundStyle(Palette.ink)
-            Text(label).font(.caption).foregroundStyle(Palette.muted)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(count.formatted()).font(.headline).foregroundStyle(Palette.ink)
+                Text(label).font(.system(size: 9)).foregroundStyle(Palette.muted).lineLimit(1).minimumScaleFactor(0.7)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -312,6 +316,13 @@ struct CapsuleRow: View {
                     .multilineTextAlignment(.leading)
             }
             Spacer(minLength: 0)
+            if !capsule.isOpened, let date = capsule.unlockDate, date > now {
+                let seconds = Int(ceil(date.timeIntervalSince(now)))
+                Text(String(format: "%02d:%02d:%02d", seconds / 3600, (seconds / 60) % 60, seconds % 60))
+                    .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(Palette.ink).padding(7)
+                    .background(SwiftUI.Capsule().fill(Color.purple.opacity(0.4)))
+            }
             Image(systemName: "chevron.right")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Palette.muted)
