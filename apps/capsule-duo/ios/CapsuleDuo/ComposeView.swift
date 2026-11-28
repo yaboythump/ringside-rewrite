@@ -4,6 +4,8 @@ import UIKit
 
 /// Recording sits on one side of the fold; the note, photos and lock on the other.
 struct ComposeView: View {
+    var initialFocus: String = "Record"
+    @FocusState private var noteFocused: Bool
     enum LockKind: String, CaseIterable, Identifiable {
         case date = "On a date"
         case openWhen = "Open when…"
@@ -73,9 +75,9 @@ struct ComposeView: View {
     var body: some View {
         NavigationStack {
             DuoSplit {
-                recordPane
+                if initialFocus == "Record" { recordPane } else { detailsPane }
             } secondary: {
-                detailsPane
+                if initialFocus == "Record" { detailsPane } else { recordPane }
             }
             .background(CosmicBackground())
             .navigationTitle("New capsule")
@@ -118,6 +120,7 @@ struct ComposeView: View {
             if state == .recorded, let url = recorder.fileURL { player.load(url) }
         }
         .onDisappear { player.stop() }
+        .onAppear { if initialFocus == "Write" { noteFocused = true } }
     }
 
     // MARK: Recording side
@@ -237,6 +240,7 @@ struct ComposeView: View {
 
             SectionTitle(text: "A note to go with it")
             TextField("Write anything you want your future self to read", text: $note, axis: .vertical)
+                .focused($noteFocused)
                 .lineLimit(4...12)
                 .font(.system(size: 16, design: .rounded))
                 .card()

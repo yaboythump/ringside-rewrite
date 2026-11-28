@@ -33,27 +33,32 @@ extension Capsule {
 struct ShelfView: View {
     @EnvironmentObject private var store: CapsuleStore
     @State private var composing = false
+    @State private var composeFocus = "Record"
+    @State private var destination = "Home"
+    @AppStorage("dearTomorrowName") private var displayName = ""
+    @State private var profile = false
     @State private var selected: UUID?
     @State private var showingAbout = false
     @State private var startedDemo = false
 
     var body: some View {
         NavigationStack {
-            TimelineView(.periodic(from: .now, by: 30)) { context in
+            TimelineView(.periodic(from: .now, by: 1)) { context in
                 DuoSplit {
-                    primary(now: context.date)
+                    if destination == "Home" { primary(now: context.date) }
+                    else { collection(now: context.date) }
                 } secondary: {
-                    secondary(now: context.date)
+                    if destination == "Home" { secondary(now: context.date) }
                 }
             }
             .background(CosmicBackground())
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingAbout = true } label: {
-                        Image(systemName: "info.circle")
-                    }
-                    .tint(Palette.ink)
-                    .accessibilityLabel("About Dear Tomorrow")
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .bottom) { navigationBar }
+            .sheet(isPresented: $profile) {
+                NavigationStack {
+                    Form { TextField("Your first name", text: $displayName) }
+                        .navigationTitle("Your profile")
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { profile = false } } }
                 }
             }
             .navigationDestination(item: $selected) { id in
@@ -62,7 +67,7 @@ struct ShelfView: View {
         }
         .tint(Palette.wax)
         .fullScreenCover(isPresented: $composing) {
-            ComposeView()
+            ComposeView(initialFocus: composeFocus)
         }
         .sheet(isPresented: $showingAbout) { AboutView() }
         .task { startDemoIfAsked() }
@@ -74,6 +79,12 @@ struct ShelfView: View {
     private func primary(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(spacing: 12) {
+                HStack {
+                    Button { profile = true } label: { Image(systemName: "person.crop.circle").font(.title) }
+                    Spacer()
+                    Button { destination = "Scheduled" } label: { Image(systemName: "bell").font(.title2) }
+                    Button { showingAbout = true } label: { Image(systemName: "gearshape").font(.title2) }
+                }.foregroundStyle(Palette.gold)
                 ZStack(alignment: .bottom) {
                     Image(systemName: "envelope").font(.system(size: 76, weight: .ultraLight))
                     Image(systemName: "clock.fill").font(.system(size: 25)).padding(5)
@@ -92,37 +103,19 @@ struct ShelfView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
             VStack(alignment: .leading, spacing: 8) {
-                Text("Dear future me,")
+                Text(greeting(now))
                     .font(.system(size: 28, weight: .semibold, design: .serif))
                     .foregroundStyle(Palette.ink)
                 Text("Leave a thought, a plan, a promise or a reminder for the person you’ll become.")
                     .foregroundStyle(Palette.muted)
             }
 
-            Button { composing = true } label: {
-                HStack(spacing: 16) {
-                    OrbButtonFace(symbol: "mic.fill", size: 46, halo: false)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Record a message")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Palette.ink)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-                        Text("Say something to the person you'll be")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Palette.muted)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .card(glow: Palette.nebula)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                actionTile("Record", "Voice Message", "mic", highlighted: true) { openComposer("Record") }
+                actionTile("Write", "A Note", "pencil") { openComposer("Write") }
+                actionTile("Seal & Send", "Choose a Date", "calendar") { openComposer("Schedule") }
+                actionTile("My Vault", "All Capsules", "lock.square") { destination = "Vault" }
             }
-            .buttonStyle(.plain)
-
-            Text("One day, your past will call.")
-                .font(.system(size: 19, design: .serif).italic())
-                .foregroundStyle(Palette.gold)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
 
             let ready = store.capsules.filter { !$0.isOpened && $0.unlockDate != nil && $0.canOpen(at: now) }
             if !ready.isEmpty {
@@ -170,6 +163,66 @@ struct ShelfView: View {
                         .foregroundStyle(Palette.muted)
                 }
             }
+        }
+    }
+
+    private func greeting(_ now: Date) -> String {
+        let hour = Calendar.current.component(.hour, from: now)
+        let greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening"
+        return displayName.isEmpty ? greeting : greeting + ", " + displayName
+    }
+
+    private func openComposer(_ focus: String) {
+        composeFocus = focus
+        composing = true
+    }
+
+    private func actionTile(_ title: String, _ subtitle: String, _ symbol: String, highlighted: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 7) {
+                Image(systemName: symbol).font(.system(size: 27, weight: .medium))
+                    .foregroundStyle(highlighted ? Color.purple.opacity(0.85) : Palette.gold)
+                Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.ink)
+                    .lineLimit(1).minimumScaleFactor(0.65)
+                Text(subtitle).font(.system(size: 10)).foregroundStyle(Palette.muted)
+                    .lineLimit(1).minimumScaleFactor(0.65)
+            }
+            .frame(maxWidth: .infinity).frame(height: 100)
+            .background(RoundedRectangle(cornerRadius: 17).fill(Palette.card))
+            .overlay(RoundedRectangle(cornerRadius: 17).stroke(highlighted ? Color.purple : Palette.line, lineWidth: highlighted ? 2 : 1))
+            .shadow(color: highlighted ? .purple.opacity(0.65) : .clear, radius: 8)
+        }.buttonStyle(.plain)
+    }
+
+    private var navigationBar: some View {
+        HStack {
+            ForEach(["Home", "Record", "Write", "Scheduled", "Vault"], id: \.self) { item in
+                Button {
+                    if item == "Record" || item == "Write" { openComposer(item) }
+                    else { destination = item }
+                } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: ["Home":"house", "Record":"mic", "Write":"pencil", "Scheduled":"calendar", "Vault":"lock.square"][item] ?? "house")
+                            .font(.system(size: 23))
+                        Text(item).font(.caption2)
+                    }.foregroundStyle(destination == item ? Palette.gold : Palette.muted)
+                    .frame(maxWidth: .infinity)
+                }.buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 28).fill(Palette.card))
+        .overlay(RoundedRectangle(cornerRadius: 28).stroke(Palette.line))
+        .padding(.horizontal, 12).padding(.bottom, 4)
+    }
+
+    private func collection(now: Date) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(destination == "Vault" ? "My Vault" : "Upcoming Deliveries")
+                .font(.system(size: 32, design: .serif)).foregroundStyle(Palette.gold)
+            let items = destination == "Vault" ? store.capsules : store.capsules.filter { !$0.isOpened }
+            if items.isEmpty { Text("No messages yet").foregroundStyle(Palette.muted) }
+            rows(items, now: now)
         }
     }
 
