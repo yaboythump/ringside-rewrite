@@ -43,8 +43,13 @@ struct Capsule: Codable, Identifiable, Hashable {
 }
 
 enum CapsuleError: LocalizedError {
-    case noRecording
-    var errorDescription: String? { "Record a message before sealing the capsule." }
+    case noRecording, emptyContent
+    var errorDescription: String? {
+        switch self {
+        case .noRecording: return "The recording could not be found. Please record it again."
+        case .emptyContent: return "Add a written note, recording or photo before sealing."
+        }
+    }
 }
 
 /// Keeps every capsule on this iPhone, in Application Support. Nothing is uploaded.
@@ -123,12 +128,16 @@ final class CapsuleStore: ObservableObject {
     func seal(title: String, note: String, lock: Capsule.Lock,
               recording: URL?, duration: TimeInterval, photos: [Data]) throws -> Capsule {
         let fm = FileManager.default
+        guard recording != nil || !note.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || !photos.isEmpty else {throw CapsuleError.emptyContent}
         var capsule = Capsule(id: UUID(), title: title, note: note, createdAt: Date(), lock: lock,
                               openedAt: nil, duration: duration, photoCount: photos.count)
         try fm.createDirectory(at: folder(for: capsule.id), withIntermediateDirectories: true)
+        var saved = false
+        defer { if !saved {try? fm.removeItem(at:folder(for:capsule.id))} }
         if let recording {
             guard fm.fileExists(atPath: recording.path) else { throw CapsuleError.noRecording }
-            try fm.moveItem(at: recording, to: audioURL(for: capsule))
+            try fm.copyItem(at: recording, to: audioURL(for: capsule))
+            try fm.setAttributes([.protectionKey:FileProtectionType.complete],ofItemAtPath:audioURL(for:capsule).path)
         }
         for (index, data) in photos.enumerated() {
             try data.write(to: folder(for: capsule.id).appendingPathComponent("photo-\(index).jpg"),
@@ -136,6 +145,8 @@ final class CapsuleStore: ObservableObject {
         }
         capsule.photoCount = photos.count
         try write(capsule)
+        saved = true
+        if let recording {try? fm.removeItem(at:recording)}
         scheduleReminder(for: capsule)
         return capsule
     }
@@ -163,6 +174,10 @@ final class CapsuleStore: ObservableObject {
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
     }
 
+    func rescheduleReminders() {
+        for capsule in capsules where !capsule.isOpened { scheduleReminder(for:capsule) }
+    }
+
     private func scheduleReminder(for capsule: Capsule) {
         guard let date = capsule.unlockDate, date > Date() else { return }
         let content = UNMutableNotificationContent()
@@ -171,7 +186,7 @@ final class CapsuleStore: ObservableObject {
             ? "You left yourself a message on \(capsule.createdAt.formatted(date: .long, time: .omitted)). It's ready."
             : "“\(capsule.title)” from \(capsule.createdAt.formatted(date: .long, time: .omitted)) is ready to open."
         content.sound = .default
-        let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
         let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
         let request = UNNotificationRequest(identifier: capsule.id.uuidString, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request)
@@ -204,6 +219,11 @@ final class CapsuleStore: ObservableObject {
 }
 
 enum CapsuleFormat {
+    static func clock(to date:Date,from now:Date) -> String {
+        let seconds=max(0,Int(ceil(date.timeIntervalSince(now))))
+        return String(format:"%02d:%02d:%02d",seconds/3600,(seconds/60)%60,seconds%60)
+    }
+
     /// "Opens in 212 days", "Opens in 5 hours", "Ready to open".
     static func countdown(to date: Date, from now: Date) -> String {
         let seconds = date.timeIntervalSince(now)
@@ -252,3 +272,64 @@ enum PhotoPrep {
         return resized.jpegData(compressionQuality: 0.82)
     }
 }
+
+#if DEBUG
+/// Runs only in an isolated simulator directory; never touches the user's store.
+enum CapsuleVerification {
+    private static func sameManifest(_ actual:Capsule?,_ expected:Capsule) -> Bool {
+        guard let actual, actual.id == expected.id, actual.title == expected.title,
+              actual.note == expected.note, actual.duration == expected.duration,
+              actual.photoCount == expected.photoCount,
+              abs(actual.createdAt.timeIntervalSince(expected.createdAt)) < 1 else {return false}
+        switch (actual.lock,expected.lock) {
+        case let (.date(a),.date(b)): guard abs(a.timeIntervalSince(b)) < 1 else {return false}
+        case let (.openWhen(a),.openWhen(b)): guard a == b else {return false}
+        default: return false
+        }
+        switch (actual.openedAt,expected.openedAt) {
+        case (nil,nil): return true
+        case let (a?,b?): return abs(a.timeIntervalSince(b)) < 1
+        default: return false
+        }
+    }
+    @MainActor static func runIfAsked() {
+        guard ProcessInfo.processInfo.arguments.contains("-CapsuleVerify") else {return}
+        let fm=FileManager.default
+        let root=fm.temporaryDirectory.appendingPathComponent("Verification-\(UUID().uuidString)")
+        var results:[String:Bool]=[:]
+        defer {try? fm.removeItem(at:root)}
+        do {
+            let store=CapsuleStore(root:root)
+            let future=Date().addingTimeInterval(3600)
+            let letter=try store.seal(title:"Letter",note:"Only a written message.",lock:.date(future),recording:nil,duration:0,photos:[])
+            results["standalone_written_message"]=letter.duration == 0 && letter.note == "Only a written message."
+            store.open(letter)
+            results["future_capsule_cannot_open"]=store.capsule(id:letter.id)?.openedAt == nil
+            let bytes=Data([0,1,2,3,255,128])
+            let audio=root.appendingPathComponent("legacy-recording.m4a")
+            try bytes.write(to:audio)
+            let voice=try store.seal(title:"Legacy voice",note:"Original note",lock:.date(Date().addingTimeInterval(-2)),recording:audio,duration:12,photos:[bytes])
+            let reloaded=CapsuleStore(root:root)
+            // Existing ISO-8601 manifests have whole-second date precision.
+            results["legacy_manifest_round_trip"]=sameManifest(reloaded.capsule(id:voice.id),voice) && sameManifest(reloaded.capsule(id:letter.id),letter)
+            results["audio_bytes_preserved"]=(try Data(contentsOf:reloaded.audioURL(for:voice))) == bytes
+            results["photo_bytes_preserved"]=(try Data(contentsOf:reloaded.photoURLs(for:voice)[0])) == bytes
+            reloaded.open(voice)
+            results["due_capsule_can_open"]=reloaded.capsule(id:voice.id)?.isOpened == true
+            let openWhen=try reloaded.seal(title:"When",note:"A promise",lock:.openWhen("I reach my goal"),recording:nil,duration:0,photos:[])
+            results["open_when_compatibility"]=openWhen.canOpen(at:Date()) && openWhen.openWhenText == "I reach my goal"
+            do {_ = try reloaded.seal(title:"Empty",note:"  ",lock:.date(future),recording:nil,duration:0,photos:[]);results["empty_capsule_rejected"]=false} catch {results["empty_capsule_rejected"]=true}
+            let bad=root.appendingPathComponent("missing.m4a")
+            let before=reloaded.capsules.count
+            do {_ = try reloaded.seal(title:"Missing",note:"note",lock:.date(future),recording:bad,duration:2,photos:[]);results["failed_seal_is_atomic"]=false} catch {results["failed_seal_is_atomic"]=reloaded.capsules.count == before}
+            let loadedAgain=CapsuleStore(root:root)
+            results["opening_persists"]=loadedAgain.capsule(id:voice.id)?.isOpened == true
+            let now=Date()
+            results["countdown_seconds_tick"]=CapsuleFormat.clock(to:now.addingTimeInterval(3661),from:now) == "01:01:01" && CapsuleFormat.clock(to:now.addingTimeInterval(3661),from:now.addingTimeInterval(1)) == "01:01:00"
+            for asset in ["EnvelopeEmblem","OpenedEnvelope","MountainSunrise","SunsetSkyline","PurpleGlass"] {results["compiled_asset_\(asset)"]=UIImage(named:asset) != nil}
+        } catch {results["unexpected_error"]=false;print("Verification error: \(error)")}
+        let output:[String:Any]=["passed":!results.isEmpty && results.values.allSatisfy{$0},"checks":results]
+        if let data=try? JSONSerialization.data(withJSONObject:output,options:[.prettyPrinted,.sortedKeys]) {try? data.write(to:fm.temporaryDirectory.appendingPathComponent("verification.json"))}
+    }
+}
+#endif

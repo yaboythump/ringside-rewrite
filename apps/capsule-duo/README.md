@@ -1,37 +1,32 @@
-# Capsule Duo
+# Dear Tomorrow
 
-Voice messages to your future self, made for iPhone Duo.
+Native SwiftUI voice messages, letters and photo capsules for your future self. Bundle identifier: `com.ctnetworkstudios.capsuleduo`.
 
-- **Record:** tap the wax-red mic and talk for up to 10 minutes. Listen back and re-record as often as you like before sealing.
-- **Seal it:** pick when it unlocks, either **on a date** (1 month, 6 months, 1 year, 5 years or any date and time) or **"Open when…"** (a moment like *I'm having a hard day* or *I reach my goal*).
-- **Sealed means sealed:** a sealed capsule shows only its envelope, a countdown and what's inside (length, note, photo count). There's no way to listen early. A date capsule sends a notification the moment it unseals. An "Open when…" capsule asks "Is it time?" before it opens.
-- **Add a note and photos:** up to 4 photos and a written note travel with the recording and appear only once it's opened.
-- **Fold-aware:** on the open iPhone Duo the home screen puts recording on one side of the fold and your capsules on the other. While composing, the recorder and the note/lock options each get a side. An opened capsule plays on one side with the note and photos on the other. On a regular phone the two halves stack in one scroll.
-- **Private:** everything lives in the app's Application Support folder with file protection on. No account, no server, no upload.
+## Experience
 
-## How it works
+- Cinematic mountain sunrise, separately rendered metallic envelope/clock emblem, champagne serif wordmark, purple glass surfaces and sunset skyline banner.
+- Home actions: Record, Write, Seal & Send and My Vault. Bottom navigation reserves safe-area space and never floats over scroll content.
+- Upcoming Deliveries remains visible when empty. Real capsule rows update their HH:MM:SS countdown every second. Vault includes a Delivered filter.
+- Record up to ten minutes, write a standalone letter, attach up to four photos, or combine them. Choose a date or an existing “Open when…” condition.
+- Profile name, delivery notifications and startup sound controls. Signature startup chime respects the silent switch.
+- Fold-aware layout retains both panes on iPhone Duo and wide landscape screens. Large accessibility text uses a two-column action grid.
 
-| Path | What it is |
-|---|---|
-| `ios/CapsuleDuo/CapsuleStore.swift` | Capsule model, on-device storage, unlock rules and reminders |
-| `ios/CapsuleDuo/Audio.swift` | Recorder (AAC, live levels) and player |
-| `ios/CapsuleDuo/DuoLayout.swift` | `DuoSplit`, which lays two panes around the fold, plus the shared look |
-| `ios/CapsuleDuo/ShelfView.swift` | Home screen |
-| `ios/CapsuleDuo/ComposeView.swift` | Record, label, lock, note, photos, seal |
-| `ios/CapsuleDuo/CapsuleView.swift` | Sealed envelope, breaking the seal, playback |
+## Privacy and compatibility
 
-The fold comes from `GeometryProxy.reservedRegions(kind: .division)` (iOS 27.1), the same as Quilune.
+The existing Codable capsule schema and Application Support/Capsules paths are unchanged. Voice recordings, notes, photos, delivery dates and opened status remain compatible. No migration, account, server or analytics is introduced.
 
-Simulator flags used by the workflow: `-CapsuleDemo` (example capsules in a throwaway folder), `-CapsuleSealedDemo`, `-CapsuleOpenedDemo`, `-CapsuleCompose`, `-CapsuleLandscape`, `-CapsuleFakeFold` and `-CapsuleSnapshot`.
+Date-locked capsules expose only metadata until their date. The store independently checks the lock before opening. A failed seal removes its partial folder and leaves the original draft recording intact. Recordings, manifests and attachments use file protection.
 
-## Getting it on TestFlight
+## Production assets
 
-1. Merge the pull request. GitHub's Mac builds the app and uploads it.
-2. One time only: in App Store Connect go to **Apps → + → New App**, name it **Capsule Duo** and pick bundle ID `com.ctnetworkstudios.capsuleduo`. (The upload step registers the bundle ID if it isn't listed yet; run it once and it will appear.)
-3. If the first upload stopped because the app record didn't exist yet, go to **Actions → Capsule Duo TestFlight → Run workflow** on `main`. The build appears in TestFlight a few minutes later.
+`ios/CapsuleDuo/Assets.xcassets` contains separate EnvelopeEmblem, MountainSunrise, SunsetSkyline, PurpleGlass and AppIcon artwork. No screen is a static mockup. All text, statistics, countdowns and controls are native views. The icon family and illuminated underline are scalable native paths in PremiumDesign.swift.
 
-The upload uses the same `ringside-testflight` signing secrets as the other apps.
+## Verification and delivery
 
-## Later
+The existing Capsule Duo TestFlight workflow archives Release, builds and launches the simulator, checks storage/unlock compatibility and captures actual app screens. Only verified changes on main are signed and uploaded through the existing distribution configuration. Public App Store submission is separate.
 
-Capsules sent to someone else (a parent recording for a child's 18th birthday, say) need a server to hold them, so they're a second phase.
+Simulator-only verification uses a disposable store. `-CapsuleVerify` checks standalone notes, legacy manifest reload, audio/photo byte preservation, blocked early opening, allowed due opening, persisted opening, Open When compatibility, empty-content rejection, failed-seal cleanup, second-by-second countdowns and compiled artwork lookup. It writes `tmp/verification.json`.
+
+Snapshot flags: `-CapsuleSnapshot`, `-CapsuleDemo` (disposable sample capsules), `-CapsuleWrite`, `-CapsuleWriteSnapshot`, `-CapsuleScheduled`, `-CapsuleVault`, `-CapsuleSettings`, `-CapsuleCompose`, `-CapsuleSealedDemo`, `-CapsuleOpenedDemo`, `-CapsuleLandscape`, `-CapsuleFakeFold`.
+
+Production launches use actual on-device data. No sample capsules are seeded on a normal launch.

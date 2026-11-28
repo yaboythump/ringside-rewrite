@@ -12,11 +12,12 @@ struct CapsuleView: View {
     @State private var confirmingDelete = false
     @State private var confirmingOpenWhen = false
     @State private var breaking = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             if let capsule = store.capsule(id: capsuleID) {
-                TimelineView(.periodic(from: .now, by: 30)) { context in
+                TimelineView(.periodic(from: .now, by: 1)) { context in
                     content(capsule, now: context.date)
                 }
                 .confirmationDialog("Is it time?", isPresented: $confirmingOpenWhen, titleVisibility: .visible) {
@@ -81,9 +82,12 @@ struct CapsuleView: View {
             ZStack {
                 CapsuleOrb(opened: false, ready: openable && capsule.unlockDate != nil, size: 200,
                            progress: capsule.progress(at: now))
-                    .scaleEffect(breaking ? 1.6 : 1)
+                    .rotation3DEffect(.degrees(breaking ? -35 : 0),axis:(x:1,y:0,z:0),anchor:.top)
+                    .scaleEffect(breaking ? 1.2 : 1)
                     .opacity(breaking ? 0 : 1)
-                if breaking { Supernova() }
+                Image("OpenedEnvelope").resizable().scaledToFit().frame(width:200,height:200)
+                    .offset(y:breaking ? -8 : 12).opacity(breaking ? 1 : 0)
+                if breaking && !reduceMotion { Supernova() }
             }
             .padding(.top, 12)
             Text(capsule.displayTitle)
@@ -92,12 +96,12 @@ struct CapsuleView: View {
                 .foregroundStyle(Palette.ink)
             if let date = capsule.unlockDate {
                 if openable {
-                    Text("It has landed. The day has come.")
+                    Text("Your moment has arrived.")
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .foregroundStyle(Palette.gold)
                         .shadow(color: Palette.gold.opacity(0.7), radius: 10)
                 } else {
-                    Text(CapsuleFormat.countdown(to: date, from: now))
+                    Text(CapsuleFormat.clock(to: date, from: now))
                         .font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit())
                         .foregroundStyle(Palette.glow)
                         .shadow(color: Palette.wax.opacity(0.8), radius: 12)
@@ -109,7 +113,7 @@ struct CapsuleView: View {
                 }
             } else if let text = capsule.openWhenText {
                 Text("Open when \(text)")
-                    .font(.system(size: 18, design: .rounded))
+                    .font(.custom("Baskerville",size:20,relativeTo:.body))
                     .italic()
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Palette.glow)
@@ -124,7 +128,7 @@ struct CapsuleView: View {
                 .buttonStyle(GlowButtonStyle(colors: [Palette.gold, Color(red: 1.0, green: 0.55, blue: 0.3), Palette.nebula]))
                 .disabled(breaking)
             } else {
-                Label("In orbit. No listening early.", systemImage: "lock.fill")
+                Label("Sealed until your chosen day.", systemImage: "lock.fill")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(Palette.muted)
             }
@@ -136,7 +140,9 @@ struct CapsuleView: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionTitle(text: "Inside")
             VStack(alignment: .leading, spacing: 12) {
-                Label("A \(CapsuleFormat.duration(capsule.duration)) voice message", systemImage: "waveform")
+                if FileManager.default.fileExists(atPath:store.audioURL(for:capsule).path) {
+                    Label("A \(CapsuleFormat.duration(capsule.duration)) voice message", systemImage:"waveform")
+                }
                 if !capsule.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Label("A written note", systemImage: "text.alignleft")
                 }
@@ -149,7 +155,7 @@ struct CapsuleView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .card()
 
-            SectionTitle(text: "Launched")
+            SectionTitle(text: "Sealed")
             VStack(alignment: .leading, spacing: 6) {
                 Text(capsule.createdAt.formatted(date: .long, time: .shortened))
                     .font(.system(size: 16, design: .rounded))
@@ -185,7 +191,10 @@ struct CapsuleView: View {
             }
             .padding(.top, 16)
 
-            if player.missing {
+            if !FileManager.default.fileExists(atPath:store.audioURL(for:capsule).path) && capsule.duration == 0 {
+                EnvelopeEmblem(size:120)
+                Text("A letter from your past self.").font(.custom("Baskerville-Italic",size:24)).foregroundStyle(Palette.gold)
+            } else if player.missing {
                 Label("The recording couldn't be found on this iPhone.", systemImage: "exclamationmark.triangle")
                     .font(.system(size: 14))
                     .foregroundStyle(Palette.muted)
@@ -228,7 +237,7 @@ struct CapsuleView: View {
             if !note.isEmpty {
                 SectionTitle(text: "Your note")
                 Text(note)
-                    .font(.system(size: 18, design: .rounded))
+                    .font(.custom("Baskerville",size:20,relativeTo:.body))
                     .lineSpacing(5)
                     .foregroundStyle(Palette.ink)
                     .textSelection(.enabled)
@@ -264,6 +273,8 @@ struct CapsuleView: View {
     // MARK: Actions
 
     private func breakSeal(_ capsule: Capsule) {
+        guard capsule.canOpen(at:Date()) else {return}
+        if reduceMotion {store.open(capsule);return}
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         withAnimation(.easeIn(duration: 0.6)) { breaking = true }
         Task {

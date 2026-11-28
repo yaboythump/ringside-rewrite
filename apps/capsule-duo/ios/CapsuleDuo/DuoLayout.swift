@@ -2,37 +2,30 @@ import SwiftUI
 import UIKit
 
 enum Palette {
-    static let paper = Color(red: 0.09, green: 0.06, blue: 0.16)
-    static let card = Color(red: 0.17, green: 0.12, blue: 0.29).opacity(0.88)
-    static let ink = Color(red: 0.97, green: 0.95, blue: 0.91)
-    static let muted = Color(red: 0.83, green: 0.79, blue: 0.85)
-    static let wax = Color(red: 0.84, green: 0.73, blue: 0.54)
-    static let nebula = Color(red: 0.65, green: 0.49, blue: 0.29)
-    static let cyan = Color(red: 0.56, green: 0.43, blue: 0.70)
-    static let gold = Color(red: 0.90, green: 0.79, blue: 0.59)
-    static let line = gold.opacity(0.25)
-    static let glow = LinearGradient(colors: [gold, wax, nebula], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let paper = Color(red: 0.035, green: 0.012, blue: 0.075)
+    static let card = Color(red: 0.14, green: 0.065, blue: 0.23)
+    static let ink = Color(red: 0.99, green: 0.96, blue: 1)
+    static let muted = Color(red: 0.77, green: 0.68, blue: 0.87)
+    static let wax = Color(red: 0.92, green: 0.72, blue: 0.4)
+    static let nebula = Color(red: 0.46, green: 0.14, blue: 0.62)
+    static let cyan = Color(red: 0.71, green: 0.48, blue: 0.91)
+    static let lavender = Color(red: 0.71, green: 0.49, blue: 0.85)
+    static let gold = Color(red: 0.95, green: 0.76, blue: 0.46)
+    static let line = lavender.opacity(0.4)
+    static let glow = LinearGradient(colors: [Color(red: 1, green: 0.91, blue: 0.68), gold, wax], startPoint: .topLeading, endPoint: .bottomTrailing)
 }
 
-/// A quiet, warm horizon behind the midnight-purple interface.
 struct CosmicBackground: View {
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                LinearGradient(colors: [Palette.paper, Color(red: 0.16, green: 0.11, blue: 0.29), Palette.paper],
-                               startPoint: .top, endPoint: .bottom)
-                RadialGradient(colors: [Palette.gold.opacity(0.32), Palette.nebula.opacity(0.14), .clear],
-                               center: UnitPoint(x: 0.5, y: 0.27), startRadius: 0,
-                               endRadius: max(proxy.size.width, proxy.size.height) * 0.48)
-                Ellipse()
-                    .fill(Palette.gold.opacity(0.18))
-                    .frame(width: proxy.size.width * 0.72, height: 3)
-                    .blur(radius: 8)
-                    .position(x: proxy.size.width / 2, y: proxy.size.height * 0.29)
+        GeometryReader { g in
+            ZStack(alignment: .top) {
+                Palette.paper
+                Image("MountainSunrise").resizable().scaledToFill()
+                    .frame(width:g.size.width,height:min(g.size.height,400)).clipped()
+                    .opacity(0.32)
+                    .mask(LinearGradient(colors:[.white,.white,.clear],startPoint:.top,endPoint:.bottom))
             }
-        }
-        .ignoresSafeArea()
-        .accessibilityHidden(true)
+        }.ignoresSafeArea().accessibilityHidden(true)
     }
 }
 
@@ -64,12 +57,12 @@ struct DuoSplit<Primary: View, Secondary: View>: View {
                 .frame(width: proxy.size.width, height: proxy.size.height)
             } else {
                 ScrollView {
-                    VStack(spacing: 28) {
+                    VStack(spacing: 16) {
                         primary
                         secondary
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
                     .frame(maxWidth: 640)
                     .frame(maxWidth: .infinity)
                 }
@@ -80,8 +73,8 @@ struct DuoSplit<Primary: View, Secondary: View>: View {
     private func pane<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         ScrollView {
             content()
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .top)
         }
     }
@@ -145,81 +138,21 @@ struct CapsuleOrb: View {
     var opened: Bool
     var ready: Bool = false
     var size: CGFloat = 46
-    /// 0...1 progress toward unlocking, drawn as an orbit around the planet.
     var progress: Double? = nil
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var spin = false
-    @State private var pulse = false
-
-    private var core: [Color] {
-        if opened { return [Color(red: 0.75, green: 0.95, blue: 1.0), Palette.cyan, Color(red: 0.1, green: 0.25, blue: 0.5)] }
-        if ready { return [Color(red: 1.0, green: 0.97, blue: 0.8), Palette.gold, Color(red: 0.85, green: 0.35, blue: 0.15)] }
-        return [Color(red: 0.95, green: 0.8, blue: 1.0), Palette.wax, Color(red: 0.2, green: 0.08, blue: 0.45)]
-    }
-
-    private var accent: Color { opened ? Palette.cyan : ready ? Palette.gold : Palette.wax }
-
     var body: some View {
         ZStack {
-            Circle()
-                .fill(RadialGradient(colors: [accent.opacity(0.55), accent.opacity(0)], center: .center,
-                                     startRadius: size * 0.2, endRadius: size * 0.75))
-                .scaleEffect(pulse ? 1.12 : 0.92)
-
+            EnvelopeEmblem(size:size)
+            if opened {
+                PremiumIcon(name:"Delivered",size:size*0.25,gold:true,glow:true)
+                    .padding(size*0.055).background(Circle().fill(Palette.paper))
+                    .offset(x:size*0.29,y:size*0.29)
+            }
             if let progress {
-                Circle()
-                    .stroke(Color.white.opacity(0.1), lineWidth: max(2, size * 0.025))
-                    .frame(width: size * 0.98, height: size * 0.98)
-                Circle()
-                    .trim(from: 0, to: max(0.02, min(progress, 1)))
-                    .stroke(Palette.glow, style: StrokeStyle(lineWidth: max(2, size * 0.025), lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: size * 0.98, height: size * 0.98)
-                    .shadow(color: accent.opacity(0.8), radius: 6)
+                Circle().trim(from:0,to:max(0.015,min(progress,1)))
+                    .stroke(Palette.glow,style:StrokeStyle(lineWidth:2,lineCap:.round))
+                    .rotationEffect(.degrees(-90)).frame(width:size*0.94,height:size*0.94)
             }
-
-            Circle()
-                .fill(RadialGradient(colors: core, center: UnitPoint(x: 0.32, y: 0.28),
-                                     startRadius: 0, endRadius: size * 0.42))
-                .frame(width: size * 0.56, height: size * 0.56)
-                .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 0.6))
-                .shadow(color: accent.opacity(0.9), radius: size * 0.14)
-
-            if !opened {
-                Ellipse()
-                    .stroke(LinearGradient(colors: [.white.opacity(0.85), accent.opacity(0.2), .white.opacity(0.7)],
-                                           startPoint: .leading, endPoint: .trailing),
-                            lineWidth: max(1.2, size * 0.035))
-                    .frame(width: size * 0.92, height: size * 0.26)
-                    .rotationEffect(.degrees(-18))
-                Image(systemName: ready ? "lock.open.fill" : "lock.fill")
-                    .font(.system(size: size * 0.17, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .shadow(color: .black.opacity(0.3), radius: 2)
-            } else {
-                Image(systemName: "sparkles")
-                    .font(.system(size: size * 0.2, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.95))
-            }
-
-            // A small moon orbiting sealed capsules.
-            if !opened {
-                Circle()
-                    .fill(.white)
-                    .frame(width: max(3, size * 0.07), height: max(3, size * 0.07))
-                    .shadow(color: accent, radius: 3)
-                    .offset(x: size * 0.42)
-                    .rotationEffect(.degrees(spin ? 360 : 0))
-            }
-        }
-        .frame(width: size, height: size)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.linear(duration: ready ? 4 : 9).repeatForever(autoreverses: false)) { spin = true }
-            withAnimation(.easeInOut(duration: ready ? 1.1 : 2.6).repeatForever(autoreverses: true)) { pulse = true }
-        }
-        .accessibilityHidden(true)
+        }.frame(width:size,height:size).accessibilityHidden(true)
     }
 }
 
@@ -241,19 +174,7 @@ struct SectionTitle: View {
 struct CardBackground: ViewModifier {
     var glow: Color? = nil
     func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Palette.paper)
-                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Palette.card))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(LinearGradient(colors: [Palette.gold.opacity(0.45), Palette.gold.opacity(0.10), (glow ?? Palette.wax).opacity(0.25)],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
-            )
-            .shadow(color: (glow ?? .clear).opacity(0.35), radius: 16)
+        content.padding(16).background(GlassSurface(radius:20,illuminated:glow != nil))
     }
 }
 

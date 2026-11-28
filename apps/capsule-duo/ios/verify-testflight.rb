@@ -24,17 +24,30 @@ end
 app = get.call('apps', {'filter[bundleId]'=>ENV.fetch('CD_BUNDLE')}).first
 abort('App record unavailable during upload confirmation.') unless app
 version = "#{ENV.fetch('GITHUB_RUN_NUMBER')}.#{ENV.fetch('GITHUB_RUN_ATTEMPT')}"
-6.times do |attempt|
+result = nil
+15.times do |attempt|
   build = get.call('builds', {'filter[app]'=>app.fetch('id'), 'filter[version]'=>version, 'limit'=>'5'}).first
   if build
     status = build.fetch('attributes').fetch('processingState')
     result = {bundle: ENV.fetch('CD_BUNDLE'), version: version, build_id: build.fetch('id'), processing_state: status}
-    File.write(File.join(ENV.fetch('RUNNER_TEMP'), 'capsule-duo-testflight-status.json'), JSON.pretty_generate(result))
-    puts "Confirmed App Store Connect build #{version}: #{status}"
-    File.open(ENV.fetch('GITHUB_STEP_SUMMARY'), 'a') { |f| f.puts("Dear Tomorrow build **#{version}** confirmed in App Store Connect: **#{status}**.") }
     abort('Apple marked the uploaded build invalid.') if %w[INVALID FAILED].include?(status)
-    exit(0)
+    if status == 'VALID'
+      details = get.call("builds/#{build.fetch('id')}/buildBetaDetail", {})
+      result[:internal_build_state] = details.fetch('attributes').fetch('internalBuildState')
+      result[:internal_available] = result[:internal_build_state] == 'IN_BETA_TESTING'
+    end
+    File.write(File.join(ENV.fetch('RUNNER_TEMP'), 'capsule-duo-testflight-status.json'), JSON.pretty_generate(result))
+    puts "Confirmed App Store Connect build #{version}: #{status}; internal testing: #{result[:internal_build_state] || 'processing'}"
+    if status == 'VALID' && result[:internal_available]
+      File.open(ENV.fetch('GITHUB_STEP_SUMMARY'), 'a') { |f| f.puts("Dear Tomorrow build **#{version}**: Apple processing **VALID**, internal TestFlight **IN_BETA_TESTING**.") }
+      exit(0)
+    end
   end
-  sleep(20) if attempt < 5
+  sleep(20) if attempt < 14
 end
-abort('Upload returned, but this build is not yet visible in App Store Connect. TestFlight success is unconfirmed.')
+if result && result[:processing_state] == 'VALID'
+  puts "Apple processing completed; internal availability is not yet confirmed (#{result[:internal_build_state]})."
+  File.open(ENV.fetch('GITHUB_STEP_SUMMARY'), 'a') { |f| f.puts("Dear Tomorrow build **#{version}** processed successfully. Internal state: **#{result[:internal_build_state]}**; tester availability remains unconfirmed.") }
+  exit(0)
+end
+abort('Upload returned, but Apple processing has not completed. TestFlight availability is unconfirmed.')
