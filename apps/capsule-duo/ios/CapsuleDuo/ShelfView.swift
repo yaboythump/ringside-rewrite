@@ -86,22 +86,18 @@ struct ShelfView: View {
 
             Button { composing = true } label: {
                 HStack(spacing: 16) {
-                    OrbButtonFace(symbol: "mic.fill", size: 54)
-                        .frame(width: 72, height: 72)
+                    OrbButtonFace(symbol: "mic.fill", size: 46, halo: false)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Launch a new capsule")
                             .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .foregroundStyle(Palette.ink)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
                         Text("Say something to the person you'll be")
                             .font(.system(size: 13))
                             .foregroundStyle(Palette.muted)
                     }
                     Spacer(minLength: 0)
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(Palette.ink)
-                        .padding(10)
-                        .background(Circle().fill(.white.opacity(0.1)))
                 }
                 .card(glow: Palette.nebula)
             }

@@ -341,6 +341,8 @@ struct OrbButtonFace: View {
     var size: CGFloat = 92
     var active = false
     var colors: [Color] = [Palette.nebula, Palette.wax]
+    /// Room around the orb for the rings. Turn off where space is tight.
+    var halo = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -368,7 +370,7 @@ struct OrbButtonFace: View {
                     .foregroundStyle(.white)
             }
         }
-        .frame(width: size * 1.7, height: size * 1.7)
+        .frame(width: size * (halo ? 1.7 : 1.25), height: size * (halo ? 1.7 : 1.25))
     }
 }
 
