@@ -121,7 +121,9 @@ struct ComposeView: View {
         }
         .onDisappear { player.stop() }
         .onAppear {
+            #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-CapsuleWriteSnapshot") { note="Dear future me,\n\nRemember why you started. Keep a little room for the things you haven’t imagined yet." }
+            #endif
         }
     }
 

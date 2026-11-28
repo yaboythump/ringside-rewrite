@@ -276,6 +276,7 @@ struct ShelfView: View {
     }
 
     private func startDemoIfAsked() {
+        #if DEBUG
         guard !startedDemo else{return};startedDemo=true
         let args=ProcessInfo.processInfo.arguments
         if args.contains("-CapsuleLandscape"),let scene=UIApplication.shared.connectedScenes.first as? UIWindowScene {scene.requestGeometryUpdate(.iOS(interfaceOrientations:.landscapeRight)){_ in}}
@@ -287,6 +288,7 @@ struct ShelfView: View {
         if args.contains("-CapsuleSettings") {panel="Settings"}
         if args.contains("-CapsuleSealedDemo") {selected=store.capsules.first{!$0.canOpen(at:Date())}?.id}
         if args.contains("-CapsuleOpenedDemo") {selected=store.capsules.first(where:\.isOpened)?.id}
+        #endif
     }
 }
 

@@ -63,14 +63,17 @@ jobs:
             python3 - "$@" <<'PYSC'
           import subprocess,sys
           try:
-              result=subprocess.run(["xcrun","simctl",*sys.argv[1:]],timeout=(8 if sys.argv[1] == "io" else 45))
+              result=subprocess.run(["xcrun","simctl",*sys.argv[1:]],timeout=(8 if sys.argv[1] == "io" else 240 if sys.argv[1] == "bootstatus" else 180 if sys.argv[1] in ("install", "launch") else 45))
               sys.exit(result.returncode)
           except subprocess.TimeoutExpired:
               print("Simulator command timed out: " + " ".join(sys.argv[1:]),file=sys.stderr)
               sys.exit(124)
           PYSC
           }
+          mkdir -p "$RUNNER_TEMP/shots"
+          ruby -c apps/capsule-duo/ios/verify-testflight.rb
           sc list devices available -j > "$RUNNER_TEMP/devices.json"
+          cp "$RUNNER_TEMP/devices.json" "$RUNNER_TEMP/shots/devices.json"
           dev="$(sc list devices available -j | python3 -c '
           import json,sys
           d=json.load(sys.stdin)["devices"]
@@ -83,10 +86,22 @@ jobs:
             -sdk iphonesimulator -destination "id=$dev" -derivedDataPath "$RUNNER_TEMP/sim" \
             CODE_SIGNING_ALLOWED=NO build > "$RUNNER_TEMP/sim.log" 2>&1 || { grep -E "error:" "$RUNNER_TEMP/sim.log" | head -40; exit 1; }
           app="$(find "$RUNNER_TEMP/sim/Build/Products" -name CapsuleDuo.app -maxdepth 2 | head -1)"
+          # Create a disposable device rather than reuse stale simulator state.
+          spec="$(python3 - "$RUNNER_TEMP/devices.json" "$dev" <<'PYSPEC'
+          import json,sys
+          for runtime,devices in json.load(open(sys.argv[1]))["devices"].items():
+              for device in devices:
+                  if device["udid"] == sys.argv[2]:
+                      print(device["deviceTypeIdentifier"],runtime)
+          PYSPEC
+          )"
+          read -r device_type runtime <<< "$spec"
+          dev="$(sc create "DearTomorrow-QA-$GITHUB_RUN_ID" "$device_type" "$runtime")"
+          echo "Cold booting disposable simulator: $dev"
           sc boot "$dev" || true
           sc bootstatus "$dev" -b
           echo "Installing isolated simulator build"
-          sc terminate "$dev" com.ctnetworkstudios.capsuleduo >/dev/null 2>&1 || true
+          echo "Fresh simulator has no previous app data"
           sc install "$dev" "$app"
           mkdir -p "$RUNNER_TEMP/shots"
           cp "$RUNNER_TEMP/devices.json" "$RUNNER_TEMP/shots/devices.json"
@@ -134,7 +149,16 @@ jobs:
           PYDEVICE
           )"
           if [ -n "$other" ]; then
-            dev="$other"
+            spec="$(python3 - "$RUNNER_TEMP/devices.json" "$other" <<'PYOTHER'
+          import json,sys
+          for runtime,devices in json.load(open(sys.argv[1]))["devices"].items():
+              for device in devices:
+                  if device["udid"] == sys.argv[2]:
+                      print(device["deviceTypeIdentifier"],runtime)
+          PYOTHER
+          )"
+            read -r device_type runtime <<< "$spec"
+            dev="$(sc create "DearTomorrow-Second-$GITHUB_RUN_ID" "$device_type" "$runtime")"
             sc boot "$dev" || true
             sc bootstatus "$dev" -b
             sc terminate "$dev" "$bundle" >/dev/null 2>&1 || true
