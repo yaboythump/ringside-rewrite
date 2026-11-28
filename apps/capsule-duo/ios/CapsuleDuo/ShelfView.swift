@@ -53,7 +53,7 @@ struct ShelfView: View {
                         Image(systemName: "info.circle")
                     }
                     .tint(Palette.ink)
-                    .accessibilityLabel("About Capsule Duo")
+                    .accessibilityLabel("About Dear Tomorrow")
                 }
             }
             .navigationDestination(item: $selected) { id in
@@ -74,8 +74,10 @@ struct ShelfView: View {
     private func primary(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Capsule Duo")
+                Text("Dear Tomorrow")
                     .font(.system(size: 38, weight: .heavy, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                     .foregroundStyle(LinearGradient(colors: [.white, Color(red: 0.85, green: 0.8, blue: 1.0), Palette.nebula],
                                                     startPoint: .leading, endPoint: .trailing))
                     .shadow(color: Palette.wax.opacity(0.7), radius: 14)
@@ -232,7 +234,7 @@ struct AboutView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Capsule Duo").font(.system(size: 28, weight: .bold, design: .rounded))
+                        Text("Dear Tomorrow").font(.system(size: 28, weight: .bold, design: .rounded))
                         Text("Record a voice message for your future self, seal it, and open it when the day comes. Made for iPhone Duo: on the open phone, recording sits on one side of the fold and your notes on the other.")
                             .foregroundStyle(.secondary)
                     }

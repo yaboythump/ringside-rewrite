@@ -173,7 +173,7 @@ struct ComposeView: View {
                 Image(systemName: "mic.slash.fill")
                     .font(.system(size: 36))
                     .foregroundStyle(Palette.muted)
-                Text("Capsule Duo needs the microphone to record your message.")
+                Text("Dear Tomorrow needs the microphone to record your message.")
                     .font(.system(size: 15))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Palette.ink)
