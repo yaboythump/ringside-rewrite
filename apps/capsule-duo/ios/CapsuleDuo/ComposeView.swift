@@ -5,6 +5,10 @@ import UIKit
 /// Recording sits on one side of the fold; the note, photos and lock on the other.
 struct ComposeView: View {
     var initialFocus: String = "Record"
+    /// Set when this capsule answers an earlier one.
+    var replyTo: UUID? = nil
+    /// A question to start with (replies and the yearly ritual).
+    var initialPrompt: String? = nil
     @FocusState private var noteFocused: Bool
     enum LockKind: String, CaseIterable, Identifiable {
         case date = "On a date"
@@ -50,6 +54,9 @@ struct ComposeView: View {
     @State private var confirmingDiscard = false
     @State private var sealing = false
     @State private var errorMessage: String?
+    @State private var prompt: String?
+    @State private var fold = FoldGesture()
+    @State private var onDuo = false
 
     private var minimumDate: Date {
         Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
@@ -120,7 +127,21 @@ struct ComposeView: View {
             if state == .recorded, let url = recorder.fileURL { player.load(url) }
         }
         .onDisappear { player.stop() }
-        .onAppear { if initialFocus == "Write" { noteFocused = true } }
+        .onAppear {
+            if initialFocus == "Write" { noteFocused = true }
+            if prompt == nil { prompt = initialPrompt }
+            if title.isEmpty, let replyTo, let original = store.capsule(id: replyTo) {
+                title = "Reply: \(original.displayTitle)"
+            }
+        }
+        .onHinge { degrees in
+            onDuo = true
+            var gesture = fold
+            let event = gesture.update(degrees)
+            fold = gesture
+            // Folding the phone closed seals the capsule.
+            if event == .folded, canSeal { seal() }
+        }
     }
 
     // MARK: Recording side
@@ -128,6 +149,9 @@ struct ComposeView: View {
     private var recordPane: some View {
         VStack(spacing: 22) {
             SectionTitle(text: "Your message")
+            if recorder.state != .denied {
+                PromptCard(prompt: $prompt)
+            }
             Waveform(levels: recorder.levels, active: recorder.state == .recording)
                 .frame(height: 70)
 
@@ -270,6 +294,13 @@ struct ComposeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .card()
 
+            if onDuo && canSeal {
+                Label("Or just fold your iPhone Duo closed to seal it", systemImage: "rectangle.portrait.and.arrow.forward")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Palette.gold)
+                    .frame(maxWidth: .infinity)
+            }
+
             Button { confirmingSeal = true } label: {
                 Label("Seal & launch", systemImage: "paperplane.fill")
                     .frame(maxWidth: .infinity)
@@ -311,7 +342,8 @@ struct ComposeView: View {
             return
         }
         do {
-            try store.seal(title: title, note: note, lock: lock, recording: file, duration: duration, photos: photos)
+            try store.seal(title: title, note: note, lock: lock, recording: file, duration: duration, photos: photos,
+                           prompt: prompt, replyTo: replyTo)
         } catch {
             errorMessage = error.localizedDescription
             return
