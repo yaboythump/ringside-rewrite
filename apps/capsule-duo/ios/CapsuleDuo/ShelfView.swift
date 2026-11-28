@@ -73,16 +73,26 @@ struct ShelfView: View {
     @ViewBuilder
     private func primary(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 22) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(spacing: 12) {
+                Image(systemName: "envelope")
+                    .font(.system(size: 56, weight: .light))
+                    .foregroundStyle(Palette.gold)
+                    .shadow(color: Palette.gold.opacity(0.65), radius: 18)
                 Text("Dear Tomorrow")
-                    .font(.system(size: 38, weight: .heavy, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .foregroundStyle(LinearGradient(colors: [.white, Color(red: 0.85, green: 0.8, blue: 1.0), Palette.nebula],
-                                                    startPoint: .leading, endPoint: .trailing))
-                    .shadow(color: Palette.wax.opacity(0.7), radius: 14)
-                Text("Messages to your future self, sent across time. Once sealed, they stay sealed.")
-                    .font(.system(size: 15))
+                    .font(.system(size: 40, weight: .medium, design: .serif).italic())
+                    .foregroundStyle(Palette.gold)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                Text("MESSAGES TO YOUR FUTURE SELF")
+                    .font(.caption2.weight(.medium)).tracking(2)
+                    .foregroundStyle(Palette.ink)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Dear future me,")
+                    .font(.system(size: 28, weight: .semibold, design: .serif))
+                    .foregroundStyle(Palette.ink)
+                Text("Leave a thought, a plan, a promise or a reminder for the person you’ll become.")
                     .foregroundStyle(Palette.muted)
             }
 
@@ -90,7 +100,7 @@ struct ShelfView: View {
                 HStack(spacing: 16) {
                     OrbButtonFace(symbol: "mic.fill", size: 46, halo: false)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Launch a new capsule")
+                        Text("Record a message")
                             .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .foregroundStyle(Palette.ink)
                             .lineLimit(2)
@@ -133,11 +143,11 @@ struct ShelfView: View {
                 emptyState
             } else {
                 if !sealed.isEmpty {
-                    SectionTitle(text: "In orbit")
+                    SectionTitle(text: "Upcoming deliveries")
                     rows(sealed, now: now)
                 }
                 if !opened.isEmpty {
-                    SectionTitle(text: "Opened")
+                    SectionTitle(text: "Memory vault")
                     rows(opened, now: now)
                 }
                 if sealed.isEmpty && opened.isEmpty {
@@ -164,7 +174,7 @@ struct ShelfView: View {
         VStack(spacing: 14) {
             CapsuleOrb(opened: false, size: 120)
                 .padding(.top, 20)
-            Text("Your sky is empty")
+            Text("Your story starts here")
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .foregroundStyle(Palette.ink)
             Text("Record a message, choose when it comes back to you, and launch it. You won't hear it until it lands.")
