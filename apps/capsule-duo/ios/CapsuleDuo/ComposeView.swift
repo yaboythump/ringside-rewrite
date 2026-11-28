@@ -56,7 +56,7 @@ struct ComposeView: View {
     }
 
     private var canSeal: Bool {
-        guard recorder.hasRecording, !sealing else { return false }
+        guard (recorder.hasRecording || !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !photos.isEmpty), recorder.state != .recording, !sealing else { return false }
         if lockKind == .openWhen {
             return !openWhen.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
@@ -80,22 +80,22 @@ struct ComposeView: View {
                 if initialFocus == "Record" { detailsPane } else { recordPane }
             }
             .background(CosmicBackground())
-            .navigationTitle("New capsule")
+            .navigationTitle(initialFocus == "Write" ? "A Letter to Tomorrow" : initialFocus == "Schedule" ? "Seal & Send" : "Your Voice, Tomorrow")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        if recorder.hasRecording || !note.isEmpty { confirmingDiscard = true } else { close() }
+                        if recorder.hasRecording || !note.isEmpty || !photos.isEmpty { confirmingDiscard = true } else { close() }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Launch") { confirmingSeal = true }
+                    Button("Seal & Send") { confirmingSeal = true }
                         .fontWeight(.semibold)
                         .disabled(!canSeal)
                 }
             }
             .confirmationDialog("Throw this capsule away?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
-                Button("Discard recording", role: .destructive) { close() }
+                Button("Discard draft", role: .destructive) { close() }
                 Button("Keep editing", role: .cancel) {}
             }
             .alert("Seal this capsule?", isPresented: $confirmingSeal) {
@@ -114,19 +114,23 @@ struct ComposeView: View {
             }
         }
         .tint(Palette.wax)
-        .interactiveDismissDisabled(recorder.hasRecording)
+        .interactiveDismissDisabled(recorder.hasRecording || !note.isEmpty || !photos.isEmpty)
         .onChange(of: photoItems) { _, items in loadPhotos(items) }
         .onChange(of: recorder.state) { _, state in
             if state == .recorded, let url = recorder.fileURL { player.load(url) }
         }
         .onDisappear { player.stop() }
-        .onAppear { if initialFocus == "Write" { noteFocused = true } }
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-CapsuleWriteSnapshot") { note="Dear future me,\n\nRemember why you started. Keep a little room for the things you haven’t imagined yet." }
+        }
     }
 
     // MARK: Recording side
 
     private var recordPane: some View {
         VStack(spacing: 22) {
+            EnvelopeEmblem(size:115)
+            Text("A voice only you can leave.").font(.custom("Baskerville-Italic",size:25)).foregroundStyle(Palette.gold)
             SectionTitle(text: "Your message")
             Waveform(levels: recorder.levels, active: recorder.state == .recording)
                 .frame(height: 70)
@@ -148,7 +152,7 @@ struct ComposeView: View {
                 .accessibilityLabel("Stop recording")
                 Text("Recording… tap to stop")
                     .font(.system(size: 14))
-                    .foregroundStyle(Palette.nebula)
+                    .foregroundStyle(Palette.gold)
             case .recorded:
                 HStack(spacing: 28) {
                     Button { player.toggle() } label: {
@@ -203,6 +207,7 @@ struct ComposeView: View {
 
     private var detailsPane: some View {
         VStack(alignment: .leading, spacing: 18) {
+            if initialFocus == "Write" { stationery }
             SectionTitle(text: "Label")
             TextField("Give it a name (optional)", text: $title)
                 .font(.system(size: 17, design: .rounded))
@@ -238,12 +243,7 @@ struct ComposeView: View {
             }
             .card()
 
-            SectionTitle(text: "A note to go with it")
-            TextField("Write anything you want your future self to read", text: $note, axis: .vertical)
-                .focused($noteFocused)
-                .lineLimit(4...12)
-                .font(.system(size: 16, design: .rounded))
-                .card()
+            if initialFocus != "Write" { stationery }
 
             SectionTitle(text: "Photos")
             VStack(alignment: .leading, spacing: 12) {
@@ -271,19 +271,35 @@ struct ComposeView: View {
             .card()
 
             Button { confirmingSeal = true } label: {
-                Label("Seal & launch", systemImage: "paperplane.fill")
+                Label("Seal & Send", systemImage: "envelope.badge.shield.half.filled")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(GlowButtonStyle())
             .disabled(!canSeal)
 
-            if !recorder.hasRecording {
-                Text("Record your message first, then seal it.")
+            if !canSeal {
+                Text("Add a voice message, a written note or a photo, then choose when it arrives.")
                     .font(.system(size: 13))
                     .foregroundStyle(Palette.muted)
                     .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    private var stationery: some View {
+        VStack(alignment:.leading,spacing:12) {
+            HStack {
+                Text("Dear future me,").font(.custom("Baskerville-Italic",size:26)).foregroundStyle(Palette.gold)
+                Spacer()
+                PremiumIcon(name:"Write",size:26,gold:true)
+            }
+            TextField("Leave a thought, a promise, a little piece of today…",text:$note,axis:.vertical)
+                .focused($noteFocused).lineLimit(6...18)
+                .font(.custom("Baskerville",size:19,relativeTo:.body)).lineSpacing(6)
+                .foregroundStyle(Palette.ink).accessibilityLabel("Your letter")
+            GoldenUnderline().frame(width:140)
+            Text("With love, your past self.").font(.custom("Baskerville-Italic",size:17)).foregroundStyle(Palette.muted)
+        }.padding(20).background(GlassSurface(radius:20))
     }
 
     // MARK: Actions
@@ -306,19 +322,18 @@ struct ComposeView: View {
             ? .date(unlockDate)
             : .openWhen(openWhen.trimmingCharacters(in: .whitespacesAndNewlines))
         let duration = player.duration > 0 ? player.duration : recorder.elapsed
-        guard let file = recorder.takeFile() else {
-            errorMessage = CapsuleError.noRecording.localizedDescription
-            return
-        }
+        guard canSeal else { return }
+        let file = recorder.hasRecording ? recorder.fileURL : nil
         do {
             try store.seal(title: title, note: note, lock: lock, recording: file, duration: duration, photos: photos)
+            _ = recorder.takeFile()
         } catch {
             errorMessage = error.localizedDescription
             return
         }
         withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { sealing = true }
         Task {
-            if lockKind == .date { await store.requestNotificationPermission() }
+            if lockKind == .date { await store.requestNotificationPermission(); store.rescheduleReminders() }
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             dismiss()
         }
@@ -350,15 +365,15 @@ struct SealingOverlay: View {
                         .blur(radius: 6)
                         .offset(y: launch ? 150 : 40)
                         .opacity(launch ? 0.9 : 0)
-                    CapsuleOrb(opened: false, size: 170)
+                    EnvelopeEmblem(size:190)
                         .scaleEffect(appear ? (launch ? 0.18 : 1) : 1.8)
                         .offset(y: launch ? -340 : 0)
                         .opacity(appear ? 1 : 0)
                 }
                 .frame(height: 220)
                 VStack(spacing: 8) {
-                    Text(launch ? "Launched into the future" : "Sealed")
-                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    Text(launch ? "On its way to tomorrow" : "Sealed with care")
+                        .font(.custom("Baskerville-Italic",size:30))
                         .foregroundStyle(Palette.glow)
                         .shadow(color: Palette.wax.opacity(0.8), radius: 14)
                         .contentTransition(.opacity)

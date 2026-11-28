@@ -56,17 +56,16 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "Dear Tomorrow"
           /usr/libexec/PlistBuddy -c 'Print NSMicrophoneUsageDescription' "$app/Info.plist" | grep -q "future self"
-      - name: Open demo capsules in the simulator and keep screenshots
-        if: github.ref != 'refs/heads/main'
-        continue-on-error: true
+      - name: Verify capsule protection and capture the actual simulator interface
         run: |
-          set -uo pipefail
+          set -euo pipefail
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/devices.json"
           dev="$(xcrun simctl list devices available -j | python3 -c '
           import json,sys
           d=json.load(sys.stdin)["devices"]
           names=[x for r,l in d.items() if "iOS" in r for x in l]
           duo=[x for x in names if "Duo" in x["name"]]
-          pick=(duo or [x for x in names if "Pro" in x["name"]] or names)[0]
+          pick=([x for x in names if "Pro" in x["name"] and "Duo" not in x["name"]] or names)[0]
           print(pick["udid"], pick["name"], file=sys.stderr)
           print(pick["udid"])')"
           xcodebuild -project "$CD_PROJECT" -scheme CapsuleDuo -configuration Debug \
@@ -85,7 +84,12 @@ jobs:
             data="$(xcrun simctl get_app_container "$dev" $bundle data)"
             rm -f "$data"/tmp/snapshot-*.png "$data/tmp/layout.txt"
             xcrun simctl launch "$dev" $bundle -CapsuleSnapshot "$@"
-            sleep 18
+            sleep 12
+            xcrun simctl io "$dev" screenshot "$RUNNER_TEMP/shots/$name-system.png" >/dev/null 2>&1 || true
+            if [ "$name" = empty ]; then
+              cp "$data/tmp/verification.json" "$RUNNER_TEMP/shots/verification.json"
+              python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(d,indent=2)); assert d["passed"], "Capsule protection verification failed"' "$data/tmp/verification.json"
+            fi
             cat "$data/tmp/layout.txt" 2>/dev/null || true
             for f in "$data"/tmp/snapshot-*.png; do
               [ -s "$f" ] || continue
@@ -94,7 +98,12 @@ jobs:
               echo "BEGIN_PNG $name-$(basename "$f" .png)"; base64 -i "$out" | tr -d '\n'; echo; echo "END_PNG"
             done
           }
+          run empty -CapsuleVerify
           run shelf -CapsuleDemo
+          run write -CapsuleWrite -CapsuleWriteSnapshot
+          run scheduled -CapsuleDemo -CapsuleScheduled
+          run vault -CapsuleDemo -CapsuleVault
+          run settings -CapsuleSettings
           run sealed -CapsuleDemo -CapsuleSealedDemo
           run opened -CapsuleDemo -CapsuleOpenedDemo
           run compose -CapsuleDemo -CapsuleCompose
@@ -105,12 +114,12 @@ jobs:
           xcrun simctl spawn "$dev" log show --last 3m --predicate 'process == "CapsuleDuo"' --style compact 2>/dev/null \
             | grep -iE "fault|crash|error" | head -20 || true
       - uses: actions/upload-artifact@v4
-        if: always() && github.ref != 'refs/heads/main'
+        if: always()
         with:
           name: capsule-duo-simulator-screens
           path: ${{ runner.temp }}/shots
           retention-days: 14
-          if-no-files-found: ignore
+          if-no-files-found: error
       - name: Keep build log
         if: always()
         uses: actions/upload-artifact@v4

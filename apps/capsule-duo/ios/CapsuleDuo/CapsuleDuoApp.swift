@@ -6,6 +6,7 @@ import UserNotifications
 struct CapsuleDuoApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store: CapsuleStore
+    @State private var starting = !ProcessInfo.processInfo.arguments.contains("-CapsuleSnapshot")
 
     init() {
         if ProcessInfo.processInfo.arguments.contains("-CapsuleDemo") {
@@ -22,7 +23,15 @@ struct CapsuleDuoApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ShelfView()
+            ZStack {
+                ShelfView()
+                if starting { StartupView().transition(.opacity).zIndex(1) }
+            }
+                .task {
+                    guard starting else { return }
+                    try? await Task.sleep(nanoseconds:1_800_000_000)
+                    withAnimation(.easeOut(duration:0.35)) { starting=false }
+                }
                 .environmentObject(store)
                 .preferredColorScheme(.dark)
                 .task { await DebugSnapshot.runIfAsked() }
@@ -50,6 +59,9 @@ enum DebugSnapshot {
     @MainActor
     static func runIfAsked() async {
         guard ProcessInfo.processInfo.arguments.contains("-CapsuleSnapshot") else { return }
+        #if DEBUG
+        CapsuleVerification.runIfAsked()
+        #endif
         for (index, delay) in [5.0, 4.0].enumerated() {
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             save(name: "snapshot-\(index + 1)")
