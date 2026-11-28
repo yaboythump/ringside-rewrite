@@ -6,6 +6,7 @@ import UserNotifications
 struct CapsuleDuoApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store: CapsuleStore
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         if ProcessInfo.processInfo.arguments.contains("-CapsuleDemo") {
@@ -27,6 +28,11 @@ struct CapsuleDuoApp: App {
                 .preferredColorScheme(.dark)
                 .modifier(AppLockGate())
                 .task { await DebugSnapshot.runIfAsked() }
+                .task { CloudBackup.shared.start(with: store) }
+                .onChange(of: scenePhase) { _, phase in
+                    // Capsules become ready while the app is closed, so refresh the widgets.
+                    if phase == .active || phase == .background { CloudBackup.shared.refreshWidgets() }
+                }
         }
     }
 }

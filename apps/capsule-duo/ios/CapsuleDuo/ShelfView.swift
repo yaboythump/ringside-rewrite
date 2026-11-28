@@ -380,6 +380,7 @@ struct AboutView: View {
                     }
                     .padding(.vertical, 6)
                 }
+                BackupSettings()
                 RitualSettings()
                 LockSettings()
                 Section("How it works") {
@@ -395,7 +396,7 @@ struct AboutView: View {
                     Label("Make a capsule for someone else and send it by Messages, AirDrop or email. It stays sealed for them too", systemImage: "gift")
                 }
                 Section("Your data") {
-                    Text("Everything stays on this iPhone. There's no account, no server and no upload. Deleting the app deletes your capsules, so keep it installed.")
+                    Text("Your capsules live on this iPhone and, if iCloud backup is on, in your own private iCloud. There's no account and no Dear Tomorrow server. Capsules you send travel as a file through Messages, AirDrop or email.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section {
