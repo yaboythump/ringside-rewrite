@@ -54,7 +54,7 @@ jobs:
           app="$archive/Products/Applications/CapsuleDuo.app"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")" = "$CD_BUNDLE"
           test "$(/usr/libexec/PlistBuddy -c 'Print ITSAppUsesNonExemptEncryption' "$app/Info.plist")" = false
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "Capsule Duo"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$app/Info.plist")" = "Dear Tomorrow"
           /usr/libexec/PlistBuddy -c 'Print NSMicrophoneUsageDescription' "$app/Info.plist" | grep -q "future self"
       - name: Open demo capsules in the simulator and keep screenshots
         if: github.ref != 'refs/heads/main'

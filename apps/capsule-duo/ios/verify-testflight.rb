@@ -31,7 +31,7 @@ version = "#{ENV.fetch('GITHUB_RUN_NUMBER')}.#{ENV.fetch('GITHUB_RUN_ATTEMPT')}"
     result = {bundle: ENV.fetch('CD_BUNDLE'), version: version, build_id: build.fetch('id'), processing_state: status}
     File.write(File.join(ENV.fetch('RUNNER_TEMP'), 'capsule-duo-testflight-status.json'), JSON.pretty_generate(result))
     puts "Confirmed App Store Connect build #{version}: #{status}"
-    File.open(ENV.fetch('GITHUB_STEP_SUMMARY'), 'a') { |f| f.puts("Capsule Duo build **#{version}** confirmed in App Store Connect: **#{status}**.") }
+    File.open(ENV.fetch('GITHUB_STEP_SUMMARY'), 'a') { |f| f.puts("Dear Tomorrow build **#{version}** confirmed in App Store Connect: **#{status}**.") }
     abort('Apple marked the uploaded build invalid.') if %w[INVALID FAILED].include?(status)
     exit(0)
   end
