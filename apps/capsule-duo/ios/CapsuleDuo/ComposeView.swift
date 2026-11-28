@@ -77,7 +77,7 @@ struct ComposeView: View {
             } secondary: {
                 detailsPane
             }
-            .background(Palette.paper.ignoresSafeArea())
+            .background(CosmicBackground())
             .navigationTitle("New capsule")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -87,7 +87,7 @@ struct ComposeView: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Seal") { confirmingSeal = true }
+                    Button("Launch") { confirmingSeal = true }
                         .fontWeight(.semibold)
                         .disabled(!canSeal)
                 }
@@ -140,24 +140,17 @@ struct ComposeView: View {
                     .foregroundStyle(Palette.muted)
             case .recording:
                 Button { recorder.stop() } label: {
-                    ZStack {
-                        Circle().fill(Palette.wax).frame(width: 92, height: 92)
-                        RoundedRectangle(cornerRadius: 6).fill(.white).frame(width: 30, height: 30)
-                    }
+                    OrbButtonFace(symbol: "stop.fill", size: 96, active: true)
                 }
                 .accessibilityLabel("Stop recording")
                 Text("Recording… tap to stop")
                     .font(.system(size: 14))
-                    .foregroundStyle(Palette.wax)
+                    .foregroundStyle(Palette.nebula)
             case .recorded:
                 HStack(spacing: 28) {
                     Button { player.toggle() } label: {
-                        ZStack {
-                            Circle().fill(Palette.ink).frame(width: 72, height: 72)
-                            Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 26))
-                                .foregroundStyle(.white)
-                        }
+                        OrbButtonFace(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: 72,
+                                      active: player.isPlaying, colors: [Palette.cyan, Palette.wax])
                     }
                     .accessibilityLabel(player.isPlaying ? "Pause" : "Listen back")
                     Button {
@@ -187,7 +180,7 @@ struct ComposeView: View {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(GlowButtonStyle())
             }
         }
         .frame(maxWidth: .infinity)
@@ -198,13 +191,7 @@ struct ComposeView: View {
             player.stop()
             Task { await recorder.start() }
         } label: {
-            ZStack {
-                Circle().stroke(Palette.wax.opacity(0.25), lineWidth: 8).frame(width: 104, height: 104)
-                Circle().fill(Palette.wax).frame(width: 88, height: 88)
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
+            OrbButtonFace(symbol: "mic.fill", size: 96)
         }
         .accessibilityLabel("Start recording")
     }
@@ -215,7 +202,7 @@ struct ComposeView: View {
         VStack(alignment: .leading, spacing: 18) {
             SectionTitle(text: "Label")
             TextField("Give it a name (optional)", text: $title)
-                .font(.system(size: 17, design: .serif))
+                .font(.system(size: 17, design: .rounded))
                 .textInputAutocapitalization(.sentences)
                 .card()
 
@@ -240,9 +227,9 @@ struct ComposeView: View {
                         .foregroundStyle(Palette.ink)
                 } else {
                     TextField("Open when…", text: $openWhen)
-                        .font(.system(size: 16, design: .serif))
+                        .font(.system(size: 16, design: .rounded))
                         .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(Palette.paper))
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(0.07)))
                     FlowChips(items: Self.openWhenIdeas) { openWhen = $0 }
                 }
             }
@@ -251,7 +238,7 @@ struct ComposeView: View {
             SectionTitle(text: "A note to go with it")
             TextField("Write anything you want your future self to read", text: $note, axis: .vertical)
                 .lineLimit(4...12)
-                .font(.system(size: 16, design: .serif))
+                .font(.system(size: 16, design: .rounded))
                 .card()
 
             SectionTitle(text: "Photos")
@@ -280,12 +267,10 @@ struct ComposeView: View {
             .card()
 
             Button { confirmingSeal = true } label: {
-                Label("Seal capsule", systemImage: "seal.fill")
-                    .font(.system(size: 17, weight: .semibold))
+                Label("Seal & launch", systemImage: "paperplane.fill")
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(GlowButtonStyle())
             .disabled(!canSeal)
 
             if !recorder.hasRecording {
@@ -330,7 +315,7 @@ struct ComposeView: View {
         withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { sealing = true }
         Task {
             if lockKind == .date { await store.requestNotificationPermission() }
-            try? await Task.sleep(nanoseconds: 1_400_000_000)
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
             dismiss()
         }
     }
@@ -342,34 +327,54 @@ struct ComposeView: View {
     }
 }
 
-/// The wax seal pressing down after you seal a capsule.
+/// The capsule launching into the future after you seal it.
 struct SealingOverlay: View {
-    @State private var pressed = false
+    @State private var appear = false
+    @State private var launch = false
 
     var body: some View {
         ZStack {
-            Palette.paper.opacity(0.94).ignoresSafeArea()
-            VStack(spacing: 18) {
+            CosmicBackground().opacity(appear ? 1 : 0)
+            Color.black.opacity(0.25).ignoresSafeArea()
+            VStack(spacing: 22) {
                 ZStack {
-                    Circle().fill(Palette.wax).frame(width: 120, height: 120)
-                        .shadow(color: Palette.wax.opacity(0.4), radius: pressed ? 6 : 24, y: pressed ? 2 : 12)
-                    Image(systemName: "seal.fill")
-                        .font(.system(size: 54))
-                        .foregroundStyle(.white.opacity(0.85))
+                    // Engine trail.
+                    SwiftUI.Capsule()
+                        .fill(LinearGradient(colors: [Palette.nebula.opacity(0), Palette.nebula, Palette.gold, .white],
+                                             startPoint: .bottom, endPoint: .top))
+                        .frame(width: 26, height: launch ? 380 : 0)
+                        .blur(radius: 6)
+                        .offset(y: launch ? 150 : 40)
+                        .opacity(launch ? 0.9 : 0)
+                    CapsuleOrb(opened: false, size: 170)
+                        .scaleEffect(appear ? (launch ? 0.18 : 1) : 1.8)
+                        .offset(y: launch ? -340 : 0)
+                        .opacity(appear ? 1 : 0)
                 }
-                .scaleEffect(pressed ? 1 : 1.6)
-                .opacity(pressed ? 1 : 0)
-                Text("Sealed")
-                    .font(.system(size: 26, weight: .semibold, design: .serif))
-                    .foregroundStyle(Palette.ink)
-                    .opacity(pressed ? 1 : 0)
+                .frame(height: 220)
+                VStack(spacing: 8) {
+                    Text(launch ? "Launched into the future" : "Sealed")
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Palette.glow)
+                        .shadow(color: Palette.wax.opacity(0.8), radius: 14)
+                        .contentTransition(.opacity)
+                    Text("See you on the other side.")
+                        .font(.system(size: 15, design: .rounded))
+                        .foregroundStyle(Palette.muted)
+                        .opacity(launch ? 1 : 0)
+                }
+                .opacity(appear ? 1 : 0)
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.55)) { pressed = true }
             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.6)) { appear = true }
+            withAnimation(.easeIn(duration: 0.8).delay(0.45)) { launch = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+            }
         }
-        .accessibilityLabel("Capsule sealed")
+        .accessibilityLabel("Capsule sealed and launched")
     }
 }
 
@@ -381,7 +386,8 @@ struct Waveform: View {
         HStack(alignment: .center, spacing: 4) {
             ForEach(Array(levels.enumerated()), id: \.offset) { item in
                 SwiftUI.Capsule()
-                    .fill(active ? Palette.wax : Palette.ink.opacity(0.18))
+                    .fill(active ? AnyShapeStyle(Palette.glow) : AnyShapeStyle(Palette.ink.opacity(0.2)))
+                    .shadow(color: active ? Palette.wax.opacity(0.8) : .clear, radius: 4)
                     .frame(width: 4, height: max(4, CGFloat(item.element) * 70))
             }
         }
@@ -401,7 +407,7 @@ struct Chip: View {
                 .foregroundStyle(Palette.ink)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(SwiftUI.Capsule().fill(Palette.paper))
+                .background(SwiftUI.Capsule().fill(.white.opacity(0.08)))
                 .overlay(SwiftUI.Capsule().stroke(Palette.line, lineWidth: 1))
         }
         .buttonStyle(.plain)

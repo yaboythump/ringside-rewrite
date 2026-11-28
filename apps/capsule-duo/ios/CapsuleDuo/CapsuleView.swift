@@ -41,7 +41,7 @@ struct CapsuleView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Palette.paper.ignoresSafeArea())
+        .background(CosmicBackground())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -78,24 +78,30 @@ struct CapsuleView: View {
     private func sealedPane(_ capsule: Capsule, now: Date) -> some View {
         let openable = capsule.canOpen(at: now)
         return VStack(spacing: 20) {
-            EnvelopeMark(opened: false, ready: openable && capsule.unlockDate != nil, size: 140)
-                .scaleEffect(breaking ? 1.25 : 1)
-                .rotationEffect(.degrees(breaking ? -6 : 0))
-                .opacity(breaking ? 0 : 1)
-                .padding(.top, 24)
+            ZStack {
+                CapsuleOrb(opened: false, ready: openable && capsule.unlockDate != nil, size: 200,
+                           progress: capsule.progress(at: now))
+                    .scaleEffect(breaking ? 1.6 : 1)
+                    .opacity(breaking ? 0 : 1)
+                if breaking { Supernova() }
+            }
+            .padding(.top, 12)
             Text(capsule.displayTitle)
-                .font(.system(size: 26, weight: .semibold, design: .serif))
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Palette.ink)
             if let date = capsule.unlockDate {
                 if openable {
-                    Text("The day has come.")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Palette.wax)
+                    Text("It has landed. The day has come.")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.gold)
+                        .shadow(color: Palette.gold.opacity(0.7), radius: 10)
                 } else {
                     Text(CapsuleFormat.countdown(to: date, from: now))
-                        .font(.system(size: 20, weight: .medium, design: .rounded))
-                        .foregroundStyle(Palette.wax)
+                        .font(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Palette.glow)
+                        .shadow(color: Palette.wax.opacity(0.8), radius: 12)
+                        .multilineTextAlignment(.center)
                     Text(date.formatted(date: .complete, time: .shortened))
                         .font(.system(size: 14))
                         .foregroundStyle(Palette.muted)
@@ -103,25 +109,22 @@ struct CapsuleView: View {
                 }
             } else if let text = capsule.openWhenText {
                 Text("Open when \(text)")
-                    .font(.system(size: 18, design: .serif))
+                    .font(.system(size: 18, design: .rounded))
                     .italic()
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(Palette.wax)
+                    .foregroundStyle(Palette.glow)
             }
 
             if openable {
                 Button {
                     if capsule.openWhenText != nil { confirmingOpenWhen = true } else { breakSeal(capsule) }
                 } label: {
-                    Label("Break the seal", systemImage: "seal")
-                        .font(.system(size: 17, weight: .semibold))
-                        .padding(.horizontal, 26)
-                        .padding(.vertical, 12)
+                    Label("Open the capsule", systemImage: "sparkles")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(GlowButtonStyle(colors: [Palette.gold, Color(red: 1.0, green: 0.55, blue: 0.3), Palette.nebula]))
                 .disabled(breaking)
             } else {
-                Label("Sealed. No listening early.", systemImage: "lock.fill")
+                Label("In orbit. No listening early.", systemImage: "lock.fill")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(Palette.muted)
             }
@@ -146,10 +149,10 @@ struct CapsuleView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .card()
 
-            SectionTitle(text: "Sealed")
+            SectionTitle(text: "Launched")
             VStack(alignment: .leading, spacing: 6) {
                 Text(capsule.createdAt.formatted(date: .long, time: .shortened))
-                    .font(.system(size: 16, design: .serif))
+                    .font(.system(size: 16, design: .rounded))
                     .foregroundStyle(Palette.ink)
                 Text("by you, \(CapsuleFormat.ago(capsule.createdAt, from: now))")
                     .font(.system(size: 14))
@@ -172,7 +175,7 @@ struct CapsuleView: View {
         VStack(spacing: 20) {
             VStack(spacing: 6) {
                 Text(capsule.displayTitle)
-                    .font(.system(size: 26, weight: .semibold, design: .serif))
+                    .font(.system(size: 26, weight: .semibold, design: .rounded))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Palette.ink)
                 Text("You recorded this \(CapsuleFormat.ago(capsule.createdAt, from: now)), on \(capsule.createdAt.formatted(date: .long, time: .omitted)).")
@@ -189,20 +192,15 @@ struct CapsuleView: View {
                     .card()
             } else {
                 Button { player.toggle() } label: {
-                    ZStack {
-                        Circle().fill(Palette.wax).frame(width: 104, height: 104)
-                            .shadow(color: Palette.wax.opacity(0.3), radius: 14, y: 6)
-                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 38))
-                            .foregroundStyle(.white)
-                            .offset(x: player.isPlaying ? 0 : 3)
-                    }
+                    OrbButtonFace(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: 110,
+                                  active: player.isPlaying, colors: [Palette.cyan, Palette.wax])
                 }
                 .accessibilityLabel(player.isPlaying ? "Pause" : "Play your message")
 
                 VStack(spacing: 4) {
                     Slider(value: Binding(get: { player.currentTime }, set: { player.seek(to: $0) }),
                            in: 0...max(player.duration, 0.1))
+                        .tint(Palette.cyan)
                     HStack {
                         Text(CapsuleFormat.duration(player.currentTime))
                         Spacer()
@@ -230,7 +228,7 @@ struct CapsuleView: View {
             if !note.isEmpty {
                 SectionTitle(text: "Your note")
                 Text(note)
-                    .font(.system(size: 18, design: .serif))
+                    .font(.system(size: 18, design: .rounded))
                     .lineSpacing(5)
                     .foregroundStyle(Palette.ink)
                     .textSelection(.enabled)
@@ -252,9 +250,9 @@ struct CapsuleView: View {
             }
             if note.isEmpty && photos.isEmpty {
                 VStack(spacing: 10) {
-                    EnvelopeMark(opened: true, size: 60)
+                    CapsuleOrb(opened: true, size: 60)
                     Text("No note with this one. Just your voice.")
-                        .font(.system(size: 15, design: .serif))
+                        .font(.system(size: 15, design: .rounded))
                         .foregroundStyle(Palette.muted)
                 }
                 .frame(maxWidth: .infinity)
@@ -275,5 +273,37 @@ struct CapsuleView: View {
                 breaking = false
             }
         }
+    }
+}
+
+
+/// The burst of light when a capsule is opened.
+struct Supernova: View {
+    @State private var go = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(colors: [.white, Palette.gold, Palette.nebula.opacity(0)], center: .center,
+                                     startRadius: 0, endRadius: 120))
+                .frame(width: 240, height: 240)
+                .scaleEffect(go ? 1.8 : 0.2)
+                .opacity(go ? 0 : 1)
+            Circle()
+                .stroke(Palette.gold, lineWidth: 3)
+                .frame(width: 200, height: 200)
+                .scaleEffect(go ? 2.2 : 0.3)
+                .opacity(go ? 0 : 0.9)
+            ForEach(0..<14) { i in
+                Circle()
+                    .fill(i.isMultiple(of: 2) ? Palette.gold : Palette.cyan)
+                    .frame(width: 6, height: 6)
+                    .offset(x: go ? 150 : 10)
+                    .rotationEffect(.degrees(Double(i) / 14 * 360))
+                    .opacity(go ? 0 : 1)
+            }
+        }
+        .allowsHitTesting(false)
+        .onAppear { withAnimation(.easeOut(duration: 0.75)) { go = true } }
     }
 }

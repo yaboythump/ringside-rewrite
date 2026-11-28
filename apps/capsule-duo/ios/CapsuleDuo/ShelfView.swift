@@ -7,6 +7,14 @@ extension Capsule {
         return trimmed.isEmpty ? "Message from \(createdAt.formatted(date: .abbreviated, time: .omitted))" : trimmed
     }
 
+    /// How far along the wait is, for the orbit ring. Nil for "Open when…" and opened capsules.
+    func progress(at now: Date) -> Double? {
+        guard !isOpened, let date = unlockDate else { return nil }
+        let total = date.timeIntervalSince(createdAt)
+        guard total > 0 else { return 1 }
+        return min(1, max(0, now.timeIntervalSince(createdAt) / total))
+    }
+
     func statusLine(at now: Date) -> String {
         if let openedAt {
             return "Opened \(openedAt.formatted(date: .abbreviated, time: .omitted))"
@@ -38,7 +46,7 @@ struct ShelfView: View {
                     secondary(now: context.date)
                 }
             }
-            .background(Palette.paper.ignoresSafeArea())
+            .background(CosmicBackground())
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showingAbout = true } label: {
@@ -67,32 +75,35 @@ struct ShelfView: View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Capsule Duo")
-                    .font(.system(size: 34, weight: .bold, design: .serif))
-                    .foregroundStyle(Palette.ink)
-                Text("Messages to your future self. Once sealed, they stay sealed.")
+                    .font(.system(size: 38, weight: .heavy, design: .rounded))
+                    .foregroundStyle(LinearGradient(colors: [.white, Color(red: 0.85, green: 0.8, blue: 1.0), Palette.nebula],
+                                                    startPoint: .leading, endPoint: .trailing))
+                    .shadow(color: Palette.wax.opacity(0.7), radius: 14)
+                Text("Messages to your future self, sent across time. Once sealed, they stay sealed.")
                     .font(.system(size: 15))
                     .foregroundStyle(Palette.muted)
             }
 
             Button { composing = true } label: {
                 HStack(spacing: 16) {
-                    ZStack {
-                        Circle().fill(Palette.wax).frame(width: 58, height: 58)
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
+                    OrbButtonFace(symbol: "mic.fill", size: 54)
+                        .frame(width: 72, height: 72)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Record a new capsule")
-                            .font(.system(size: 18, weight: .semibold, design: .serif))
+                        Text("Launch a new capsule")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .foregroundStyle(Palette.ink)
                         Text("Say something to the person you'll be")
                             .font(.system(size: 13))
                             .foregroundStyle(Palette.muted)
                     }
                     Spacer(minLength: 0)
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Palette.ink)
+                        .padding(10)
+                        .background(Circle().fill(.white.opacity(0.1)))
                 }
-                .card()
+                .card(glow: Palette.nebula)
             }
             .buttonStyle(.plain)
 
@@ -124,7 +135,7 @@ struct ShelfView: View {
                 emptyState
             } else {
                 if !sealed.isEmpty {
-                    SectionTitle(text: "Sealed")
+                    SectionTitle(text: "In orbit")
                     rows(sealed, now: now)
                 }
                 if !opened.isEmpty {
@@ -153,12 +164,12 @@ struct ShelfView: View {
 
     private var emptyState: some View {
         VStack(spacing: 14) {
-            EnvelopeMark(opened: false, size: 64)
-                .padding(.top, 30)
-            Text("Nothing sealed yet")
-                .font(.system(size: 20, weight: .semibold, design: .serif))
+            CapsuleOrb(opened: false, size: 120)
+                .padding(.top, 20)
+            Text("Your sky is empty")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .foregroundStyle(Palette.ink)
-            Text("Record a message, choose when it unlocks, and seal it. You won't be able to listen until then.")
+            Text("Record a message, choose when it comes back to you, and launch it. You won't hear it until it lands.")
                 .font(.system(size: 14))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Palette.muted)
@@ -194,16 +205,16 @@ struct CapsuleRow: View {
     var body: some View {
         let ready = !capsule.isOpened && capsule.unlockDate != nil && capsule.canOpen(at: now)
         HStack(spacing: 14) {
-            EnvelopeMark(opened: capsule.isOpened, ready: ready)
+            CapsuleOrb(opened: capsule.isOpened, ready: ready, size: 56, progress: capsule.progress(at: now))
             VStack(alignment: .leading, spacing: 4) {
                 Text(capsule.displayTitle)
-                    .font(.system(size: 16, weight: .semibold, design: .serif))
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(Palette.ink)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 Text(capsule.statusLine(at: now))
                     .font(.system(size: 13))
-                    .foregroundStyle(ready ? Palette.wax : Palette.muted)
+                    .foregroundStyle(ready ? Palette.gold : Palette.muted)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             }
@@ -212,7 +223,7 @@ struct CapsuleRow: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Palette.muted)
         }
-        .card()
+        .card(glow: ready ? Palette.gold : nil)
         .accessibilityElement(children: .combine)
     }
 }
@@ -225,7 +236,7 @@ struct AboutView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Capsule Duo").font(.system(size: 28, weight: .bold, design: .serif))
+                        Text("Capsule Duo").font(.system(size: 28, weight: .bold, design: .rounded))
                         Text("Record a voice message for your future self, seal it, and open it when the day comes. Made for iPhone Duo: on the open phone, recording sits on one side of the fold and your notes on the other.")
                             .foregroundStyle(.secondary)
                     }

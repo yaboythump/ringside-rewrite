@@ -24,7 +24,7 @@ struct CapsuleDuoApp: App {
         WindowGroup {
             ShelfView()
                 .environmentObject(store)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
                 .task { await DebugSnapshot.runIfAsked() }
         }
     }
