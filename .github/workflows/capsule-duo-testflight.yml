@@ -73,12 +73,18 @@ jobs:
           }
           mkdir -p "$RUNNER_TEMP/shots"
           ruby -c apps/capsule-duo/ios/verify-testflight.rb
+          echo "Installed Xcode and Simulator components"
+          xcode-select -p
+          xcrun --find simctl
+          ls -d /Applications/Xcode*.app 2>/dev/null || true
+          simulator_app="$(find /Applications -maxdepth 6 -name Simulator.app -type d -print -quit 2>/dev/null)"
+          echo "Simulator application: ${simulator_app:-not installed}"
           sc list devices available -j > "$RUNNER_TEMP/devices.json"
           cp "$RUNNER_TEMP/devices.json" "$RUNNER_TEMP/shots/devices.json"
           dev="$(sc list devices available -j | python3 -c '
           import json,sys
           d=json.load(sys.stdin)["devices"]
-          names=[x for r,l in d.items() if "iOS" in r for x in l]
+          names=[x for r,l in sorted(d.items(), reverse=True) if "iOS" in r for x in l]
           duo=[x for x in names if "Duo" in x["name"]]
           pick=([x for x in names if "Pro" in x["name"] and "Duo" not in x["name"]] or names)[0]
           print(pick["udid"], pick["name"], file=sys.stderr)
@@ -100,10 +106,13 @@ jobs:
           dev="$(sc create "DearTomorrow-QA-$GITHUB_RUN_ID" "$device_type" "$runtime")"
           echo "Cold booting disposable simulator: $dev"
           sc boot "$dev" || true
-          /usr/bin/open -a "$DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$dev"
+          if [ -n "$simulator_app" ]; then /usr/bin/open -a "$simulator_app" --args -CurrentDeviceUDID "$dev"; fi
           sc bootstatus "$dev" -b
           echo "Checking simulator guest process responsiveness"
           sc spawn "$dev" launchctl getenv HOME
+          echo "Ad-hoc signing the isolated simulator build"
+          /usr/bin/codesign --force --deep --sign - "$app"
+          /usr/bin/codesign --verify --deep --strict "$app"
           echo "Installing isolated simulator build"
           echo "Fresh simulator has no previous app data"
           sc install "$dev" "$app"
@@ -164,7 +173,7 @@ jobs:
             read -r device_type runtime <<< "$spec"
             dev="$(sc create "DearTomorrow-Second-$GITHUB_RUN_ID" "$device_type" "$runtime")"
             sc boot "$dev" || true
-            /usr/bin/open -a "$DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$dev"
+            if [ -n "$simulator_app" ]; then /usr/bin/open -a "$simulator_app" --args -CurrentDeviceUDID "$dev"; fi
             sc bootstatus "$dev" -b
             sc terminate "$dev" "$bundle" >/dev/null 2>&1 || true
             sc install "$dev" "$app"
