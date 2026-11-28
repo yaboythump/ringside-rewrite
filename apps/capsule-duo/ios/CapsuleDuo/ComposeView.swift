@@ -55,6 +55,23 @@ struct ComposeView: View {
     @State private var sealing = false
     @State private var errorMessage: String?
     @State private var prompt: String?
+    @State private var mediaMode: MediaMode = .voice
+    @State private var videoURL: URL?
+    @State private var videoDuration: TimeInterval = 0
+    @State private var showingCamera = false
+    @State private var forSomeone = false
+    @State private var recipientName = ""
+    @State private var shareItem: ShareFile?
+    @AppStorage("dearTomorrowName") private var displayName = ""
+
+    enum MediaMode: String, CaseIterable, Identifiable {
+        case voice = "Voice", video = "Video"
+        var id: String { rawValue }
+    }
+
+    private var hasMessage: Bool {
+        mediaMode == .video ? videoURL != nil : recorder.hasRecording
+    }
     @State private var fold = FoldGesture()
     @State private var onDuo = false
 
@@ -63,7 +80,8 @@ struct ComposeView: View {
     }
 
     private var canSeal: Bool {
-        guard recorder.hasRecording, !sealing else { return false }
+        guard hasMessage, !sealing else { return false }
+        if forSomeone && recipientName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
         if lockKind == .openWhen {
             return !openWhen.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
@@ -92,7 +110,7 @@ struct ComposeView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        if recorder.hasRecording || !note.isEmpty { confirmingDiscard = true } else { close() }
+                        if hasMessage || !note.isEmpty { confirmingDiscard = true } else { close() }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -121,7 +139,21 @@ struct ComposeView: View {
             }
         }
         .tint(Palette.wax)
-        .interactiveDismissDisabled(recorder.hasRecording)
+        .interactiveDismissDisabled(hasMessage)
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraRecorder { url in
+                showingCamera = false
+                guard let url else { return }
+                if let old = videoURL { try? FileManager.default.removeItem(at: old) }
+                videoURL = url
+                Task { videoDuration = await VideoInfo.duration(of: url) }
+            }
+            .ignoresSafeArea()
+        }
+        .sheet(item: $shareItem, onDismiss: { dismiss() }) { item in
+            ShareSheet(url: item.url)
+                .presentationDetents([.medium, .large])
+        }
         .onChange(of: photoItems) { _, items in loadPhotos(items) }
         .onChange(of: recorder.state) { _, state in
             if state == .recorded, let url = recorder.fileURL { player.load(url) }
@@ -149,9 +181,18 @@ struct ComposeView: View {
     private var recordPane: some View {
         VStack(spacing: 22) {
             SectionTitle(text: "Your message")
+            if CameraRecorder.isAvailable && recorder.state != .recording {
+                Picker("Message type", selection: $mediaMode) {
+                    ForEach(MediaMode.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+            }
             if recorder.state != .denied {
                 PromptCard(prompt: $prompt)
             }
+            if mediaMode == .video {
+                videoSection
+            } else {
             Waveform(levels: recorder.levels, active: recorder.state == .recording)
                 .frame(height: 70)
 
@@ -209,8 +250,41 @@ struct ComposeView: View {
                 }
                 .buttonStyle(GlowButtonStyle())
             }
+            }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var videoSection: some View {
+        if let videoURL {
+            VideoMessage(url: videoURL)
+                .id(videoURL)
+                .frame(maxHeight: 360)
+            Button {
+                player.stop()
+                showingCamera = true
+            } label: {
+                Label("Record again", systemImage: "arrow.counterclockwise")
+                    .font(.system(size: 15, weight: .medium))
+            }
+            .foregroundStyle(Palette.ink)
+            Text("Watch it back now. After you seal it, it stays hidden until it opens.")
+                .font(.system(size: 14))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Palette.muted)
+        } else {
+            Button {
+                player.stop()
+                showingCamera = true
+            } label: {
+                OrbButtonFace(symbol: "video.fill", size: 96)
+            }
+            .accessibilityLabel("Record a video")
+            Text("Tap to record a video. Up to 10 minutes.")
+                .font(.system(size: 14))
+                .foregroundStyle(Palette.muted)
+        }
     }
 
     private var recordButton: some View {
@@ -232,6 +306,31 @@ struct ComposeView: View {
                 .font(.system(size: 17, design: .rounded))
                 .textInputAutocapitalization(.sentences)
                 .card()
+
+            SectionTitle(text: "Who is it for?")
+            VStack(alignment: .leading, spacing: 12) {
+                Picker("For", selection: $forSomeone) {
+                    Text("Future me").tag(false)
+                    Text("Someone else").tag(true)
+                }
+                .pickerStyle(.segmented)
+                if forSomeone {
+                    TextField("Their name", text: $recipientName)
+                        .font(.system(size: 16, design: .rounded))
+                        .textInputAutocapitalization(.words)
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(0.07)))
+                    TextField("Your name, as they'll see it", text: $displayName)
+                        .font(.system(size: 16, design: .rounded))
+                        .textInputAutocapitalization(.words)
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(0.07)))
+                    Text("After you seal it, you'll send it by Messages, AirDrop or email. They'll need Dear Tomorrow, and it stays sealed for them until the day comes.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.muted)
+                }
+            }
+            .card()
 
             SectionTitle(text: "When it opens")
             VStack(alignment: .leading, spacing: 14) {
@@ -308,7 +407,7 @@ struct ComposeView: View {
             .buttonStyle(GlowButtonStyle())
             .disabled(!canSeal)
 
-            if !recorder.hasRecording {
+            if !hasMessage {
                 Text("Record your message first, then seal it.")
                     .font(.system(size: 13))
                     .foregroundStyle(Palette.muted)
@@ -336,14 +435,31 @@ struct ComposeView: View {
         let lock: Capsule.Lock = lockKind == .date
             ? .date(unlockDate)
             : .openWhen(openWhen.trimmingCharacters(in: .whitespacesAndNewlines))
-        let duration = player.duration > 0 ? player.duration : recorder.elapsed
-        guard let file = recorder.takeFile() else {
+        let isVideo = mediaMode == .video
+        let duration = isVideo ? videoDuration : (player.duration > 0 ? player.duration : recorder.elapsed)
+        let recipient = forSomeone ? recipientName.trimmingCharacters(in: .whitespacesAndNewlines) : nil
+        let taken: URL?
+        if isVideo {
+            taken = videoURL
+            videoURL = nil
+        } else {
+            taken = recorder.takeFile()
+        }
+        guard let file = taken else {
             errorMessage = CapsuleError.noRecording.localizedDescription
             return
         }
         do {
-            try store.seal(title: title, note: note, lock: lock, recording: file, duration: duration, photos: photos,
-                           prompt: prompt, replyTo: replyTo)
+            let capsule = try store.seal(title: title, note: note, lock: lock, recording: file, duration: duration,
+                                         photos: photos, prompt: prompt, replyTo: replyTo,
+                                         isVideo: isVideo, recipient: recipient)
+            if recipient != nil {
+                let url = try store.exportFile(for: capsule, from: displayName)
+                Task {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    shareItem = ShareFile(url: url)
+                }
+            }
         } catch {
             errorMessage = error.localizedDescription
             return
@@ -352,13 +468,15 @@ struct ComposeView: View {
         Task {
             if lockKind == .date { await store.requestNotificationPermission() }
             try? await Task.sleep(nanoseconds: 2_000_000_000)
-            dismiss()
+            // Capsules for someone else close after the share sheet instead.
+            if !forSomeone { dismiss() }
         }
     }
 
     private func close() {
         player.stop()
         recorder.discard()
+        if let videoURL { try? FileManager.default.removeItem(at: videoURL) }
         dismiss()
     }
 }

@@ -25,6 +25,16 @@ struct Capsule: Codable, Identifiable, Hashable {
     var transcript: String? = nil
     /// The earlier capsule this one answers ("reply to your past self").
     var replyToID: UUID? = nil
+    /// A video message instead of a voice one.
+    var isVideo: Bool? = nil
+    /// Who you sent it to, if it's for someone else.
+    var recipient: String? = nil
+    /// Who sent it to you, if someone else recorded it.
+    var sender: String? = nil
+    /// The id of the original capsule, so the same file isn't added twice.
+    var originID: UUID? = nil
+
+    var hasVideo: Bool { isVideo == true }
 
     var isOpened: Bool { openedAt != nil }
 
@@ -93,6 +103,11 @@ final class CapsuleStore: ObservableObject {
         folder(for: capsule.id).appendingPathComponent("voice.m4a")
     }
 
+    /// The voice or video file.
+    func mediaURL(for capsule: Capsule) -> URL {
+        folder(for: capsule.id).appendingPathComponent(capsule.hasVideo ? "video.mov" : "voice.m4a")
+    }
+
     func photoURLs(for capsule: Capsule) -> [URL] {
         (0..<capsule.photoCount).map { folder(for: capsule.id).appendingPathComponent("photo-\($0).jpg") }
     }
@@ -128,15 +143,17 @@ final class CapsuleStore: ObservableObject {
     @discardableResult
     func seal(title: String, note: String, lock: Capsule.Lock,
               recording: URL?, duration: TimeInterval, photos: [Data],
-              prompt: String? = nil, replyTo: UUID? = nil) throws -> Capsule {
+              prompt: String? = nil, replyTo: UUID? = nil,
+              isVideo: Bool = false, recipient: String? = nil) throws -> Capsule {
         let fm = FileManager.default
         var capsule = Capsule(id: UUID(), title: title, note: note, createdAt: Date(), lock: lock,
                               openedAt: nil, duration: duration, photoCount: photos.count,
-                              prompt: prompt, replyToID: replyTo)
+                              prompt: prompt, replyToID: replyTo,
+                              isVideo: isVideo ? true : nil, recipient: recipient)
         try fm.createDirectory(at: folder(for: capsule.id), withIntermediateDirectories: true)
         if let recording {
             guard fm.fileExists(atPath: recording.path) else { throw CapsuleError.noRecording }
-            try fm.moveItem(at: recording, to: audioURL(for: capsule))
+            try fm.moveItem(at: recording, to: mediaURL(for: capsule))
         }
         for (index, data) in photos.enumerated() {
             try data.write(to: folder(for: capsule.id).appendingPathComponent("photo-\(index).jpg"),
@@ -154,7 +171,7 @@ final class CapsuleStore: ObservableObject {
     /// Writes out the voice message on this iPhone and saves it with the capsule.
     @discardableResult
     func transcribe(_ capsule: Capsule, askPermission: Bool) async -> Bool {
-        let url = audioURL(for: capsule)
+        let url = mediaURL(for: capsule)
         guard FileManager.default.fileExists(atPath: url.path),
               let text = await Transcriber.transcribe(url, askPermission: askPermission),
               var current = capsules.first(where: { $0.id == capsule.id }) else { return false }
@@ -183,6 +200,13 @@ final class CapsuleStore: ObservableObject {
         return result.sorted { $0.createdAt < $1.createdAt }
     }
 
+    /// Saves a capsule that was made elsewhere (one someone sent you) and sets its reminder.
+    func add(_ capsule: Capsule) throws {
+        try write(capsule)
+        capsules.sort { $0.createdAt > $1.createdAt }
+        scheduleReminder(for: capsule)
+    }
+
     func open(_ capsule: Capsule) {
         guard var current = capsules.first(where: { $0.id == capsule.id }),
               !current.isOpened, current.canOpen(at: Date()) else { return }
@@ -209,7 +233,7 @@ final class CapsuleStore: ObservableObject {
     private func scheduleReminder(for capsule: Capsule) {
         guard let date = capsule.unlockDate, date > Date() else { return }
         let content = UNMutableNotificationContent()
-        content.title = "A capsule just unsealed"
+        content.title = capsule.sender.map { "Your capsule from \($0) just unsealed" } ?? "A capsule just unsealed"
         content.body = capsule.title.isEmpty
             ? "You left yourself a message on \(capsule.createdAt.formatted(date: .long, time: .omitted)). It's ready."
             : "“\(capsule.title)” from \(capsule.createdAt.formatted(date: .long, time: .omitted)) is ready to open."
@@ -236,6 +260,9 @@ final class CapsuleStore: ObservableObject {
             Capsule(id: UUID(), title: "First week at the new place", note: "The boxes are still everywhere. Remember how scared you were? Look how far you've come.",
                     createdAt: now.addingTimeInterval(-380 * day), lock: .date(now.addingTimeInterval(-2 * day)),
                     openedAt: nil, duration: 94, photoCount: 0),
+            Capsule(id: UUID(), title: "For your 30th", note: "",
+                    createdAt: now.addingTimeInterval(-60 * day), lock: .date(now.addingTimeInterval(95 * day)),
+                    openedAt: nil, duration: 0, photoCount: 0, isVideo: true, sender: "Mom"),
             Capsule(id: UUID(), title: "Read this on a hard day", note: "",
                     createdAt: now.addingTimeInterval(-40 * day), lock: .openWhen("I'm stressed about money"),
                     openedAt: nil, duration: 61, photoCount: 0),
