@@ -9,6 +9,7 @@ struct CapsuleDuoApp: App {
     @State private var starting = !ProcessInfo.processInfo.arguments.contains("-CapsuleSnapshot")
 
     init() {
+        #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-CapsuleDemo") {
             // A throwaway store so simulator checks never touch real capsules.
             let demo = FileManager.default.temporaryDirectory.appendingPathComponent("DemoCapsules", isDirectory: true)
@@ -19,6 +20,9 @@ struct CapsuleDuoApp: App {
         } else {
             _store = StateObject(wrappedValue: CapsuleStore())
         }
+        #else
+        _store = StateObject(wrappedValue: CapsuleStore())
+        #endif
     }
 
     var body: some Scene {

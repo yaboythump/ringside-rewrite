@@ -348,6 +348,8 @@ struct ComposeView: View {
 
 /// The capsule launching into the future after you seal it.
 struct SealingOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var closed = false
     @State private var appear = false
     @State private var launch = false
 
@@ -365,7 +367,10 @@ struct SealingOverlay: View {
                         .blur(radius: 6)
                         .offset(y: launch ? 150 : 40)
                         .opacity(launch ? 0.9 : 0)
-                    EnvelopeEmblem(size:190)
+                    ZStack {
+                        Image("OpenedEnvelope").resizable().scaledToFit().opacity(closed ? 0 : 1)
+                        EnvelopeEmblem(size:190).opacity(closed ? 1 : 0)
+                    }.frame(width:190,height:190)
                         .scaleEffect(appear ? (launch ? 0.18 : 1) : 1.8)
                         .offset(y: launch ? -340 : 0)
                         .opacity(appear ? 1 : 0)
@@ -387,8 +392,9 @@ struct SealingOverlay: View {
         }
         .onAppear {
             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.6)) { appear = true }
-            withAnimation(.easeIn(duration: 0.8).delay(0.45)) { launch = true }
+            withAnimation(reduceMotion ? nil : .easeOut(duration:0.3)) {appear=true}
+            withAnimation(reduceMotion ? nil : .easeInOut(duration:0.4).delay(0.15)) {closed=true}
+            if !reduceMotion {withAnimation(.easeIn(duration:0.65).delay(0.7)) {launch=true}}
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
             }

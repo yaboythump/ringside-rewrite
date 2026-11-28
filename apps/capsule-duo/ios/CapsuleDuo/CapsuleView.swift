@@ -12,6 +12,7 @@ struct CapsuleView: View {
     @State private var confirmingDelete = false
     @State private var confirmingOpenWhen = false
     @State private var breaking = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -84,7 +85,9 @@ struct CapsuleView: View {
                     .rotation3DEffect(.degrees(breaking ? -35 : 0),axis:(x:1,y:0,z:0),anchor:.top)
                     .scaleEffect(breaking ? 1.2 : 1)
                     .opacity(breaking ? 0 : 1)
-                if breaking { Supernova() }
+                Image("OpenedEnvelope").resizable().scaledToFit().frame(width:200,height:200)
+                    .offset(y:breaking ? -8 : 12).opacity(breaking ? 1 : 0)
+                if breaking && !reduceMotion { Supernova() }
             }
             .padding(.top, 12)
             Text(capsule.displayTitle)
@@ -270,6 +273,8 @@ struct CapsuleView: View {
     // MARK: Actions
 
     private func breakSeal(_ capsule: Capsule) {
+        guard capsule.canOpen(at:Date()) else {return}
+        if reduceMotion {store.open(capsule);return}
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         withAnimation(.easeIn(duration: 0.6)) { breaking = true }
         Task {

@@ -309,7 +309,7 @@ enum CapsuleVerification {
             results["opening_persists"]=loadedAgain.capsule(id:voice.id)?.isOpened == true
             let now=Date()
             results["countdown_seconds_tick"]=CapsuleFormat.clock(to:now.addingTimeInterval(3661),from:now) == "01:01:01" && CapsuleFormat.clock(to:now.addingTimeInterval(3661),from:now.addingTimeInterval(1)) == "01:01:00"
-            for asset in ["EnvelopeEmblem","MountainSunrise","SunsetSkyline","PurpleGlass"] {results["compiled_asset_\(asset)"]=UIImage(named:asset) != nil}
+            for asset in ["EnvelopeEmblem","OpenedEnvelope","MountainSunrise","SunsetSkyline","PurpleGlass"] {results["compiled_asset_\(asset)"]=UIImage(named:asset) != nil}
         } catch {results["unexpected_error"]=false;print("Verification error: \(error)")}
         let output:[String:Any]=["passed":!results.isEmpty && results.values.allSatisfy{$0},"checks":results]
         if let data=try? JSONSerialization.data(withJSONObject:output,options:[.prettyPrinted,.sortedKeys]) {try? data.write(to:fm.temporaryDirectory.appendingPathComponent("verification.json"))}
