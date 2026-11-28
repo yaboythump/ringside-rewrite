@@ -74,8 +74,11 @@ struct ShelfView: View {
     private func primary(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(spacing: 12) {
-                Image(systemName: "envelope")
-                    .font(.system(size: 56, weight: .light))
+                ZStack(alignment: .bottom) {
+                    Image(systemName: "envelope").font(.system(size: 76, weight: .ultraLight))
+                    Image(systemName: "clock.fill").font(.system(size: 25)).padding(5)
+                        .background(Circle().fill(Palette.paper)).offset(y: 6)
+                }
                     .foregroundStyle(Palette.gold)
                     .shadow(color: Palette.gold.opacity(0.65), radius: 18)
                 Text("Dear Tomorrow")
@@ -115,6 +118,12 @@ struct ShelfView: View {
             }
             .buttonStyle(.plain)
 
+            Text("One day, your past will call.")
+                .font(.system(size: 19, design: .serif).italic())
+                .foregroundStyle(Palette.gold)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+
             let ready = store.capsules.filter { !$0.isOpened && $0.unlockDate != nil && $0.canOpen(at: now) }
             if !ready.isEmpty {
                 SectionTitle(text: "Ready to open")
@@ -139,6 +148,11 @@ struct ShelfView: View {
                 .filter(\.isOpened)
                 .sorted { ($0.openedAt ?? .distantPast) > ($1.openedAt ?? .distantPast) }
 
+            HStack(spacing: 8) {
+                statistic("envelope", "Total", store.capsules.count)
+                statistic("lock", "Sealed", store.capsules.filter { !$0.isOpened }.count)
+                statistic("envelope.open", "Opened", opened.count)
+            }
             if store.capsules.isEmpty {
                 emptyState
             } else {
@@ -157,6 +171,18 @@ struct ShelfView: View {
                 }
             }
         }
+    }
+
+    private func statistic(_ symbol: String, _ label: String, _ count: Int) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: symbol).foregroundStyle(Palette.gold)
+            Text(count.formatted()).font(.title2.bold()).foregroundStyle(Palette.ink)
+            Text(label).font(.caption).foregroundStyle(Palette.muted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Palette.card))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Palette.line))
     }
 
     private func rows(_ capsules: [Capsule], now: Date) -> some View {
@@ -213,7 +239,13 @@ struct CapsuleRow: View {
     var body: some View {
         let ready = !capsule.isOpened && capsule.unlockDate != nil && capsule.canOpen(at: now)
         HStack(spacing: 14) {
-            CapsuleOrb(opened: capsule.isOpened, ready: ready, size: 56, progress: capsule.progress(at: now))
+            ZStack {
+                RoundedRectangle(cornerRadius: 14).fill(Palette.gold.opacity(0.10))
+                Image(systemName: capsule.isOpened ? "envelope.open" : ready ? "envelope.badge" : "lock.envelope")
+                    .font(.system(size: 25, weight: .light))
+                    .foregroundStyle(Palette.gold)
+            }
+            .frame(width: 56, height: 56)
             VStack(alignment: .leading, spacing: 4) {
                 Text(capsule.displayTitle)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
