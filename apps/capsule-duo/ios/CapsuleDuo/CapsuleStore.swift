@@ -67,6 +67,8 @@ enum CapsuleError: LocalizedError {
 @MainActor
 final class CapsuleStore: ObservableObject {
     @Published private(set) var capsules: [Capsule] = []
+    /// Told about every saved or deleted capsule (id, deleted), for iCloud backup and widgets.
+    var onChange: ((UUID, Bool) -> Void)?
 
     let root: URL
     private let encoder: JSONEncoder = {
@@ -135,6 +137,7 @@ final class CapsuleStore: ObservableObject {
         } else {
             capsules.insert(capsule, at: 0)
         }
+        onChange?(capsule.id, false)
     }
 
     // MARK: Actions
@@ -218,6 +221,7 @@ final class CapsuleStore: ObservableObject {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [capsule.id.uuidString])
         try? FileManager.default.removeItem(at: folder(for: capsule.id))
         capsules.removeAll { $0.id == capsule.id }
+        onChange?(capsule.id, true)
     }
 
     func capsule(id: UUID) -> Capsule? {
