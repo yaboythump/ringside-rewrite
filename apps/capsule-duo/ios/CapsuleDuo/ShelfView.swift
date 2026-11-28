@@ -328,7 +328,7 @@ struct CapsuleRow: View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 14).fill(Palette.gold.opacity(0.10))
-                Image(systemName: capsule.isOpened ? "envelope.open" : ready ? "envelope.badge" : "lock.envelope")
+                Image(systemName: capsule.isOpened ? "envelope.open" : ready ? "envelope.badge" : capsule.hasVideo ? "video.fill" : "hourglass")
                     .font(.system(size: 25, weight: .light))
                     .foregroundStyle(Palette.gold)
             }
@@ -348,7 +348,11 @@ struct CapsuleRow: View {
             Spacer(minLength: 0)
             if !capsule.isOpened, let date = capsule.unlockDate, date > now {
                 let seconds = Int(ceil(date.timeIntervalSince(now)))
-                Text(String(format: "%02d:%02d:%02d", seconds / 3600, (seconds / 60) % 60, seconds % 60))
+                // A live clock for the last day; whole days before that.
+                Text(seconds >= 86_400 ? "\(seconds / 86_400)d"
+                     : String(format: "%02d:%02d:%02d", seconds / 3600, (seconds / 60) % 60, seconds % 60))
+                    .lineLimit(1)
+                    .fixedSize()
                     .font(.system(size: 12, weight: .semibold).monospacedDigit())
                     .foregroundStyle(Palette.ink).padding(7)
                     .background(SwiftUI.Capsule().fill(Color.purple.opacity(0.4)))
