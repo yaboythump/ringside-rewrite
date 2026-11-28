@@ -62,6 +62,7 @@ jobs:
           sc() {
             python3 - "$@" <<'PYSC'
           import subprocess,sys
+          print("simctl " + " ".join(sys.argv[1:]),file=sys.stderr,flush=True)
           try:
               result=subprocess.run(["xcrun","simctl",*sys.argv[1:]],timeout=(8 if sys.argv[1] == "io" else 240 if sys.argv[1] == "bootstatus" else 180 if sys.argv[1] in ("install", "launch") else 45))
               sys.exit(result.returncode)
@@ -79,7 +80,7 @@ jobs:
           d=json.load(sys.stdin)["devices"]
           names=[x for r,l in d.items() if "iOS" in r for x in l]
           duo=[x for x in names if "Duo" in x["name"]]
-          pick=(duo or [x for x in names if "Pro" in x["name"]] or names)[0]
+          pick=([x for x in names if "Pro" in x["name"] and "Duo" not in x["name"]] or names)[0]
           print(pick["udid"], pick["name"], file=sys.stderr)
           print(pick["udid"])')"
           xcodebuild -project "$CD_PROJECT" -scheme CapsuleDuo -configuration Debug \
@@ -99,7 +100,10 @@ jobs:
           dev="$(sc create "DearTomorrow-QA-$GITHUB_RUN_ID" "$device_type" "$runtime")"
           echo "Cold booting disposable simulator: $dev"
           sc boot "$dev" || true
+          /usr/bin/open -a "$DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$dev"
           sc bootstatus "$dev" -b
+          echo "Checking simulator guest process responsiveness"
+          sc spawn "$dev" launchctl getenv HOME
           echo "Installing isolated simulator build"
           echo "Fresh simulator has no previous app data"
           sc install "$dev" "$app"
@@ -160,6 +164,7 @@ jobs:
             read -r device_type runtime <<< "$spec"
             dev="$(sc create "DearTomorrow-Second-$GITHUB_RUN_ID" "$device_type" "$runtime")"
             sc boot "$dev" || true
+            /usr/bin/open -a "$DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$dev"
             sc bootstatus "$dev" -b
             sc terminate "$dev" "$bundle" >/dev/null 2>&1 || true
             sc install "$dev" "$app"
