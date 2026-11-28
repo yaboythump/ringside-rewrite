@@ -16,6 +16,11 @@ extension Capsule {
     }
 
     func statusLine(at now: Date) -> String {
+        let who = sender.map { "From \($0) · " } ?? recipient.map { "To \($0) · " } ?? ""
+        return who + baseStatus(at: now)
+    }
+
+    private func baseStatus(at now: Date) -> String {
         if let openedAt {
             return "Opened \(openedAt.formatted(date: .abbreviated, time: .omitted))"
         }
@@ -35,6 +40,7 @@ struct ShelfView: View {
     @State private var composing = false
     @State private var composeFocus = "Record"
     @State private var composePrompt: String?
+    @State private var importError: String?
     @State private var destination = "Home"
     @AppStorage("dearTomorrowName") private var displayName = ""
     @State private var profile = false
@@ -72,6 +78,20 @@ struct ShelfView: View {
         .tint(Palette.wax)
         .fullScreenCover(isPresented: $composing) {
             ComposeView(initialFocus: composeFocus, initialPrompt: composePrompt)
+        }
+        .onOpenURL { url in
+            do {
+                let capsule = try store.importCapsule(from: url)
+                destination = "Home"
+                selected = capsule.id
+            } catch {
+                importError = error.localizedDescription
+            }
+        }
+        .alert("Couldn't add this capsule", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importError ?? "")
         }
         .onReceive(NotificationCenter.default.publisher(for: .dearTomorrowRitual)) { _ in
             composePrompt = Prompts.ritual
@@ -308,7 +328,7 @@ struct CapsuleRow: View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 14).fill(Palette.gold.opacity(0.10))
-                Image(systemName: capsule.isOpened ? "envelope.open" : ready ? "envelope.badge" : "lock.envelope")
+                Image(systemName: capsule.isOpened ? "envelope.open" : ready ? "envelope.badge" : capsule.hasVideo ? "video.fill" : "hourglass")
                     .font(.system(size: 25, weight: .light))
                     .foregroundStyle(Palette.gold)
             }
@@ -328,7 +348,11 @@ struct CapsuleRow: View {
             Spacer(minLength: 0)
             if !capsule.isOpened, let date = capsule.unlockDate, date > now {
                 let seconds = Int(ceil(date.timeIntervalSince(now)))
-                Text(String(format: "%02d:%02d:%02d", seconds / 3600, (seconds / 60) % 60, seconds % 60))
+                // A live clock for the last day; whole days before that.
+                Text(seconds >= 86_400 ? "\(seconds / 86_400)d"
+                     : String(format: "%02d:%02d:%02d", seconds / 3600, (seconds / 60) % 60, seconds % 60))
+                    .lineLimit(1)
+                    .fixedSize()
                     .font(.system(size: 12, weight: .semibold).monospacedDigit())
                     .foregroundStyle(Palette.ink).padding(7)
                     .background(SwiftUI.Capsule().fill(Color.purple.opacity(0.4)))
@@ -367,6 +391,8 @@ struct AboutView: View {
                     Label("Read any opened message as text, written out on this iPhone", systemImage: "text.quote")
                     Label("On iPhone Duo, fold the phone closed to seal a capsule, and unfold it to open one that's ready", systemImage: "iphone")
                     Label("Add a written note and photos that appear when you open it", systemImage: "photo.on.rectangle")
+                    Label("Record a video instead of a voice message", systemImage: "video")
+                    Label("Make a capsule for someone else and send it by Messages, AirDrop or email. It stays sealed for them too", systemImage: "gift")
                 }
                 Section("Your data") {
                     Text("Everything stays on this iPhone. There's no account, no server and no upload. Deleting the app deletes your capsules, so keep it installed.")

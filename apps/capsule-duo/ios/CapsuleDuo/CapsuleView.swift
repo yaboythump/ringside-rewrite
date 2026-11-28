@@ -17,6 +17,8 @@ struct CapsuleView: View {
     @State private var transcriptFailed = false
     @State private var fold = FoldGesture()
     @State private var onDuo = false
+    @State private var shareItem: ShareFile?
+    @AppStorage("dearTomorrowName") private var displayName = ""
 
     var body: some View {
         Group {
@@ -51,6 +53,13 @@ struct CapsuleView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    if let capsule = store.capsule(id: capsuleID), let recipient = capsule.recipient {
+                        Button("Send to \(recipient) again", systemImage: "square.and.arrow.up") {
+                            if let url = try? store.exportFile(for: capsule, from: displayName) {
+                                shareItem = ShareFile(url: url)
+                            }
+                        }
+                    }
                     Button("Delete capsule", systemImage: "trash", role: .destructive) { confirmingDelete = true }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -59,6 +68,9 @@ struct CapsuleView: View {
             }
         }
         .onDisappear { player.stop() }
+        .sheet(item: $shareItem) { item in
+            ShareSheet(url: item.url).presentationDetents([.medium, .large])
+        }
         .fullScreenCover(isPresented: $replying) {
             ComposeView(replyTo: capsuleID, initialPrompt: Prompts.reply)
         }
@@ -108,6 +120,15 @@ struct CapsuleView: View {
                 .font(.system(size: 26, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Palette.ink)
+            if let sender = capsule.sender {
+                Label("From \(sender)", systemImage: "gift.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.gold)
+            } else if let recipient = capsule.recipient {
+                Label("Sent to \(recipient)", systemImage: "paperplane.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.gold)
+            }
             if let date = capsule.unlockDate {
                 if openable {
                     Text("It has landed. The day has come.")
@@ -159,7 +180,12 @@ struct CapsuleView: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionTitle(text: "Inside")
             VStack(alignment: .leading, spacing: 12) {
-                Label("A \(CapsuleFormat.duration(capsule.duration)) voice message", systemImage: "waveform")
+                if capsule.hasVideo {
+                    Label(capsule.duration > 0 ? "A \(CapsuleFormat.duration(capsule.duration)) video message" : "A video message",
+                          systemImage: "video")
+                } else {
+                    Label("A \(CapsuleFormat.duration(capsule.duration)) voice message", systemImage: "waveform")
+                }
                 if capsule.replyToID != nil {
                     Label("A reply to your past self", systemImage: "arrowshape.turn.up.left")
                 }
@@ -180,7 +206,7 @@ struct CapsuleView: View {
                 Text(capsule.createdAt.formatted(date: .long, time: .shortened))
                     .font(.system(size: 16, design: .rounded))
                     .foregroundStyle(Palette.ink)
-                Text("by you, \(CapsuleFormat.ago(capsule.createdAt, from: now))")
+                Text("by \(capsule.sender ?? "you"), \(CapsuleFormat.ago(capsule.createdAt, from: now))")
                     .font(.system(size: 14))
                     .foregroundStyle(Palette.muted)
             }
@@ -204,7 +230,7 @@ struct CapsuleView: View {
                     .font(.system(size: 26, weight: .semibold, design: .rounded))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Palette.ink)
-                Text("You recorded this \(CapsuleFormat.ago(capsule.createdAt, from: now)), on \(capsule.createdAt.formatted(date: .long, time: .omitted)).")
+                Text("\(capsule.sender ?? "You") recorded this \(CapsuleFormat.ago(capsule.createdAt, from: now)), on \(capsule.createdAt.formatted(date: .long, time: .omitted)).")
                     .font(.system(size: 14))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Palette.muted)
@@ -218,7 +244,17 @@ struct CapsuleView: View {
             }
             .padding(.top, 16)
 
-            if player.missing {
+            if capsule.hasVideo {
+                if FileManager.default.fileExists(atPath: store.mediaURL(for: capsule).path) {
+                    VideoMessage(url: store.mediaURL(for: capsule))
+                        .frame(maxHeight: 420)
+                } else {
+                    Label("The video couldn't be found on this iPhone.", systemImage: "exclamationmark.triangle")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Palette.muted)
+                        .card()
+                }
+            } else if player.missing {
                 Label("The recording couldn't be found on this iPhone.", systemImage: "exclamationmark.triangle")
                     .font(.system(size: 14))
                     .foregroundStyle(Palette.muted)
@@ -250,16 +286,18 @@ struct CapsuleView: View {
                     .foregroundStyle(Palette.muted)
             }
 
-            Button {
-                player.stop()
-                replying = true
-            } label: {
-                Label("Reply to your past self", systemImage: "arrowshape.turn.up.left.fill")
+            if capsule.sender == nil {
+                Button {
+                    player.stop()
+                    replying = true
+                } label: {
+                    Label("Reply to your past self", systemImage: "arrowshape.turn.up.left.fill")
+                }
+                .buttonStyle(GlowButtonStyle(colors: [Palette.gold, Palette.wax, Palette.nebula]))
             }
-            .buttonStyle(GlowButtonStyle(colors: [Palette.gold, Palette.wax, Palette.nebula]))
         }
         .frame(maxWidth: .infinity)
-        .onAppear { player.load(store.audioURL(for: capsule)) }
+        .onAppear { if !capsule.hasVideo { player.load(store.audioURL(for: capsule)) } }
     }
 
     private func notePane(_ capsule: Capsule) -> some View {
@@ -325,7 +363,7 @@ struct CapsuleView: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .card()
-        } else if !player.missing {
+        } else if FileManager.default.fileExists(atPath: store.mediaURL(for: capsule).path) {
             Button {
                 transcribing = true
                 transcriptFailed = false
